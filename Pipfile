@@ -7,6 +7,8 @@ name = "pypi"
 numpy = "*"
 pandas = "*"
 requests = "*"
+renewables-permitting = {file = ".", editable = true}
+pyarrow = "*"
 
 [dev-packages]
 ipykernel = "*"
