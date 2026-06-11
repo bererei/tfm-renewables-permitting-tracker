@@ -1,4 +1,7 @@
 from typing import Any
+from pathlib import Path
+import pandas as pd
+
 
 def as_list(value: Any) -> list[Any]:
     """
@@ -24,3 +27,33 @@ def as_list(value: Any) -> list[Any]:
         return []
 
     return value if isinstance(value, list) else [value]
+
+
+
+def save_parquet(
+    df: pd.DataFrame,
+    path: Path,
+    *,
+    index: bool = False,
+) -> None:
+    """
+    Guarda un DataFrame en formato Parquet creando los
+    directorios necesarios si no existen.
+
+    Parameters
+    ----------
+    df : pd.DataFrame
+        DataFrame a guardar.
+
+    path : Path
+        Ruta destino del fichero parquet.
+
+    index : bool, default=False
+        Indica si debe persistirse el índice.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    df.to_parquet(
+        path,
+        index=index,
+    )
