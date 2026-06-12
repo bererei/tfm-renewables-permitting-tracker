@@ -30,6 +30,14 @@ def as_list(value: Any) -> list[Any]:
 
 
 
+def validate_required_columns(df: pd.DataFrame, required_cols: set[str]) -> None:
+    missing_cols = required_cols - set(df.columns)
+
+    if missing_cols:
+        raise ValueError(f"Faltan columnas obligatorias: {sorted(missing_cols)}")
+
+
+
 def save_parquet(
     df: pd.DataFrame,
     path: Path,
