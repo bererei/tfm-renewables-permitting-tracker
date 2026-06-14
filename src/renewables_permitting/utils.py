@@ -1,6 +1,8 @@
 from typing import Any
 from pathlib import Path
 import pandas as pd
+import re
+import unicodedata
 
 
 def as_list(value: Any) -> list[Any]:
@@ -65,3 +67,28 @@ def save_parquet(
         path,
         index=index,
     )
+
+
+def clean_text(text: str) -> str:
+    """
+    Limpieza ligera conservando el contenido original.
+    """
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
+
+
+def normalize_text(text: str | None) -> str:
+    """
+    Normalización para búsquedas y matching.
+    """
+    if text is None or pd.isna(text):
+        return ""
+    text = str(text).lower()
+    text = (
+        unicodedata.normalize("NFKD", text)
+        .encode("ascii", errors="ignore")
+        .decode("utf-8")
+    )
+    text = re.sub(r"[^a-z0-9]+", " ", text)
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()
