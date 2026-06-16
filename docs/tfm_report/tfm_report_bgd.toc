@@ -1,0 +1,32 @@
+\selectlanguage *{spanish}
+\bgroup 
+\egroup 
+\contentsline {chapter}{\numberline {1}Aspecto}{1}{chapter.1}%
+\bgroup 
+\egroup 
+\contentsline {section}{\numberline {1.1}Primera sección}{2}{section.1.1}%
+\bgroup 
+\egroup 
+\contentsline {section}{\numberline {1.2}Segunda sección}{3}{section.1.2}%
+\bgroup 
+\egroup 
+\contentsline {subsection}{\numberline {1.2.1}Subsección}{4}{subsection.1.2.1}%
+\bgroup 
+\egroup 
+\contentsline {chapter}{\numberline {2}Algunos elementos}{6}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Configuración}{6}{section.2.1}%
+\contentsline {section}{\numberline {2.2}Colores}{6}{section.2.2}%
+\contentsline {section}{\numberline {2.3}Listas y enumeraciones}{7}{section.2.3}%
+\contentsline {section}{\numberline {2.4}Elementos flotantes}{8}{section.2.4}%
+\contentsline {subsection}{\numberline {2.4.1}Tablas}{8}{subsection.2.4.1}%
+\contentsline {subsection}{\numberline {2.4.2}Figuras}{8}{subsection.2.4.2}%
+\contentsline {section}{\numberline {2.5}Algoritmos y código}{10}{section.2.5}%
+\contentsline {section}{\numberline {2.6}Bibliografía}{12}{section.2.6}%
+\contentsline {section}{\numberline {2.7}Notación matemática}{12}{section.2.7}%
+\contentsline {chapter}{\numberline {3}Marcas y ayudas}{13}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Figuras}{13}{section.3.1}%
+\contentsline {chapter}{\numberline {A}Anexo 1}{14}{appendix.A}%
+\bgroup 
+\egroup 
+\contentsline {chapter}{Referencia bibliográfica}{15}{appendix*.14}%
+\contentsfinish 
