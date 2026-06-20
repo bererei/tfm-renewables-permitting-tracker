@@ -1,16 +1,16 @@
 # Fdb version 3
-["bibtex tfm_report_bgd"] 1781608131 "tfm_report_bgd.aux" "tfm_report_bgd.bbl" "tfm_report_bgd" 1781608212
+["bibtex tfm_report_bgd"] 1781779828 "tfm_report_bgd.aux" "tfm_report_bgd.bbl" "tfm_report_bgd" 1781779965
   "/usr/share/texlive/texmf-dist/bibtex/bst/base/apalike.bst" 1292289607 24635 604dafcc79f521a11ea73e506e1fbd98 ""
   "bib/ref.bib" 1781600584 2215 4ff8e4d635c7b8165ea17050065c13dd ""
-  "tfm_report_bgd.aux" 1781608211 7455 177329ed5a65af9a992ee7f2399517e7 "xelatex"
+  "tfm_report_bgd.aux" 1781779964 7275 db2aebf08c205000d299017f97fc6f18 "xelatex"
   (generated)
   "tfm_report_bgd.bbl"
   "tfm_report_bgd.blg"
-["xdvipdfmx"] 1781608211 "tfm_report_bgd.xdv" "tfm_report_bgd.pdf" "tfm_report_bgd" 1781608212
-  "tfm_report_bgd.xdv" 1781608211 381088 0295dfdd45fcdb5fba77ecc8f981e287 "xelatex"
+["xdvipdfmx"] 1781779964 "tfm_report_bgd.xdv" "tfm_report_bgd.pdf" "tfm_report_bgd" 1781779965
+  "tfm_report_bgd.xdv" 1781779964 349124 ab5385d8a78c681a93b3674f80088993 "xelatex"
   (generated)
   "tfm_report_bgd.pdf"
-["xelatex"] 1781608210 "/home/bgonzale/CiDaeN/15_TrabajoFinMaster/tfm-renewables-permitting-tracker/docs/tfm_report/tfm_report_bgd.tex" "tfm_report_bgd.xdv" "tfm_report_bgd" 1781608212
+["xelatex"] 1781779963 "/home/bgonzale/CiDaeN/15_TrabajoFinMaster/tfm-renewables-permitting-tracker/docs/tfm_report/tfm_report_bgd.tex" "tfm_report_bgd.xdv" "tfm_report_bgd" 1781779965
   "/etc/texmf/web2c/texmf.cnf" 1781604854 475 c0e671620eb5563b2130f56340a5fde8 ""
   "/home/bgonzale/CiDaeN/15_TrabajoFinMaster/tfm-renewables-permitting-tracker/docs/tfm_report/tfm_report_bgd.tex" 1781600584 2059 07cc9370a671ee5d4f261bf24cf746a3 ""
   "/usr/share/texlive/texmf-dist/fonts/map/fontname/texfonts.map" 1577235249 3524 cb3e574dea2d1052e39280babc910dc8 ""
@@ -212,7 +212,7 @@
   "/usr/share/texlive/texmf-dist/web2c/texmf.cnf" 1644012257 39432 7155514e09a3d69036fac785183a21c2 ""
   "/usr/share/texmf/web2c/texmf.cnf" 1644012257 39432 7155514e09a3d69036fac785183a21c2 ""
   "/var/lib/texmf/web2c/xetex/xelatex.fmt" 1781605634 3665870 532d1461402456afbc09668b01c8b016 ""
-  "chapters/ch1.tex" 1781600584 148 8a3f5fcf53ec58470b4b70561faad3e0 ""
+  "chapters/ch1.tex" 1781779963 312 8fa4cd5fce36fffb7c37e34692224e60 ""
   "chapters/ch2.tex" 1781600584 11160 68d8830105d77e5b981c5da907924267 ""
   "chapters/ch3.tex" 1781600584 970 8935459fdf74a9e8585acbbeefb80f16 ""
   "elements/portada.tex" 1781607886 1422 0cf5639d792f215cf205742c80715a0a ""
@@ -222,16 +222,16 @@
   "figs/logouclm.png" 1781600584 36267 80506cd0456c69ca54cd303d85be1e51 ""
   "include/colores.tex" 1781600584 1437 97e1f714557402b958f78e617b0eacff ""
   "include/configuracion.tex" 1781600584 10944 3411009382de7525d44b54465c01849d ""
-  "include/opciones.tex" 1781608209 941 146b0d2249882e5cfebcea71dd324dbf ""
-  "tfm_report_bgd.aux" 1781608211 7455 177329ed5a65af9a992ee7f2399517e7 "xelatex"
-  "tfm_report_bgd.bbl" 1781608131 387 f0810d5f7e3c373833f9b949d3b5a37b "bibtex tfm_report_bgd"
-  "tfm_report_bgd.loalgorithm" 1781608211 232 965c3676747082ad9b65b4b2049573b8 "xelatex"
-  "tfm_report_bgd.locode" 1781608211 227 e6d913a96a8815b5b839e69bd27043c3 "xelatex"
-  "tfm_report_bgd.lof" 1781608211 587 bf5495b4c7994e9f39b8c7b6e564b427 "xelatex"
-  "tfm_report_bgd.lot" 1781608211 336 6ec4f9781bd4f09c94ea12842cd4ab18 "xelatex"
-  "tfm_report_bgd.out" 1781608211 2222 b90be64ae11a2819de8e1ad0b0fe5ae2 "xelatex"
+  "include/opciones.tex" 1781608428 930 d3453cb477b3efbf89426232de1c1ea5 ""
+  "tfm_report_bgd.aux" 1781779964 7275 db2aebf08c205000d299017f97fc6f18 "xelatex"
+  "tfm_report_bgd.bbl" 1781779828 387 f0810d5f7e3c373833f9b949d3b5a37b "bibtex tfm_report_bgd"
+  "tfm_report_bgd.loalgorithm" 1781779964 232 7ee2f2aaffdb2b27a9b19eb111492313 "xelatex"
+  "tfm_report_bgd.locode" 1781779964 227 fa5b3efbec78038a59e655768b152ff8 "xelatex"
+  "tfm_report_bgd.lof" 1781779964 568 b5213deeebb9acbe32716c67f60a32ba "xelatex"
+  "tfm_report_bgd.lot" 1781779964 317 a76d30c35bbda0921849e23ad111e34c "xelatex"
+  "tfm_report_bgd.out" 1781779964 2288 748357a7a81ea0e8d1c210536be074b7 "xelatex"
   "tfm_report_bgd.tex" 1781600584 2059 07cc9370a671ee5d4f261bf24cf746a3 ""
-  "tfm_report_bgd.toc" 1781608211 1488 d5e1701f64e1f77cbdfbc990f097e4ad "xelatex"
+  "tfm_report_bgd.toc" 1781779964 1481 688d6a40b8d452b30a58dd84a6940dca "xelatex"
   (generated)
   "tfm_report_bgd.aux"
   "tfm_report_bgd.loalgorithm"
