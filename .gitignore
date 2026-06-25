@@ -1,5 +1,18 @@
 # Personal - Development
 delete/
+# Ignorar todo el contenido de data
+data/**
+# Conservar la estructura de directorios
+!data/bronze/
+!data/silver/
+!data/gold/
+# Conservar los .gitkeep
+!data/bronze/.gitkeep
+!data/silver/.gitkeep
+!data/gold/.gitkeep
+# Conservar todo el contenido de localizaciones_ine
+!data/bronze/localizaciones_ine/
+!data/bronze/localizaciones_ine/**
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -28,7 +41,6 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
-data/
 
 # PyInstaller
 #   Usually these files are written by a python script from a template
