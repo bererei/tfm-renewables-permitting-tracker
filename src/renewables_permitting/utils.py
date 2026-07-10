@@ -15,16 +15,20 @@ import unicodedata
 
 def is_null_like(value: Any) -> bool:
     """
-    Indica si un valor debe tratarse como nulo.
+    Indica si un valor escalar debe tratarse como nulo.
 
-    Cubre nulos habituales de Python y pandas: `None`, `NaN`, `NaT` y `pd.NA`.
+    Reconoce `None`, `NaN`, `NaT` y `pd.NA`. Si el valor no es escalar,
+    devuelve `False`.
 
     Examples
     --------
     >>> is_null_like(None)
     True
 
-    >>> is_null_like("BOE-A-2024-9608")
+    >>> is_null_like(float("nan"))
+    True
+
+    >>> is_null_like("Huelva")
     False
     """
     if value is None:
