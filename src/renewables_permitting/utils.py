@@ -245,6 +245,23 @@ def clean_text(text: str | None) -> str:
     return text.strip()
 
 
+def clean_text_or_none(
+    text: str | None,
+) -> str | None:
+    """
+    Limpia un texto y conserva la ausencia como None.
+
+    Devuelve None si el valor es nulo o si, después de limpiar
+    los espacios, no queda contenido.
+    """
+    if is_null_like(text):
+        return None
+
+    cleaned = clean_text(text)
+
+    return cleaned or None
+
+
 def normalize_text(text: str | None) -> str:
     """
     Normaliza texto para búsquedas y matching determinista.
@@ -285,3 +302,34 @@ def normalize_text(text: str | None) -> str:
     )
 
     return text.strip()
+
+
+def normalize_text_or_none(
+    text: str | None,
+) -> str | None:
+    """
+    Normaliza un texto y conserva la ausencia como None.
+
+    Devuelve None si el valor es nulo o si, después de normalizarlo,
+    no queda contenido alfanumérico.
+
+    Examples
+    --------
+    >>> normalize_text_or_none(None) is None
+    True
+
+    >>> normalize_text_or_none("   ") is None
+    True
+
+    >>> normalize_text_or_none("---") is None
+    True
+
+    >>> normalize_text_or_none("A Coruña")
+    'a coruna'
+    """
+    if is_null_like(text):
+        return None
+
+    normalized = normalize_text(text)
+
+    return normalized or None
