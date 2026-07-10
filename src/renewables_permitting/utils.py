@@ -266,6 +266,9 @@ def normalize_text(text: str | None) -> str:
     """
     Normaliza texto para búsquedas y matching determinista.
 
+    normalize_text() es conveniente para operaciones de matching, búsqueda, 
+    concatenación o pertenencia a conjuntos, porque siempre devuelve str.
+
     La normalización es destructiva: convierte a minúsculas, elimina tildes y
     sustituye caracteres no alfanuméricos por espacios. No debe usarse como
     evidencia textual.
@@ -309,6 +312,10 @@ def normalize_text_or_none(
 ) -> str | None:
     """
     Normaliza un texto y conserva la ausencia como None.
+
+    normalize_text_or_none() es conveniente para columnas que 
+    se van a almacenar en Parquet, porque conserva correctamente 
+    la semántica de ausencia.
 
     Devuelve None si el valor es nulo o si, después de normalizarlo,
     no queda contenido alfanumérico.
