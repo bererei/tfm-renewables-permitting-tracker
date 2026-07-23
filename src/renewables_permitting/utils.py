@@ -221,28 +221,69 @@ def save_parquet(
 # ---------------------------------------------------------------------
 
 
-def clean_text(text: str | None) -> str:
+def clean_text(
+    text: str | None,
+    *,
+    preserve_line_breaks: bool = False,
+) -> str:
     """
     Limpia espacios conservando el contenido textual.
 
-    No elimina tildes, mayúsculas ni signos de puntuación. Debe usarse cuando
-    interesa conservar el texto documental, por ejemplo antes de enviarlo a IA.
+    No elimina tildes, mayúsculas ni signos de puntuación.
+
+    Parameters
+    ----------
+    text
+        Texto que se desea limpiar.
+    preserve_line_breaks
+        Si es False, devuelve el texto en una única línea, manteniendo el
+        comportamiento anterior.
+
+        Si es True, conserva los saltos estructurales entre títulos,
+        párrafos, apartados y filas de tablas.
 
     Examples
     --------
     >>> clean_text("Resolución\\n\\n de   6 de mayo")
     'Resolución de 6 de mayo'
+
+    >>> clean_text(
+    ...     "Resolución\\n\\n de   6 de mayo",
+    ...     preserve_line_breaks=True,
+    ... )
+    'Resolución\\nde 6 de mayo'
     """
+
     if is_null_like(text):
         return ""
 
-    text = re.sub(
-        r"\s+",
-        " ",
-        str(text),
-    )
+    text = str(text).replace("\r\n", "\n").replace("\r", "\n")
 
-    return text.strip()
+    if not preserve_line_breaks:
+        return re.sub(r"\s+", " ", text).strip()
+
+    # Limpia espacios horizontales, pero no elimina los saltos de línea.
+    text = re.sub(r"[^\S\n]+", " ", text)
+
+    # Elimina espacios alrededor de los saltos.
+    text = re.sub(r" *\n *", "\n", text)
+
+    # Los elementos XML anidados pueden producir saltos repetidos.
+    text = re.sub(r"\n+", "\n", text)
+
+    cleaned_lines: list[str] = []
+
+    for line in text.splitlines():
+        line = line.strip()
+
+        # El recorrido añade un separador después de cada celda.
+        # Se elimina el separador sobrante al final de cada fila.
+        line = re.sub(r"(?:\s*\|\s*)+$", "", line).strip()
+
+        if line:
+            cleaned_lines.append(line)
+
+    return "\n".join(cleaned_lines)
 
 
 def clean_text_or_none(
