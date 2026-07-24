@@ -5,6 +5,22 @@ from typing import Any
 import pandas as pd
 
 from renewables_permitting.extraction.models import BOEProjectExtraction
+from renewables_permitting.extraction.paths import (
+    ADMINISTRATIVE_ACTIONS_PATH,
+    ADMINISTRATIVE_ACTION_TARGETS_PATH,
+    ASSOCIATED_COMPONENTS_PATH,
+    ASSOCIATED_COMPONENT_GENERATION_LINKS_PATH,
+    ASSOCIATED_COMPONENT_NAMES_PATH,
+    CASE_FILE_REFERENCES_PATH,
+    GENERATION_ASSET_MENTIONS_PATH,
+    GENERATION_ASSET_NAMES_PATH,
+    GENERATION_RELATIONS_PATH,
+    LOCATION_MENTIONS_PATH,
+    PARTICIPANT_MENTIONS_PATH,
+    PUBLICATION_EVENTS_PATH,
+    TECHNICAL_MENTIONS_PATH,
+)
+from renewables_permitting.extraction.persistence import save_parquet_atomic
 
 
 FLAT_TABLE_COLUMNS: dict[str, list[str]] = {
@@ -286,3 +302,29 @@ def flatten_current_extractions(
         )
         for table_name, table_rows in rows.items()
     }
+
+
+def save_flattened_extractions(
+    current_extractions: pd.DataFrame,
+) -> dict[str, pd.DataFrame]:
+    tables = flatten_current_extractions(current_extractions)
+    paths = {
+        "publication_events": PUBLICATION_EVENTS_PATH,
+        "generation_asset_mentions": GENERATION_ASSET_MENTIONS_PATH,
+        "generation_asset_names": GENERATION_ASSET_NAMES_PATH,
+        "associated_components": ASSOCIATED_COMPONENTS_PATH,
+        "associated_component_names": ASSOCIATED_COMPONENT_NAMES_PATH,
+        "associated_component_generation_links": (
+            ASSOCIATED_COMPONENT_GENERATION_LINKS_PATH
+        ),
+        "administrative_actions": ADMINISTRATIVE_ACTIONS_PATH,
+        "administrative_action_targets": ADMINISTRATIVE_ACTION_TARGETS_PATH,
+        "participant_mentions": PARTICIPANT_MENTIONS_PATH,
+        "location_mentions": LOCATION_MENTIONS_PATH,
+        "generation_asset_relations": GENERATION_RELATIONS_PATH,
+        "technical_mentions": TECHNICAL_MENTIONS_PATH,
+        "case_file_references": CASE_FILE_REFERENCES_PATH,
+    }
+    for name, dataframe in tables.items():
+        save_parquet_atomic(dataframe, paths[name])
+    return tables

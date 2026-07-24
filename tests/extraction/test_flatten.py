@@ -405,7 +405,11 @@ def test_flatten_nodes_match_notebook_ast() -> None:
             / "flatten.py"
         ).read_text()
     )
-    expected_symbols = {"FLAT_TABLE_COLUMNS", "flatten_current_extractions"}
+    expected_symbols = {
+        "FLAT_TABLE_COLUMNS",
+        "flatten_current_extractions",
+        "save_flattened_extractions",
+    }
     notebook_nodes = [
         node
         for node in notebook_tree.body
