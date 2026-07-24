@@ -1009,6 +1009,6 @@ def test_runner_import_surface_has_no_agent_or_top_level_execution() -> None:
     )
     assert hasattr(runner_module, "extract_documents")
     assert runner_module.debug_state == {}
-    assert "run_and_finalize_extractions" not in source
+    assert hasattr(runner_module, "run_and_finalize_extractions")
     assert "ModelHTTPError" not in source
     assert "random" not in source

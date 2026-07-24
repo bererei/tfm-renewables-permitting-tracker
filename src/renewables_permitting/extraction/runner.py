@@ -43,13 +43,22 @@ from renewables_permitting.extraction.models import (
     build_boe_project_extraction,
 )
 from renewables_permitting.extraction.paths import (
+    BOE_AI_EXTRACTIONS_PATH,
     BOE_AI_EXTRACTION_ATTEMPTS_PATH,
     BOE_CANDIDATES_DOCS_TEXT_PATH,
 )
+from renewables_permitting.extraction.persistence import save_parquet_atomic
 from renewables_permitting.extraction.review import (
     _count_extracted_nodes,
     append_ai_extraction_attempts,
+    append_quality_metric,
+    build_quality_metric,
+    build_review_queue,
+    empty_manual_reviews,
+    load_ai_extraction_attempts,
     normalise_ai_extraction_attempts_log,
+    normalise_manual_reviews,
+    select_best_valid_extractions,
 )
 from renewables_permitting.extraction.validation import (
     DocumentExtractionValidationError,
@@ -414,6 +423,66 @@ async def extract_documents(
             checkpoint.clear()
 
     return records
+
+
+async def run_and_finalize_extractions(
+    run_df: pd.DataFrame,
+    source_df: pd.DataFrame,
+    *,
+    agent: Agent,
+    attempts_path: Path = BOE_AI_EXTRACTION_ATTEMPTS_PATH,
+    current_path: Path = BOE_AI_EXTRACTIONS_PATH,
+    review_queue_path: Path | None = None,
+    quality_metrics_path: Path | None = None,
+    manual_reviews: pd.DataFrame | None = None,
+    run_scope: str = "production",
+    minimum_auto_validation_rate: float = 0.95,
+    checkpoint_every: int = CHECKPOINT_EVERY,
+) -> dict[str, pd.DataFrame]:
+    records = await extract_documents(
+        run_df,
+        agent=agent,
+        attempts_path=attempts_path,
+        checkpoint_every=checkpoint_every,
+    )
+    attempts = load_ai_extraction_attempts(attempts_path)
+    manual_reviews = (
+        empty_manual_reviews()
+        if manual_reviews is None
+        else normalise_manual_reviews(manual_reviews)
+    )
+    current = select_best_valid_extractions(
+        attempts=attempts,
+        source_df=source_df,
+        manual_reviews=manual_reviews,
+    )
+    save_parquet_atomic(current, current_path)
+
+    review_queue = build_review_queue(
+        attempts=attempts,
+        source_df=source_df,
+        manual_reviews=manual_reviews,
+    )
+    if review_queue_path is not None:
+        save_parquet_atomic(review_queue, review_queue_path)
+
+    quality_metric = build_quality_metric(
+        attempts=attempts,
+        source_df=source_df,
+        manual_reviews=manual_reviews,
+        run_scope=run_scope,
+        minimum_auto_validation_rate=minimum_auto_validation_rate,
+    )
+    if quality_metrics_path is not None:
+        append_quality_metric(quality_metric, quality_metrics_path)
+
+    return {
+        "new_attempts": normalise_ai_extraction_attempts_log(pd.DataFrame(records)),
+        "all_attempts": attempts,
+        "current_extractions": current,
+        "review_queue": review_queue,
+        "quality_metric": quality_metric,
+    }
 
 
 def get_extraction_model(

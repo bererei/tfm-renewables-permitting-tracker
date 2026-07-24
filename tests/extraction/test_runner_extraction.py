@@ -1464,7 +1464,7 @@ def test_runner_contains_no_deferred_or_artificial_phase_13_code() -> None:
     source = Path(runner_module.__file__).read_text()
     tree = ast.parse(source)
 
-    assert "run_and_finalize_extractions" not in source
+    assert hasattr(runner_module, "run_and_finalize_extractions")
     assert "load_pilot_scope_labels" not in source
     assert "build_stratified_pilot_sample" not in source
     assert "evaluate_pilot" not in source
