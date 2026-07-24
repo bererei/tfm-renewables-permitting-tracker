@@ -58,6 +58,40 @@ DANGEROUS_FLAGS = {
     "REGENERATE_FLAT_TABLES",
 }
 
+PILOT_AGENT_INITIALIZATION = """    if agent is None:
+        validate_runtime_configuration()
+
+        if MODEL_PROVIDER == "gemini":
+            AI_MODEL = AI_MODEL_NAME
+        elif MODEL_PROVIDER == "ollama":
+            AI_MODEL = build_ollama_model(AI_MODEL_NAME)
+        else:
+            raise ValueError(
+                "MODEL_PROVIDER debe ser 'gemini' u 'ollama': "
+                f"{MODEL_PROVIDER!r}."
+            )
+
+        agent = build_boe_extraction_agent()
+
+"""
+
+PRODUCTION_AGENT_INITIALIZATION = """        if agent is None:
+            validate_runtime_configuration()
+
+            if MODEL_PROVIDER == "gemini":
+                AI_MODEL = AI_MODEL_NAME
+            elif MODEL_PROVIDER == "ollama":
+                AI_MODEL = build_ollama_model(AI_MODEL_NAME)
+            else:
+                raise ValueError(
+                    "MODEL_PROVIDER debe ser 'gemini' u 'ollama': "
+                    f"{MODEL_PROVIDER!r}."
+                )
+
+            agent = build_boe_extraction_agent()
+
+"""
+
 
 def _load_notebook(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
@@ -163,6 +197,23 @@ def _guard_names(node: ast.AST) -> set[str]:
     return names
 
 
+def _guard_tests(node: ast.AST) -> list[str]:
+    tests: list[str] = []
+    parent = getattr(node, "_parent", None)
+    while parent is not None:
+        if isinstance(parent, ast.If):
+            tests.append(ast.unparse(parent.test))
+        parent = getattr(parent, "_parent", None)
+    return tests
+
+
+def _attach_parents(trees: list[ast.Module]) -> None:
+    for tree in trees:
+        for parent in ast.walk(tree):
+            for child in ast.iter_child_nodes(parent):
+                child._parent = parent  # type: ignore[attr-defined]
+
+
 def test_v25_2_is_valid_json_and_preserves_essential_metadata() -> None:
     source = _load_notebook(NOTEBOOK_V25_1_PATH)
     target = _load_notebook(NOTEBOOK_V25_2_PATH)
@@ -239,19 +290,10 @@ def test_configuration_is_imported_without_local_reassignment() -> None:
     assert assigned_names.isdisjoint(config_names)
 
 
-def test_model_and_agent_construction_remain_explicit_orchestration() -> None:
+def test_model_and_agent_initial_state_is_deferred() -> None:
     notebook = _load_notebook(NOTEBOOK_V25_2_PATH)
     trees = _code_trees(notebook)
     orchestration_tree = trees[3]
-
-    calls = [
-        node
-        for node in orchestration_tree.body
-        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Call)
-    ]
-    assert [_call_name(node.value) for node in calls] == [
-        "validate_runtime_configuration"
-    ]
 
     assignments = {
         next(iter(_assignment_names(node))): node.value
@@ -259,12 +301,112 @@ def test_model_and_agent_construction_remain_explicit_orchestration() -> None:
         if isinstance(node, (ast.Assign, ast.AnnAssign))
         and len(_assignment_names(node)) == 1
     }
-    ai_model = assignments["AI_MODEL"]
-    assert isinstance(ai_model, ast.IfExp)
-    assert ast.unparse(ai_model.test) == "MODEL_PROVIDER == 'gemini'"
-    assert ast.unparse(ai_model.body) == "AI_MODEL_NAME"
-    assert ast.unparse(ai_model.orelse) == "build_ollama_model(AI_MODEL_NAME)"
-    assert ast.unparse(assignments["agent"]) == "build_boe_extraction_agent()"
+    assert isinstance(assignments["AI_MODEL"], ast.Constant)
+    assert assignments["AI_MODEL"].value is None
+    assert isinstance(assignments["agent"], ast.Constant)
+    assert assignments["agent"].value is None
+
+    sensitive_calls = {
+        "validate_runtime_configuration",
+        "build_ollama_model",
+        "build_boe_extraction_agent",
+    }
+    assert not [
+        node
+        for node in ast.walk(orchestration_tree)
+        if isinstance(node, ast.Call) and _call_name(node) in sensitive_calls
+    ]
+
+
+def test_agent_initialization_is_complete_deferred_and_guarded() -> None:
+    notebook = _load_notebook(NOTEBOOK_V25_2_PATH)
+    trees = _code_trees(notebook)
+    _attach_parents(trees)
+    sensitive_calls = {
+        "validate_runtime_configuration",
+        "build_ollama_model",
+        "build_boe_extraction_agent",
+    }
+    calls = {
+        name: [
+            node
+            for tree in trees
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Call) and _call_name(node) == name
+        ]
+        for name in sensitive_calls
+    }
+
+    assert {name: len(nodes) for name, nodes in calls.items()} == {
+        "validate_runtime_configuration": 2,
+        "build_ollama_model": 2,
+        "build_boe_extraction_agent": 2,
+    }
+    for nodes in calls.values():
+        for node in nodes:
+            guards = _guard_tests(node)
+            assert "agent is None" in guards
+            assert (
+                "RUN_STRATIFIED_PILOT" in guards
+                or "RUN_PRODUCTION_EXTRACTION" in guards
+            )
+
+    builder_guards = [
+        set(_guard_tests(node))
+        for node in calls["build_boe_extraction_agent"]
+    ]
+    assert any("RUN_STRATIFIED_PILOT" in guards for guards in builder_guards)
+    assert any("RUN_PRODUCTION_EXTRACTION" in guards for guards in builder_guards)
+    assert all("agent is None" in guards for guards in builder_guards)
+    assert all(
+        not node.args and not node.keywords
+        for node in calls["build_boe_extraction_agent"]
+    )
+
+    initialization_guards = [
+        node
+        for tree in trees
+        for node in ast.walk(tree)
+        if isinstance(node, ast.If) and ast.unparse(node.test) == "agent is None"
+    ]
+    assert len(initialization_guards) == 2
+    for guard in initialization_guards:
+        assert len(guard.body) == 3
+        validation = guard.body[0]
+        provider_branch = guard.body[1]
+        agent_assignment = guard.body[2]
+
+        assert isinstance(validation, ast.Expr)
+        assert isinstance(validation.value, ast.Call)
+        assert _call_name(validation.value) == "validate_runtime_configuration"
+
+        assert isinstance(provider_branch, ast.If)
+        assert ast.unparse(provider_branch.test) == "MODEL_PROVIDER == 'gemini'"
+        assert len(provider_branch.body) == 1
+        assert ast.unparse(provider_branch.body[0]) == "AI_MODEL = AI_MODEL_NAME"
+        assert len(provider_branch.orelse) == 1
+
+        ollama_branch = provider_branch.orelse[0]
+        assert isinstance(ollama_branch, ast.If)
+        assert ast.unparse(ollama_branch.test) == "MODEL_PROVIDER == 'ollama'"
+        assert len(ollama_branch.body) == 1
+        assert ast.unparse(ollama_branch.body[0]) == (
+            "AI_MODEL = build_ollama_model(AI_MODEL_NAME)"
+        )
+        assert len(ollama_branch.orelse) == 1
+        invalid_provider = ollama_branch.orelse[0]
+        assert isinstance(invalid_provider, ast.Raise)
+        assert isinstance(invalid_provider.exc, ast.Call)
+        assert ast.unparse(invalid_provider.exc.func) == "ValueError"
+        assert "MODEL_PROVIDER debe ser 'gemini' u 'ollama'" in ast.unparse(
+            invalid_provider.exc
+        )
+
+        assert isinstance(agent_assignment, ast.Assign)
+        assert _assignment_names(agent_assignment) == {"agent"}
+        assert ast.unparse(agent_assignment.value) == (
+            "build_boe_extraction_agent()"
+        )
 
 
 def test_only_the_five_pilot_functions_remain_defined() -> None:
@@ -284,13 +426,24 @@ def test_pilot_and_production_blocks_are_preserved_with_safe_flags() -> None:
     target = _load_notebook(NOTEBOOK_V25_2_PATH)
     source_pilot = "".join(source["cells"][21]["source"])
     target_pilot = "".join(target["cells"][21]["source"])
+    source_production = "".join(source["cells"][23]["source"])
+    target_production = "".join(target["cells"][23]["source"])
 
-    assert target_pilot == source_pilot.replace(
+    expected_pilot = source_pilot.replace(
         "RUN_STRATIFIED_PILOT = True",
         "RUN_STRATIFIED_PILOT = False",
         1,
     )
-    assert target["cells"][23]["source"] == source["cells"][23]["source"]
+    assert target_pilot.count(PILOT_AGENT_INITIALIZATION) == 1
+    assert target_pilot.replace(PILOT_AGENT_INITIALIZATION, "", 1) == (
+        expected_pilot
+    )
+    assert target_production.count(PRODUCTION_AGENT_INITIALIZATION) == 1
+    assert target_production.replace(
+        PRODUCTION_AGENT_INITIALIZATION,
+        "",
+        1,
+    ) == source_production
 
     assignments = _literal_assignments(_code_trees(target))
     assert DANGEROUS_FLAGS <= assignments.keys()
@@ -307,10 +460,8 @@ def test_no_artificial_if_true_or_unguarded_operational_calls() -> None:
         "unlink": [],
     }
 
+    _attach_parents(trees)
     for tree in trees:
-        for parent in ast.walk(tree):
-            for child in ast.iter_child_nodes(parent):
-                child._parent = parent  # type: ignore[attr-defined]
         for node in ast.walk(tree):
             if isinstance(node, ast.If):
                 assert not (
