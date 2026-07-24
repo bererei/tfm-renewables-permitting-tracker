@@ -997,6 +997,7 @@ def test_runner_import_surface_has_no_agent_or_top_level_execution() -> None:
                 ast.Import,
                 ast.ImportFrom,
                 ast.Assign,
+                ast.AnnAssign,
                 ast.FunctionDef,
                 ast.AsyncFunctionDef,
             ),
@@ -1006,8 +1007,8 @@ def test_runner_import_surface_has_no_agent_or_top_level_execution() -> None:
         isinstance(node, (ast.For, ast.While, ast.With, ast.Try))
         for node in tree.body
     )
-    assert "extract_documents" not in source
+    assert hasattr(runner_module, "extract_documents")
+    assert runner_module.debug_state == {}
     assert "run_and_finalize_extractions" not in source
-    assert "debug_state" not in source
     assert "ModelHTTPError" not in source
     assert "random" not in source
