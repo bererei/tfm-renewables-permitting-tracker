@@ -13,6 +13,14 @@ import renewables_permitting.extraction.review as review_module
 from renewables_permitting.extraction.canonicalization import (
     canonicalize_project_extraction,
 )
+from renewables_permitting.extraction.config import (
+    AI_MODEL_NAME,
+    CONTRACT_SCHEMA_SHA256,
+    DOCUMENT_VALIDATION_VERSION,
+    EXTRACTION_CONFIG_ID,
+    INSTRUCTIONS_SHA256,
+    MODEL_PROVIDER,
+)
 from renewables_permitting.extraction.models import (
     AdministrativeAction,
     AdministrativeActionType,
@@ -27,10 +35,6 @@ from renewables_permitting.extraction.models import (
 )
 from renewables_permitting.extraction.review import (
     AI_EXTRACTION_LOG_COLUMNS,
-    CONTRACT_SCHEMA_SHA256,
-    DOCUMENT_VALIDATION_VERSION,
-    EXTRACTION_CONFIG_ID,
-    INSTRUCTIONS_SHA256,
     MANUAL_REVIEW_COLUMNS,
     REVIEW_QUEUE_COLUMNS,
     _latest_attempts_for_current_sources,
@@ -130,8 +134,6 @@ EXPECTED_MANUAL_REVIEW_COLUMNS = [
     "document_validation_version",
 ]
 
-MODEL_PROVIDER = "gemini"
-AI_MODEL_NAME = "google:gemini-2.5-flash"
 _DEFAULT_EXTRACTION_JSON = object()
 
 

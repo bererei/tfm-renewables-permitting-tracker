@@ -11,6 +11,13 @@ import pytest
 from pydantic import ValidationError
 
 import renewables_permitting.extraction.review as review_module
+from renewables_permitting.extraction.config import (
+    AI_MODEL_NAME,
+    CONTRACT_SCHEMA_SHA256,
+    DOCUMENT_VALIDATION_VERSION,
+    EXTRACTION_CONFIG_ID,
+    MODEL_PROVIDER,
+)
 from renewables_permitting.extraction.documents import (
     _source_document_hash,
     build_source_document,
@@ -31,12 +38,7 @@ from renewables_permitting.extraction.persistence import (
 )
 from renewables_permitting.extraction.review import (
     AI_EXTRACTION_LOG_COLUMNS,
-    AI_MODEL_NAME,
-    CONTRACT_SCHEMA_SHA256,
-    DOCUMENT_VALIDATION_VERSION,
-    EXTRACTION_CONFIG_ID,
     MANUAL_REVIEW_COLUMNS,
-    MODEL_PROVIDER,
     QUALITY_METRIC_COLUMNS,
     REVIEW_QUEUE_COLUMNS,
     append_ai_extraction_attempts,

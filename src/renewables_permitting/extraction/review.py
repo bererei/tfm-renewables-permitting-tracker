@@ -12,6 +12,14 @@ import pandas as pd
 from renewables_permitting.extraction.canonicalization import (
     canonicalize_project_extraction,
 )
+from renewables_permitting.extraction.config import (
+    AI_MODEL_NAME,
+    CONTRACT_SCHEMA_SHA256,
+    DOCUMENT_VALIDATION_VERSION,
+    EXTRACTION_CONFIG_ID,
+    INSTRUCTIONS_SHA256,
+    MODEL_PROVIDER,
+)
 from renewables_permitting.extraction.documents import build_source_document
 from renewables_permitting.extraction.models import BOEProjectExtraction
 from renewables_permitting.extraction.paths import (
@@ -23,18 +31,6 @@ from renewables_permitting.extraction.paths import (
 from renewables_permitting.extraction.persistence import save_parquet_atomic
 from renewables_permitting.extraction.validation import (
     validate_extraction_against_document,
-)
-
-
-DOCUMENT_VALIDATION_VERSION = "25"
-EXTRACTION_CONFIG_ID = "db2bc8c3564ce062"
-MODEL_PROVIDER = "gemini"
-AI_MODEL_NAME = "google:gemini-2.5-flash"
-CONTRACT_SCHEMA_SHA256 = (
-    "455028c7de0ada067264cd695b4e7dab9de377b31105e141321313d61c3ff283"
-)
-INSTRUCTIONS_SHA256 = (
-    "4d9b67eba25460e912d7bee361def17272b0d9335738e6306b5a7c45de24561d"
 )
 
 
