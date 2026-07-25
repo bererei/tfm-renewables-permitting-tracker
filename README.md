@@ -3,3 +3,50 @@ Master Final Project focused on building an automated renewable energy permittin
 
 
 Datos de localizaciones INE: https://www.ine.es/dyngs/INEbase/es/operacion.htm?c=Estadistica_C&cid=1254736177031&menu=ultiDatos&idp=1254734710990
+
+
+
+## Versión validada del pipeline de extracción
+
+La versión de referencia actualmente validada del subsistema de extracción del BOE es:
+
+```text
+extraction-v25.2
+```
+
+Esta versión marca el estado del pipeline tras la migración de la lógica de extracción desde el notebook a `src/renewables_permitting/extraction`.
+
+La validación incluye:
+
+* ejecución completa del notebook operativo sin efectos cuando los procesos de extracción están desactivados;
+* construcción diferida del agente únicamente al activar el piloto o la extracción de producción;
+* 443 pruebas automatizadas superadas;
+* validación offline de 100 documentos;
+* 100 hashes documentales coincidentes;
+* canonicalización e idempotencia verificadas;
+* 13 tablas normalizadas sin referencias huérfanas, duplicados estructurales ni identificadores obligatorios nulos;
+* coincidencia exacta de las huellas SHA-256 de las extracciones y de las tablas de referencia.
+
+Notebook operativo:
+
+```text
+notebooks/07_extraccion_ia_v25_2.ipynb
+```
+
+Notebook histórico de referencia:
+
+```text
+notebooks/07_extraccion_ia_v25_1.ipynb
+```
+
+Para consultar el código correspondiente a esta versión:
+
+```bash
+git switch --detach extraction-v25.2
+```
+
+Para regresar posteriormente a la rama de trabajo:
+
+```bash
+git switch refactor/extraction-package
+```
