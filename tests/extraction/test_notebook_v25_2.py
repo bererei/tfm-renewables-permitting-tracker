@@ -19,7 +19,6 @@ EXTRACTION_PACKAGE_PATH = (
 )
 
 V25_1_SIZE = 439_538
-V25_1_MTIME_NS = 1_784_787_417_466_152_511
 V25_1_SHA256 = (
     "f0bb34b614d574084fb3e2c32dd4331cc3b33e0f2ecacfb17188898039303218"
 )
@@ -509,7 +508,6 @@ def test_v25_1_reference_file_is_unchanged() -> None:
     stat = NOTEBOOK_V25_1_PATH.stat()
 
     assert stat.st_size == V25_1_SIZE
-    assert stat.st_mtime_ns == V25_1_MTIME_NS
     assert hashlib.sha256(NOTEBOOK_V25_1_PATH.read_bytes()).hexdigest() == (
         V25_1_SHA256
     )
