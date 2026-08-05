@@ -1,5 +1,3 @@
-import ast
-import json
 import runpy
 from datetime import datetime
 from pathlib import Path
@@ -149,38 +147,37 @@ def test_importing_persistence_has_no_filesystem_side_effects(
     assert existing.read_text(encoding="utf-8") == "contenido original"
 
 
-def test_save_parquet_atomic_matches_notebook_ast() -> None:
-    project_root = Path(__file__).resolve().parents[2]
-    notebook = json.loads(
-        (project_root / "notebooks" / "07_extraccion_ia_v25_1.ipynb").read_text()
-    )
-    notebook_tree = ast.parse("".join(notebook["cells"][9]["source"]))
-    module_tree = ast.parse(
-        (
-            project_root
-            / "src"
-            / "renewables_permitting"
-            / "extraction"
-            / "persistence.py"
-        ).read_text()
-    )
-    notebook_node = next(
-        node
-        for node in notebook_tree.body
-        if isinstance(node, ast.FunctionDef)
-        and node.name == "save_parquet_atomic"
-    )
-    module_nodes = [
-        node
-        for node in module_tree.body
-        if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef))
-    ]
+def test_atomic_replace_error_is_propagated_after_temporary_write(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dataframe = _dataframe()
+    output_path = tmp_path / "table.parquet"
+    temporary_path = output_path.with_suffix(".parquet.tmp")
+    original_error = OSError("fallo al promover el archivo temporal")
 
-    assert [node.name for node in module_nodes] == ["save_parquet_atomic"]
-    assert ast.dump(
-        module_nodes[0],
-        include_attributes=False,
-    ) == ast.dump(
-        notebook_node,
-        include_attributes=False,
-    )
+    def fake_to_parquet(
+        self: pd.DataFrame,
+        path: Path,
+        *,
+        index: bool,
+    ) -> None:
+        assert self is dataframe
+        assert path == temporary_path
+        assert index is False
+        path.write_bytes(b"parquet temporal completo")
+
+    def fail_replace(self: Path, target: Path) -> None:
+        assert self == temporary_path
+        assert target == output_path
+        raise original_error
+
+    monkeypatch.setattr(pd.DataFrame, "to_parquet", fake_to_parquet)
+    monkeypatch.setattr(Path, "replace", fail_replace)
+
+    with pytest.raises(OSError) as exc_info:
+        save_parquet_atomic(dataframe, output_path)
+
+    assert exc_info.value is original_error
+    assert temporary_path.read_bytes() == b"parquet temporal completo"
+    assert not output_path.exists()

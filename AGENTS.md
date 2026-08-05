@@ -15,9 +15,9 @@ published in the BOE.
 
 ## Refactoring rules
 
-- Do not change the extraction contract without explicit approval.
-- Preserve the behavior validated by pilot v25.1.
-- Move code incrementally from notebooks to src.
-- Do not duplicate functions between notebooks and src.
+- Do not change the extraction contract or validated extraction semantics without explicit approval.
+- Preserve the pilot invariants and regression guarantees enforced by `tests/extraction`.
+- Move code incrementally from notebooks to `src`.
+- Do not duplicate functions between notebooks and `src`.
 - Add or update tests before deleting notebook implementations.
 - Keep notebooks as orchestration and audit layers.

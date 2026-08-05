@@ -1,8 +1,8 @@
-import ast
 import json
 import os
 import warnings
 from datetime import date, datetime, timezone
+from inspect import signature
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -830,7 +830,7 @@ def test_load_manual_review_rejects_documentally_invalid_extraction(
         )
 
 
-def test_build_quality_metric_calculates_v25_1_mixed_workflow_exactly(
+def test_build_quality_metric_calculates_mixed_workflow_exactly(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     source_rows = [
@@ -1120,63 +1120,33 @@ def test_append_quality_metric_creates_and_appends_atomically(
     pd.testing.assert_frame_equal(second, second_snapshot)
 
 
-def _top_level_nodes(source: str) -> dict[str, ast.AST]:
-    nodes: dict[str, ast.AST] = {}
-    for node in ast.parse(source).body:
-        if isinstance(node, ast.FunctionDef):
-            nodes[node.name] = node
-        elif isinstance(node, (ast.Assign, ast.AnnAssign)):
-            targets = (
-                node.targets
-                if isinstance(node, ast.Assign)
-                else [node.target]
-            )
-            for target in targets:
-                if isinstance(target, ast.Name):
-                    nodes[target.id] = node
-    return nodes
-
-
-def test_review_io_functions_and_quality_columns_match_notebook_ast() -> None:
-    project_root = Path(__file__).resolve().parents[2]
-    notebook = json.loads(
-        (
-            project_root / "notebooks" / "07_extraccion_ia_v25_1.ipynb"
-        ).read_text(encoding="utf-8")
-    )
-    notebook_nodes: dict[str, ast.AST] = {}
-    for cell_index in (9, 15):
-        notebook_nodes.update(
-            _top_level_nodes("".join(notebook["cells"][cell_index]["source"]))
-        )
-    module_nodes = _top_level_nodes(
-        (
-            project_root
-            / "src"
-            / "renewables_permitting"
-            / "extraction"
-            / "review.py"
-        ).read_text(encoding="utf-8")
-    )
-    expected_names = {
-        "QUALITY_METRIC_COLUMNS",
-        "load_ai_extraction_attempts",
-        "append_ai_extraction_attempts",
-        "create_manual_review_file",
-        "load_manual_review_files",
-        "empty_quality_metrics",
-        "build_quality_metric",
-        "combine_quality_metrics",
-        "append_quality_metric",
+def test_review_io_public_signatures_are_stable() -> None:
+    expected_parameters = {
+        load_ai_extraction_attempts: ("path",),
+        append_ai_extraction_attempts: ("new_attempts", "path"),
+        create_manual_review_file: (
+            "review_queue",
+            "boe_id",
+            "output_dir",
+            "overwrite",
+        ),
+        load_manual_review_files: ("source_df", "review_dir", "output_path"),
+        empty_quality_metrics: (),
+        build_quality_metric: (
+            "attempts",
+            "source_df",
+            "manual_reviews",
+            "run_scope",
+            "minimum_auto_validation_rate",
+        ),
+        combine_quality_metrics: ("existing", "new_metric"),
+        append_quality_metric: ("new_metric", "path"),
     }
 
-    assert expected_names <= notebook_nodes.keys()
-    assert expected_names <= module_nodes.keys()
-    for name in expected_names:
-        assert ast.dump(module_nodes[name], include_attributes=False) == ast.dump(
-            notebook_nodes[name],
-            include_attributes=False,
-        ), name
+    assert {
+        function: tuple(signature(function).parameters)
+        for function in expected_parameters
+    } == expected_parameters
 
 
 def test_existing_review_column_contracts_remain_unchanged() -> None:

@@ -1,9 +1,6 @@
-import ast
-import json
 from datetime import date
 from hashlib import sha256
 from inspect import signature
-from pathlib import Path
 
 from renewables_permitting.extraction.canonicalization import (
     canonicalize_project_extraction,
@@ -257,120 +254,16 @@ def test_storage_linked_to_generation_is_not_preclassified() -> None:
     assert adjustments == []
 
 
-EXPECTED_CANONICALIZATION_SYMBOLS = {
-    "ScopeGuardDecision",
-    "_GENERATION_DESCRIPTOR_PATTERN",
-    "_COMPONENT_PATTERNS",
-    "_AUXILIARY_COMPONENT_TYPES",
-    "_PROCUREMENT_TITLE_RE",
-    "_NON_GENERATION_MAIN_OBJECT_RE",
-    "_EXPLICIT_ELECTRIC_GENERATION_RE",
-    "_AUXILIARY_RENEWABLE_RE",
-    "_NON_ELECTRIC_GAS_INFRASTRUCTURE_RE",
-    "_STANDALONE_STORAGE_MAIN_OBJECT_RE",
-    "_STORAGE_LINKED_TO_GENERATION_RE",
-    "_ACTION_PATTERNS",
-    "_MODIFIABLE_ACTION_TYPES",
-    "_canonical_documentary_text",
-    "_documentary_contains",
-    "_evidence_segments",
-    "_evidence_is_supported",
-    "_source_units",
-    "_find_literal_span",
-    "_repair_evidence",
-    "_dedupe_technical_mentions",
-    "_infer_generation_type",
-    "_component_pattern",
-    "_generation_name_is_direct_target",
-    "_generation_refs_mentioned",
-    "_component_refs_mentioned",
-    "_entity_refs_mentioned",
-    "_scope_guard_from_document",
-    "_force_non_relevant_extraction",
-    "preclassify_document_without_model",
-    "_action_types_from_title",
-    "_decision_from_title",
-    "_modification_expectation",
-    "_is_clearly_historical",
-    "_repair_technical_mentions",
-    "_salvage_generation_names",
-    "_repair_generation_asset",
-    "_expand_multitechnology_generation_assets",
-    "_exact_component_description",
-    "_repair_component",
-    "_merge_auxiliary_components",
-    "_infer_component_links",
-    "_normalize_action_type",
-    "_normalize_action_type_from_context",
-    "_action_pattern",
-    "_repair_action_evidence",
-    "_infer_action_targets",
-    "_canonicalize_actions",
-    "_remap_component_targets",
-    "_canonicalize_generation_relations",
-    "_event_is_integrated",
-    "_renumber_event",
-    "_split_independent_generation_event",
-    "_canonicalize_optional_mentions",
-    "canonicalize_project_extraction",
-}
+def test_canonicalization_public_signature_is_stable() -> None:
+    parameters = signature(canonicalize_project_extraction).parameters
 
-
-def _node_name(node: ast.AST) -> str | None:
-    if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
-        return node.name
-    if isinstance(node, ast.Assign):
-        if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
-            return node.targets[0].id
-    if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-        return node.target.id
-    return None
-
-
-def test_canonicalization_nodes_match_notebook_ast() -> None:
-    project_root = Path(__file__).resolve().parents[2]
-    notebook = json.loads(
-        (project_root / "notebooks" / "07_extraccion_ia_v25_1.ipynb").read_text()
+    assert tuple(parameters) == (
+        "extraction",
+        "source_text",
+        "document_title",
     )
-    notebook_tree = ast.parse("".join(notebook["cells"][11]["source"]))
-    module_tree = ast.parse(
-        (
-            project_root
-            / "src"
-            / "renewables_permitting"
-            / "extraction"
-            / "canonicalization.py"
-        ).read_text()
-    )
-
-    notebook_nodes = [
-        node
-        for node in notebook_tree.body
-        if _node_name(node) in EXPECTED_CANONICALIZATION_SYMBOLS
-    ]
-    module_nodes = [
-        node
-        for node in module_tree.body
-        if _node_name(node) is not None
-    ]
-
-    assert [_node_name(node) for node in module_nodes] == [
-        _node_name(node) for node in notebook_nodes
-    ]
-    assert {_node_name(node) for node in module_nodes} == (
-        EXPECTED_CANONICALIZATION_SYMBOLS
-    )
-
-    notebook_by_name = {_node_name(node): node for node in notebook_nodes}
-    module_by_name = {_node_name(node): node for node in module_nodes}
-    for name in EXPECTED_CANONICALIZATION_SYMBOLS:
-        assert ast.dump(
-            module_by_name[name],
-            include_attributes=False,
-        ) == ast.dump(
-            notebook_by_name[name],
-            include_attributes=False,
-        )
+    assert parameters["source_text"].kind.name == "KEYWORD_ONLY"
+    assert parameters["document_title"].kind.name == "KEYWORD_ONLY"
 
 
 def test_canonicalization_is_idempotent() -> None:

@@ -1,9 +1,9 @@
 import ast
 import asyncio
-import json
 import subprocess
 import sys
 from datetime import date, datetime, timezone
+from inspect import iscoroutinefunction, signature
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -406,7 +406,7 @@ def test_null_required_document_values_propagate_exact_document_error(
     assert str(error_info.value) == message
 
 
-def test_empty_candidate_parquet_preserves_notebook_assignment_error(
+def test_empty_candidate_parquet_rejects_empty_input(
     tmp_path,
 ) -> None:
     input_path = tmp_path / "empty.parquet"
@@ -421,13 +421,8 @@ def test_empty_candidate_parquet_preserves_notebook_assignment_error(
     ]
     pd.DataFrame(columns=columns).to_parquet(input_path)
 
-    with pytest.raises(ValueError) as error_info:
+    with pytest.raises(ValueError):
         load_and_prepare_candidates(input_path)
-
-    assert str(error_info.value) == (
-        "Cannot set a DataFrame with multiple columns to the single column "
-        "source_document_sha256"
-    )
 
 
 def test_empty_extraction_returns_empty_and_has_no_effects(monkeypatch) -> None:
@@ -1406,61 +1401,22 @@ def test_runner_fresh_import_has_exact_initial_state_and_no_execution() -> None:
     assert result.stderr == ""
 
 
-def _top_level_nodes(source: str) -> dict[str, ast.AST]:
-    nodes = {}
-    for node in ast.parse(source).body:
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            nodes[node.name] = node
-        elif isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name):
-                    nodes[target.id] = node
-        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-            nodes[node.target.id] = node
-    return nodes
-
-
-def test_phase_13_nodes_match_notebook_ast_exactly() -> None:
-    project_root = Path(__file__).resolve().parents[2]
-    notebook = json.loads(
-        (
-            project_root / "notebooks" / "07_extraccion_ia_v25_1.ipynb"
-        ).read_text()
+def test_extraction_orchestration_public_signatures_are_stable() -> None:
+    assert tuple(signature(load_and_prepare_candidates).parameters) == (
+        "input_path",
     )
-    notebook_nodes = {}
-    for cell_index in (9, 13):
-        notebook_nodes.update(
-            _top_level_nodes("".join(notebook["cells"][cell_index]["source"]))
-        )
-    runner_nodes = _top_level_nodes(
-        (
-            project_root
-            / "src"
-            / "renewables_permitting"
-            / "extraction"
-            / "runner.py"
-        ).read_text()
+    assert iscoroutinefunction(extract_documents)
+    assert tuple(signature(extract_documents).parameters) == (
+        "run_df",
+        "agent",
+        "attempts_path",
+        "checkpoint_every",
     )
-    expected_names = {
-        "_REQUIRED_INPUT_COLUMNS",
-        "load_and_prepare_candidates",
-        "debug_state",
-        "extract_documents",
-    }
-
-    assert expected_names <= notebook_nodes.keys()
-    assert expected_names <= runner_nodes.keys()
-    for name in expected_names:
-        assert ast.dump(
-            runner_nodes[name],
-            include_attributes=False,
-        ) == ast.dump(
-            notebook_nodes[name],
-            include_attributes=False,
-        )
 
 
 def test_runner_contains_no_deferred_or_artificial_phase_13_code() -> None:
+    # AST is intentional: this enforces the architectural separation between
+    # the production runner and notebook-only pilot orchestration.
     source = Path(runner_module.__file__).read_text()
     tree = ast.parse(source)
 

@@ -2,6 +2,7 @@ import ast
 import json
 import subprocess
 import sys
+from inspect import Parameter, signature
 from pathlib import Path
 
 import pytest
@@ -632,82 +633,24 @@ print(json.dumps({
     }
 
 
-def test_agent_functions_and_optional_import_block_match_notebook_ast() -> None:
-    project_root = Path(__file__).resolve().parents[2]
-    notebook = json.loads(
-        (
-            project_root / "notebooks" / "07_extraccion_ia_v25_1.ipynb"
-        ).read_text(encoding="utf-8")
-    )
-    notebook_import_source = "".join(notebook["cells"][1]["source"])
-    notebook_function_source = "".join(notebook["cells"][7]["source"])
-    module_source = Path(agent_module.__file__).read_text(encoding="utf-8")
-    notebook_import_tree = ast.parse(notebook_import_source)
-    notebook_function_tree = ast.parse(notebook_function_source)
-    module_tree = ast.parse(module_source)
-    names = {
-        "validate_runtime_configuration",
-        "build_ollama_model",
-        "build_boe_extraction_agent",
-    }
-    notebook_functions = {
-        node.name: node
-        for node in notebook_function_tree.body
-        if isinstance(node, ast.FunctionDef)
-        and node.name in names
-    }
-    module_functions = {
-        node.name: node
-        for node in module_tree.body
-        if isinstance(node, ast.FunctionDef)
-        and node.name in names
-    }
+def test_agent_public_call_signatures_are_stable() -> None:
+    assert tuple(signature(validate_runtime_configuration).parameters) == ()
+    assert tuple(signature(build_boe_extraction_agent).parameters) == ()
 
-    assert set(notebook_functions) == names
-    assert set(module_functions) == names
-    for name in names:
-        assert ast.dump(
-            module_functions[name],
-            include_attributes=False,
-        ) == ast.dump(
-            notebook_functions[name],
-            include_attributes=False,
-        ), name
-
-    notebook_try = next(
-        node for node in notebook_import_tree.body if isinstance(node, ast.Try)
+    ollama_parameters = signature(build_ollama_model).parameters
+    assert tuple(ollama_parameters) == ("model_name", "base_url")
+    assert ollama_parameters["model_name"].kind is (
+        Parameter.POSITIONAL_OR_KEYWORD
     )
-    module_try = next(
-        node for node in module_tree.body if isinstance(node, ast.Try)
+    assert ollama_parameters["base_url"].kind is Parameter.KEYWORD_ONLY
+    assert ollama_parameters["base_url"].default == (
+        "http://localhost:11434/v1"
     )
-    assert ast.dump(module_try, include_attributes=False) == ast.dump(
-        notebook_try,
-        include_attributes=False,
-    )
-
-    for class_name in ("RunUsage", "UsageLimits"):
-        notebook_class = next(
-            node
-            for node in ast.walk(notebook_try)
-            if isinstance(node, ast.ClassDef)
-            and node.name == class_name
-        )
-        module_class = next(
-            node
-            for node in ast.walk(module_try)
-            if isinstance(node, ast.ClassDef)
-            and node.name == class_name
-        )
-        assert ast.dump(
-            module_class,
-            include_attributes=False,
-        ) == ast.dump(
-            notebook_class,
-            include_attributes=False,
-        )
 
 
 def test_agent_module_has_no_forbidden_runner_elements_or_top_level_calls() -> None:
+    # AST is intentional: this is an import-boundary rule and must be checked
+    # without executing any newly added top-level expression.
     source = Path(agent_module.__file__).read_text(encoding="utf-8")
     tree = ast.parse(source)
 

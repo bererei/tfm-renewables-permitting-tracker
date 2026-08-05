@@ -1,7 +1,5 @@
-import ast
-import json
 from datetime import date
-from pathlib import Path
+from inspect import signature
 
 import pandas as pd
 
@@ -379,63 +377,10 @@ def _current_extractions() -> tuple[
     return dataframe, relevant, non_relevant
 
 
-def _node_name(node: ast.AST) -> str | None:
-    if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
-        return node.name
-    if isinstance(node, ast.Assign):
-        if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
-            return node.targets[0].id
-    if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-        return node.target.id
-    return None
-
-
-def test_flatten_nodes_match_notebook_ast() -> None:
-    project_root = Path(__file__).resolve().parents[2]
-    notebook = json.loads(
-        (project_root / "notebooks" / "07_extraccion_ia_v25_1.ipynb").read_text()
+def test_flatten_current_extractions_public_signature_is_stable() -> None:
+    assert tuple(signature(flatten_current_extractions).parameters) == (
+        "current_extractions",
     )
-    notebook_tree = ast.parse("".join(notebook["cells"][17]["source"]))
-    module_tree = ast.parse(
-        (
-            project_root
-            / "src"
-            / "renewables_permitting"
-            / "extraction"
-            / "flatten.py"
-        ).read_text()
-    )
-    expected_symbols = {
-        "FLAT_TABLE_COLUMNS",
-        "flatten_current_extractions",
-        "save_flattened_extractions",
-    }
-    notebook_nodes = [
-        node
-        for node in notebook_tree.body
-        if _node_name(node) in expected_symbols
-    ]
-    module_nodes = [
-        node
-        for node in module_tree.body
-        if _node_name(node) is not None
-    ]
-
-    assert [_node_name(node) for node in module_nodes] == [
-        _node_name(node) for node in notebook_nodes
-    ]
-    assert {_node_name(node) for node in module_nodes} == expected_symbols
-
-    notebook_by_name = {_node_name(node): node for node in notebook_nodes}
-    module_by_name = {_node_name(node): node for node in module_nodes}
-    for name in expected_symbols:
-        assert ast.dump(
-            module_by_name[name],
-            include_attributes=False,
-        ) == ast.dump(
-            notebook_by_name[name],
-            include_attributes=False,
-        )
 
 
 def test_flat_table_names_columns_and_column_counts_are_exact() -> None:

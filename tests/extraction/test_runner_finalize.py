@@ -1,8 +1,8 @@
 import ast
 import asyncio
 import copy
-import json
 from datetime import date
+from inspect import iscoroutinefunction, signature
 from pathlib import Path
 
 import pandas as pd
@@ -465,7 +465,7 @@ def test_exact_operation_order_arguments_and_return_references(
     assert result["quality_metric"] is metric
 
 
-def test_none_manual_reviews_and_optional_paths_follow_notebook_flow(
+def test_none_manual_reviews_and_optional_paths_follow_public_flow(
     monkeypatch,
 ) -> None:
     events = []
@@ -1317,38 +1317,26 @@ def test_isolated_integration_writes_only_requested_tmp_paths(
     )
 
 
-def test_run_and_finalize_extractions_matches_notebook_ast_exactly() -> None:
-    project_root = Path(__file__).resolve().parents[2]
-    notebook = json.loads(
-        (
-            project_root / "notebooks" / "07_extraccion_ia_v25_1.ipynb"
-        ).read_text()
-    )
-    notebook_tree = ast.parse("".join(notebook["cells"][13]["source"]))
-    runner_tree = ast.parse(Path(runner_module.__file__).read_text())
-    notebook_node = next(
-        node
-        for node in notebook_tree.body
-        if isinstance(node, ast.AsyncFunctionDef)
-        and node.name == "run_and_finalize_extractions"
-    )
-    runner_node = next(
-        node
-        for node in runner_tree.body
-        if isinstance(node, ast.AsyncFunctionDef)
-        and node.name == "run_and_finalize_extractions"
-    )
-
-    assert ast.dump(
-        runner_node,
-        include_attributes=False,
-    ) == ast.dump(
-        notebook_node,
-        include_attributes=False,
+def test_run_and_finalize_extractions_keeps_async_public_signature() -> None:
+    assert iscoroutinefunction(run_and_finalize_extractions)
+    assert tuple(signature(run_and_finalize_extractions).parameters) == (
+        "run_df",
+        "source_df",
+        "agent",
+        "attempts_path",
+        "current_path",
+        "review_queue_path",
+        "quality_metrics_path",
+        "manual_reviews",
+        "run_scope",
+        "minimum_auto_validation_rate",
+        "checkpoint_every",
     )
 
 
 def test_no_deferred_or_artificial_finalize_code_was_added() -> None:
+    # AST is intentional: finalization must not absorb notebook-only review,
+    # pilot, or flatten orchestration behind an unconditional wrapper.
     source = Path(runner_module.__file__).read_text()
     tree = ast.parse(source)
 

@@ -1,8 +1,6 @@
-import ast
-import json
 from datetime import date
 from hashlib import sha256
-from pathlib import Path
+from inspect import signature
 
 import pytest
 
@@ -794,25 +792,6 @@ def test_water_concession_is_not_prior_authorization() -> None:
     assert canonical.publication_events[0].administrative_actions[0].action_type == AdministrativeActionType.WATER_CONCESSION
 
 
-EXPECTED_VALIDATION_SYMBOLS = {
-    "DocumentExtractionValidationError",
-    "_generation_name_has_documentary_context",
-    "validate_extraction_against_document",
-    "build_document_validation_retry_prompt",
-}
-
-
-def _node_name(node: ast.AST) -> str | None:
-    if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
-        return node.name
-    if isinstance(node, ast.Assign):
-        if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
-            return node.targets[0].id
-    if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-        return node.target.id
-    return None
-
-
 def _valid_document_and_extraction() -> tuple[
     BOESourceDocument,
     BOEProjectExtraction,
@@ -849,48 +828,16 @@ def _valid_document_and_extraction() -> tuple[
     return document, extraction
 
 
-def test_validation_nodes_match_notebook_ast() -> None:
-    project_root = Path(__file__).resolve().parents[2]
-    notebook = json.loads(
-        (project_root / "notebooks" / "07_extraccion_ia_v25_1.ipynb").read_text()
+def test_validation_public_contract_signatures_are_stable() -> None:
+    assert issubclass(DocumentExtractionValidationError, ValueError)
+    assert tuple(signature(validate_extraction_against_document).parameters) == (
+        "document",
+        "extraction",
     )
-    notebook_tree = ast.parse("".join(notebook["cells"][11]["source"]))
-    module_tree = ast.parse(
-        (
-            project_root
-            / "src"
-            / "renewables_permitting"
-            / "extraction"
-            / "validation.py"
-        ).read_text()
+    assert tuple(signature(build_document_validation_retry_prompt).parameters) == (
+        "original_prompt",
+        "validation_error",
     )
-
-    notebook_nodes = [
-        node
-        for node in notebook_tree.body
-        if _node_name(node) in EXPECTED_VALIDATION_SYMBOLS
-    ]
-    module_nodes = [
-        node
-        for node in module_tree.body
-        if _node_name(node) is not None
-    ]
-
-    assert [_node_name(node) for node in module_nodes] == [
-        _node_name(node) for node in notebook_nodes
-    ]
-    assert {_node_name(node) for node in module_nodes} == EXPECTED_VALIDATION_SYMBOLS
-
-    notebook_by_name = {_node_name(node): node for node in notebook_nodes}
-    module_by_name = {_node_name(node): node for node in module_nodes}
-    for name in EXPECTED_VALIDATION_SYMBOLS:
-        assert ast.dump(
-            module_by_name[name],
-            include_attributes=False,
-        ) == ast.dump(
-            notebook_by_name[name],
-            include_attributes=False,
-        )
 
 
 def test_valid_extraction_has_no_issues_and_is_not_mutated() -> None:

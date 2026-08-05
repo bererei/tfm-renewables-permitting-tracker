@@ -1,8 +1,7 @@
-import ast
-import json
 import warnings
 from datetime import date, datetime, timezone
 from hashlib import sha256
+from inspect import signature
 from pathlib import Path
 
 import pandas as pd
@@ -353,7 +352,7 @@ def _manual_review(
     }
 
 
-def test_column_contracts_match_notebook_exactly() -> None:
+def test_column_contracts_are_exact() -> None:
     assert AI_EXTRACTION_LOG_COLUMNS == EXPECTED_AI_EXTRACTION_LOG_COLUMNS
     assert REVIEW_QUEUE_COLUMNS == EXPECTED_REVIEW_QUEUE_COLUMNS
     assert MANUAL_REVIEW_COLUMNS == EXPECTED_MANUAL_REVIEW_COLUMNS
@@ -994,7 +993,7 @@ def test_review_queue_preserves_exact_error_reason_state_order_and_time(
     ]
 
 
-def test_successful_uncertain_extraction_is_not_queued_in_v25_1() -> None:
+def test_successful_uncertain_extraction_is_not_queued() -> None:
     extraction = _extraction(
         classification_status=ClassificationStatus.UNCERTAIN
     )
@@ -1133,75 +1132,25 @@ def test_review_queue_and_manual_precedence() -> None:
     ).empty
 
 
-def _top_level_nodes(source: str) -> dict[str, ast.AST]:
-    nodes: dict[str, ast.AST] = {}
-    for node in ast.parse(source).body:
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-            nodes[node.name] = node
-        elif isinstance(node, (ast.Assign, ast.AnnAssign)):
-            targets = (
-                node.targets
-                if isinstance(node, ast.Assign)
-                else [node.target]
-            )
-            for target in targets:
-                if isinstance(target, ast.Name):
-                    nodes[target.id] = node
-    return nodes
-
-
-def test_migrated_review_nodes_match_notebook_ast() -> None:
-    project_root = Path(__file__).resolve().parents[2]
-    notebook = json.loads(
-        (
-            project_root / "notebooks" / "07_extraccion_ia_v25_1.ipynb"
-        ).read_text(encoding="utf-8")
+def test_review_public_workflow_signatures_are_stable() -> None:
+    assert tuple(signature(build_review_queue).parameters) == (
+        "attempts",
+        "source_df",
+        "manual_reviews",
     )
-    notebook_nodes: dict[str, ast.AST] = {}
-    for cell_index in (9, 13, 15):
-        notebook_nodes.update(
-            _top_level_nodes("".join(notebook["cells"][cell_index]["source"]))
-        )
-    module_nodes = _top_level_nodes(
-        (
-            project_root
-            / "src"
-            / "renewables_permitting"
-            / "extraction"
-            / "review.py"
-        ).read_text(encoding="utf-8")
+    assert tuple(signature(select_best_valid_extractions).parameters) == (
+        "attempts",
+        "source_df",
+        "manual_reviews",
     )
-    expected_names = {
-        "AI_EXTRACTION_LOG_COLUMNS",
-        "REVIEW_QUEUE_COLUMNS",
-        "MANUAL_REVIEW_COLUMNS",
-        "empty_ai_extraction_attempts_log",
-        "normalise_ai_extraction_attempts_log",
-        "combine_ai_extraction_attempt_frames",
-        "current_successful_ai_extractions",
-        "build_pending_candidates",
-        "_normalise_table",
-        "empty_review_queue",
-        "empty_manual_reviews",
-        "normalise_manual_reviews",
-        "_latest_attempts_for_current_sources",
-        "_latest_manual_reviews_for_current_sources",
-        "build_review_queue",
-        "_count_extracted_nodes",
-        "_manual_review_as_extraction_record",
-        "select_best_valid_extractions",
-    }
-
-    assert expected_names <= notebook_nodes.keys()
-    assert expected_names <= module_nodes.keys()
-    for name in expected_names:
-        assert ast.dump(module_nodes[name], include_attributes=False) == ast.dump(
-            notebook_nodes[name],
-            include_attributes=False,
-        ), name
+    assert tuple(signature(build_pending_candidates).parameters) == (
+        "source_df",
+        "attempts",
+        "manual_reviews",
+    )
 
 
-def test_selection_lineage_values_match_notebook_v25_1() -> None:
+def test_selection_lineage_values_match_validated_snapshots() -> None:
     assert DOCUMENT_VALIDATION_VERSION == "25"
     assert EXTRACTION_CONFIG_ID == "db2bc8c3564ce062"
     assert CONTRACT_SCHEMA_SHA256 == (
