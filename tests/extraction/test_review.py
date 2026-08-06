@@ -40,6 +40,7 @@ from renewables_permitting.extraction.review import (
     _latest_manual_reviews_for_current_sources,
     _normalise_table,
     build_pending_candidates,
+    build_quality_metric,
     build_review_queue,
     combine_ai_extraction_attempt_frames,
     current_successful_ai_extractions,
@@ -110,6 +111,10 @@ EXPECTED_REVIEW_QUEUE_COLUMNS = [
     "source_attempt_id",
     "extraction_config_id",
     "document_validation_version",
+    "classification_reason",
+    "reason_code",
+    "reason_severity",
+    "reason_message",
     "error_type",
     "error_message",
     "processing_stage",
@@ -313,6 +318,9 @@ def _attempt(
         "classification_status": (
             extraction.classification_status.value if extraction else None
         ),
+        "classification_reason": (
+            extraction.classification_reason if extraction else None
+        ),
         "extraction_json": extraction_json,
         "extracted_at": pd.Timestamp(extracted_at),
         "extraction_status": extraction_status,
@@ -357,7 +365,7 @@ def test_column_contracts_are_exact() -> None:
     assert REVIEW_QUEUE_COLUMNS == EXPECTED_REVIEW_QUEUE_COLUMNS
     assert MANUAL_REVIEW_COLUMNS == EXPECTED_MANUAL_REVIEW_COLUMNS
     assert len(AI_EXTRACTION_LOG_COLUMNS) == 43
-    assert len(REVIEW_QUEUE_COLUMNS) == 15
+    assert len(REVIEW_QUEUE_COLUMNS) == 19
     assert len(MANUAL_REVIEW_COLUMNS) == 11
 
 
@@ -372,6 +380,9 @@ def test_empty_tables_have_exact_column_contracts() -> None:
     assert attempts.columns.tolist() == EXPECTED_AI_EXTRACTION_LOG_COLUMNS
     assert queue.columns.tolist() == EXPECTED_REVIEW_QUEUE_COLUMNS
     assert reviews.columns.tolist() == EXPECTED_MANUAL_REVIEW_COLUMNS
+    assert str(queue["identificador_boe"].dtype) == "string"
+    assert str(queue["fecha_publicacion"].dtype) == "datetime64[ns]"
+    assert str(queue["queued_at"].dtype) == "datetime64[ns, UTC]"
 
 
 @pytest.mark.parametrize(
@@ -554,8 +565,22 @@ def test_current_sources_distinguish_changed_document_hash() -> None:
     ])
 
     current = current_successful_ai_extractions(attempts, source_df)
+    queue = build_review_queue(attempts=attempts, source_df=source_df)
+    metric = build_quality_metric(
+        attempts=attempts,
+        source_df=source_df,
+        manual_reviews=None,
+        run_scope="hash-mismatch",
+    ).iloc[0]
 
     assert current.empty
+    assert queue["reason_code"].tolist() == ["source_not_attempted"]
+    assert queue["source_attempt_id"].isna().all()
+    assert metric["n_source_documents"] == 1
+    assert metric["n_latest_attempts"] == 0
+    assert metric["n_unattempted"] == 1
+    assert metric["coverage_rate"] == 0.0
+    assert metric["quality_status"] == "degraded"
 
 
 @pytest.mark.parametrize("invalid_json", [None, "", "{not-json"])
@@ -896,13 +921,31 @@ def test_review_queue_empty_and_successful_cases() -> None:
         ),
     ])
 
-    assert build_review_queue(
+    unattempted = build_review_queue(
         attempts=empty_ai_extraction_attempts_log(),
         source_df=source_df,
-    ).empty
+    )
+    assert unattempted["reason_code"].tolist() == ["source_not_attempted"]
+    assert unattempted["source_attempt_id"].isna().all()
+    assert unattempted[
+        [
+            "extraction_config_id",
+            "document_validation_version",
+            "classification_reason",
+            "error_type",
+            "error_message",
+            "processing_stage",
+            "validation_issues_json",
+            "proposed_extraction_json",
+        ]
+    ].isna().all().all()
     assert build_review_queue(
         attempts=successful,
         source_df=source_df,
+    ).empty
+    assert build_review_queue(
+        attempts=empty_ai_extraction_attempts_log(),
+        source_df=_source_df(),
     ).empty
 
 
@@ -983,17 +1026,28 @@ def test_review_queue_preserves_exact_error_reason_state_order_and_time(
     assert queue["queue_status"].tolist() == ["pending", "pending"]
     assert queue["queued_at"].tolist() == [fixed_now, fixed_now]
     assert queue["identificador_boe"].is_unique
+    assert queue["reason_code"].tolist() == [
+        "document_validation_failed",
+        "document_validation_failed",
+    ]
+    assert queue["reason_severity"].tolist() == ["blocking", "blocking"]
     assert queue["review_queue_id"].tolist() == [
         sha256(
-            f"{first.boe_id}|hash-a|first-validation".encode("utf-8")
+            (
+                f"{first.boe_id}|hash-a|first-validation|"
+                "document_validation_failed"
+            ).encode("utf-8")
         ).hexdigest()[:24],
         sha256(
-            f"{second.boe_id}|hash-b|second-error".encode("utf-8")
+            (
+                f"{second.boe_id}|hash-b|second-error|"
+                "document_validation_failed"
+            ).encode("utf-8")
         ).hexdigest()[:24],
     ]
 
 
-def test_successful_uncertain_extraction_is_not_queued() -> None:
+def test_successful_uncertain_extraction_is_queued_with_lineage() -> None:
     extraction = _extraction(
         classification_status=ClassificationStatus.UNCERTAIN
     )
@@ -1008,8 +1062,199 @@ def test_successful_uncertain_extraction_is_not_queued() -> None:
     ])
 
     queue = build_review_queue(attempts=attempts, source_df=source_df)
+    metric = build_quality_metric(
+        attempts=attempts,
+        source_df=source_df,
+        manual_reviews=None,
+        run_scope="uncertain-without-previous",
+    ).iloc[0]
 
-    assert queue.empty
+    assert queue["reason_code"].tolist() == ["classification_uncertain"]
+    assert queue["reason_severity"].tolist() == ["blocking"]
+    assert queue["source_attempt_id"].tolist() == ["uncertain"]
+    assert queue["classification_reason"].tolist() == [
+        "Clasificación incierta."
+    ]
+    assert queue["proposed_extraction_json"].tolist() == [
+        extraction.model_dump_json()
+    ]
+    assert queue["source_document_sha256"].tolist() == ["current"]
+    assert queue["extraction_config_id"].tolist() == [EXTRACTION_CONFIG_ID]
+    assert queue["document_validation_version"].tolist() == [
+        DOCUMENT_VALIDATION_VERSION
+    ]
+    assert current_successful_ai_extractions(attempts, source_df).empty
+    assert metric["n_auto_validated"] == 0
+    assert metric["n_uncertain"] == 1
+    assert metric["automatic_validation_rate"] == 0.0
+    assert metric["effective_validation_rate"] == 0.0
+    assert metric["n_review_required"] == 1
+    assert metric["quality_status"] == "degraded"
+
+
+def test_manual_validation_can_resolve_uncertain_extraction() -> None:
+    uncertain = _extraction(
+        classification_status=ClassificationStatus.UNCERTAIN
+    )
+    corrected = _extraction(uncertain.boe_id, name="Aurora validada")
+    source_df = _source_df((uncertain.boe_id, "current", "Título incierto"))
+    attempts = pd.DataFrame([
+        _attempt(
+            attempt_id="uncertain",
+            extraction=uncertain,
+            source_hash="current",
+            extracted_at="2026-01-01T00:00:00Z",
+        ),
+    ])
+    manual_reviews = pd.DataFrame([
+        _manual_review(
+            review_id="manual-valid",
+            extraction=corrected,
+            source_hash="current",
+            reviewed_at="2026-01-02T00:00:00Z",
+            review_status="manually_validated",
+        ),
+    ])
+
+    selected = select_best_valid_extractions(
+        attempts=attempts,
+        source_df=source_df,
+        manual_reviews=manual_reviews,
+    )
+
+    assert selected["attempt_id"].tolist() == ["manual-valid"]
+    assert selected["selection_source"].tolist() == ["manually_validated"]
+    assert build_review_queue(
+        attempts=attempts,
+        source_df=source_df,
+        manual_reviews=manual_reviews,
+    ).empty
+
+
+def test_latest_uncertain_keeps_older_classified_current_and_is_queued() -> None:
+    classified = _extraction()
+    uncertain = _extraction(
+        classification_status=ClassificationStatus.UNCERTAIN
+    )
+    source_df = _source_df((classified.boe_id, "current", "Aurora"))
+    attempts = pd.DataFrame([
+        _attempt(
+            attempt_id="classified-old",
+            extraction=classified,
+            source_hash="current",
+            extracted_at="2026-01-01T00:00:00Z",
+        ),
+        _attempt(
+            attempt_id="uncertain-new",
+            extraction=uncertain,
+            source_hash="current",
+            extracted_at="2026-01-02T00:00:00Z",
+        ),
+    ])
+
+    selected = select_best_valid_extractions(
+        attempts=attempts,
+        source_df=source_df,
+    )
+    queue = build_review_queue(attempts=attempts, source_df=source_df)
+    metric = build_quality_metric(
+        attempts=attempts,
+        source_df=source_df,
+        manual_reviews=None,
+        run_scope="uncertain-after-valid",
+    ).iloc[0]
+
+    assert selected["attempt_id"].tolist() == ["classified-old"]
+    assert queue["source_attempt_id"].tolist() == ["uncertain-new"]
+    assert queue["reason_code"].tolist() == ["classification_uncertain"]
+    assert metric["n_auto_validated"] == 1
+    assert metric["automatic_validation_rate"] == 1.0
+    assert metric["effective_validation_rate"] == 1.0
+    assert metric["n_uncertain"] == 1
+    assert metric["n_review_required"] == 1
+    assert metric["quality_status"] == "degraded"
+
+
+def test_latest_failed_attempt_keeps_older_valid_current_and_is_queued() -> None:
+    extraction = _extraction()
+    source_df = _source_df((extraction.boe_id, "current", "Aurora"))
+    attempts = pd.DataFrame([
+        _attempt(
+            attempt_id="valid-old",
+            extraction=extraction,
+            source_hash="current",
+            extracted_at="2026-01-01T00:00:00Z",
+        ),
+        _attempt(
+            attempt_id="failed-new",
+            extraction=None,
+            boe_id=extraction.boe_id,
+            source_hash="current",
+            extracted_at="2026-01-02T00:00:00Z",
+            extraction_status="error",
+            document_validation_status=None,
+            error_type="RuntimeError",
+        ),
+    ])
+
+    selected = select_best_valid_extractions(
+        attempts=attempts,
+        source_df=source_df,
+    )
+    queue = build_review_queue(attempts=attempts, source_df=source_df)
+    metric = build_quality_metric(
+        attempts=attempts,
+        source_df=source_df,
+        manual_reviews=None,
+        run_scope="failure-after-valid",
+    ).iloc[0]
+
+    assert selected["attempt_id"].tolist() == ["valid-old"]
+    assert queue["source_attempt_id"].tolist() == ["failed-new"]
+    assert queue["reason_code"].tolist() == ["extraction_error"]
+    assert metric["n_auto_validated"] == 1
+    assert metric["automatic_validation_rate"] == 1.0
+    assert metric["effective_validation_rate"] == 1.0
+    assert metric["n_review_required"] == 1
+    assert metric["quality_status"] == "degraded"
+
+
+def test_latest_failed_attempt_without_previous_valid_is_not_auto_validated() -> None:
+    boe_id = "BOE-A-2026-10001"
+    source_df = _source_df((boe_id, "current", "Aurora"))
+    attempts = pd.DataFrame([
+        _attempt(
+            attempt_id="failed",
+            extraction=None,
+            boe_id=boe_id,
+            source_hash="current",
+            extracted_at="2026-01-01T00:00:00Z",
+            extraction_status="error",
+            document_validation_status=None,
+            error_type="RuntimeError",
+        ),
+    ])
+
+    selected = select_best_valid_extractions(
+        attempts=attempts,
+        source_df=source_df,
+    )
+    queue = build_review_queue(attempts=attempts, source_df=source_df)
+    metric = build_quality_metric(
+        attempts=attempts,
+        source_df=source_df,
+        manual_reviews=None,
+        run_scope="failure-without-previous",
+    ).iloc[0]
+
+    assert selected.empty
+    assert queue["source_attempt_id"].tolist() == ["failed"]
+    assert queue["reason_code"].tolist() == ["extraction_error"]
+    assert metric["n_auto_validated"] == 0
+    assert metric["automatic_validation_rate"] == 0.0
+    assert metric["effective_validation_rate"] == 0.0
+    assert metric["n_review_required"] == 1
+    assert metric["quality_status"] == "degraded"
 
 
 @pytest.mark.parametrize("status", ["manually_validated", "rejected"])
@@ -1130,6 +1375,119 @@ def test_review_queue_and_manual_precedence() -> None:
         source_df=source_df,
         manual_reviews=manual_reviews,
     ).empty
+
+
+@pytest.mark.parametrize("invalid_value", [None, pd.NA, "   "])
+def test_target_corpus_rejects_null_or_empty_boe_id(invalid_value) -> None:
+    source_df = _source_df(("BOE-A-2026-10001", "hash-a", "Aurora"))
+    source_df.loc[0, "identificador"] = invalid_value
+
+    with pytest.raises(ValueError, match="identificadores BOE nulos o vacíos"):
+        build_review_queue(
+            attempts=empty_ai_extraction_attempts_log(),
+            source_df=source_df,
+        )
+
+
+def test_target_corpus_rejects_duplicate_boe_ids() -> None:
+    source_df = _source_df(
+        ("BOE-A-2026-10001", "hash-a", "Aurora"),
+        ("BOE-A-2026-10001", "hash-b", "Aurora duplicada"),
+    )
+
+    with pytest.raises(ValueError, match="identificadores BOE duplicados"):
+        build_review_queue(
+            attempts=empty_ai_extraction_attempts_log(),
+            source_df=source_df,
+        )
+
+
+def test_target_corpus_rejects_null_source_hash() -> None:
+    source_df = _source_df(("BOE-A-2026-10001", "hash-a", "Aurora"))
+    source_df.loc[0, "source_document_sha256"] = pd.NA
+
+    with pytest.raises(ValueError, match="source_document_sha256"):
+        build_review_queue(
+            attempts=empty_ai_extraction_attempts_log(),
+            source_df=source_df,
+        )
+
+
+def test_attempt_outside_target_corpus_is_ignored() -> None:
+    target = _extraction("BOE-A-2026-10001", name="Aurora")
+    external = _extraction("BOE-A-2026-99999", name="Externa")
+    source_df = _source_df((target.boe_id, "target-hash", "Aurora"))
+    attempts = pd.DataFrame([
+        _attempt(
+            attempt_id="external",
+            extraction=external,
+            source_hash="external-hash",
+            extracted_at="2026-01-01T00:00:00Z",
+        ),
+    ])
+
+    queue = build_review_queue(attempts=attempts, source_df=source_df)
+
+    assert current_successful_ai_extractions(attempts, source_df).empty
+    assert queue["identificador_boe"].tolist() == [target.boe_id]
+    assert queue["reason_code"].tolist() == ["source_not_attempted"]
+    assert queue["source_attempt_id"].isna().all()
+
+
+def test_selection_and_queue_are_independent_of_input_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    first = _extraction("BOE-A-2026-10001", name="Aurora")
+    second = _extraction("BOE-A-2026-10002", name="Boreal")
+    third = _extraction("BOE-A-2026-10003", name="Cierzo")
+    source_df = _source_df(
+        (first.boe_id, "hash-a", "Aurora"),
+        (second.boe_id, "hash-b", "Boreal"),
+        (third.boe_id, "hash-c", "Cierzo"),
+    )
+    attempts = pd.DataFrame([
+        _attempt(
+            attempt_id="classified",
+            extraction=first,
+            source_hash="hash-a",
+            extracted_at="2026-01-01T00:00:00Z",
+        ),
+        _attempt(
+            attempt_id="uncertain",
+            extraction=_extraction(
+                second.boe_id,
+                classification_status=ClassificationStatus.UNCERTAIN,
+            ),
+            source_hash="hash-b",
+            extracted_at="2026-01-02T00:00:00Z",
+        ),
+    ])
+    fixed_now = datetime(2026, 2, 3, 4, 5, tzinfo=timezone.utc)
+
+    class FixedDateTime:
+        @classmethod
+        def now(cls, tz):
+            assert tz is timezone.utc
+            return fixed_now
+
+    monkeypatch.setattr(review_module, "datetime", FixedDateTime)
+
+    selected = select_best_valid_extractions(
+        attempts=attempts,
+        source_df=source_df,
+    )
+    queue = build_review_queue(attempts=attempts, source_df=source_df)
+    reordered_selected = select_best_valid_extractions(
+        attempts=attempts.iloc[::-1].reset_index(drop=True),
+        source_df=source_df.iloc[::-1].reset_index(drop=True),
+    )
+    reordered_queue = build_review_queue(
+        attempts=attempts.iloc[::-1].reset_index(drop=True),
+        source_df=source_df.iloc[::-1].reset_index(drop=True),
+    )
+
+    pd.testing.assert_frame_equal(selected, reordered_selected)
+    pd.testing.assert_frame_equal(queue, reordered_queue)
 
 
 def test_review_public_workflow_signatures_are_stable() -> None:

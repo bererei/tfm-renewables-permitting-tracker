@@ -44,6 +44,7 @@ from renewables_permitting.extraction.review import (
     append_ai_extraction_attempts,
     append_quality_metric,
     build_quality_metric,
+    build_review_queue,
     combine_quality_metrics,
     create_manual_review_file,
     empty_ai_extraction_attempts_log,
@@ -52,6 +53,7 @@ from renewables_permitting.extraction.review import (
     load_ai_extraction_attempts,
     load_manual_review_files,
     normalise_ai_extraction_attempts_log,
+    select_best_valid_extractions,
 )
 from renewables_permitting.extraction.validation import (
     DocumentExtractionValidationError,
@@ -68,6 +70,10 @@ EXPECTED_QUALITY_METRIC_COLUMNS = [
     "model_name",
     "n_source_documents",
     "n_latest_attempts",
+    "n_unattempted",
+    "coverage_rate",
+    "n_classified",
+    "n_uncertain",
     "n_auto_validated",
     "n_review_required",
     "n_manually_validated",
@@ -149,6 +155,10 @@ def _attempt_record(
     extracted_at: str = "2026-01-01T00:00:00Z",
     classification_status: str = "classified",
 ) -> dict:
+    _, extraction = _source_and_extraction(boe_id=boe_id)
+    extraction = extraction.model_copy(update={
+        "classification_status": ClassificationStatus(classification_status),
+    })
     return {
         "attempt_id": attempt_id,
         "identificador_boe": boe_id,
@@ -158,6 +168,7 @@ def _attempt_record(
         "extraction_config_id": EXTRACTION_CONFIG_ID,
         "document_validation_version": DOCUMENT_VALIDATION_VERSION,
         "classification_status": classification_status,
+        "extraction_json": extraction.model_dump_json(),
         "extracted_at": pd.Timestamp(extracted_at),
         "extraction_status": status,
         "document_validation_status": validation_status,
@@ -222,9 +233,13 @@ def test_quality_metric_columns_and_empty_contract_are_exact() -> None:
     result = empty_quality_metrics()
 
     assert QUALITY_METRIC_COLUMNS == EXPECTED_QUALITY_METRIC_COLUMNS
-    assert len(QUALITY_METRIC_COLUMNS) == 22
+    assert len(QUALITY_METRIC_COLUMNS) == 26
     assert result.empty
     assert result.columns.tolist() == EXPECTED_QUALITY_METRIC_COLUMNS
+    assert str(result["n_source_documents"].dtype) == "Int64"
+    assert str(result["coverage_rate"].dtype) == "Float64"
+    assert str(result["measured_at"].dtype) == "datetime64[ns, UTC]"
+    assert str(result["quality_alert"].dtype) == "boolean"
 
 
 def test_load_attempts_missing_file_returns_canonical_empty(
@@ -435,6 +450,31 @@ def test_create_manual_review_file_handles_absent_proposed_extraction(
     assert json.loads(output_path.read_text(encoding="utf-8"))[
         "corrected_extraction"
     ] is None
+
+
+@pytest.mark.parametrize("source_attempt_id", [pd.NA, None, "", "   "])
+def test_create_manual_review_file_rejects_source_without_attempt(
+    tmp_path: Path,
+    source_attempt_id: object,
+) -> None:
+    queue = pd.DataFrame([{
+        "identificador_boe": "BOE-A-2026-10001",
+        "source_document_sha256": "hash",
+        "source_attempt_id": source_attempt_id,
+        "reason_code": "source_not_attempted",
+        "proposed_extraction_json": pd.NA,
+    }])
+    output_dir = tmp_path / "manual-reviews"
+
+    with pytest.raises(ValueError, match="debe intentarse primero") as exc_info:
+        create_manual_review_file(
+            queue,
+            "BOE-A-2026-10001",
+            output_dir=output_dir,
+        )
+
+    assert "<NA>" not in str(exc_info.value)
+    assert not output_dir.exists()
 
 
 def test_create_manual_review_file_rejects_invalid_proposed_json(
@@ -932,12 +972,16 @@ def test_build_quality_metric_calculates_mixed_workflow_exactly(
     assert row["model_name"] == AI_MODEL_NAME
     assert row["n_source_documents"] == 5
     assert row["n_latest_attempts"] == 5
-    assert row["n_auto_validated"] == 2
-    assert row["n_review_required"] == 1
+    assert row["n_unattempted"] == 0
+    assert row["coverage_rate"] == 1.0
+    assert row["n_classified"] == 4
+    assert row["n_uncertain"] == 1
+    assert row["n_auto_validated"] == 1
+    assert row["n_review_required"] == 2
     assert row["n_manually_validated"] == 1
     assert row["n_rejected"] == 1
-    assert row["automatic_validation_rate"] == pytest.approx(0.4)
-    assert row["effective_validation_rate"] == pytest.approx(0.6)
+    assert row["automatic_validation_rate"] == pytest.approx(0.2)
+    assert row["effective_validation_rate"] == pytest.approx(0.4)
     assert row["minimum_auto_validation_rate"] == pytest.approx(0.5)
     assert pd.isna(row["n_scope_evaluated"])
     assert pd.isna(row["n_scope_mismatches"])
@@ -976,10 +1020,337 @@ def test_build_quality_metric_empty_denominator_uses_unit_rates(
     row = metric.iloc[0]
     assert row["n_source_documents"] == 0
     assert row["n_latest_attempts"] == 0
+    assert row["n_unattempted"] == 0
+    assert row["coverage_rate"] == 1.0
+    assert row["n_classified"] == 0
+    assert row["n_uncertain"] == 0
     assert row["n_auto_validated"] == 0
     assert row["n_review_required"] == 0
     assert row["n_manually_validated"] == 0
     assert row["n_rejected"] == 0
+    assert row["automatic_validation_rate"] == 1.0
+    assert row["effective_validation_rate"] == 1.0
+    assert row["quality_status"] == "healthy"
+    assert bool(row["quality_alert"]) is False
+
+
+def test_nonempty_unattempted_corpus_reduces_coverage_and_is_degraded() -> None:
+    source_df = pd.DataFrame([
+        {
+            "identificador": f"BOE-A-2026-2000{index}",
+            "source_document_sha256": f"hash-{index}",
+        }
+        for index in range(1, 4)
+    ])
+    attempts = pd.DataFrame([
+        _attempt_record(
+            attempt_id="attempted",
+            boe_id="BOE-A-2026-20001",
+            source_hash="hash-1",
+            status="ok",
+            validation_status="passed",
+        ),
+    ])
+
+    row = build_quality_metric(
+        attempts=attempts,
+        source_df=source_df,
+        manual_reviews=None,
+        run_scope="partial",
+    ).iloc[0]
+
+    assert row["n_source_documents"] == 3
+    assert row["n_latest_attempts"] == 1
+    assert row["n_unattempted"] == 2
+    assert row["coverage_rate"] == pytest.approx(1 / 3)
+    assert row["n_classified"] == 1
+    assert row["n_uncertain"] == 0
+    assert row["n_auto_validated"] == 1
+    assert row["n_review_required"] == 2
+    assert row["automatic_validation_rate"] == pytest.approx(1 / 3)
+    assert row["effective_validation_rate"] == pytest.approx(1 / 3)
+    assert row["quality_status"] == "degraded"
+    assert bool(row["quality_alert"]) is True
+
+
+def test_nonempty_corpus_with_zero_attempts_is_not_empty_or_healthy() -> None:
+    source_df, _ = _source_and_extraction()
+
+    row = build_quality_metric(
+        attempts=empty_ai_extraction_attempts_log(),
+        source_df=source_df,
+        manual_reviews=None,
+        run_scope="not-attempted",
+    ).iloc[0]
+
+    assert row["n_source_documents"] == 1
+    assert row["n_latest_attempts"] == 0
+    assert row["n_unattempted"] == 1
+    assert row["coverage_rate"] == 0.0
+    assert row["automatic_validation_rate"] == 0.0
+    assert row["effective_validation_rate"] == 0.0
+    assert row["n_review_required"] == 1
+    assert row["quality_status"] == "degraded"
+
+
+def test_uncertain_is_not_auto_validated_and_manual_validation_resolves_it() -> None:
+    source_df, extraction = _source_and_extraction()
+    boe_id = extraction.boe_id
+    source_hash = str(source_df.iloc[0]["source_document_sha256"])
+    attempts = pd.DataFrame([
+        _attempt_record(
+            attempt_id="uncertain",
+            boe_id=boe_id,
+            source_hash=source_hash,
+            status="ok",
+            validation_status="passed",
+            classification_status="uncertain",
+        ),
+    ])
+
+    pending = build_quality_metric(
+        attempts=attempts,
+        source_df=source_df,
+        manual_reviews=None,
+        run_scope="uncertain",
+    ).iloc[0]
+    resolved = build_quality_metric(
+        attempts=attempts,
+        source_df=source_df,
+        manual_reviews=pd.DataFrame([
+            _manual_record(
+                manual_review_id="manual-valid",
+                boe_id=boe_id,
+                source_hash=source_hash,
+                review_status="manually_validated",
+                reviewed_at="2026-02-01T00:00:00Z",
+            ),
+        ]),
+        run_scope="uncertain-resolved",
+    ).iloc[0]
+
+    assert pending["n_latest_attempts"] == 1
+    assert pending["n_uncertain"] == 1
+    assert pending["n_auto_validated"] == 0
+    assert pending["automatic_validation_rate"] == 0.0
+    assert pending["effective_validation_rate"] == 0.0
+    assert pending["n_review_required"] == 1
+    assert pending["quality_status"] == "degraded"
+    assert resolved["n_auto_validated"] == 0
+    assert resolved["n_manually_validated"] == 1
+    assert resolved["n_review_required"] == 0
+    assert resolved["effective_validation_rate"] == 1.0
+    assert resolved["quality_status"] == "healthy"
+
+
+def test_quality_metric_decision_categories_are_disjoint() -> None:
+    source_rows = [
+        (f"BOE-A-2026-2100{index}", f"hash-{index}")
+        for index in range(1, 5)
+    ]
+    source_df = pd.DataFrame([
+        {
+            "identificador": boe_id,
+            "source_document_sha256": source_hash,
+        }
+        for boe_id, source_hash in source_rows
+    ])
+    attempts = pd.DataFrame([
+        _attempt_record(
+            attempt_id=f"attempt-{index}",
+            boe_id=boe_id,
+            source_hash=source_hash,
+            status="ok",
+            validation_status="passed",
+            classification_status=(
+                "uncertain" if index == 4 else "classified"
+            ),
+        )
+        for index, (boe_id, source_hash) in enumerate(source_rows, start=1)
+    ])
+    manual_reviews = pd.DataFrame([
+        _manual_record(
+            manual_review_id="manual-valid",
+            boe_id=source_rows[1][0],
+            source_hash=source_rows[1][1],
+            review_status="manually_validated",
+            reviewed_at="2026-02-01T00:00:00Z",
+        ),
+        _manual_record(
+            manual_review_id="manual-rejected",
+            boe_id=source_rows[2][0],
+            source_hash=source_rows[2][1],
+            review_status="rejected",
+            reviewed_at="2026-02-01T00:00:00Z",
+        ),
+    ])
+
+    row = build_quality_metric(
+        attempts=attempts,
+        source_df=source_df,
+        manual_reviews=manual_reviews,
+        run_scope="disjoint-decisions",
+    ).iloc[0]
+
+    assert row["n_source_documents"] == 4
+    assert row["n_auto_validated"] == 1
+    assert row["n_manually_validated"] == 1
+    assert row["n_rejected"] == 1
+    assert row["n_review_required"] == 1
+    assert (
+        row["n_auto_validated"]
+        + row["n_manually_validated"]
+        + row["n_rejected"]
+        <= row["n_source_documents"]
+    )
+    assert row["automatic_validation_rate"] == pytest.approx(0.25)
+    assert row["effective_validation_rate"] == pytest.approx(0.5)
+    assert 0 <= row["automatic_validation_rate"] <= 1
+    assert 0 <= row["effective_validation_rate"] <= 1
+
+
+def test_attempt_outside_target_does_not_inflate_coverage() -> None:
+    source_df = pd.DataFrame([{
+        "identificador": "BOE-A-2026-20001",
+        "source_document_sha256": "target-hash",
+    }])
+    attempts = pd.DataFrame([
+        _attempt_record(
+            attempt_id="external",
+            boe_id="BOE-A-2026-99999",
+            source_hash="external-hash",
+            status="ok",
+            validation_status="passed",
+        ),
+    ])
+
+    row = build_quality_metric(
+        attempts=attempts,
+        source_df=source_df,
+        manual_reviews=None,
+        run_scope="subset",
+    ).iloc[0]
+
+    assert row["n_source_documents"] == 1
+    assert row["n_latest_attempts"] == 0
+    assert row["n_unattempted"] == 1
+    assert row["coverage_rate"] == 0.0
+    assert row["quality_status"] == "degraded"
+
+
+def test_quality_metric_is_independent_of_input_order(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_df = pd.DataFrame([
+        {
+            "identificador": f"BOE-A-2026-3000{index}",
+            "source_document_sha256": f"hash-{index}",
+        }
+        for index in range(1, 4)
+    ])
+    attempts = pd.DataFrame([
+        _attempt_record(
+            attempt_id="classified",
+            boe_id="BOE-A-2026-30001",
+            source_hash="hash-1",
+            status="ok",
+            validation_status="passed",
+        ),
+        _attempt_record(
+            attempt_id="uncertain",
+            boe_id="BOE-A-2026-30002",
+            source_hash="hash-2",
+            status="ok",
+            validation_status="passed",
+            classification_status="uncertain",
+        ),
+    ])
+    fixed_time = datetime(2026, 3, 4, 5, 6, 7, tzinfo=timezone.utc)
+
+    class FixedDateTime:
+        @classmethod
+        def now(cls, tz):
+            assert tz is timezone.utc
+            return fixed_time
+
+    monkeypatch.setattr(review_module, "datetime", FixedDateTime)
+    monkeypatch.setattr(
+        review_module,
+        "uuid4",
+        lambda: SimpleNamespace(hex="order-independent"),
+    )
+
+    metric = build_quality_metric(
+        attempts=attempts,
+        source_df=source_df,
+        manual_reviews=None,
+        run_scope="order",
+    )
+    reordered = build_quality_metric(
+        attempts=attempts.iloc[::-1].reset_index(drop=True),
+        source_df=source_df.iloc[::-1].reset_index(drop=True),
+        manual_reviews=None,
+        run_scope="order",
+    )
+
+    pd.testing.assert_frame_equal(metric, reordered)
+
+
+def test_complete_pilot_equivalent_remains_healthy() -> None:
+    fixtures = [
+        _source_and_extraction(
+            boe_id=f"BOE-A-2026-{index:05d}",
+            name=f"Planta {index:03d}",
+        )
+        for index in range(100)
+    ]
+    source_df = pd.concat(
+        [source for source, _ in fixtures],
+        ignore_index=True,
+    )
+    attempt_records = []
+    for index, (source, extraction) in enumerate(fixtures):
+        record = _attempt_record(
+            attempt_id=f"attempt-{index:03d}",
+            boe_id=extraction.boe_id,
+            source_hash=str(source.iloc[0]["source_document_sha256"]),
+            status="ok",
+            validation_status="passed",
+        )
+        record["extraction_json"] = extraction.model_dump_json()
+        attempt_records.append(record)
+    attempts = pd.DataFrame(attempt_records)
+
+    current = select_best_valid_extractions(
+        attempts=attempts,
+        source_df=source_df,
+    )
+    queue = build_review_queue(
+        attempts=attempts,
+        source_df=source_df,
+    )
+
+    row = build_quality_metric(
+        attempts=attempts,
+        source_df=source_df,
+        manual_reviews=None,
+        run_scope="pilot-equivalent",
+        minimum_auto_validation_rate=0.95,
+    ).iloc[0]
+
+    assert len(current) == 100
+    assert current["identificador_boe"].nunique() == 100
+    assert current["selection_source"].eq("auto_validated").all()
+    assert queue.empty
+    assert row["n_source_documents"] == 100
+    assert row["n_latest_attempts"] == 100
+    assert row["n_unattempted"] == 0
+    assert row["coverage_rate"] == 1.0
+    assert row["n_classified"] == 100
+    assert row["n_uncertain"] == 0
+    assert row["n_auto_validated"] == 100
+    assert row["n_manually_validated"] == 0
+    assert row["n_review_required"] == 0
     assert row["automatic_validation_rate"] == 1.0
     assert row["effective_validation_rate"] == 1.0
     assert row["quality_status"] == "healthy"
@@ -1120,6 +1491,70 @@ def test_append_quality_metric_creates_and_appends_atomically(
     pd.testing.assert_frame_equal(second, second_snapshot)
 
 
+def test_append_quality_metric_normalises_historical_parquet_without_backfill(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "historical-quality.parquet"
+    new_columns = {
+        "n_unattempted",
+        "coverage_rate",
+        "n_classified",
+        "n_uncertain",
+    }
+    historical_columns = [
+        column
+        for column in EXPECTED_QUALITY_METRIC_COLUMNS
+        if column not in new_columns
+    ]
+    historical = pd.DataFrame([{
+        "quality_run_id": "historical-run",
+        "measured_at": pd.Timestamp("2025-01-01T00:00:00Z"),
+        "run_scope": "historical",
+        "n_source_documents": 7,
+        "n_latest_attempts": 3,
+        "n_auto_validated": 2,
+        "automatic_validation_rate": 0.123,
+        "effective_validation_rate": 0.456,
+        "quality_status": "healthy",
+        "quality_alert": False,
+    }], columns=historical_columns)
+    historical.to_parquet(path, index=False)
+    new_metric = build_quality_metric(
+        attempts=empty_ai_extraction_attempts_log(),
+        source_df=pd.DataFrame(
+            columns=["identificador", "source_document_sha256"]
+        ),
+        manual_reviews=None,
+        run_scope="current-empty",
+    )
+
+    combined = append_quality_metric(new_metric, path)
+    persisted = pd.read_parquet(path)
+    historical_row = combined.loc[
+        combined["quality_run_id"].eq("historical-run")
+    ].iloc[0]
+
+    assert set(new_columns) <= set(combined.columns)
+    assert historical_row[list(new_columns)].isna().all()
+    assert historical_row["n_source_documents"] == 7
+    assert historical_row["n_latest_attempts"] == 3
+    assert historical_row["n_auto_validated"] == 2
+    assert historical_row["automatic_validation_rate"] == pytest.approx(0.123)
+    assert historical_row["effective_validation_rate"] == pytest.approx(0.456)
+    assert historical_row["quality_status"] == "healthy"
+    persisted_historical = persisted.loc[
+        persisted["quality_run_id"].eq("historical-run")
+    ].iloc[0]
+    assert persisted.columns.tolist() == combined.columns.tolist()
+    assert persisted_historical[list(new_columns)].isna().all()
+    assert persisted_historical["n_source_documents"] == 7
+    assert persisted_historical["n_latest_attempts"] == 3
+    assert persisted_historical["automatic_validation_rate"] == pytest.approx(
+        0.123
+    )
+    assert persisted_historical["quality_status"] == "healthy"
+
+
 def test_review_io_public_signatures_are_stable() -> None:
     expected_parameters = {
         load_ai_extraction_attempts: ("path",),
@@ -1151,5 +1586,5 @@ def test_review_io_public_signatures_are_stable() -> None:
 
 def test_existing_review_column_contracts_remain_unchanged() -> None:
     assert len(AI_EXTRACTION_LOG_COLUMNS) == 43
-    assert len(REVIEW_QUEUE_COLUMNS) == 15
+    assert len(REVIEW_QUEUE_COLUMNS) == 19
     assert len(MANUAL_REVIEW_COLUMNS) == 11

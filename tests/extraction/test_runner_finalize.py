@@ -590,7 +590,7 @@ def test_no_candidates_and_no_attempt_history(monkeypatch) -> None:
     pd.testing.assert_frame_equal(source_df, before_source)
 
 
-def test_candidates_without_attempt_history_return_empty_current_and_queue(
+def test_candidates_without_attempt_history_return_followup_queue(
     monkeypatch,
 ) -> None:
     source_df = _source_df(
@@ -608,9 +608,22 @@ def test_candidates_without_attempt_history_return_empty_current_and_queue(
     assert effects[0][1] is run_df
     assert result["all_attempts"].empty
     assert result["current_extractions"].empty
-    assert result["review_queue"].empty
-    assert result["quality_metric"].iloc[0]["n_source_documents"] == 2
-    assert result["quality_metric"].iloc[0]["n_latest_attempts"] == 0
+    assert result["review_queue"]["identificador_boe"].tolist() == [
+        "BOE-A-2026-20001",
+        "BOE-A-2026-20002",
+    ]
+    assert result["review_queue"]["reason_code"].tolist() == [
+        "source_not_attempted",
+        "source_not_attempted",
+    ]
+    assert result["review_queue"]["source_attempt_id"].isna().all()
+    metric = result["quality_metric"].iloc[0]
+    assert metric["n_source_documents"] == 2
+    assert metric["n_latest_attempts"] == 0
+    assert metric["n_unattempted"] == 2
+    assert metric["coverage_rate"] == 0.0
+    assert metric["n_review_required"] == 2
+    assert metric["quality_status"] == "degraded"
 
 
 def test_all_processed_candidates_still_call_extract_with_supplied_empty_run(
@@ -1300,10 +1313,18 @@ def test_isolated_integration_writes_only_requested_tmp_paths(
     metric = result["quality_metric"].iloc[0]
     assert metric["n_source_documents"] == 4
     assert metric["n_latest_attempts"] == 4
-    assert metric["n_auto_validated"] == 3
+    assert metric["n_auto_validated"] == 1
     assert metric["n_manually_validated"] == 1
     assert metric["n_rejected"] == 1
     assert metric["n_review_required"] == 1
+    assert (
+        metric["n_auto_validated"]
+        + metric["n_manually_validated"]
+        + metric["n_rejected"]
+        <= metric["n_source_documents"]
+    )
+    assert metric["automatic_validation_rate"] == pytest.approx(0.25)
+    assert metric["effective_validation_rate"] == pytest.approx(0.5)
     persisted_current = pd.read_parquet(current_path)
     persisted_queue = pd.read_parquet(queue_path)
     persisted_quality = pd.read_parquet(quality_path)

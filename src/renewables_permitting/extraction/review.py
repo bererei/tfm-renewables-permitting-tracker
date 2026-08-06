@@ -138,17 +138,22 @@ def current_successful_ai_extractions(
     source_df: pd.DataFrame,
 ) -> pd.DataFrame:
     attempts = normalise_ai_extraction_attempts_log(attempts)
+    attempts["identificador_boe"] = attempts["identificador_boe"].astype(
+        "string"
+    )
+    attempts["source_document_sha256"] = attempts[
+        "source_document_sha256"
+    ].astype("string")
     successful = attempts.loc[
         attempts["extraction_status"].eq("ok").fillna(False)
         & attempts["document_validation_status"].eq("passed").fillna(False)
+        & attempts["classification_status"].eq("classified").fillna(False)
         & attempts["document_validation_version"]
         .eq(DOCUMENT_VALIDATION_VERSION)
         .fillna(False)
         & attempts["extraction_config_id"].eq(EXTRACTION_CONFIG_ID).fillna(False)
     ].copy()
-    sources = source_df[
-        ["identificador", "source_document_sha256"]
-    ].rename(columns={"identificador": "identificador_boe"})
+    sources = _target_source_keys(source_df)
     successful = successful.merge(
         sources,
         on=["identificador_boe", "source_document_sha256"],
@@ -185,6 +190,8 @@ def build_pending_candidates(
             manual_reviews=manual_reviews,
         )
     processed = set(current["identificador_boe"].astype(str))
+    if source_df.empty:
+        return current, source_df.copy()
     pending = source_df.loc[
         ~source_df["identificador"].astype(str).isin(processed)
     ].copy()
@@ -221,6 +228,10 @@ REVIEW_QUEUE_COLUMNS = [
     "source_attempt_id",
     "extraction_config_id",
     "document_validation_version",
+    "classification_reason",
+    "reason_code",
+    "reason_severity",
+    "reason_message",
     "error_type",
     "error_message",
     "processing_stage",
@@ -229,6 +240,38 @@ REVIEW_QUEUE_COLUMNS = [
     "queue_status",
     "queued_at",
 ]
+
+_REASON_CLASSIFICATION_UNCERTAIN = "classification_uncertain"
+_REASON_SOURCE_NOT_ATTEMPTED = "source_not_attempted"
+_REASON_EXTRACTION_ERROR = "extraction_error"
+_REASON_DOCUMENT_VALIDATION_FAILED = "document_validation_failed"
+
+_REVIEW_REASON_POLICIES = {
+    _REASON_CLASSIFICATION_UNCERTAIN: {
+        "severity": "blocking",
+        "message": (
+            "La extracción es válida, pero su clasificación requiere una "
+            "decisión manual."
+        ),
+    },
+    _REASON_SOURCE_NOT_ATTEMPTED: {
+        "severity": "blocking",
+        "message": (
+            "El documento pertenece al corpus objetivo y no tiene un intento "
+            "vigente."
+        ),
+    },
+    _REASON_EXTRACTION_ERROR: {
+        "severity": "blocking",
+        "message": "El último intento vigente terminó con un error de extracción.",
+    },
+    _REASON_DOCUMENT_VALIDATION_FAILED: {
+        "severity": "blocking",
+        "message": (
+            "El último intento vigente no superó la validación documental."
+        ),
+    },
+}
 
 MANUAL_REVIEW_COLUMNS = [
     "manual_review_id",
@@ -254,6 +297,10 @@ QUALITY_METRIC_COLUMNS = [
     "model_name",
     "n_source_documents",
     "n_latest_attempts",
+    "n_unattempted",
+    "coverage_rate",
+    "n_classified",
+    "n_uncertain",
     "n_auto_validated",
     "n_review_required",
     "n_manually_validated",
@@ -282,8 +329,111 @@ def _normalise_table(
     return dataframe[columns + extra]
 
 
+def _empty_typed_table(
+    columns: list[str],
+    dtypes: dict[str, str],
+) -> pd.DataFrame:
+    return pd.DataFrame({
+        column: pd.Series(dtype=dtypes.get(column, "object"))
+        for column in columns
+    })
+
+
+def _validated_target_sources(source_df: pd.DataFrame) -> pd.DataFrame:
+    """Valida y copia el corpus objetivo sin inferirlo desde los intentos."""
+
+    if not isinstance(source_df, pd.DataFrame):
+        raise TypeError("source_df debe ser un DataFrame.")
+    required = {"identificador", "source_document_sha256"}
+    if source_df.empty:
+        sources = source_df.copy()
+        for column in sorted(required - set(sources.columns)):
+            sources[column] = pd.Series(dtype="string")
+        return sources
+
+    missing = sorted(required - set(source_df.columns))
+    if missing:
+        raise ValueError(
+            f"El corpus objetivo no contiene las columnas requeridas: {missing}."
+        )
+
+    sources = source_df.copy()
+    identifiers = sources["identificador"].astype("string")
+    invalid_identifiers = identifiers.isna() | identifiers.str.strip().eq("")
+    if invalid_identifiers.any():
+        raise ValueError(
+            "El corpus objetivo contiene identificadores BOE nulos o vacíos."
+        )
+    if identifiers.duplicated(keep=False).any():
+        duplicated = identifiers.loc[
+            identifiers.duplicated(keep=False)
+        ].unique().tolist()
+        raise ValueError(
+            f"El corpus objetivo contiene identificadores BOE duplicados: "
+            f"{duplicated[:20]}."
+        )
+
+    source_hashes = sources["source_document_sha256"].astype("string")
+    invalid_hashes = source_hashes.isna() | source_hashes.str.strip().eq("")
+    if invalid_hashes.any():
+        raise ValueError(
+            "El corpus objetivo contiene source_document_sha256 nulos o vacíos."
+        )
+
+    sources["identificador"] = identifiers
+    sources["source_document_sha256"] = source_hashes
+    return sources
+
+
+def _target_source_keys(source_df: pd.DataFrame) -> pd.DataFrame:
+    sources = _validated_target_sources(source_df)
+    return sources[
+        ["identificador", "source_document_sha256"]
+    ].rename(columns={"identificador": "identificador_boe"})
+
+
+def _review_reason_code(row: pd.Series) -> str | None:
+    def equals(value: Any, expected: str) -> bool:
+        return bool(pd.notna(value) and value == expected)
+
+    extraction_ok = equals(row["extraction_status"], "ok")
+    validation_passed = equals(
+        row["document_validation_status"],
+        "passed",
+    )
+    validation_failed = equals(
+        row["document_validation_status"],
+        "failed",
+    )
+    classification_status = row["classification_status"]
+
+    if not extraction_ok:
+        if validation_failed:
+            return _REASON_DOCUMENT_VALIDATION_FAILED
+        return _REASON_EXTRACTION_ERROR
+    if not validation_passed:
+        return _REASON_DOCUMENT_VALIDATION_FAILED
+    if equals(classification_status, "uncertain"):
+        return _REASON_CLASSIFICATION_UNCERTAIN
+    if not equals(classification_status, "classified"):
+        return _REASON_EXTRACTION_ERROR
+    return None
+
+
 def empty_review_queue() -> pd.DataFrame:
-    return pd.DataFrame(columns=REVIEW_QUEUE_COLUMNS)
+    string_columns = {
+        column: "string"
+        for column in REVIEW_QUEUE_COLUMNS
+        if column not in {"fecha_publicacion", "queued_at"}
+    }
+    return _empty_typed_table(
+        REVIEW_QUEUE_COLUMNS,
+        {
+            **string_columns,
+            "fecha_publicacion": "datetime64[ns]",
+            "queued_at": "datetime64[ns, UTC]",
+        },
+    )
 
 
 def empty_manual_reviews() -> pd.DataFrame:
@@ -299,12 +449,16 @@ def _latest_attempts_for_current_sources(
     source_df: pd.DataFrame,
 ) -> pd.DataFrame:
     attempts = normalise_ai_extraction_attempts_log(attempts)
-    if attempts.empty or source_df.empty:
+    sources = _target_source_keys(source_df)
+    if attempts.empty or sources.empty:
         return attempts.iloc[0:0].copy()
 
-    sources = source_df[
-        ["identificador", "source_document_sha256"]
-    ].rename(columns={"identificador": "identificador_boe"})
+    attempts["identificador_boe"] = attempts["identificador_boe"].astype(
+        "string"
+    )
+    attempts["source_document_sha256"] = attempts[
+        "source_document_sha256"
+    ].astype("string")
     current = attempts.loc[
         attempts["extraction_config_id"].eq(EXTRACTION_CONFIG_ID).fillna(False)
         & attempts["document_validation_version"]
@@ -340,12 +494,16 @@ def _latest_manual_reviews_for_current_sources(
     source_df: pd.DataFrame,
 ) -> pd.DataFrame:
     manual_reviews = normalise_manual_reviews(manual_reviews)
-    if manual_reviews.empty or source_df.empty:
+    sources = _target_source_keys(source_df)
+    if manual_reviews.empty or sources.empty:
         return manual_reviews.iloc[0:0].copy()
 
-    sources = source_df[
-        ["identificador", "source_document_sha256"]
-    ].rename(columns={"identificador": "identificador_boe"})
+    manual_reviews["identificador_boe"] = manual_reviews[
+        "identificador_boe"
+    ].astype("string")
+    manual_reviews["source_document_sha256"] = manual_reviews[
+        "source_document_sha256"
+    ].astype("string")
     current = manual_reviews.merge(
         sources,
         on=["identificador_boe", "source_document_sha256"],
@@ -377,9 +535,8 @@ def build_review_queue(
     source_df: pd.DataFrame,
     manual_reviews: pd.DataFrame | None = None,
 ) -> pd.DataFrame:
-    latest_attempts = _latest_attempts_for_current_sources(attempts, source_df)
-    if latest_attempts.empty:
-        return empty_review_queue()
+    sources = _validated_target_sources(source_df)
+    latest_attempts = _latest_attempts_for_current_sources(attempts, sources)
 
     manual_reviews = (
         empty_manual_reviews()
@@ -399,40 +556,72 @@ def build_review_queue(
         ].astype(str)
     )
 
-    needs_review = latest_attempts.loc[
-        ~(
-            latest_attempts["extraction_status"].eq("ok").fillna(False)
-            & latest_attempts["document_validation_status"].eq("passed").fillna(False)
-        )
-        & ~latest_attempts["identificador_boe"].astype(str).isin(resolved_ids)
-    ].copy()
-    if needs_review.empty:
-        return empty_review_queue()
-
+    latest_by_boe = {
+        str(row["identificador_boe"]): row
+        for _, row in latest_attempts.iterrows()
+    }
     queued_at = datetime.now(timezone.utc)
     records: list[dict[str, Any]] = []
-    for row in needs_review.itertuples(index=False):
+    for _, source in sources.sort_values(
+        "identificador",
+        kind="stable",
+    ).iterrows():
+        boe_id = str(source["identificador"])
+        attempt = latest_by_boe.get(boe_id)
+        if attempt is None:
+            reason_code = _REASON_SOURCE_NOT_ATTEMPTED
+        else:
+            reason_code = _review_reason_code(attempt)
+            if reason_code is None or boe_id in resolved_ids:
+                continue
+
+        reason_policy = _REVIEW_REASON_POLICIES[reason_code]
+        attempt_id = pd.NA if attempt is None else attempt["attempt_id"]
         queue_key = (
-            f"{row.identificador_boe}|{row.source_document_sha256}|"
-            f"{row.attempt_id}"
+            f"{boe_id}|{source['source_document_sha256']}|"
+            f"{'' if pd.isna(attempt_id) else attempt_id}|{reason_code}"
         )
         records.append({
             "review_queue_id": sha256(queue_key.encode("utf-8")).hexdigest()[:24],
-            "identificador_boe": row.identificador_boe,
-            "fecha_publicacion": row.fecha_publicacion,
-            "titulo": row.titulo,
-            "source_document_sha256": row.source_document_sha256,
-            "source_attempt_id": row.attempt_id,
-            "extraction_config_id": row.extraction_config_id,
-            "document_validation_version": row.document_validation_version,
-            "error_type": row.error_type,
-            "error_message": row.error_message,
-            "processing_stage": row.processing_stage,
-            "validation_issues_json": row.validation_issues_json,
-            "proposed_extraction_json": row.extraction_json,
+            "identificador_boe": boe_id,
+            "fecha_publicacion": source.get("fecha_publicacion", pd.NaT),
+            "titulo": source.get("titulo", pd.NA),
+            "source_document_sha256": source["source_document_sha256"],
+            "source_attempt_id": attempt_id,
+            "extraction_config_id": (
+                pd.NA if attempt is None else attempt["extraction_config_id"]
+            ),
+            "document_validation_version": (
+                pd.NA
+                if attempt is None
+                else attempt["document_validation_version"]
+            ),
+            "classification_reason": (
+                pd.NA if attempt is None else attempt["classification_reason"]
+            ),
+            "reason_code": reason_code,
+            "reason_severity": reason_policy["severity"],
+            "reason_message": reason_policy["message"],
+            "error_type": pd.NA if attempt is None else attempt["error_type"],
+            "error_message": (
+                pd.NA if attempt is None else attempt["error_message"]
+            ),
+            "processing_stage": (
+                pd.NA if attempt is None else attempt["processing_stage"]
+            ),
+            "validation_issues_json": (
+                pd.NA
+                if attempt is None
+                else attempt["validation_issues_json"]
+            ),
+            "proposed_extraction_json": (
+                pd.NA if attempt is None else attempt["extraction_json"]
+            ),
             "queue_status": "pending",
             "queued_at": queued_at,
         })
+    if not records:
+        return empty_review_queue()
     return _normalise_table(pd.DataFrame(records), REVIEW_QUEUE_COLUMNS)
 
 
@@ -579,7 +768,37 @@ def append_ai_extraction_attempts(
 
 
 def empty_quality_metrics() -> pd.DataFrame:
-    return pd.DataFrame(columns=QUALITY_METRIC_COLUMNS)
+    integer_columns = {
+        "n_source_documents",
+        "n_latest_attempts",
+        "n_unattempted",
+        "n_classified",
+        "n_uncertain",
+        "n_auto_validated",
+        "n_review_required",
+        "n_manually_validated",
+        "n_rejected",
+        "n_scope_evaluated",
+        "n_scope_mismatches",
+    }
+    float_columns = {
+        "coverage_rate",
+        "automatic_validation_rate",
+        "effective_validation_rate",
+        "minimum_auto_validation_rate",
+        "scope_accuracy",
+        "minimum_scope_accuracy",
+    }
+    return _empty_typed_table(
+        QUALITY_METRIC_COLUMNS,
+        {
+            **{column: "string" for column in QUALITY_METRIC_COLUMNS},
+            **{column: "Int64" for column in integer_columns},
+            **{column: "Float64" for column in float_columns},
+            "measured_at": "datetime64[ns, UTC]",
+            "quality_alert": "boolean",
+        },
+    )
 
 
 def create_manual_review_file(
@@ -599,6 +818,12 @@ def create_manual_review_file(
         )
 
     row = rows.iloc[0]
+    source_attempt_id = row.get("source_attempt_id")
+    if pd.isna(source_attempt_id) or not str(source_attempt_id).strip():
+        raise ValueError(
+            "No se puede crear una revisión manual para un documento sin "
+            "intento fuente; el documento debe intentarse primero."
+        )
     proposed_json = row.get("proposed_extraction_json")
     proposed_extraction = None
     if pd.notna(proposed_json) and str(proposed_json).strip():
@@ -607,7 +832,7 @@ def create_manual_review_file(
     payload = {
         "identificador_boe": str(row["identificador_boe"]),
         "source_document_sha256": str(row["source_document_sha256"]),
-        "source_attempt_id": str(row["source_attempt_id"]),
+        "source_attempt_id": str(source_attempt_id),
         "review_status": "pending",
         "reviewer": None,
         "review_notes": None,
@@ -731,14 +956,10 @@ def build_quality_metric(
     if not 0 <= minimum_auto_validation_rate <= 1:
         raise ValueError("minimum_auto_validation_rate debe estar entre 0 y 1.")
 
-    latest_attempts = _latest_attempts_for_current_sources(attempts, source_df)
-    auto_ids = set(
-        latest_attempts.loc[
-            latest_attempts["extraction_status"].eq("ok").fillna(False)
-            & latest_attempts["document_validation_status"].eq("passed").fillna(False),
-            "identificador_boe",
-        ].astype(str)
-    )
+    sources = _validated_target_sources(source_df)
+    latest_attempts = _latest_attempts_for_current_sources(attempts, sources)
+    current_auto = current_successful_ai_extractions(attempts, sources)
+    auto_ids = set(current_auto["identificador_boe"].astype(str))
 
     manual_reviews = (
         empty_manual_reviews()
@@ -747,7 +968,7 @@ def build_quality_metric(
     )
     latest_manual = _latest_manual_reviews_for_current_sources(
         manual_reviews,
-        source_df,
+        sources,
     )
     manual_valid_ids = set(
         latest_manual.loc[
@@ -761,24 +982,38 @@ def build_quality_metric(
             "identificador_boe",
         ].astype(str)
     )
+    target_ids = set(sources["identificador"].astype(str))
+    attempted_ids = set(latest_attempts["identificador_boe"].astype(str))
+    unattempted_ids = target_ids - attempted_ids
+    auto_ids &= target_ids
+    manual_valid_ids &= target_ids
+    rejected_ids &= target_ids
     manual_decision_ids = manual_valid_ids | rejected_ids
-    effective_valid_ids = (auto_ids - manual_decision_ids) | manual_valid_ids
+    effective_auto_ids = auto_ids - manual_decision_ids
+    effective_valid_ids = effective_auto_ids | manual_valid_ids
 
-    evaluated_ids = set(latest_attempts["identificador_boe"].astype(str))
-    effective_evaluated_ids = effective_valid_ids & evaluated_ids
-    rejected_evaluated_ids = rejected_ids & evaluated_ids
+    unresolved_attempt_ids = {
+        str(row["identificador_boe"])
+        for _, row in latest_attempts.iterrows()
+        if _review_reason_code(row) is not None
+        and str(row["identificador_boe"]) not in manual_decision_ids
+    }
+    pending_blocking_ids = unattempted_ids | unresolved_attempt_ids
 
-    n_source = int(len(source_df))
-    n_evaluated = len(evaluated_ids)
-    n_auto = len(auto_ids & evaluated_ids)
-    n_effective = len(effective_evaluated_ids)
-    n_review_required = max(
-        0,
-        n_evaluated - n_effective - len(rejected_evaluated_ids),
+    n_source = len(target_ids)
+    n_evaluated = len(attempted_ids)
+    n_unattempted = len(unattempted_ids)
+    n_auto = len(effective_auto_ids)
+    n_effective = len(effective_valid_ids)
+    coverage_rate = n_evaluated / n_source if n_source else 1.0
+    auto_rate = n_auto / n_source if n_source else 1.0
+    effective_rate = n_effective / n_source if n_source else 1.0
+    quality_alert = bool(
+        n_unattempted
+        or n_evaluated != n_source
+        or effective_rate < minimum_auto_validation_rate
+        or bool(pending_blocking_ids)
     )
-    auto_rate = n_auto / n_evaluated if n_evaluated else 1.0
-    effective_rate = n_effective / n_evaluated if n_evaluated else 1.0
-    quality_alert = auto_rate < minimum_auto_validation_rate
 
     record = {
         "quality_run_id": uuid4().hex,
@@ -790,10 +1025,24 @@ def build_quality_metric(
         "model_name": AI_MODEL_NAME,
         "n_source_documents": n_source,
         "n_latest_attempts": n_evaluated,
+        "n_unattempted": n_unattempted,
+        "coverage_rate": coverage_rate,
+        "n_classified": int(
+            latest_attempts["classification_status"]
+            .eq("classified")
+            .fillna(False)
+            .sum()
+        ),
+        "n_uncertain": int(
+            latest_attempts["classification_status"]
+            .eq("uncertain")
+            .fillna(False)
+            .sum()
+        ),
         "n_auto_validated": n_auto,
-        "n_review_required": n_review_required,
-        "n_manually_validated": len(manual_valid_ids & evaluated_ids),
-        "n_rejected": len(rejected_evaluated_ids),
+        "n_review_required": len(pending_blocking_ids),
+        "n_manually_validated": len(manual_valid_ids),
+        "n_rejected": len(rejected_ids),
         "automatic_validation_rate": auto_rate,
         "effective_validation_rate": effective_rate,
         "minimum_auto_validation_rate": minimum_auto_validation_rate,
