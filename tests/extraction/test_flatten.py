@@ -7,6 +7,7 @@ from renewables_permitting.extraction.flatten import (
     FLAT_TABLE_COLUMNS,
     flatten_current_extractions,
 )
+from renewables_permitting.extraction.flat_contract import FLAT_TABLE_SPECS
 from renewables_permitting.extraction.models import (
     AdministrativeAction,
     AdministrativeActionType,
@@ -476,7 +477,7 @@ def test_flattened_identifiers_indices_values_and_nulls_are_exact() -> None:
         AssociatedComponentType.ENERGY_STORAGE.value,
         AssociatedComponentType.POWER_LINE.value,
     ]
-    assert components.iloc[0]["description_raw"] is None
+    assert pd.isna(components.iloc[0]["description_raw"])
     assert components.iloc[1]["description_raw"] == (
         "línea eléctrica de evacuación a 220 kV"
     )
@@ -555,7 +556,7 @@ def test_flattened_identifiers_indices_values_and_nulls_are_exact() -> None:
         AdministrativeLocationLevel.MUNICIPALITY.value
     )
     assert locations.iloc[0]["province_hint_raw"] == "Toledo"
-    assert locations.iloc[0]["autonomous_community_hint_raw"] is None
+    assert pd.isna(locations.iloc[0]["autonomous_community_hint_raw"])
 
     relations = tables["generation_asset_relations"]
     assert relations.iloc[0]["generation_asset_relation_id"] == (
@@ -590,8 +591,8 @@ def test_flattened_identifiers_indices_values_and_nulls_are_exact() -> None:
         TechnicalAttributeType.STORAGE_CAPACITY.value,
         TechnicalAttributeType.VOLTAGE.value,
     ]
-    assert technical.iloc[0]["associated_component_id"] is None
-    assert technical.iloc[2]["generation_asset_mention_id"] is None
+    assert pd.isna(technical.iloc[0]["associated_component_id"])
+    assert pd.isna(technical.iloc[2]["generation_asset_mention_id"])
 
     references = tables["case_file_references"]
     assert references["case_file_reference_id"].tolist() == [
@@ -617,6 +618,22 @@ def test_flattened_row_order_is_deterministic() -> None:
         pd.testing.assert_frame_equal(first[name], second[name])
 
 
+def test_populated_flattened_tables_have_contractual_dtypes() -> None:
+    dataframe, _, _ = _current_extractions()
+
+    tables = flatten_current_extractions(dataframe)
+
+    for name, table_spec in FLAT_TABLE_SPECS.items():
+        assert not tables[name].empty
+        assert {
+            column.name: str(tables[name].dtypes[column.name])
+            for column in table_spec.columns
+        } == {
+            column.name: column.pandas_dtype
+            for column in table_spec.columns
+        }
+
+
 def test_non_relevant_extraction_produces_empty_tables_with_schema() -> None:
     extraction = _non_relevant_extraction()
     dataframe = pd.DataFrame(
@@ -638,6 +655,13 @@ def test_empty_input_produces_empty_tables_with_schema() -> None:
     for name, table in tables.items():
         assert table.empty
         assert table.columns.tolist() == EXPECTED_FLAT_TABLE_COLUMNS[name]
+        assert {
+            column.name: str(table.dtypes[column.name])
+            for column in FLAT_TABLE_SPECS[name].columns
+        } == {
+            column.name: column.pandas_dtype
+            for column in FLAT_TABLE_SPECS[name].columns
+        }
 
 
 def test_flatten_does_not_modify_dataframe_or_extraction_objects() -> None:

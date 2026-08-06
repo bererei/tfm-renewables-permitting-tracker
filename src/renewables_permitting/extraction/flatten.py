@@ -4,6 +4,11 @@ from typing import Any
 
 import pandas as pd
 
+from renewables_permitting.extraction.flat_contract import (
+    FLAT_TABLE_COLUMNS,
+    FLAT_TABLE_SPECS,
+    apply_flat_table_types,
+)
 from renewables_permitting.extraction.models import BOEProjectExtraction
 from renewables_permitting.extraction.paths import (
     ADMINISTRATIVE_ACTIONS_PATH,
@@ -23,93 +28,13 @@ from renewables_permitting.extraction.paths import (
 from renewables_permitting.extraction.persistence import save_parquet_atomic
 
 
-FLAT_TABLE_COLUMNS: dict[str, list[str]] = {
-    "publication_events": [
-        "event_id", "identificador_boe", "fecha_publicacion", "event_index",
-        "event_summary", "n_generation_assets", "n_associated_components",
-        "n_administrative_actions",
-    ],
-    "generation_asset_mentions": [
-        "event_id", "identificador_boe", "fecha_publicacion",
-        "generation_asset_mention_id", "local_generation_asset_ref",
-        "generation_type", "evidence",
-    ],
-    "generation_asset_names": [
-        "event_id", "identificador_boe", "fecha_publicacion",
-        "generation_asset_mention_id", "name_index", "name_raw",
-    ],
-    "associated_components": [
-        "event_id", "identificador_boe", "fecha_publicacion",
-        "associated_component_id", "local_component_ref", "component_type",
-        "description_raw", "evidence",
-    ],
-    "associated_component_names": [
-        "event_id", "identificador_boe", "fecha_publicacion",
-        "associated_component_id", "name_index", "name_raw",
-    ],
-    "associated_component_generation_links": [
-        "event_id", "identificador_boe", "fecha_publicacion",
-        "associated_component_id", "link_index", "local_generation_asset_ref",
-        "generation_asset_mention_id",
-    ],
-    "administrative_actions": [
-        "event_id", "identificador_boe", "fecha_publicacion",
-        "administrative_action_id", "action_index", "action_type", "decision",
-        "is_modification", "evidence",
-    ],
-    "administrative_action_targets": [
-        "event_id", "identificador_boe", "fecha_publicacion",
-        "administrative_action_id", "target_index", "target_ref",
-        "target_entity_id", "target_kind",
-    ],
-    "participant_mentions": [
-        "event_id", "identificador_boe", "fecha_publicacion",
-        "participant_mention_id", "participant_name_raw", "participant_role",
-        "evidence",
-    ],
-    "location_mentions": [
-        "event_id", "identificador_boe", "fecha_publicacion",
-        "location_mention_id", "location_name_raw", "location_level",
-        "province_hint_raw", "autonomous_community_hint_raw", "evidence",
-    ],
-    "generation_asset_relations": [
-        "event_id", "identificador_boe", "fecha_publicacion",
-        "generation_asset_relation_id", "source_generation_asset_ref",
-        "source_generation_asset_mention_id", "target_generation_asset_ref",
-        "target_generation_asset_mention_id", "relation_type", "evidence",
-    ],
-    "technical_mentions": [
-        "event_id", "identificador_boe", "fecha_publicacion",
-        "technical_mention_id", "owner_kind", "owner_ref",
-        "generation_asset_mention_id", "associated_component_id",
-        "attribute_type", "value_raw", "evidence",
-    ],
-    "case_file_references": [
-        "event_id", "identificador_boe", "fecha_publicacion",
-        "case_file_reference_id", "reference_index", "case_file_reference_raw",
-    ],
-}
-
-
 def flatten_current_extractions(
     current_extractions: pd.DataFrame,
 ) -> dict[str, pd.DataFrame]:
     """Regenera tablas planas. Solo generation_asset_mentions es agrupable."""
 
     rows: dict[str, list[dict[str, Any]]] = {
-        "publication_events": [],
-        "generation_asset_mentions": [],
-        "generation_asset_names": [],
-        "associated_components": [],
-        "associated_component_names": [],
-        "associated_component_generation_links": [],
-        "administrative_actions": [],
-        "administrative_action_targets": [],
-        "participant_mentions": [],
-        "location_mentions": [],
-        "generation_asset_relations": [],
-        "technical_mentions": [],
-        "case_file_references": [],
+        table_name: [] for table_name in FLAT_TABLE_SPECS
     }
 
     for extraction_row in current_extractions.itertuples(index=False):
@@ -295,13 +220,14 @@ def flatten_current_extractions(
                     "case_file_reference_raw": reference,
                 })
 
-    return {
+    tables = {
         table_name: pd.DataFrame(
             table_rows,
             columns=FLAT_TABLE_COLUMNS[table_name],
         )
         for table_name, table_rows in rows.items()
     }
+    return apply_flat_table_types(tables)
 
 
 def save_flattened_extractions(
