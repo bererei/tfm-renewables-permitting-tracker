@@ -9,6 +9,7 @@ from renewables_permitting.extraction.flat_contract import (
     FLAT_TABLE_SPECS,
     apply_flat_table_types,
 )
+from renewables_permitting.extraction.flat_validation import validate_flat_tables
 from renewables_permitting.extraction.models import BOEProjectExtraction
 from renewables_permitting.extraction.paths import (
     ADMINISTRATIVE_ACTIONS_PATH,
@@ -227,7 +228,9 @@ def flatten_current_extractions(
         )
         for table_name, table_rows in rows.items()
     }
-    return apply_flat_table_types(tables)
+    typed_tables = apply_flat_table_types(tables)
+    validate_flat_tables(typed_tables)
+    return typed_tables
 
 
 def save_flattened_extractions(
