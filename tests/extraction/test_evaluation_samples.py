@@ -140,15 +140,15 @@ def test_development_challenge_human_audit_contract() -> None:
 
     assert challenge_columns == CHALLENGE_COLUMNS
     assert audit_columns == HUMAN_AUDIT_COLUMNS
-    assert len(audit_rows) == 15
-    assert len({row["identificador_boe"] for row in audit_rows}) == 8
+    assert len(audit_rows) == 17
+    assert len({row["identificador_boe"] for row in audit_rows}) == 10
     assert {row["audit_version"] for row in audit_rows} == {"1"}
     assert {row["challenge_sample_version"] for row in audit_rows} == {"1"}
     assert {row["run_scope"] for row in audit_rows} == {
         "development_challenge_v1"
     }
     assert Counter(row["human_decision"] for row in audit_rows) == {
-        "CONFIRMED_MAJOR": 13,
+        "CONFIRMED_MAJOR": 15,
         "CONFIRMED_MINOR": 2,
     }
 
