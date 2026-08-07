@@ -1,4 +1,5 @@
 import csv
+import re
 from collections import Counter
 from pathlib import Path
 
@@ -7,6 +8,9 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 EVALUATION_CONFIG_DIR = REPOSITORY_ROOT / "config" / "evaluation"
 CHALLENGE_PATH = EVALUATION_CONFIG_DIR / "development_challenge_sample.csv"
 USED_DOCUMENTS_PATH = EVALUATION_CONFIG_DIR / "development_used_documents.csv"
+HUMAN_AUDIT_PATH = (
+    EVALUATION_CONFIG_DIR / "development_challenge_human_audit.csv"
+)
 
 CHALLENGE_COLUMNS = [
     "sample_version",
@@ -21,6 +25,21 @@ USED_DOCUMENT_COLUMNS = [
     "usage_type",
     "usage_reason",
     "source_reference",
+]
+HUMAN_AUDIT_COLUMNS = [
+    "audit_version",
+    "challenge_sample_version",
+    "run_scope",
+    "identificador_boe",
+    "source_attempt_id",
+    "source_document_sha256",
+    "extraction_config_id",
+    "defect_code",
+    "defect_description",
+    "human_decision",
+    "human_notes",
+    "reviewer_id",
+    "reviewed_on",
 ]
 EXPECTED_CATEGORY_COUNTS = {
     "A": 6,
@@ -113,3 +132,50 @@ def test_development_used_documents_contract_and_separation() -> None:
     }
     assert challenge_ids.isdisjoint(pilot_ids)
     assert registered_challenge_ids == challenge_ids
+
+
+def test_development_challenge_human_audit_contract() -> None:
+    challenge_columns, challenge_rows = _read_csv(CHALLENGE_PATH)
+    audit_columns, audit_rows = _read_csv(HUMAN_AUDIT_PATH)
+
+    assert challenge_columns == CHALLENGE_COLUMNS
+    assert audit_columns == HUMAN_AUDIT_COLUMNS
+    assert len(audit_rows) == 15
+    assert len({row["identificador_boe"] for row in audit_rows}) == 8
+    assert {row["audit_version"] for row in audit_rows} == {"1"}
+    assert {row["challenge_sample_version"] for row in audit_rows} == {"1"}
+    assert {row["run_scope"] for row in audit_rows} == {
+        "development_challenge_v1"
+    }
+    assert Counter(row["human_decision"] for row in audit_rows) == {
+        "CONFIRMED_MAJOR": 13,
+        "CONFIRMED_MINOR": 2,
+    }
+
+    challenge_ids = {row["identificador_boe"] for row in challenge_rows}
+    audit_ids = {row["identificador_boe"] for row in audit_rows}
+    assert audit_ids <= challenge_ids
+    assert len(
+        {(row["identificador_boe"], row["defect_code"]) for row in audit_rows}
+    ) == len(audit_rows)
+    assert all(
+        value.strip()
+        for row in audit_rows
+        for value in (row[column] for column in HUMAN_AUDIT_COLUMNS)
+    )
+    assert all(
+        re.fullmatch(r"[0-9a-f]{32}", row["source_attempt_id"])
+        for row in audit_rows
+    )
+    assert all(
+        re.fullmatch(r"[0-9a-f]{64}", row["source_document_sha256"])
+        for row in audit_rows
+    )
+    assert all(
+        re.fullmatch(r"[0-9a-f]{16}", row["extraction_config_id"])
+        for row in audit_rows
+    )
+    assert {row["reviewer_id"] for row in audit_rows} == {
+        "human_reviewer_1"
+    }
+    assert {row["reviewed_on"] for row in audit_rows} == {"2026-08-07"}
