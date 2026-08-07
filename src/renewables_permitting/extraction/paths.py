@@ -22,6 +22,9 @@ PROJECT_ROOT = find_project_root()
 DATA_DIR = PROJECT_ROOT / "data"
 
 
+CONFIG_DIR = PROJECT_ROOT / "config"
+
+
 SILVER_DIR = DATA_DIR / "silver"
 
 
@@ -52,7 +55,7 @@ BOE_AI_MANUAL_REVIEWS_PATH = SILVER_BOE_AI_DIR / "boe_ai_manual_reviews.parquet"
 BOE_AI_QUALITY_METRICS_PATH = SILVER_BOE_AI_DIR / "boe_ai_quality_metrics.parquet"
 
 
-BOE_AI_MANUAL_REVIEW_DIR = DATA_DIR / "manual" / "boe_ai_reviews"
+BOE_AI_MANUAL_REVIEW_DIR = CONFIG_DIR / "manual_reviews" / "boe_ai"
 
 
 PUBLICATION_EVENTS_PATH = SILVER_BOE_AI_DIR / "publication_events.parquet"

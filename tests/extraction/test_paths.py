@@ -17,6 +17,7 @@ from renewables_permitting.extraction.paths import (
     BOE_AI_REVIEW_QUEUE_PATH,
     BOE_CANDIDATES_DOCS_TEXT_PATH,
     CASE_FILE_REFERENCES_PATH,
+    CONFIG_DIR,
     DATA_DIR,
     GENERATION_ASSET_MENTIONS_PATH,
     GENERATION_ASSET_NAMES_PATH,
@@ -34,6 +35,7 @@ from renewables_permitting.extraction.paths import (
 
 PATHS_BY_NAME = {
     "PROJECT_ROOT": PROJECT_ROOT,
+    "CONFIG_DIR": CONFIG_DIR,
     "DATA_DIR": DATA_DIR,
     "SILVER_DIR": SILVER_DIR,
     "SILVER_BOE_AI_DIR": SILVER_BOE_AI_DIR,
@@ -62,6 +64,7 @@ PATHS_BY_NAME = {
 }
 
 EXPECTED_RELATIVE_PATHS = {
+    "CONFIG_DIR": Path("config"),
     "DATA_DIR": Path("data"),
     "SILVER_DIR": Path("data/silver"),
     "SILVER_BOE_AI_DIR": Path("data/silver/boe_ai"),
@@ -83,7 +86,7 @@ EXPECTED_RELATIVE_PATHS = {
     "BOE_AI_QUALITY_METRICS_PATH": Path(
         "data/silver/boe_ai/boe_ai_quality_metrics.parquet"
     ),
-    "BOE_AI_MANUAL_REVIEW_DIR": Path("data/manual/boe_ai_reviews"),
+    "BOE_AI_MANUAL_REVIEW_DIR": Path("config/manual_reviews/boe_ai"),
     "PUBLICATION_EVENTS_PATH": Path(
         "data/silver/boe_ai/publication_events.parquet"
     ),
@@ -227,5 +230,12 @@ def test_all_configured_paths_are_absolute_and_inside_project_root() -> None:
         for path in PATHS_BY_NAME.values()
     )
     assert DATA_DIR.parent == PROJECT_ROOT
+    assert CONFIG_DIR.parent == PROJECT_ROOT
     assert SILVER_DIR.parent == DATA_DIR
     assert SILVER_BOE_AI_DIR.parent == SILVER_DIR
+
+
+def test_manual_review_inputs_are_versionable_and_outside_data() -> None:
+    assert DATA_DIR not in BOE_AI_MANUAL_REVIEW_DIR.parents
+    assert BOE_AI_MANUAL_REVIEW_DIR.is_relative_to(CONFIG_DIR)
+    assert (BOE_AI_MANUAL_REVIEW_DIR / "README.md").is_file()

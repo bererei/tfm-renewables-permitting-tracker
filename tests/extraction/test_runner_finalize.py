@@ -168,12 +168,14 @@ def _manual_review(
     source_hash: str,
     status: str,
     corrected_extraction: BOEProjectExtraction | None = None,
+    source_attempt_id: str = "automatic-attempt",
 ) -> dict:
     return {
         "manual_review_id": review_id,
         "identificador_boe": extraction.boe_id,
         "source_document_sha256": source_hash,
-        "source_attempt_id": "automatic-attempt",
+        "source_attempt_id": source_attempt_id,
+        "extraction_config_id": EXTRACTION_CONFIG_ID,
         "review_status": status,
         "corrected_extraction_json": (
             corrected_extraction.model_dump_json()
@@ -182,7 +184,7 @@ def _manual_review(
         ),
         "reviewer": "reviewer",
         "review_notes": f"Decisión {status}.",
-        "reviewed_at": pd.Timestamp("2026-01-05T00:00:00Z"),
+        "reviewed_at_utc": pd.Timestamp("2026-01-05T00:00:00Z"),
         "contract_schema_sha256": CONTRACT_SCHEMA_SHA256,
         "document_validation_version": DOCUMENT_VALIDATION_VERSION,
     }
@@ -816,7 +818,11 @@ def test_valid_manual_review_precedes_automatic_extraction(monkeypatch) -> None:
         reason="Corrección manual.",
     )
     source_df = _source_df(
-        (automatic.boe_id, "hash-current", "Planta revisada"),
+        (
+            automatic.boe_id,
+            "hash-current",
+            "Autorización de la planta fotovoltaica Corregida.",
+        ),
     )
     history = pd.DataFrame([
         _attempt(
@@ -847,7 +853,8 @@ def test_valid_manual_review_precedes_automatic_extraction(monkeypatch) -> None:
     )
 
     current = result["current_extractions"].iloc[0]
-    assert current["attempt_id"] == "manual-valid"
+    assert len(current["attempt_id"]) == 24
+    assert current["source_attempt_id"] == "automatic-attempt"
     assert current["selection_source"] == "manually_validated"
     assert current["model_provider"] == "manual"
     assert BOEProjectExtraction.model_validate_json(
@@ -897,7 +904,7 @@ def test_manual_rejection_removes_current_and_resolves_queue(
     assert metric["n_manually_validated"] == 0
 
 
-def test_stale_manual_review_is_ignored_after_source_change(
+def test_stale_manual_review_is_rejected_after_source_change(
     monkeypatch,
 ) -> None:
     automatic = _project("BOE-A-2026-20010", name="Fuente Actual")
@@ -924,20 +931,14 @@ def test_stale_manual_review_is_ignored_after_source_change(
         ),
     ])
 
-    result, _, _ = _run_with_real_review_logic(
-        monkeypatch,
-        run_df=source_df.iloc[0:0].copy(),
-        source_df=source_df,
-        historical_attempts=history,
-        manual_reviews=stale_reviews,
-    )
-
-    current = result["current_extractions"].iloc[0]
-    assert current["attempt_id"] == "new-auto"
-    assert current["selection_source"] == "auto_validated"
-    assert BOEProjectExtraction.model_validate_json(
-        str(current["extraction_json"])
-    ) == automatic
+    with pytest.raises(ValueError, match="source_document_sha256"):
+        _run_with_real_review_logic(
+            monkeypatch,
+            run_df=source_df.iloc[0:0].copy(),
+            source_df=source_df,
+            historical_attempts=history,
+            manual_reviews=stale_reviews,
+        )
 
 
 @pytest.mark.parametrize(
@@ -1163,7 +1164,11 @@ def test_isolated_integration_writes_only_requested_tmp_paths(
     source_df = _source_df(
         (automatic.boe_id, "hash-auto", "Planta Automática"),
         (error_id, "hash-error", "Planta Error"),
-        (reviewed_auto.boe_id, "hash-review", "Planta Revisada"),
+        (
+            reviewed_auto.boe_id,
+            "hash-review",
+            "Autorización de la planta fotovoltaica Después.",
+        ),
         (rejected.boe_id, "hash-rejected", "Planta Rechazada"),
     )
     run_df = source_df.loc[
@@ -1210,12 +1215,14 @@ def test_isolated_integration_writes_only_requested_tmp_paths(
             source_hash="hash-review",
             status="manually_validated",
             corrected_extraction=reviewed_manual,
+            source_attempt_id="reviewed-auto",
         ),
         _manual_review(
             review_id="manual-rejected",
             extraction=rejected,
             source_hash="hash-rejected",
             status="rejected",
+            source_attempt_id="rejected-auto",
         ),
     ])
     stored = {

@@ -278,14 +278,19 @@ MANUAL_REVIEW_COLUMNS = [
     "identificador_boe",
     "source_document_sha256",
     "source_attempt_id",
+    "extraction_config_id",
     "review_status",
     "corrected_extraction_json",
     "reviewer",
     "review_notes",
-    "reviewed_at",
+    "reviewed_at_utc",
     "contract_schema_sha256",
     "document_validation_version",
 ]
+
+_DECISIVE_REVIEW_STATUSES = {"manually_validated", "rejected"}
+_MANUAL_REVIEW_STATUSES = {"pending", *_DECISIVE_REVIEW_STATUSES}
+_MISSING_TEXT_MARKERS = {"", "<na>", "none", "null"}
 
 QUALITY_METRIC_COLUMNS = [
     "quality_run_id",
@@ -437,11 +442,383 @@ def empty_review_queue() -> pd.DataFrame:
 
 
 def empty_manual_reviews() -> pd.DataFrame:
-    return pd.DataFrame(columns=MANUAL_REVIEW_COLUMNS)
+    string_columns = {
+        column: "string"
+        for column in MANUAL_REVIEW_COLUMNS
+        if column != "reviewed_at_utc"
+    }
+    return _empty_typed_table(
+        MANUAL_REVIEW_COLUMNS,
+        {
+            **string_columns,
+            "reviewed_at_utc": "datetime64[ns, UTC]",
+        },
+    )
 
 
 def normalise_manual_reviews(dataframe: pd.DataFrame) -> pd.DataFrame:
     return _normalise_table(dataframe, MANUAL_REVIEW_COLUMNS)
+
+
+def _is_missing_scalar(value: Any) -> bool:
+    if value is None or value is pd.NA:
+        return True
+    missing = pd.isna(value)
+    try:
+        return bool(missing)
+    except (TypeError, ValueError):
+        return False
+
+
+def _review_label(row: pd.Series, index: Any) -> str:
+    origin = row.get("_review_origin")
+    if not _is_missing_scalar(origin) and str(origin).strip():
+        return str(origin)
+    review_id = row.get("manual_review_id")
+    if not _is_missing_scalar(review_id) and str(review_id).strip():
+        return f"revisión {str(review_id).strip()!r}"
+    return f"revisión en fila {index!r}"
+
+
+def _required_review_text(
+    value: Any,
+    *,
+    field_name: str,
+    label: str,
+) -> str:
+    if _is_missing_scalar(value):
+        raise ValueError(f"{label}: {field_name} es obligatorio.")
+    text = str(value).strip()
+    if text.casefold() in _MISSING_TEXT_MARKERS:
+        raise ValueError(f"{label}: {field_name} es obligatorio.")
+    return text
+
+
+def _optional_review_text(
+    value: Any,
+    *,
+    field_name: str,
+    label: str,
+) -> Any:
+    if _is_missing_scalar(value):
+        return pd.NA
+    text = str(value).strip()
+    if text.casefold() in _MISSING_TEXT_MARKERS:
+        raise ValueError(
+            f"{label}: {field_name} no puede usar {text!r} como dato ausente."
+        )
+    return text
+
+
+def _reviewed_at_utc(
+    value: Any,
+    *,
+    required: bool,
+    label: str,
+) -> Any:
+    if _is_missing_scalar(value):
+        if required:
+            raise ValueError(f"{label}: reviewed_at_utc es obligatorio.")
+        return pd.NaT
+    if isinstance(value, str) and value.strip().casefold() in _MISSING_TEXT_MARKERS:
+        raise ValueError(
+            f"{label}: reviewed_at_utc no puede usar {value.strip()!r} "
+            "como dato ausente."
+        )
+    try:
+        parsed = pd.to_datetime(value, errors="raise", utc=True)
+    except (TypeError, ValueError) as error:
+        raise ValueError(
+            f"{label}: reviewed_at_utc no contiene una fecha válida."
+        ) from error
+    if pd.isna(parsed):
+        raise ValueError(
+            f"{label}: reviewed_at_utc no contiene una fecha válida."
+        )
+    return pd.Timestamp(parsed)
+
+
+def _manual_review_identity(row: pd.Series) -> str:
+    reviewed_at = row["reviewed_at_utc"]
+    identity = {
+        "identificador_boe": row["identificador_boe"],
+        "source_document_sha256": row["source_document_sha256"],
+        "source_attempt_id": (
+            None if _is_missing_scalar(row["source_attempt_id"])
+            else row["source_attempt_id"]
+        ),
+        "extraction_config_id": (
+            None if _is_missing_scalar(row["extraction_config_id"])
+            else row["extraction_config_id"]
+        ),
+        "document_validation_version": (
+            None if _is_missing_scalar(row["document_validation_version"])
+            else row["document_validation_version"]
+        ),
+        "review_status": row["review_status"],
+        "reviewer": (
+            None if _is_missing_scalar(row["reviewer"]) else row["reviewer"]
+        ),
+        "review_notes": (
+            None if _is_missing_scalar(row["review_notes"])
+            else row["review_notes"]
+        ),
+        "reviewed_at_utc": (
+            None if pd.isna(reviewed_at) else reviewed_at.isoformat()
+        ),
+        "corrected_extraction_json": (
+            None if _is_missing_scalar(row["corrected_extraction_json"])
+            else row["corrected_extraction_json"]
+        ),
+    }
+    serialized = json.dumps(
+        identity,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return sha256(serialized.encode("utf-8")).hexdigest()[:24]
+
+
+def _validate_manual_reviews(
+    manual_reviews: pd.DataFrame,
+    attempts: pd.DataFrame,
+    source_df: pd.DataFrame,
+) -> pd.DataFrame:
+    """Valida decisiones manuales y su linaje sin modificar las entradas."""
+
+    if not isinstance(manual_reviews, pd.DataFrame):
+        raise TypeError("manual_reviews debe ser un DataFrame.")
+    if not isinstance(attempts, pd.DataFrame):
+        raise TypeError("attempts debe ser un DataFrame.")
+
+    reviews = normalise_manual_reviews(manual_reviews)
+    attempts = normalise_ai_extraction_attempts_log(attempts)
+    sources = _validated_target_sources(source_df)
+    if reviews.empty:
+        return empty_manual_reviews()
+
+    source_rows = {
+        str(row["identificador"]): row
+        for _, row in sources.iterrows()
+    }
+    attempt_ids = attempts["attempt_id"].astype("string")
+
+    for index, original_row in reviews.iterrows():
+        row = original_row.copy()
+        label = _review_label(row, index)
+        status = _required_review_text(
+            row["review_status"],
+            field_name="review_status",
+            label=label,
+        )
+        if status not in _MANUAL_REVIEW_STATUSES:
+            raise ValueError(
+                f"{label}: review_status debe ser pending, "
+                "manually_validated o rejected."
+            )
+        decisive = status in _DECISIVE_REVIEW_STATUSES
+
+        boe_id = _required_review_text(
+            row["identificador_boe"],
+            field_name="identificador_boe",
+            label=label,
+        )
+        source_hash = _required_review_text(
+            row["source_document_sha256"],
+            field_name="source_document_sha256",
+            label=label,
+        )
+        if boe_id not in source_rows:
+            raise ValueError(
+                f"{label}: identificador_boe no existe en el corpus actual."
+            )
+        source_row = source_rows[boe_id]
+        current_hash = str(source_row["source_document_sha256"])
+        if source_hash != current_hash:
+            raise ValueError(
+                f"{label}: source_document_sha256 no coincide con el "
+                "documento actual."
+            )
+
+        reviewer = (
+            _required_review_text(
+                row["reviewer"],
+                field_name="reviewer",
+                label=label,
+            )
+            if decisive
+            else _optional_review_text(
+                row["reviewer"],
+                field_name="reviewer",
+                label=label,
+            )
+        )
+        review_notes = (
+            _required_review_text(
+                row["review_notes"],
+                field_name="review_notes",
+                label=label,
+            )
+            if decisive
+            else _optional_review_text(
+                row["review_notes"],
+                field_name="review_notes",
+                label=label,
+            )
+        )
+        reviewed_at = _reviewed_at_utc(
+            row["reviewed_at_utc"],
+            required=decisive,
+            label=label,
+        )
+
+        source_attempt_id = (
+            _required_review_text(
+                row["source_attempt_id"],
+                field_name="source_attempt_id",
+                label=label,
+            )
+            if decisive
+            else _optional_review_text(
+                row["source_attempt_id"],
+                field_name="source_attempt_id",
+                label=label,
+            )
+        )
+        if not _is_missing_scalar(source_attempt_id):
+            matches = attempts.loc[
+                attempt_ids.eq(str(source_attempt_id)).fillna(False)
+            ]
+            if matches.empty:
+                raise ValueError(
+                    f"{label}: source_attempt_id {source_attempt_id!r} "
+                    "no existe en el registro de intentos."
+                )
+            if len(matches) != 1:
+                raise ValueError(
+                    f"{label}: source_attempt_id {source_attempt_id!r} "
+                    "no es único en el registro de intentos."
+                )
+            attempt = matches.iloc[0]
+            attempt_boe = _required_review_text(
+                attempt["identificador_boe"],
+                field_name="identificador_boe del intento fuente",
+                label=label,
+            )
+            if attempt_boe != boe_id:
+                raise ValueError(
+                    f"{label}: identificador_boe no coincide con el intento fuente."
+                )
+            attempt_hash = _required_review_text(
+                attempt["source_document_sha256"],
+                field_name="source_document_sha256 del intento fuente",
+                label=label,
+            )
+            if attempt_hash != source_hash:
+                raise ValueError(
+                    f"{label}: source_document_sha256 no coincide con el "
+                    "intento fuente."
+                )
+
+            attempt_config = _required_review_text(
+                attempt["extraction_config_id"],
+                field_name="extraction_config_id del intento fuente",
+                label=label,
+            )
+            if attempt_config != EXTRACTION_CONFIG_ID:
+                raise ValueError(
+                    f"{label}: extraction_config_id del intento fuente es "
+                    "incompatible con la configuración vigente."
+                )
+            attempt_validation_version = _required_review_text(
+                attempt["document_validation_version"],
+                field_name="document_validation_version del intento fuente",
+                label=label,
+            )
+            if attempt_validation_version != DOCUMENT_VALIDATION_VERSION:
+                raise ValueError(
+                    f"{label}: document_validation_version del intento fuente "
+                    "es incompatible con la versión vigente."
+                )
+
+            review_config = _optional_review_text(
+                row["extraction_config_id"],
+                field_name="extraction_config_id",
+                label=label,
+            )
+            if (
+                not _is_missing_scalar(review_config)
+                and review_config != attempt_config
+            ):
+                raise ValueError(
+                    f"{label}: extraction_config_id no coincide con el "
+                    "intento fuente."
+                )
+            review_validation_version = _optional_review_text(
+                row["document_validation_version"],
+                field_name="document_validation_version",
+                label=label,
+            )
+            if (
+                not _is_missing_scalar(review_validation_version)
+                and review_validation_version != attempt_validation_version
+            ):
+                raise ValueError(
+                    f"{label}: document_validation_version no coincide con "
+                    "el intento fuente."
+                )
+            reviews.at[index, "extraction_config_id"] = attempt_config
+            reviews.at[
+                index, "document_validation_version"
+            ] = attempt_validation_version
+
+        corrected_json = row["corrected_extraction_json"]
+        if status == "manually_validated":
+            if (
+                _is_missing_scalar(corrected_json)
+                or not str(corrected_json).strip()
+            ):
+                raise ValueError(
+                    f"{label}: corrected_extraction_json es obligatorio para "
+                    "manually_validated."
+                )
+            extraction = BOEProjectExtraction.model_validate_json(
+                str(corrected_json)
+            )
+            document = build_source_document(source_row)
+            extraction, _ = canonicalize_project_extraction(
+                extraction,
+                source_text=f"{document.title}\n{document.text}",
+                document_title=document.title,
+            )
+            validate_extraction_against_document(
+                document=document,
+                extraction=extraction,
+            )
+            corrected_json = extraction.model_dump_json()
+
+        reviews.at[index, "identificador_boe"] = boe_id
+        reviews.at[index, "source_document_sha256"] = source_hash
+        reviews.at[index, "source_attempt_id"] = source_attempt_id
+        reviews.at[index, "review_status"] = status
+        reviews.at[index, "reviewer"] = reviewer
+        reviews.at[index, "review_notes"] = review_notes
+        reviews.at[index, "reviewed_at_utc"] = reviewed_at
+        reviews.at[index, "corrected_extraction_json"] = corrected_json
+        reviews.at[index, "contract_schema_sha256"] = CONTRACT_SCHEMA_SHA256
+        reviews.at[index, "manual_review_id"] = _manual_review_identity(
+            reviews.loc[index]
+        )
+
+    reviews["reviewed_at_utc"] = pd.to_datetime(
+        reviews["reviewed_at_utc"],
+        errors="coerce",
+        utc=True,
+    )
+    if "_review_origin" in reviews.columns:
+        reviews = reviews.drop(columns=["_review_origin"])
+    return normalise_manual_reviews(reviews).reset_index(drop=True)
 
 
 def _latest_attempts_for_current_sources(
@@ -513,14 +890,14 @@ def _latest_manual_reviews_for_current_sources(
     if current.empty:
         return normalise_manual_reviews(current)
 
-    current["reviewed_at"] = pd.to_datetime(
-        current["reviewed_at"],
+    current["reviewed_at_utc"] = pd.to_datetime(
+        current["reviewed_at_utc"],
         errors="coerce",
         utc=True,
     )
     return (
         current.sort_values(
-            ["reviewed_at", "manual_review_id"],
+            ["reviewed_at_utc", "manual_review_id"],
             na_position="first",
             kind="stable",
         )
@@ -541,7 +918,7 @@ def build_review_queue(
     manual_reviews = (
         empty_manual_reviews()
         if manual_reviews is None
-        else normalise_manual_reviews(manual_reviews)
+        else _validate_manual_reviews(manual_reviews, attempts, sources)
     )
     latest_manual = _latest_manual_reviews_for_current_sources(
         manual_reviews,
@@ -655,7 +1032,7 @@ def _manual_review_as_extraction_record(
         "classification_reason": extraction.classification_reason,
         **counts,
         "extraction_json": extraction.model_dump_json(),
-        "extracted_at": review["reviewed_at"],
+        "extracted_at": review["reviewed_at_utc"],
         "extraction_status": "ok",
         "processing_stage": "manual_review",
         "document_validation_status": "passed",
@@ -663,6 +1040,9 @@ def _manual_review_as_extraction_record(
         "deterministic_adjustment_count": 0,
         "selection_source": "manually_validated",
         "manual_review_id": review["manual_review_id"],
+        "source_attempt_id": review["source_attempt_id"],
+        "review_status": review["review_status"],
+        "reviewed_at_utc": review["reviewed_at_utc"],
         "reviewer": review["reviewer"],
         "review_notes": review["review_notes"],
     }
@@ -689,7 +1069,7 @@ def select_best_valid_extractions(
     manual_reviews = (
         empty_manual_reviews()
         if manual_reviews is None
-        else normalise_manual_reviews(manual_reviews)
+        else _validate_manual_reviews(manual_reviews, attempts, source_df)
     )
     latest_manual = _latest_manual_reviews_for_current_sources(
         manual_reviews,
@@ -818,12 +1198,27 @@ def create_manual_review_file(
         )
 
     row = rows.iloc[0]
-    source_attempt_id = row.get("source_attempt_id")
-    if pd.isna(source_attempt_id) or not str(source_attempt_id).strip():
+    try:
+        source_attempt_id = _required_review_text(
+            row.get("source_attempt_id"),
+            field_name="source_attempt_id",
+            label=f"cola de {boe_id!r}",
+        )
+    except ValueError as error:
         raise ValueError(
             "No se puede crear una revisión manual para un documento sin "
             "intento fuente; el documento debe intentarse primero."
-        )
+        ) from error
+    extraction_config_id = _required_review_text(
+        row.get("extraction_config_id"),
+        field_name="extraction_config_id",
+        label=f"cola de {boe_id!r}",
+    )
+    document_validation_version = _required_review_text(
+        row.get("document_validation_version"),
+        field_name="document_validation_version",
+        label=f"cola de {boe_id!r}",
+    )
     proposed_json = row.get("proposed_extraction_json")
     proposed_extraction = None
     if pd.notna(proposed_json) and str(proposed_json).strip():
@@ -832,10 +1227,13 @@ def create_manual_review_file(
     payload = {
         "identificador_boe": str(row["identificador_boe"]),
         "source_document_sha256": str(row["source_document_sha256"]),
-        "source_attempt_id": str(source_attempt_id),
+        "source_attempt_id": source_attempt_id,
+        "extraction_config_id": extraction_config_id,
+        "document_validation_version": document_validation_version,
         "review_status": "pending",
         "reviewer": None,
         "review_notes": None,
+        "reviewed_at_utc": None,
         "corrected_extraction": proposed_extraction,
     }
 
@@ -854,6 +1252,7 @@ def create_manual_review_file(
 
 def load_manual_review_files(
     source_df: pd.DataFrame,
+    attempts: pd.DataFrame,
     *,
     review_dir: Path = BOE_AI_MANUAL_REVIEW_DIR,
     output_path: Path | None = BOE_AI_MANUAL_REVIEWS_PATH,
@@ -864,82 +1263,49 @@ def load_manual_review_files(
             save_parquet_atomic(reviews, output_path)
         return reviews
 
-    source_rows = {
-        str(row["identificador"]): row
-        for _, row in source_df.iterrows()
-    }
     records: list[dict[str, Any]] = []
 
     for review_path in sorted(review_dir.glob("*.json")):
-        payload = json.loads(review_path.read_text(encoding="utf-8"))
-        boe_id = str(payload.get("identificador_boe", "")).strip()
-        if boe_id not in source_rows:
-            raise ValueError(
-                f"{review_path}: identificador_boe no existe en el corpus actual."
+        try:
+            payload = json.loads(review_path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError as error:
+            raise ValueError(f"{review_path}: JSON inválido.") from error
+        if not isinstance(payload, dict):
+            raise ValueError(f"{review_path}: la revisión debe ser un objeto JSON.")
+        corrected_payload = payload.get("corrected_extraction")
+        corrected_json = (
+            json.dumps(
+                corrected_payload,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
             )
-
-        document = build_source_document(source_rows[boe_id])
-        if payload.get("source_document_sha256") != document.source_document_sha256:
-            raise ValueError(
-                f"{review_path}: la fuente BOE cambió; la revisión debe repetirse."
-            )
-
-        status = str(payload.get("review_status", "")).strip()
-        if status not in {"pending", "manually_validated", "rejected"}:
-            raise ValueError(
-                f"{review_path}: review_status debe ser pending, "
-                "manually_validated o rejected."
-            )
-
-        corrected_json: str | None = None
-        if status == "manually_validated":
-            reviewer = str(payload.get("reviewer") or "").strip()
-            if not reviewer:
-                raise ValueError(
-                    f"{review_path}: reviewer es obligatorio al validar manualmente."
-                )
-            corrected_payload = payload.get("corrected_extraction")
-            if not isinstance(corrected_payload, dict):
-                raise ValueError(
-                    f"{review_path}: corrected_extraction debe contener un objeto JSON."
-                )
-            extraction = BOEProjectExtraction.model_validate(corrected_payload)
-            extraction, _ = canonicalize_project_extraction(
-                extraction,
-                source_text=f"{document.title}\n{document.text}",
-                document_title=document.title,
-            )
-            validate_extraction_against_document(
-                document=document,
-                extraction=extraction,
-            )
-            corrected_json = extraction.model_dump_json()
-
-        reviewed_at_raw = payload.get("reviewed_at")
-        reviewed_at = (
-            pd.to_datetime(reviewed_at_raw, utc=True)
-            if reviewed_at_raw
-            else pd.Timestamp(review_path.stat().st_mtime, unit="s", tz="UTC")
-        )
-        review_key = (
-            f"{boe_id}|{document.source_document_sha256}|"
-            f"{payload.get('source_attempt_id')}|{status}|{reviewed_at.isoformat()}"
+            if corrected_payload is not None
+            else None
         )
         records.append({
-            "manual_review_id": sha256(review_key.encode("utf-8")).hexdigest()[:24],
-            "identificador_boe": boe_id,
-            "source_document_sha256": document.source_document_sha256,
+            "manual_review_id": pd.NA,
+            "identificador_boe": payload.get("identificador_boe"),
+            "source_document_sha256": payload.get("source_document_sha256"),
             "source_attempt_id": payload.get("source_attempt_id"),
-            "review_status": status,
+            "extraction_config_id": payload.get("extraction_config_id"),
+            "review_status": payload.get("review_status"),
             "corrected_extraction_json": corrected_json,
             "reviewer": payload.get("reviewer"),
             "review_notes": payload.get("review_notes"),
-            "reviewed_at": reviewed_at,
-            "contract_schema_sha256": CONTRACT_SCHEMA_SHA256,
-            "document_validation_version": DOCUMENT_VALIDATION_VERSION,
+            "reviewed_at_utc": payload.get("reviewed_at_utc"),
+            "contract_schema_sha256": payload.get("contract_schema_sha256"),
+            "document_validation_version": payload.get(
+                "document_validation_version"
+            ),
+            "_review_origin": str(review_path),
         })
 
-    reviews = normalise_manual_reviews(pd.DataFrame(records))
+    reviews = _validate_manual_reviews(
+        pd.DataFrame(records),
+        attempts,
+        source_df,
+    )
     if output_path is not None:
         save_parquet_atomic(reviews, output_path)
     return reviews
@@ -964,7 +1330,7 @@ def build_quality_metric(
     manual_reviews = (
         empty_manual_reviews()
         if manual_reviews is None
-        else normalise_manual_reviews(manual_reviews)
+        else _validate_manual_reviews(manual_reviews, attempts, sources)
     )
     latest_manual = _latest_manual_reviews_for_current_sources(
         manual_reviews,

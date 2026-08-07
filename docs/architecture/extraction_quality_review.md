@@ -96,6 +96,41 @@ La cola anterior no se conserva como historial ni se migra. Para obtener los
 códigos, severidades y explicaciones actuales debe regenerarse desde el corpus,
 los intentos y las revisiones vigentes.
 
+## Linaje de las decisiones manuales
+
+El flujo de una decisión queda registrado de forma reproducible:
+
+```text
+intento automático original
+→ entrada en cola
+→ fichero de decisión manual
+→ validación de identidad y linaje
+→ validación del JSON corregido
+→ selección vigente
+```
+
+Los ficheros fuente viven en `config/manual_reviews/boe_ai/`, fuera de
+`data/**`, y son entradas versionables del pipeline. Los Parquet consolidados
+son derivados y no se editan manualmente. Una decisión final
+`manually_validated` o `rejected` exige `reviewer`, `review_notes`, una fecha
+válida en `reviewed_at_utc` y un `source_attempt_id`. El intento debe existir
+una sola vez y coincidir con el BOE, el hash documental,
+`extraction_config_id` y `document_validation_version` vigentes.
+
+`manually_validated` incorpora el JSON corregido después de validarlo con el
+contrato Pydantic, canonicalizarlo y contrastarlo con el documento. El intento
+automático no se modifica ni se elimina: la extracción manual seleccionada
+conserva `source_attempt_id` para enlazarlo. `rejected` mantiene la semántica
+actual: retira la extracción automática, resuelve la cola y participa en las
+métricas igual que antes; este cambio solo refuerza su trazabilidad.
+
+La precedencia no depende del orden de filas ni de ficheros. Se elige la última
+decisión por `reviewed_at_utc` y, si hay empate, por el identificador estable
+derivado del contenido de la revisión. Una revisión de un hash anterior se
+rechaza en vez de aplicarse al documento actual. Las revisiones antiguas que no
+tengan revisor, motivo, fecha o intento válido deben actualizarse manualmente;
+no reciben valores inventados ni backfill automático.
+
 ## Persistencia coordinada
 
 El cierre escribe, en este orden:
@@ -113,9 +148,10 @@ permanecen fuera del alcance actual.
 
 ## Límites actuales
 
-Siguen pendientes los warnings para extracciones válidas pero sospechosas, la
-trazabilidad reforzada de revisiones manuales, el tratamiento administrativo de
-documentos no intentados más allá de exigir que se procesen, y la prioridad y
-asignación de revisores. Esta política tampoco añade nuevos estados ni cambia
-el contrato Pydantic, las etiquetas del piloto, el flattening o la
-materialización Silver.
+Siguen pendientes los warnings para extracciones válidas pero sospechosas, el
+tratamiento administrativo de documentos no intentados más allá de exigir que
+se procesen, y la prioridad y asignación de revisores. También queda pendiente
+revisar el significado funcional de `rejected`; aquí se conserva exactamente
+su efecto actual sobre selección, cola, métricas y estado de calidad. Esta
+política tampoco añade nuevos estados ni cambia el contrato Pydantic, las
+etiquetas del piloto, el flattening o la materialización Silver.

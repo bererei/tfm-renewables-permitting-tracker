@@ -39,6 +39,7 @@ from renewables_permitting.extraction.review import (
     _latest_attempts_for_current_sources,
     _latest_manual_reviews_for_current_sources,
     _normalise_table,
+    _validate_manual_reviews,
     build_pending_candidates,
     build_quality_metric,
     build_review_queue,
@@ -52,6 +53,7 @@ from renewables_permitting.extraction.review import (
     select_best_valid_extractions,
 )
 from renewables_permitting.extraction.validation import (
+    DocumentExtractionValidationError,
     validate_extraction_against_document,
 )
 
@@ -129,11 +131,12 @@ EXPECTED_MANUAL_REVIEW_COLUMNS = [
     "identificador_boe",
     "source_document_sha256",
     "source_attempt_id",
+    "extraction_config_id",
     "review_status",
     "corrected_extraction_json",
     "reviewer",
     "review_notes",
-    "reviewed_at",
+    "reviewed_at_utc",
     "contract_schema_sha256",
     "document_validation_version",
 ]
@@ -339,13 +342,15 @@ def _manual_review(
     source_hash: str,
     reviewed_at: str,
     review_status: str,
+    source_attempt_id: str = "automatic",
     corrected_extraction_json: str | None = None,
 ) -> dict:
     return {
         "manual_review_id": review_id,
         "identificador_boe": extraction.boe_id,
         "source_document_sha256": source_hash,
-        "source_attempt_id": "automatic",
+        "source_attempt_id": source_attempt_id,
+        "extraction_config_id": EXTRACTION_CONFIG_ID,
         "review_status": review_status,
         "corrected_extraction_json": (
             extraction.model_dump_json()
@@ -354,10 +359,40 @@ def _manual_review(
         ),
         "reviewer": "reviewer",
         "review_notes": "Revisión.",
-        "reviewed_at": pd.Timestamp(reviewed_at),
+        "reviewed_at_utc": pd.Timestamp(reviewed_at),
         "contract_schema_sha256": CONTRACT_SCHEMA_SHA256,
         "document_validation_version": DOCUMENT_VALIDATION_VERSION,
     }
+
+
+def _linked_manual_case(
+    *,
+    status: str = "manually_validated",
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, BOEProjectExtraction]:
+    extraction = _extraction()
+    source_df = _source_df((
+        extraction.boe_id,
+        "current",
+        "Autorización de la planta fotovoltaica Aurora.",
+    ))
+    attempts = pd.DataFrame([
+        _attempt(
+            attempt_id="automatic",
+            extraction=extraction,
+            source_hash="current",
+            extracted_at="2026-01-01T00:00:00Z",
+        ),
+    ])
+    reviews = pd.DataFrame([
+        _manual_review(
+            review_id="manual-input",
+            extraction=extraction,
+            source_hash="current",
+            reviewed_at="2026-01-02T00:00:00Z",
+            review_status=status,
+        ),
+    ])
+    return source_df, attempts, reviews, extraction
 
 
 def test_column_contracts_are_exact() -> None:
@@ -366,7 +401,7 @@ def test_column_contracts_are_exact() -> None:
     assert MANUAL_REVIEW_COLUMNS == EXPECTED_MANUAL_REVIEW_COLUMNS
     assert len(AI_EXTRACTION_LOG_COLUMNS) == 43
     assert len(REVIEW_QUEUE_COLUMNS) == 19
-    assert len(MANUAL_REVIEW_COLUMNS) == 11
+    assert len(MANUAL_REVIEW_COLUMNS) == 12
 
 
 def test_empty_tables_have_exact_column_contracts() -> None:
@@ -664,7 +699,11 @@ def test_build_pending_candidates_respects_success_errors_and_source_changes() -
 def test_manual_validation_precedes_automatic_and_outputs_valid_contract() -> None:
     automatic = _extraction(name="Aurora")
     corrected = _extraction(name="Aurora Corregida")
-    source_df = _source_df((automatic.boe_id, "current", "Título actual"))
+    source_df = _source_df((
+        automatic.boe_id,
+        "current",
+        "Autorización de la planta fotovoltaica Aurora Corregida.",
+    ))
     attempts = pd.DataFrame([
         _attempt(
             attempt_id="automatic",
@@ -693,7 +732,7 @@ def test_manual_validation_precedes_automatic_and_outputs_valid_contract() -> No
     )
 
     assert selected["selection_source"].tolist() == ["manually_validated"]
-    assert selected["attempt_id"].tolist() == ["manual"]
+    assert selected["attempt_id"].str.fullmatch(r"[0-9a-f]{24}").all()
     parsed = BOEProjectExtraction.model_validate_json(
         str(selected.iloc[0]["extraction_json"])
     )
@@ -756,19 +795,21 @@ def test_old_manual_review_does_not_apply_after_source_changes() -> None:
         ),
     ])
 
-    selected = select_best_valid_extractions(
-        attempts=attempts,
-        source_df=source_df,
-        manual_reviews=manual_reviews,
-    )
-
-    assert selected["attempt_id"].tolist() == ["automatic"]
-    assert selected["selection_source"].tolist() == ["auto_validated"]
+    with pytest.raises(ValueError, match="source_document_sha256"):
+        select_best_valid_extractions(
+            attempts=attempts,
+            source_df=source_df,
+            manual_reviews=manual_reviews,
+        )
 
 
 def test_latest_manual_review_uses_reviewed_at_then_review_id() -> None:
     extraction = _extraction()
-    source_df = _source_df((extraction.boe_id, "current", "Aurora"))
+    source_df = _source_df((
+        extraction.boe_id,
+        "current",
+        "Autorización de la planta fotovoltaica Aurora.",
+    ))
     attempts = pd.DataFrame([
         _attempt(
             attempt_id="automatic",
@@ -812,8 +853,51 @@ def test_latest_manual_review_uses_reviewed_at_then_review_id() -> None:
         source_df=source_df,
         manual_reviews=manual_reviews,
     )
-    assert selected["attempt_id"].tolist() == ["newer"]
+    reordered = select_best_valid_extractions(
+        attempts=attempts,
+        source_df=source_df,
+        manual_reviews=manual_reviews.iloc[::-1].reset_index(drop=True),
+    )
     assert selected["selection_source"].tolist() == ["manually_validated"]
+    assert selected["extracted_at"].tolist() == [
+        pd.Timestamp("2026-01-03T00:00:00Z")
+    ]
+    pd.testing.assert_frame_equal(selected, reordered)
+
+
+def test_manual_review_tie_break_is_stable_after_reordering_rows() -> None:
+    source_df, attempts, first_review, extraction = _linked_manual_case()
+    tied_reviews = pd.concat([
+        first_review,
+        pd.DataFrame([
+            _manual_review(
+                review_id="second-input",
+                extraction=extraction,
+                source_hash="current",
+                reviewed_at="2026-01-02T00:00:00Z",
+                review_status="rejected",
+            )
+        ]),
+    ], ignore_index=True)
+
+    validated = _validate_manual_reviews(tied_reviews, attempts, source_df)
+    reordered = _validate_manual_reviews(
+        tied_reviews.iloc[::-1].reset_index(drop=True),
+        attempts,
+        source_df,
+    )
+    latest = _latest_manual_reviews_for_current_sources(validated, source_df)
+    latest_reordered = _latest_manual_reviews_for_current_sources(
+        reordered,
+        source_df,
+    )
+
+    assert latest["manual_review_id"].tolist() == latest_reordered[
+        "manual_review_id"
+    ].tolist()
+    assert latest["review_status"].tolist() == latest_reordered[
+        "review_status"
+    ].tolist()
 
 
 def test_unknown_manual_status_does_not_override_automatic() -> None:
@@ -837,14 +921,12 @@ def test_unknown_manual_status_does_not_override_automatic() -> None:
         ),
     ])
 
-    selected = select_best_valid_extractions(
-        attempts=attempts,
-        source_df=source_df,
-        manual_reviews=manual_reviews,
-    )
-
-    assert selected["attempt_id"].tolist() == ["automatic"]
-    assert selected["selection_source"].tolist() == ["auto_validated"]
+    with pytest.raises(ValueError, match="review_status"):
+        select_best_valid_extractions(
+            attempts=attempts,
+            source_df=source_df,
+            manual_reviews=manual_reviews,
+        )
 
 
 def test_invalid_manually_validated_json_is_rejected() -> None:
@@ -860,12 +942,171 @@ def test_invalid_manually_validated_json_is_rejected() -> None:
             corrected_extraction_json="{not-json",
         ),
     ])
+    attempts = pd.DataFrame([
+        _attempt(
+            attempt_id="automatic",
+            extraction=extraction,
+            source_hash="current",
+            extracted_at="2026-01-01T00:00:00Z",
+        ),
+    ])
 
     with pytest.raises(ValidationError):
         select_best_valid_extractions(
-            attempts=empty_ai_extraction_attempts_log(),
+            attempts=attempts,
             source_df=source_df,
             manual_reviews=manual_reviews,
+        )
+
+
+@pytest.mark.parametrize("status", ["manually_validated", "rejected"])
+@pytest.mark.parametrize(
+    ("field", "invalid_value"),
+    [
+        ("reviewer", None),
+        ("reviewer", "   "),
+        ("reviewer", "<NA>"),
+        ("reviewer", "None"),
+        ("reviewer", "null"),
+        ("review_notes", None),
+        ("review_notes", "   "),
+        ("reviewed_at_utc", None),
+        ("reviewed_at_utc", "null"),
+        ("source_attempt_id", None),
+        ("source_attempt_id", "   "),
+    ],
+)
+def test_decisive_manual_review_requires_traceability_metadata(
+    status: str,
+    field: str,
+    invalid_value: object,
+) -> None:
+    source_df, attempts, reviews, _ = _linked_manual_case(status=status)
+    reviews[field] = reviews[field].astype("object")
+    reviews.loc[0, field] = invalid_value
+
+    with pytest.raises(ValueError, match=field):
+        _validate_manual_reviews(reviews, attempts, source_df)
+
+
+def test_manual_review_rejects_invalid_reviewed_at_utc() -> None:
+    source_df, attempts, reviews, _ = _linked_manual_case()
+    reviews["reviewed_at_utc"] = reviews["reviewed_at_utc"].astype("object")
+    reviews.loc[0, "reviewed_at_utc"] = "not-a-date"
+
+    with pytest.raises(ValueError, match="reviewed_at_utc"):
+        _validate_manual_reviews(reviews, attempts, source_df)
+
+
+def test_manual_review_rejects_missing_or_duplicate_source_attempt() -> None:
+    source_df, attempts, reviews, _ = _linked_manual_case()
+    missing = reviews.copy(deep=True)
+    missing.loc[0, "source_attempt_id"] = "does-not-exist"
+
+    with pytest.raises(ValueError, match="no existe"):
+        _validate_manual_reviews(missing, attempts, source_df)
+    with pytest.raises(ValueError, match="no es único"):
+        _validate_manual_reviews(
+            reviews,
+            pd.concat([attempts, attempts], ignore_index=True),
+            source_df,
+        )
+
+
+@pytest.mark.parametrize(
+    ("attempt_field", "invalid_value", "message"),
+    [
+        ("identificador_boe", "BOE-A-2026-99999", "identificador_boe"),
+        ("source_document_sha256", "other-hash", "source_document_sha256"),
+        ("extraction_config_id", "old-config", "extraction_config_id"),
+        (
+            "document_validation_version",
+            "old-version",
+            "document_validation_version",
+        ),
+    ],
+)
+def test_manual_review_rejects_incompatible_source_attempt(
+    attempt_field: str,
+    invalid_value: str,
+    message: str,
+) -> None:
+    source_df, attempts, reviews, _ = _linked_manual_case()
+    attempts.loc[0, attempt_field] = invalid_value
+
+    with pytest.raises(ValueError, match=message):
+        _validate_manual_reviews(reviews, attempts, source_df)
+
+
+@pytest.mark.parametrize(
+    ("review_field", "invalid_value"),
+    [
+        ("extraction_config_id", "different-config"),
+        ("document_validation_version", "different-version"),
+    ],
+)
+def test_manual_review_rejects_lineage_declared_by_review_that_differs(
+    review_field: str,
+    invalid_value: str,
+) -> None:
+    source_df, attempts, reviews, _ = _linked_manual_case()
+    reviews.loc[0, review_field] = invalid_value
+
+    with pytest.raises(ValueError, match=review_field):
+        _validate_manual_reviews(reviews, attempts, source_df)
+
+
+def test_manual_review_validation_is_deterministic_and_does_not_mutate_inputs() -> None:
+    source_df, attempts, reviews, _ = _linked_manual_case()
+    sources_snapshot = source_df.copy(deep=True)
+    attempts_snapshot = attempts.copy(deep=True)
+    reviews_snapshot = reviews.copy(deep=True)
+
+    first = _validate_manual_reviews(reviews, attempts, source_df)
+    second = _validate_manual_reviews(
+        reviews.iloc[::-1].reset_index(drop=True),
+        attempts.iloc[::-1].reset_index(drop=True),
+        source_df.iloc[::-1].reset_index(drop=True),
+    )
+
+    pd.testing.assert_frame_equal(source_df, sources_snapshot)
+    pd.testing.assert_frame_equal(attempts, attempts_snapshot)
+    pd.testing.assert_frame_equal(reviews, reviews_snapshot)
+    pd.testing.assert_frame_equal(first, second)
+    assert first["manual_review_id"].str.fullmatch(r"[0-9a-f]{24}").all()
+    assert str(first["reviewed_at_utc"].dtype) == "datetime64[ns, UTC]"
+
+
+def test_direct_manual_dataframe_is_validated_and_keeps_source_attempt_lineage() -> None:
+    source_df, attempts, reviews, _ = _linked_manual_case()
+
+    selected = select_best_valid_extractions(
+        attempts=attempts,
+        source_df=source_df,
+        manual_reviews=reviews,
+    )
+
+    assert selected["selection_source"].tolist() == ["manually_validated"]
+    assert selected["source_attempt_id"].tolist() == ["automatic"]
+    assert selected["reviewer"].tolist() == ["reviewer"]
+    assert selected["review_notes"].tolist() == ["Revisión."]
+    assert selected["reviewed_at_utc"].tolist() == [
+        pd.Timestamp("2026-01-02T00:00:00Z")
+    ]
+
+
+def test_direct_manual_dataframe_cannot_bypass_document_validation() -> None:
+    source_df, attempts, reviews, extraction = _linked_manual_case()
+    unsupported = extraction.model_copy(update={
+        "boe_id": "BOE-A-2026-99999",
+    })
+    reviews.loc[0, "corrected_extraction_json"] = unsupported.model_dump_json()
+
+    with pytest.raises(DocumentExtractionValidationError):
+        select_best_valid_extractions(
+            attempts=attempts,
+            source_df=source_df,
+            manual_reviews=reviews,
         )
 
 
@@ -1097,7 +1338,11 @@ def test_manual_validation_can_resolve_uncertain_extraction() -> None:
         classification_status=ClassificationStatus.UNCERTAIN
     )
     corrected = _extraction(uncertain.boe_id, name="Aurora validada")
-    source_df = _source_df((uncertain.boe_id, "current", "Título incierto"))
+    source_df = _source_df((
+        uncertain.boe_id,
+        "current",
+        "Autorización de la planta fotovoltaica Aurora validada.",
+    ))
     attempts = pd.DataFrame([
         _attempt(
             attempt_id="uncertain",
@@ -1113,6 +1358,7 @@ def test_manual_validation_can_resolve_uncertain_extraction() -> None:
             source_hash="current",
             reviewed_at="2026-01-02T00:00:00Z",
             review_status="manually_validated",
+            source_attempt_id="uncertain",
         ),
     ])
 
@@ -1122,7 +1368,7 @@ def test_manual_validation_can_resolve_uncertain_extraction() -> None:
         manual_reviews=manual_reviews,
     )
 
-    assert selected["attempt_id"].tolist() == ["manual-valid"]
+    assert selected["attempt_id"].str.fullmatch(r"[0-9a-f]{24}").all()
     assert selected["selection_source"].tolist() == ["manually_validated"]
     assert build_review_queue(
         attempts=attempts,
@@ -1177,7 +1423,11 @@ def test_latest_uncertain_keeps_older_classified_current_and_is_queued() -> None
 
 def test_latest_failed_attempt_keeps_older_valid_current_and_is_queued() -> None:
     extraction = _extraction()
-    source_df = _source_df((extraction.boe_id, "current", "Aurora"))
+    source_df = _source_df((
+        extraction.boe_id,
+        "current",
+        "Autorización de la planta fotovoltaica Aurora.",
+    ))
     attempts = pd.DataFrame([
         _attempt(
             attempt_id="valid-old",
@@ -1260,7 +1510,11 @@ def test_latest_failed_attempt_without_previous_valid_is_not_auto_validated() ->
 @pytest.mark.parametrize("status", ["manually_validated", "rejected"])
 def test_resolved_manual_review_removes_item_from_queue(status: str) -> None:
     extraction = _extraction()
-    source_df = _source_df((extraction.boe_id, "current", "Aurora"))
+    source_df = _source_df((
+        extraction.boe_id,
+        "current",
+        "Autorización de la planta fotovoltaica Aurora.",
+    ))
     attempts = pd.DataFrame([
         _attempt(
             attempt_id="error",
@@ -1278,6 +1532,7 @@ def test_resolved_manual_review_removes_item_from_queue(status: str) -> None:
             source_hash="current",
             reviewed_at="2026-01-02T00:00:00Z",
             review_status=status,
+            source_attempt_id="error",
         ),
     ])
 
@@ -1355,11 +1610,12 @@ def test_review_queue_and_manual_precedence() -> None:
         "identificador_boe": document.boe_id,
         "source_document_sha256": document.source_document_sha256,
         "source_attempt_id": "automatic_error",
+        "extraction_config_id": EXTRACTION_CONFIG_ID,
         "review_status": "manually_validated",
         "corrected_extraction_json": extraction.model_dump_json(),
         "reviewer": "test",
         "review_notes": "Validación de regresión.",
-        "reviewed_at": pd.Timestamp("2026-01-02", tz="UTC"),
+        "reviewed_at_utc": pd.Timestamp("2026-01-02", tz="UTC"),
         "contract_schema_sha256": CONTRACT_SCHEMA_SHA256,
         "document_validation_version": DOCUMENT_VALIDATION_VERSION,
     }]))

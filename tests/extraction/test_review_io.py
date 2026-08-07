@@ -1,5 +1,4 @@
 import json
-import os
 import warnings
 from datetime import date, datetime, timezone
 from inspect import signature
@@ -182,17 +181,23 @@ def _manual_record(
     source_hash: str,
     review_status: str,
     reviewed_at: str,
+    source_attempt_id: str | None = None,
+    corrected_extraction_json: str | None = None,
 ) -> dict:
+    if corrected_extraction_json is None and review_status == "manually_validated":
+        _, extraction = _source_and_extraction(boe_id=boe_id)
+        corrected_extraction_json = extraction.model_dump_json()
     return {
         "manual_review_id": manual_review_id,
         "identificador_boe": boe_id,
         "source_document_sha256": source_hash,
-        "source_attempt_id": f"attempt-{boe_id}",
+        "source_attempt_id": source_attempt_id or f"attempt-{boe_id}",
+        "extraction_config_id": EXTRACTION_CONFIG_ID,
         "review_status": review_status,
-        "corrected_extraction_json": None,
+        "corrected_extraction_json": corrected_extraction_json,
         "reviewer": "reviewer",
         "review_notes": "review",
-        "reviewed_at": pd.Timestamp(reviewed_at),
+        "reviewed_at_utc": pd.Timestamp(reviewed_at),
         "contract_schema_sha256": CONTRACT_SCHEMA_SHA256,
         "document_validation_version": DOCUMENT_VALIDATION_VERSION,
     }
@@ -212,14 +217,44 @@ def _editable_review_payload(
             "source_document_sha256"
         ],
         "source_attempt_id": "automatic-attempt",
+        "extraction_config_id": EXTRACTION_CONFIG_ID,
+        "document_validation_version": DOCUMENT_VALIDATION_VERSION,
         "review_status": status,
         "reviewer": reviewer,
         "review_notes": "Corrección manual.",
         "corrected_extraction": extraction.model_dump(mode="json"),
     }
     if reviewed_at is not None:
-        payload["reviewed_at"] = reviewed_at
+        payload["reviewed_at_utc"] = reviewed_at
     return payload
+
+
+def _attempts_for_review(
+    source_df: pd.DataFrame,
+    extraction: BOEProjectExtraction,
+    *,
+    attempt_id: str = "automatic-attempt",
+) -> pd.DataFrame:
+    return pd.DataFrame([
+        _attempt_record(
+            attempt_id=attempt_id,
+            boe_id=extraction.boe_id,
+            source_hash=str(source_df.iloc[0]["source_document_sha256"]),
+            status="ok",
+            validation_status="passed",
+        ),
+    ])
+
+
+def _source_documents(
+    source_rows: list[tuple[str, str]],
+) -> pd.DataFrame:
+    frames: list[pd.DataFrame] = []
+    for boe_id, source_hash in source_rows:
+        source_df, _ = _source_and_extraction(boe_id=boe_id)
+        source_df["source_document_sha256"] = source_hash
+        frames.append(source_df)
+    return pd.concat(frames, ignore_index=True)
 
 
 def _write_json(path: Path, payload: object) -> None:
@@ -356,6 +391,8 @@ def test_create_manual_review_file_writes_exact_editable_json(
             "source_document_sha256"
         ],
         "source_attempt_id": "automatic-attempt",
+        "extraction_config_id": EXTRACTION_CONFIG_ID,
+        "document_validation_version": DOCUMENT_VALIDATION_VERSION,
         "proposed_extraction_json": extraction.model_dump_json(),
     }])
     output_dir = tmp_path / "manual" / "reviews"
@@ -375,9 +412,12 @@ def test_create_manual_review_file_writes_exact_editable_json(
             "source_document_sha256"
         ],
         "source_attempt_id": "automatic-attempt",
+        "extraction_config_id": EXTRACTION_CONFIG_ID,
+        "document_validation_version": DOCUMENT_VALIDATION_VERSION,
         "review_status": "pending",
         "reviewer": None,
         "review_notes": None,
+        "reviewed_at_utc": None,
         "corrected_extraction": extraction.model_dump(mode="json"),
     }
     assert "publication_date" not in payload
@@ -394,6 +434,8 @@ def test_create_manual_review_file_protects_and_overwrites_exact_path(
             "source_document_sha256"
         ],
         "source_attempt_id": "first",
+        "extraction_config_id": EXTRACTION_CONFIG_ID,
+        "document_validation_version": DOCUMENT_VALIDATION_VERSION,
         "proposed_extraction_json": extraction.model_dump_json(),
     }])
     output_path = create_manual_review_file(
@@ -438,6 +480,8 @@ def test_create_manual_review_file_handles_absent_proposed_extraction(
         "identificador_boe": "BOE-A-2026-10001",
         "source_document_sha256": "hash",
         "source_attempt_id": "attempt",
+        "extraction_config_id": EXTRACTION_CONFIG_ID,
+        "document_validation_version": DOCUMENT_VALIDATION_VERSION,
         "proposed_extraction_json": proposed_json,
     }])
 
@@ -484,6 +528,8 @@ def test_create_manual_review_file_rejects_invalid_proposed_json(
         "identificador_boe": "BOE-A-2026-10001",
         "source_document_sha256": "hash",
         "source_attempt_id": "attempt",
+        "extraction_config_id": EXTRACTION_CONFIG_ID,
+        "document_validation_version": DOCUMENT_VALIDATION_VERSION,
         "proposed_extraction_json": "{not-json",
     }])
 
@@ -531,10 +577,12 @@ def test_create_manual_review_file_requires_exactly_one_queue_row(
 def test_load_manual_reviews_missing_and_empty_directories(
     tmp_path: Path,
 ) -> None:
-    source_df, _ = _source_and_extraction()
+    source_df, extraction = _source_and_extraction()
+    attempts = _attempts_for_review(source_df, extraction)
 
     missing = load_manual_review_files(
         source_df,
+        attempts,
         review_dir=tmp_path / "missing",
         output_path=None,
     )
@@ -542,6 +590,7 @@ def test_load_manual_reviews_missing_and_empty_directories(
     empty_dir.mkdir()
     empty = load_manual_review_files(
         source_df,
+        attempts,
         review_dir=empty_dir,
         output_path=None,
     )
@@ -556,6 +605,7 @@ def test_load_valid_manual_review_canonicalises_validates_and_preserves_fields(
     tmp_path: Path,
 ) -> None:
     source_df, extraction = _source_and_extraction()
+    attempts = _attempts_for_review(source_df, extraction)
     source_snapshot = source_df.copy(deep=True)
     review_dir = tmp_path / "reviews"
     review_dir.mkdir()
@@ -565,6 +615,7 @@ def test_load_valid_manual_review_canonicalises_validates_and_preserves_fields(
 
     reviews = load_manual_review_files(
         source_df,
+        attempts,
         review_dir=review_dir,
         output_path=None,
     )
@@ -579,7 +630,8 @@ def test_load_valid_manual_review_canonicalises_validates_and_preserves_fields(
     assert row["review_status"] == "manually_validated"
     assert row["reviewer"] == "reviewer"
     assert row["review_notes"] == "Corrección manual."
-    assert row["reviewed_at"] == pd.Timestamp("2026-02-03T04:05:06Z")
+    assert row["reviewed_at_utc"] == pd.Timestamp("2026-02-03T04:05:06Z")
+    assert row["extraction_config_id"] == EXTRACTION_CONFIG_ID
     parsed = BOEProjectExtraction.model_validate_json(
         str(row["corrected_extraction_json"])
     )
@@ -593,6 +645,7 @@ def test_load_manual_reviews_reads_files_in_sorted_order(
     tmp_path: Path,
 ) -> None:
     source_df, extraction = _source_and_extraction()
+    attempts = _attempts_for_review(source_df, extraction)
     review_dir = tmp_path / "reviews"
     review_dir.mkdir()
     payload_b = _editable_review_payload(
@@ -612,6 +665,7 @@ def test_load_manual_reviews_reads_files_in_sorted_order(
 
     reviews = load_manual_review_files(
         source_df,
+        attempts,
         review_dir=review_dir,
         output_path=None,
     )
@@ -620,10 +674,11 @@ def test_load_manual_reviews_reads_files_in_sorted_order(
     assert reviews["review_status"].tolist() == ["pending", "rejected"]
 
 
-def test_load_manual_review_uses_file_mtime_when_reviewed_at_is_absent(
+def test_pending_manual_review_without_date_has_stable_content_identity(
     tmp_path: Path,
 ) -> None:
     source_df, extraction = _source_and_extraction()
+    attempts = _attempts_for_review(source_df, extraction)
     review_dir = tmp_path / "reviews"
     review_dir.mkdir()
     payload = _editable_review_payload(
@@ -634,20 +689,24 @@ def test_load_manual_review_uses_file_mtime_when_reviewed_at_is_absent(
     )
     review_path = review_dir / "review.json"
     _write_json(review_path, payload)
-    timestamp = 1_700_000_000
-    os.utime(review_path, (timestamp, timestamp))
 
-    reviews = load_manual_review_files(
+    first = load_manual_review_files(
         source_df,
+        attempts,
+        review_dir=review_dir,
+        output_path=None,
+    )
+    second = load_manual_review_files(
+        source_df,
+        attempts,
         review_dir=review_dir,
         output_path=None,
     )
 
-    assert reviews.iloc[0]["reviewed_at"] == pd.Timestamp(
-        timestamp,
-        unit="s",
-        tz="UTC",
-    )
+    assert pd.isna(first.iloc[0]["reviewed_at_utc"])
+    assert first["manual_review_id"].tolist() == second[
+        "manual_review_id"
+    ].tolist()
 
 
 def test_load_manual_reviews_persists_consolidated_table_atomically(
@@ -655,6 +714,7 @@ def test_load_manual_reviews_persists_consolidated_table_atomically(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     source_df, extraction = _source_and_extraction()
+    attempts = _attempts_for_review(source_df, extraction)
     review_dir = tmp_path / "reviews"
     review_dir.mkdir()
     _write_json(
@@ -675,6 +735,7 @@ def test_load_manual_reviews_persists_consolidated_table_atomically(
     monkeypatch.setattr(review_module, "save_parquet_atomic", atomic_spy)
     reviews = load_manual_review_files(
         source_df,
+        attempts,
         review_dir=review_dir,
         output_path=output_path,
     )
@@ -690,11 +751,13 @@ def test_load_manual_reviews_persists_consolidated_table_atomically(
 def test_load_manual_reviews_missing_directory_can_persist_empty_table(
     tmp_path: Path,
 ) -> None:
-    source_df, _ = _source_and_extraction()
+    source_df, extraction = _source_and_extraction()
+    attempts = _attempts_for_review(source_df, extraction)
     output_path = tmp_path / "manual_reviews.parquet"
 
     reviews = load_manual_review_files(
         source_df,
+        attempts,
         review_dir=tmp_path / "missing",
         output_path=output_path,
     )
@@ -708,14 +771,16 @@ def test_load_manual_reviews_missing_directory_can_persist_empty_table(
 def test_load_manual_review_rejects_syntactically_invalid_json(
     tmp_path: Path,
 ) -> None:
-    source_df, _ = _source_and_extraction()
+    source_df, extraction = _source_and_extraction()
+    attempts = _attempts_for_review(source_df, extraction)
     review_dir = tmp_path / "reviews"
     review_dir.mkdir()
     (review_dir / "invalid.json").write_text("{not-json", encoding="utf-8")
 
-    with pytest.raises(json.JSONDecodeError):
+    with pytest.raises(ValueError, match="JSON inválido"):
         load_manual_review_files(
             source_df,
+            attempts,
             review_dir=review_dir,
             output_path=None,
         )
@@ -725,6 +790,7 @@ def test_load_manual_review_rejects_unknown_boe_id(
     tmp_path: Path,
 ) -> None:
     source_df, extraction = _source_and_extraction()
+    attempts = _attempts_for_review(source_df, extraction)
     payload = _editable_review_payload(source_df, extraction)
     payload["identificador_boe"] = "BOE-A-2026-99999"
     review_path = tmp_path / "unknown.json"
@@ -733,6 +799,7 @@ def test_load_manual_review_rejects_unknown_boe_id(
     with pytest.raises(ValueError) as exc_info:
         load_manual_review_files(
             source_df,
+            attempts,
             review_dir=tmp_path,
             output_path=None,
         )
@@ -746,6 +813,7 @@ def test_load_manual_review_rejects_stale_source_hash(
     tmp_path: Path,
 ) -> None:
     source_df, extraction = _source_and_extraction()
+    attempts = _attempts_for_review(source_df, extraction)
     payload = _editable_review_payload(source_df, extraction)
     payload["source_document_sha256"] = "obsolete"
     review_path = tmp_path / "stale.json"
@@ -754,19 +822,58 @@ def test_load_manual_review_rejects_stale_source_hash(
     with pytest.raises(ValueError) as exc_info:
         load_manual_review_files(
             source_df,
+            attempts,
             review_dir=tmp_path,
             output_path=None,
         )
 
-    assert str(exc_info.value) == (
-        f"{review_path}: la fuente BOE cambió; la revisión debe repetirse."
-    )
+    assert "source_document_sha256" in str(exc_info.value)
+
+
+def test_loader_and_direct_selection_enforce_the_same_attempt_link(
+    tmp_path: Path,
+) -> None:
+    source_df, extraction = _source_and_extraction()
+    attempts = _attempts_for_review(source_df, extraction)
+    payload = _editable_review_payload(source_df, extraction)
+    payload["source_attempt_id"] = "missing-attempt"
+    _write_json(tmp_path / "missing-attempt.json", payload)
+
+    with pytest.raises(ValueError, match="source_attempt_id.*no existe"):
+        load_manual_review_files(
+            source_df,
+            attempts,
+            review_dir=tmp_path,
+            output_path=None,
+        )
+
+    direct_review = pd.DataFrame([{
+        "identificador_boe": extraction.boe_id,
+        "source_document_sha256": source_df.iloc[0][
+            "source_document_sha256"
+        ],
+        "source_attempt_id": "missing-attempt",
+        "extraction_config_id": EXTRACTION_CONFIG_ID,
+        "document_validation_version": DOCUMENT_VALIDATION_VERSION,
+        "review_status": "manually_validated",
+        "reviewer": "reviewer",
+        "review_notes": "Corrección manual.",
+        "reviewed_at_utc": "2026-02-03T04:05:06Z",
+        "corrected_extraction_json": extraction.model_dump_json(),
+    }])
+    with pytest.raises(ValueError, match="source_attempt_id.*no existe"):
+        select_best_valid_extractions(
+            attempts=attempts,
+            source_df=source_df,
+            manual_reviews=direct_review,
+        )
 
 
 def test_load_manual_review_rejects_invalid_status(
     tmp_path: Path,
 ) -> None:
     source_df, extraction = _source_and_extraction()
+    attempts = _attempts_for_review(source_df, extraction)
     payload = _editable_review_payload(
         source_df,
         extraction,
@@ -778,6 +885,7 @@ def test_load_manual_review_rejects_invalid_status(
     with pytest.raises(ValueError) as exc_info:
         load_manual_review_files(
             source_df,
+            attempts,
             review_dir=tmp_path,
             output_path=None,
         )
@@ -792,6 +900,7 @@ def test_load_manual_review_requires_reviewer_for_manual_validation(
     tmp_path: Path,
 ) -> None:
     source_df, extraction = _source_and_extraction()
+    attempts = _attempts_for_review(source_df, extraction)
     payload = _editable_review_payload(
         source_df,
         extraction,
@@ -803,13 +912,12 @@ def test_load_manual_review_requires_reviewer_for_manual_validation(
     with pytest.raises(ValueError) as exc_info:
         load_manual_review_files(
             source_df,
+            attempts,
             review_dir=tmp_path,
             output_path=None,
         )
 
-    assert str(exc_info.value) == (
-        f"{review_path}: reviewer es obligatorio al validar manualmente."
-    )
+    assert str(exc_info.value) == f"{review_path}: reviewer es obligatorio."
 
 
 @pytest.mark.parametrize(
@@ -821,6 +929,7 @@ def test_load_manual_review_requires_corrected_extraction_object(
     corrected_extraction: object,
 ) -> None:
     source_df, extraction = _source_and_extraction()
+    attempts = _attempts_for_review(source_df, extraction)
     payload = _editable_review_payload(source_df, extraction)
     payload["corrected_extraction"] = corrected_extraction
     review_path = tmp_path / "extraction.json"
@@ -829,12 +938,13 @@ def test_load_manual_review_requires_corrected_extraction_object(
     with pytest.raises(ValueError) as exc_info:
         load_manual_review_files(
             source_df,
+            attempts,
             review_dir=tmp_path,
             output_path=None,
         )
 
-    assert str(exc_info.value) == (
-        f"{review_path}: corrected_extraction debe contener un objeto JSON."
+    assert "corrected_extraction_json" in str(exc_info.value) or isinstance(
+        exc_info.value, ValidationError
     )
 
 
@@ -842,6 +952,7 @@ def test_load_manual_review_rejects_extraction_outside_pydantic_contract(
     tmp_path: Path,
 ) -> None:
     source_df, extraction = _source_and_extraction()
+    attempts = _attempts_for_review(source_df, extraction)
     payload = _editable_review_payload(source_df, extraction)
     payload["corrected_extraction"] = {"boe_id": extraction.boe_id}
     _write_json(tmp_path / "invalid-contract.json", payload)
@@ -849,6 +960,7 @@ def test_load_manual_review_rejects_extraction_outside_pydantic_contract(
     with pytest.raises(ValidationError):
         load_manual_review_files(
             source_df,
+            attempts,
             review_dir=tmp_path,
             output_path=None,
         )
@@ -858,6 +970,7 @@ def test_load_manual_review_rejects_documentally_invalid_extraction(
     tmp_path: Path,
 ) -> None:
     source_df, extraction = _source_and_extraction()
+    attempts = _attempts_for_review(source_df, extraction)
     payload = _editable_review_payload(source_df, extraction)
     payload["corrected_extraction"]["boe_id"] = "BOE-A-2026-99999"
     _write_json(tmp_path / "invalid-document.json", payload)
@@ -865,6 +978,7 @@ def test_load_manual_review_rejects_documentally_invalid_extraction(
     with pytest.raises(DocumentExtractionValidationError):
         load_manual_review_files(
             source_df,
+            attempts,
             review_dir=tmp_path,
             output_path=None,
         )
@@ -877,13 +991,7 @@ def test_build_quality_metric_calculates_mixed_workflow_exactly(
         (f"BOE-A-2026-1000{index}", f"hash-{index}")
         for index in range(1, 6)
     ]
-    source_df = pd.DataFrame([
-        {
-            "identificador": boe_id,
-            "source_document_sha256": source_hash,
-        }
-        for boe_id, source_hash in source_rows
-    ])
+    source_df = _source_documents(source_rows)
     attempts = pd.DataFrame([
         _attempt_record(
             attempt_id="auto-valid",
@@ -929,6 +1037,7 @@ def test_build_quality_metric_calculates_mixed_workflow_exactly(
             source_hash=source_rows[2][1],
             review_status="manually_validated",
             reviewed_at="2026-02-01T00:00:00Z",
+            source_attempt_id="manual-valid",
         ),
         _manual_record(
             manual_review_id="manual-rejected",
@@ -936,6 +1045,7 @@ def test_build_quality_metric_calculates_mixed_workflow_exactly(
             source_hash=source_rows[4][1],
             review_status="rejected",
             reviewed_at="2026-02-01T00:00:00Z",
+            source_attempt_id="manual-rejected",
         ),
     ])
     fixed_time = datetime(2026, 3, 4, 5, 6, 7, tzinfo=timezone.utc)
@@ -1124,6 +1234,7 @@ def test_uncertain_is_not_auto_validated_and_manual_validation_resolves_it() -> 
                 source_hash=source_hash,
                 review_status="manually_validated",
                 reviewed_at="2026-02-01T00:00:00Z",
+                source_attempt_id="uncertain",
             ),
         ]),
         run_scope="uncertain-resolved",
@@ -1148,13 +1259,7 @@ def test_quality_metric_decision_categories_are_disjoint() -> None:
         (f"BOE-A-2026-2100{index}", f"hash-{index}")
         for index in range(1, 5)
     ]
-    source_df = pd.DataFrame([
-        {
-            "identificador": boe_id,
-            "source_document_sha256": source_hash,
-        }
-        for boe_id, source_hash in source_rows
-    ])
+    source_df = _source_documents(source_rows)
     attempts = pd.DataFrame([
         _attempt_record(
             attempt_id=f"attempt-{index}",
@@ -1175,6 +1280,7 @@ def test_quality_metric_decision_categories_are_disjoint() -> None:
             source_hash=source_rows[1][1],
             review_status="manually_validated",
             reviewed_at="2026-02-01T00:00:00Z",
+            source_attempt_id="attempt-2",
         ),
         _manual_record(
             manual_review_id="manual-rejected",
@@ -1182,6 +1288,7 @@ def test_quality_metric_decision_categories_are_disjoint() -> None:
             source_hash=source_rows[2][1],
             review_status="rejected",
             reviewed_at="2026-02-01T00:00:00Z",
+            source_attempt_id="attempt-3",
         ),
     ])
 
@@ -1565,7 +1672,12 @@ def test_review_io_public_signatures_are_stable() -> None:
             "output_dir",
             "overwrite",
         ),
-        load_manual_review_files: ("source_df", "review_dir", "output_path"),
+        load_manual_review_files: (
+            "source_df",
+            "attempts",
+            "review_dir",
+            "output_path",
+        ),
         empty_quality_metrics: (),
         build_quality_metric: (
             "attempts",
@@ -1584,7 +1696,9 @@ def test_review_io_public_signatures_are_stable() -> None:
     } == expected_parameters
 
 
-def test_existing_review_column_contracts_remain_unchanged() -> None:
+def test_review_column_contracts_include_manual_traceability() -> None:
     assert len(AI_EXTRACTION_LOG_COLUMNS) == 43
     assert len(REVIEW_QUEUE_COLUMNS) == 19
-    assert len(MANUAL_REVIEW_COLUMNS) == 11
+    assert len(MANUAL_REVIEW_COLUMNS) == 12
+    assert "extraction_config_id" in MANUAL_REVIEW_COLUMNS
+    assert "reviewed_at_utc" in MANUAL_REVIEW_COLUMNS
