@@ -1113,7 +1113,20 @@ def select_best_valid_extractions(
     if len(frames) == 1:
         selected = frames[0].copy()
     else:
-        selected = pd.concat(frames, ignore_index=True)
+        auto_all_na = auto.columns[auto.isna().all()]
+        manual_all_na = manual.columns[manual.isna().all()]
+        auto_with_values = auto.columns[auto.notna().any()]
+        manual_with_values = manual.columns[manual.notna().any()]
+        auto_for_concat = auto.drop(
+            columns=auto_all_na.intersection(manual_with_values)
+        )
+        manual_for_concat = manual.drop(
+            columns=manual_all_na.intersection(auto_with_values)
+        )
+        selected = pd.concat(
+            [auto_for_concat, manual_for_concat],
+            ignore_index=True,
+        )
 
     selected = (
         selected.sort_values(

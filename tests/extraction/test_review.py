@@ -744,6 +744,95 @@ def test_manual_validation_precedes_automatic_and_outputs_valid_contract() -> No
     pd.testing.assert_frame_equal(manual_reviews, reviews_snapshot)
 
 
+def test_manual_selection_preserves_dtypes_without_concat_future_warning() -> None:
+    automatic = _extraction("BOE-A-2026-10001", name="Automática")
+    reviewed_auto = _extraction("BOE-A-2026-10002", name="Antes")
+    reviewed_manual = _extraction("BOE-A-2026-10002", name="Después")
+    source_df = _source_df(
+        (
+            automatic.boe_id,
+            "hash-auto",
+            "Autorización de la planta fotovoltaica Automática.",
+        ),
+        (
+            reviewed_auto.boe_id,
+            "hash-review",
+            "Autorización de la planta fotovoltaica Después.",
+        ),
+    )
+    attempts = pd.DataFrame([
+        _attempt(
+            attempt_id="auto-kept",
+            extraction=automatic,
+            source_hash="hash-auto",
+            extracted_at="2026-01-01T00:00:00Z",
+        ),
+        _attempt(
+            attempt_id="auto-reviewed",
+            extraction=reviewed_auto,
+            source_hash="hash-review",
+            extracted_at="2026-01-01T00:00:00Z",
+        ),
+    ])
+    attempts["duration_seconds"] = pd.Series([1.0, 2.0], dtype="float64")
+    manual_reviews = pd.DataFrame([
+        _manual_review(
+            review_id="manual",
+            extraction=reviewed_manual,
+            source_hash="hash-review",
+            reviewed_at="2026-01-02T00:00:00Z",
+            review_status="manually_validated",
+            source_attempt_id="auto-reviewed",
+        ),
+    ])
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always", FutureWarning)
+        selected = select_best_valid_extractions(
+            attempts=attempts,
+            source_df=source_df,
+            manual_reviews=manual_reviews,
+        )
+
+    assert selected["identificador_boe"].tolist() == [
+        automatic.boe_id,
+        reviewed_auto.boe_id,
+    ]
+    assert selected["selection_source"].tolist() == [
+        "auto_validated",
+        "manually_validated",
+    ]
+    assert BOEProjectExtraction.model_validate_json(
+        str(selected.loc[1, "extraction_json"])
+    ) == reviewed_manual
+    assert selected.loc[1, "source_attempt_id"] == "auto-reviewed"
+    assert str(selected["duration_seconds"].dtype) == "float64"
+    assert str(selected["extracted_at"].dtype) == "datetime64[ns, UTC]"
+    assert selected.columns.tolist() == [
+        *AI_EXTRACTION_LOG_COLUMNS,
+        "selection_source",
+        "manual_review_id",
+        "source_attempt_id",
+        "review_status",
+        "reviewed_at_utc",
+        "reviewer",
+        "review_notes",
+    ]
+    metric = build_quality_metric(
+        attempts=attempts,
+        source_df=source_df,
+        manual_reviews=manual_reviews,
+        run_scope="manual-selection-warning-regression",
+    ).iloc[0]
+    assert metric["n_auto_validated"] == 1
+    assert metric["n_manually_validated"] == 1
+    assert metric["n_auto_validated"] + metric["n_manually_validated"] == 2
+    assert not any(
+        issubclass(item.category, FutureWarning)
+        for item in caught
+    )
+
+
 def test_manual_rejection_removes_automatic_extraction() -> None:
     extraction = _extraction()
     source_df = _source_df((extraction.boe_id, "current", "Aurora"))
