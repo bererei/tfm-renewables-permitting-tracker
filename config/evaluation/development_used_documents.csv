@@ -1,0 +1,153 @@
+identificador_boe,usage_type,usage_reason,source_reference
+BOE-A-2022-23752,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2022-24383,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2022-24403,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2022-24404,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2022-24405,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2022-24406,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-10297,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-10301,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-10303,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-1935,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-1936,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-1939,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-1941,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-1942,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-1943,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-2579,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-2597,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-2598,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-2613,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-2614,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2024-14378,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2024-14379,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2024-14387,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2024-15084,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2024-15085,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2024-16659,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2024-16660,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2024-16661,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2024-16662,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2024-16664,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2024-9603,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2024-9608,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2025-18282,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2025-18284,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2025-18287,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2025-26092,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2025-26101,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2025-26105,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2025-26108,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2025-26110,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2025-26111,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2025-26112,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-10194,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-10217,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-10319,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-10487,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-10653,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-10655,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-10656,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-10657,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-10868,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-10985,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-11671,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-11838,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-12162,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-12596,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-12699,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-13449,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-9582,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2021-32555,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2021-32558,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2021-32559,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2021-32562,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2021-32564,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2021-32566,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2022-40990,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2022-41000,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2022-41006,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2023-19012,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2023-19078,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2023-19080,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2023-19087,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2023-2188,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2023-2192,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2023-3166,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2024-17249,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2024-26379,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2024-27075,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2024-27088,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2024-29084,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2024-29087,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2024-29090,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2025-32955,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2025-32965,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2025-32972,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2025-32991,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2025-46933,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2025-46936,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2025-46937,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2025-46947,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2025-46954,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2026-14197,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2026-14346,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2026-14621,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2026-15353,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2026-15498,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2026-17483,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2026-18117,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2026-19244,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2026-19521,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-10306,development_example,Used in directed Badulaque parsing flattening location and grouping audits.,notebooks/05_parseo_docs_xml.ipynb
+BOE-A-2025-18285,development_example,Used to design and audit extraction of BESS hybridised with FV Andévalo.,notebooks/05_parseo_docs_xml.ipynb
+BOE-A-2026-13454,development_example,Used in directed La Puebla extraction flattening and location audits.,notebooks/09_flattening.ipynb
+BOE-A-2026-7629,development_example,Used in extraction and territorial-resolution development for La Puebla.,notebooks/10_localizaciones_y_revision.ipynb
+BOE-B-2021-32554,development_example,Used as an inspected parsed-text example.,notebooks/05_parseo_docs_xml.ipynb
+BOE-B-2021-32560,development_example,Used extensively for Badulaque extraction location and grouping development.,notebooks/11_agrupacion.ipynb
+BOE-B-2023-19082,development_example,Used for Badulaque modification parsing flattening and location audits.,notebooks/09_flattening.ipynb
+BOE-B-2026-19619,development_example,Used in a directed inspection of download-log behaviour.,notebooks/04_texto_candidatos_xml.ipynb
+BOE-B-2026-3596,development_example,Used in directed FV Andévalo hybridisation extraction and grouping audits.,notebooks/05_parseo_docs_xml.ipynb
+BOE-B-2022-40999,regression_case,Used by a regression test for a descriptive irrigation project with photovoltaic panels.,tests/extraction/test_canonicalization.py
+BOE-B-2024-27073,regression_case,Used by a regression test for administrative-action targeting of Carbo.,tests/extraction/test_validation.py
+BOE-B-2026-17277,regression_case,Used by regression tests for infrastructure associated with HSF Entrenucleos Ten.,tests/extraction/test_validation.py
+BOE-A-2023-14816,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2023-2574,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2023-2594,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2023-2595,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2023-2599,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2026-15059,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2023-1938,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2023-2589,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2025-18283,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2026-11672,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2024-17278,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2025-26106,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2026-10216,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2026-10972,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2026-12017,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2026-13450,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2024-16667,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2024-16669,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2025-26113,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2026-11675,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2024-17277,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2023-1931,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2023-2580,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2024-27102,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2025-32954,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2026-14921,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2023-19081,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2024-27101,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2024-27103,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2026-14192,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2026-19389,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2026-10729,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2021-32561,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2022-40998,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2024-26377,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2025-46888,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2023-10302,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2024-16666,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2025-18286,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2026-12701,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
