@@ -25,13 +25,13 @@ def test_instruction_section_hashes_match_validated_snapshots() -> None:
             "b87be37b9a26466b12a5bbffaa3ea1e24a95a84fc14e39569726e9a9432218df"
         ),
         "TAXONOMY_GUIDANCE": (
-            "98b46ee0c1b70dd59333a056ae2923237b3e9ac50451db142d1390c42f20a49b"
+            "58cd07a3e6903158e214bffd01b372d73e3235fd7da2cc8d73b1a64fd714d64d"
         ),
         "DECISION_EXAMPLES": (
-            "2e406502e5043eb45a632f1c793f73fd7b6efb9a694951971e6ccae1951e820a"
+            "64b13944ad4fc5b41c02f34f0186344033e3a8ae4a8c3ba4dd1d9cb59857a140"
         ),
         "AGENT_INSTRUCTIONS": (
-            "4d9b67eba25460e912d7bee361def17272b0d9335738e6306b5a7c45de24561d"
+            "b48240832d1b274af0435cea42cc6d305d2aec83b5a3395a1d5ce1529eff0607"
         ),
     }
 
@@ -53,7 +53,7 @@ def test_agent_instructions_use_exact_section_order_and_separators() -> None:
         "Eres un extractor canónico de publicaciones"
     )
     assert AGENT_INSTRUCTIONS.endswith(
-        "usa not_relevant_for_generation_projects."
+        "decision=formulado."
     )
     assert (
         AGENT_INSTRUCTIONS.index("OBJETIVO DEL TFM")
@@ -71,6 +71,35 @@ def test_instruction_sections_are_nonempty_and_included_once() -> None:
         AGENT_INSTRUCTIONS.count(section) == 1
         for section in normalized_sections
     )
+
+
+def test_environmental_decision_guidance_prioritizes_specific_outcomes() -> None:
+    guidance = " ".join(TAXONOMY_GUIDANCE.split())
+    examples = " ".join(DECISION_EXAMPLES.split())
+
+    assert "resultado más específico" in guidance
+    assert "formulado es solo el fallback" in guidance
+    assert "No infieras una decisión terminal" in guidance
+    assert all(
+        value in guidance
+        for value in (
+            "declaracion_impacto_ambiental",
+            "informe_impacto_ambiental",
+            "informe_determinacion_afeccion_ambiental",
+            "desfavorable",
+            "sin_efectos_adversos_significativos",
+            "requiere_evaluacion_ambiental_ordinaria",
+            "requiere_evaluacion_ambiental_adicional",
+            "no_requiere_evaluacion_ambiental_adicional",
+        )
+    )
+    assert "Título: «se formula" in examples
+    assert (
+        "Cuerpo: «La declaración de impacto ambiental es desfavorable»"
+        in examples
+    )
+    assert "decision=desfavorable" in examples
+    assert "decision=formulado" in examples
 
 
 def test_executing_instructions_has_no_io_network_or_agent_side_effects(
