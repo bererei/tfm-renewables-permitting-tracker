@@ -11,6 +11,9 @@ USED_DOCUMENTS_PATH = EVALUATION_CONFIG_DIR / "development_used_documents.csv"
 HUMAN_AUDIT_PATH = (
     EVALUATION_CONFIG_DIR / "development_challenge_human_audit.csv"
 )
+HUMAN_AUDIT_V2_PATH = (
+    EVALUATION_CONFIG_DIR / "development_challenge_v2_human_audit.csv"
+)
 
 CHALLENGE_COLUMNS = [
     "sample_version",
@@ -36,6 +39,21 @@ HUMAN_AUDIT_COLUMNS = [
     "extraction_config_id",
     "defect_code",
     "defect_description",
+    "human_decision",
+    "human_notes",
+    "reviewer_id",
+    "reviewed_on",
+]
+HUMAN_AUDIT_V2_COLUMNS = [
+    "audit_version",
+    "challenge_sample_version",
+    "run_scope",
+    "identificador_boe",
+    "source_attempt_id",
+    "source_document_sha256",
+    "extraction_config_id",
+    "check_type",
+    "candidate_assessment",
     "human_decision",
     "human_notes",
     "reviewer_id",
@@ -179,3 +197,101 @@ def test_development_challenge_human_audit_contract() -> None:
         "human_reviewer_1"
     }
     assert {row["reviewed_on"] for row in audit_rows} == {"2026-08-07"}
+
+
+def test_development_challenge_v2_human_audit_contract() -> None:
+    challenge_columns, challenge_rows = _read_csv(CHALLENGE_PATH)
+    v1_audit_columns, v1_audit_rows = _read_csv(HUMAN_AUDIT_PATH)
+    v2_audit_columns, v2_audit_rows = _read_csv(HUMAN_AUDIT_V2_PATH)
+
+    assert challenge_columns == CHALLENGE_COLUMNS
+    assert v1_audit_columns == HUMAN_AUDIT_COLUMNS
+    assert v2_audit_columns == HUMAN_AUDIT_V2_COLUMNS
+    assert len(v2_audit_rows) == 9
+    assert len({row["identificador_boe"] for row in v2_audit_rows}) == 9
+    assert {row["audit_version"] for row in v2_audit_rows} == {"1"}
+    assert {row["challenge_sample_version"] for row in v2_audit_rows} == {
+        "1"
+    }
+    assert {row["run_scope"] for row in v2_audit_rows} == {
+        "development_challenge_v2"
+    }
+    assert {row["extraction_config_id"] for row in v2_audit_rows} == {
+        "24a5bff975c6fd66"
+    }
+    assert Counter(row["human_decision"] for row in v2_audit_rows) == {
+        "CORRECTED_OK": 9,
+    }
+    assert Counter(row["candidate_assessment"] for row in v2_audit_rows) == {
+        "appears_resolved": 7,
+        "appears_correct": 2,
+    }
+    assert Counter(row["check_type"] for row in v2_audit_rows) == {
+        "wrong_decision_v1": 6,
+        "contradictory_action_v1": 1,
+        "new_terminal_decision_v2": 2,
+    }
+
+    challenge_ids = {row["identificador_boe"] for row in challenge_rows}
+    v2_audit_ids = {row["identificador_boe"] for row in v2_audit_rows}
+    assert v2_audit_ids <= challenge_ids
+    assert len(
+        {
+            (row["identificador_boe"], row["check_type"])
+            for row in v2_audit_rows
+        }
+    ) == len(v2_audit_rows)
+    assert all(
+        value.strip()
+        for row in v2_audit_rows
+        for value in (row[column] for column in HUMAN_AUDIT_V2_COLUMNS)
+    )
+    assert all(
+        re.fullmatch(r"[0-9a-f]{32}", row["source_attempt_id"])
+        for row in v2_audit_rows
+    )
+    assert all(
+        re.fullmatch(r"[0-9a-f]{64}", row["source_document_sha256"])
+        for row in v2_audit_rows
+    )
+    assert {row["reviewer_id"] for row in v2_audit_rows} == {
+        "human_reviewer_1"
+    }
+    assert {row["reviewed_on"] for row in v2_audit_rows} == {"2026-08-08"}
+
+    corresponding_v1_defect = {
+        "wrong_decision_v1": "wrong_decision",
+        "contradictory_action_v1": "contradictory_action",
+    }
+    v1_defects = {
+        (row["identificador_boe"], row["defect_code"])
+        for row in v1_audit_rows
+    }
+    derived_v1_checks = [
+        row
+        for row in v2_audit_rows
+        if row["check_type"] in corresponding_v1_defect
+    ]
+    assert len(derived_v1_checks) == 7
+    assert all(
+        (
+            row["identificador_boe"],
+            corresponding_v1_defect[row["check_type"]],
+        )
+        in v1_defects
+        for row in derived_v1_checks
+    )
+
+    new_v2_checks = [
+        row
+        for row in v2_audit_rows
+        if row["check_type"] == "new_terminal_decision_v2"
+    ]
+    assert {row["identificador_boe"] for row in new_v2_checks} == {
+        "BOE-A-2023-1938",
+        "BOE-A-2025-18283",
+    }
+    v1_audit_ids = {row["identificador_boe"] for row in v1_audit_rows}
+    assert {row["identificador_boe"] for row in new_v2_checks}.isdisjoint(
+        v1_audit_ids
+    )

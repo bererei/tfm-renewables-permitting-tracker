@@ -9,10 +9,11 @@ evaluation sample. Its categories and signals record only the pre-extraction
 criteria used to select each document.
 
 `development_challenge_human_audit.csv` records human decisions about defects
-found during that challenge and ties each decision to the exact audited
-extraction through its lineage. It is a development artifact, not a holdout;
-its BOEs are already development documents, and later pipeline results must not
-overwrite this historical audit.
+found in the original challenge run. `development_challenge_v2_human_audit.csv`
+records the later human validation of corrections and generalisation in v2.
+Both are development artifacts, not final holdouts; v2 does not replace or
+rewrite the historical v1 audit, and each decision retains the lineage of the
+exact extraction reviewed.
 
 `development_used_documents.csv` records BOEs already used in the pilot, as
 development examples, as regression cases, or in the development challenge
