@@ -30,6 +30,10 @@ TRANSIENT_RETRY_BASE_SECONDS = 2.0
 CHECKPOINT_EVERY = 5
 
 DOCUMENT_VALIDATION_VERSION = "25"
+_CANONICALIZATION_POLICY = (
+    "termination_object_filter_environmental_terminal_whitelist_"
+    "lexical_authorization_grants_v2"
+)
 ENTITY_MODEL_POLICY = "generation_roots_components_event_targets_v3"
 EVENT_GRANULARITY_POLICY = "canonical_split_independent_generation_projects_v3"
 TEMPORAL_POLICY = "current_publication_object_only_v2"
@@ -61,6 +65,7 @@ EXTRACTION_CONFIG = {
     "model_settings": MODEL_SETTINGS,
     "document_validation_version": DOCUMENT_VALIDATION_VERSION,
     "model_run_timeout_seconds": MODEL_RUN_TIMEOUT_SECONDS,
+    "canonicalization_policy": _CANONICALIZATION_POLICY,
     "entity_model_policy": ENTITY_MODEL_POLICY,
     "event_granularity_policy": EVENT_GRANULARITY_POLICY,
     "temporal_policy": TEMPORAL_POLICY,

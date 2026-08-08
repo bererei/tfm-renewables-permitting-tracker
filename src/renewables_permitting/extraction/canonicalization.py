@@ -588,6 +588,67 @@ _ACTION_PATTERNS: dict[AdministrativeActionType, str] = {
 }
 
 
+_TERMINATION_OBJECT_INTRO_RE = re.compile(
+    r"(?:"
+    r"\bde\s+(?:la\s+|las\s+)?solicitud(?:es)?\s+de\s+|"
+    r"\bdel\s+(?:expediente|procedimiento)\s+de\s+|"
+    r",\s*de\s+|"
+    r"\bde\s+"
+    r")$"
+)
+_INDEPENDENT_TITLE_ACTION_RE = re.compile(
+    r"(?:[,;]\s*)?(?:y\s+)?se\s+(?:"
+    r"otorga|concede|autoriza|deniega|somete|formula|aprueba|declara"
+    r")\b"
+)
+
+
+def _termination_object_action_types(
+    title: str,
+) -> set[AdministrativeActionType]:
+    """Identifica actos citados solo como objeto de una terminación actual."""
+
+    key = _canonical_documentary_text(title).casefold()
+    termination = re.search(r"\b(?:desistimiento|archivo|inadmisi[oó]n)\b", key)
+    if termination is None:
+        return set()
+
+    matches_by_type = {
+        action_type: list(re.finditer(pattern, key))
+        for action_type, pattern in _ACTION_PATTERNS.items()
+        if action_type != AdministrativeActionType.PROCEDURE_TERMINATION
+    }
+    matches_after_termination = [
+        match
+        for matches in matches_by_type.values()
+        for match in matches
+        if match.start() >= termination.end()
+    ]
+    if not matches_after_termination:
+        return set()
+
+    first_object_match = min(matches_after_termination, key=lambda match: match.start())
+    intro = key[termination.end():first_object_match.start()]
+    if not _TERMINATION_OBJECT_INTRO_RE.search(intro):
+        return set()
+
+    independent_action = _INDEPENDENT_TITLE_ACTION_RE.search(
+        key,
+        first_object_match.end(),
+    )
+    object_end = independent_action.start() if independent_action else len(key)
+
+    return {
+        action_type
+        for action_type, matches in matches_by_type.items()
+        if matches
+        and all(
+            first_object_match.start() <= match.start() < object_end
+            for match in matches
+        )
+    }
+
+
 def _action_types_from_title(title: str) -> set[AdministrativeActionType]:
     key = _canonical_documentary_text(title).casefold()
     result = {
@@ -599,6 +660,10 @@ def _action_types_from_title(title: str) -> set[AdministrativeActionType]:
     # Una publicación de corrección no vuelve a publicar el acto corregido.
     if AdministrativeActionType.ERROR_CORRECTION in result:
         return {AdministrativeActionType.ERROR_CORRECTION}
+
+    # Los permisos enumerados como objeto de una terminación describen el
+    # procedimiento terminado; no son por sí solos actos actuales adicionales.
+    result -= _termination_object_action_types(title)
 
     is_public_information = bool(re.search(
         r"(?:somete|sometimiento|anuncio)[^.;]{0,180}informaci[oó]n\s+p[uú]blica",
@@ -623,6 +688,33 @@ def _action_types_from_title(title: str) -> set[AdministrativeActionType]:
     return result
 
 
+_ENVIRONMENTAL_TERMINAL_DECISIONS_BY_ACTION_TYPE = {
+    AdministrativeActionType.ENVIRONMENTAL_IMPACT_STATEMENT: frozenset({
+        AdministrativeDecision.FAVORABLE,
+        AdministrativeDecision.UNFAVORABLE,
+    }),
+    AdministrativeActionType.ENVIRONMENTAL_IMPACT_REPORT: frozenset({
+        AdministrativeDecision.NO_SIGNIFICANT_ADVERSE_ENVIRONMENTAL_EFFECTS,
+        AdministrativeDecision.ORDINARY_ENVIRONMENTAL_ASSESSMENT_REQUIRED,
+    }),
+    AdministrativeActionType.ENVIRONMENTAL_AFFECTATION_DETERMINATION_REPORT: (
+        frozenset({
+            AdministrativeDecision.FAVORABLE,
+            AdministrativeDecision.UNFAVORABLE,
+            AdministrativeDecision.FURTHER_ENVIRONMENTAL_ASSESSMENT_REQUIRED,
+            AdministrativeDecision.FURTHER_ENVIRONMENTAL_ASSESSMENT_NOT_REQUIRED,
+        })
+    ),
+}
+_AUTHORIZATION_GRANT_RE = re.compile(
+    r"\b(?:"
+    r"otorga(?:n|r|d[ao]s?)?|"
+    r"concede(?:n|r)?|concedid[ao]s?|"
+    r"autoriza(?:n|r|d[ao]s?)?"
+    r")\b"
+)
+
+
 def _decision_from_title(
     title: str,
     action_type: AdministrativeActionType,
@@ -632,11 +724,7 @@ def _decision_from_title(
         return AdministrativeDecision.SUBMITTED_TO_PUBLIC_INFORMATION
     if action_type == AdministrativeActionType.ERROR_CORRECTION:
         return AdministrativeDecision.RECTIFIED
-    if action_type in {
-        AdministrativeActionType.ENVIRONMENTAL_IMPACT_STATEMENT,
-        AdministrativeActionType.ENVIRONMENTAL_IMPACT_REPORT,
-        AdministrativeActionType.ENVIRONMENTAL_AFFECTATION_DETERMINATION_REPORT,
-    }:
+    if action_type in _ENVIRONMENTAL_TERMINAL_DECISIONS_BY_ACTION_TYPE:
         if re.search(r"desfavorable|no\s+favorable", key):
             return AdministrativeDecision.UNFAVORABLE
         if re.search(r"favorable", key):
@@ -650,7 +738,10 @@ def _decision_from_title(
     }:
         if re.search(r"deniega|denegaci[oó]n", key):
             return AdministrativeDecision.DENIED
-        if re.search(r"solicitud|solicita", key) and not re.search(r"otorga|concede|autoriza", key):
+        if (
+            re.search(r"solicitud|solicita", key)
+            and not _AUTHORIZATION_GRANT_RE.search(key)
+        ):
             return AdministrativeDecision.REQUESTED
         return AdministrativeDecision.AUTHORIZED
     if action_type == AdministrativeActionType.WATER_CONCESSION:
@@ -680,6 +771,26 @@ def _decision_from_title(
             return AdministrativeDecision.INADMISSIBLE
         return AdministrativeDecision.CLOSED
     return AdministrativeDecision.OTHER
+
+
+def _should_replace_decision_from_title(
+    *,
+    action_type: AdministrativeActionType,
+    existing: AdministrativeDecision,
+    inferred: AdministrativeDecision,
+) -> bool:
+    """Preserva resultados ambientales frente al fallback genérico ``formulado``."""
+
+    if (
+        inferred == AdministrativeDecision.FORMULATED
+        and existing
+        in _ENVIRONMENTAL_TERMINAL_DECISIONS_BY_ACTION_TYPE.get(
+            action_type,
+            frozenset(),
+        )
+    ):
+        return False
+    return inferred != AdministrativeDecision.OTHER
 
 
 _MODIFIABLE_ACTION_TYPES = {
@@ -1277,13 +1388,24 @@ def _canonicalize_actions(
             )
             continue
 
-        # Cuando el título contiene el acto actual, normaliza también su decisión.
-        # Evita conservar 'solicitado' cuando el objeto publicado es el sometimiento
-        # a información pública de esa solicitud.
+        # La inferencia desde título puede completar una decisión, pero el fallback
+        # ambiental ``formulado`` no degrada un resultado terminal ya validado.
         if action.action_type in title_types:
             title_decision = _decision_from_title(document_title, action.action_type)
-            if title_decision != AdministrativeDecision.OTHER:
+            if (
+                title_decision != action.decision
+                and _should_replace_decision_from_title(
+                    action_type=action.action_type,
+                    existing=action.decision,
+                    inferred=title_decision,
+                )
+            ):
+                previous_decision = action.decision
                 action.decision = title_decision
+                adjustments.append(
+                    f"action_{index}: decisión canonicalizada desde el título: "
+                    f"{previous_decision.value} -> {title_decision.value}."
+                )
 
         # Elimina antecedentes cuando el título define el objeto actual y el
         # tipo de la cita no forma parte de ese objeto.

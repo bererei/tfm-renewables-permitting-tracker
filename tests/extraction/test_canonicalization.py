@@ -2,7 +2,10 @@ from datetime import date
 from hashlib import sha256
 from inspect import signature
 
+import pytest
+
 from renewables_permitting.extraction.canonicalization import (
+    _should_replace_decision_from_title,
     canonicalize_project_extraction,
     preclassify_document_without_model,
 )
@@ -98,6 +101,435 @@ def _action(
         is_modification=is_modification,
         targets=targets or [],
         evidence=evidence,
+    )
+
+
+def _canonicalize_test_actions(
+    *,
+    title: str,
+    actions: list[AdministrativeAction],
+    source_text: str | None = None,
+) -> tuple[list[AdministrativeAction], list[str]]:
+    extraction = _test_extraction(
+        "BOE-A-2026-99989",
+        [
+            PublicationEvent(
+                generation_assets=[
+                    _asset(
+                        "generation_asset_1",
+                        "Prueba",
+                        GenerationType.PHOTOVOLTAIC,
+                        "planta solar fotovoltaica Prueba",
+                    )
+                ],
+                administrative_actions=actions,
+                event_summary="Actuación administrativa de la planta Prueba.",
+            )
+        ],
+    )
+    canonical, adjustments = canonicalize_project_extraction(
+        extraction,
+        source_text=source_text or title,
+        document_title=title,
+    )
+    return canonical.publication_events[0].administrative_actions, adjustments
+
+
+def test_generic_title_preserves_unfavorable_environmental_statement() -> None:
+    title = (
+        "Resolución por la que se formula declaración de impacto ambiental "
+        "de la planta solar fotovoltaica Prueba."
+    )
+    actions, _ = _canonicalize_test_actions(
+        title=title,
+        source_text=f"{title} La declaración de impacto ambiental es desfavorable.",
+        actions=[
+            _action(
+                AdministrativeActionType.ENVIRONMENTAL_IMPACT_STATEMENT,
+                AdministrativeDecision.UNFAVORABLE,
+                "La declaración de impacto ambiental es desfavorable.",
+                ["event"],
+            )
+        ],
+    )
+
+    assert actions[0].decision == AdministrativeDecision.UNFAVORABLE
+
+
+def test_generic_title_preserves_terminal_environmental_screening() -> None:
+    title = (
+        "Resolución por la que se formula informe de impacto ambiental "
+        "de la planta solar fotovoltaica Prueba."
+    )
+    conclusion = "No se prevén efectos adversos significativos."
+    actions, _ = _canonicalize_test_actions(
+        title=title,
+        source_text=f"{title} {conclusion}",
+        actions=[
+            _action(
+                AdministrativeActionType.ENVIRONMENTAL_IMPACT_REPORT,
+                AdministrativeDecision.NO_SIGNIFICANT_ADVERSE_ENVIRONMENTAL_EFFECTS,
+                conclusion,
+                ["event"],
+            )
+        ],
+    )
+
+    assert (
+        actions[0].decision
+        == AdministrativeDecision.NO_SIGNIFICANT_ADVERSE_ENVIRONMENTAL_EFFECTS
+    )
+
+
+def test_formulated_remains_environmental_fallback_without_adjustment() -> None:
+    title = (
+        "Resolución por la que se formula informe de impacto ambiental "
+        "de la planta solar fotovoltaica Prueba."
+    )
+    actions, adjustments = _canonicalize_test_actions(
+        title=title,
+        actions=[
+            _action(
+                AdministrativeActionType.ENVIRONMENTAL_IMPACT_REPORT,
+                AdministrativeDecision.FORMULATED,
+                title,
+                ["event"],
+            )
+        ],
+    )
+
+    assert actions[0].decision == AdministrativeDecision.FORMULATED
+    assert not any("decisión" in adjustment for adjustment in adjustments)
+
+
+@pytest.mark.parametrize(
+    ("action_type", "terminal_decision", "product_title"),
+    [
+        (
+            AdministrativeActionType.ENVIRONMENTAL_IMPACT_STATEMENT,
+            AdministrativeDecision.FAVORABLE,
+            "declaración de impacto ambiental",
+        ),
+        (
+            AdministrativeActionType.ENVIRONMENTAL_IMPACT_REPORT,
+            AdministrativeDecision.ORDINARY_ENVIRONMENTAL_ASSESSMENT_REQUIRED,
+            "informe de impacto ambiental",
+        ),
+        (
+            AdministrativeActionType.ENVIRONMENTAL_AFFECTATION_DETERMINATION_REPORT,
+            AdministrativeDecision.FAVORABLE,
+            "informe de determinación de afección ambiental",
+        ),
+        (
+            AdministrativeActionType.ENVIRONMENTAL_AFFECTATION_DETERMINATION_REPORT,
+            AdministrativeDecision.UNFAVORABLE,
+            "informe de determinación de afección ambiental",
+        ),
+        (
+            AdministrativeActionType.ENVIRONMENTAL_AFFECTATION_DETERMINATION_REPORT,
+            AdministrativeDecision.FURTHER_ENVIRONMENTAL_ASSESSMENT_REQUIRED,
+            "informe de determinación de afección ambiental",
+        ),
+        (
+            AdministrativeActionType.ENVIRONMENTAL_AFFECTATION_DETERMINATION_REPORT,
+            AdministrativeDecision.FURTHER_ENVIRONMENTAL_ASSESSMENT_NOT_REQUIRED,
+            "informe de determinación de afección ambiental",
+        ),
+    ],
+)
+def test_generic_environmental_title_preserves_other_terminal_decisions(
+    action_type: AdministrativeActionType,
+    terminal_decision: AdministrativeDecision,
+    product_title: str,
+) -> None:
+    title = (
+        f"Resolución por la que se formula {product_title} de la planta solar "
+        "fotovoltaica Prueba."
+    )
+    actions, _ = _canonicalize_test_actions(
+        title=title,
+        actions=[
+            _action(
+                action_type,
+                terminal_decision,
+                title,
+                ["event"],
+            )
+        ],
+    )
+
+    assert actions[0].decision == terminal_decision
+
+
+def test_withdrawn_authorization_request_is_not_canonicalized_as_granted() -> None:
+    title = (
+        "Resolución por la que se acepta el desistimiento de la solicitud de "
+        "autorización administrativa previa de la planta solar fotovoltaica "
+        "Prueba y se archiva el expediente."
+    )
+    actions, _ = _canonicalize_test_actions(
+        title=title,
+        actions=[
+            _action(
+                AdministrativeActionType.PROCEDURE_TERMINATION,
+                AdministrativeDecision.WITHDRAWN,
+                title,
+                ["event"],
+            )
+        ],
+    )
+
+    assert any(
+        action.action_type == AdministrativeActionType.PROCEDURE_TERMINATION
+        and action.decision == AdministrativeDecision.WITHDRAWN
+        for action in actions
+    )
+    assert not any(
+        action.action_type
+        == AdministrativeActionType.PRIOR_ADMINISTRATIVE_AUTHORIZATION
+        for action in actions
+    )
+
+
+def test_withdrawal_does_not_synthesize_multiple_object_procedures() -> None:
+    title = (
+        "Resolución por la que se acepta el desistimiento de las solicitudes de "
+        "autorización administrativa previa, autorización administrativa de "
+        "construcción y declaración de impacto ambiental de la planta solar "
+        "fotovoltaica Prueba."
+    )
+    actions, _ = _canonicalize_test_actions(
+        title=title,
+        actions=[
+            _action(
+                AdministrativeActionType.PROCEDURE_TERMINATION,
+                AdministrativeDecision.WITHDRAWN,
+                title,
+                ["event"],
+            )
+        ],
+    )
+
+    assert [action.action_type for action in actions] == [
+        AdministrativeActionType.PROCEDURE_TERMINATION
+    ]
+
+
+@pytest.mark.parametrize(
+    ("termination_wording", "termination_decision"),
+    [
+        (
+            "se acuerda el archivo de la solicitud de",
+            AdministrativeDecision.CLOSED,
+        ),
+        (
+            "se declara la inadmisión de la solicitud de",
+            AdministrativeDecision.INADMISSIBLE,
+        ),
+    ],
+)
+def test_other_terminations_do_not_synthesize_the_object_authorization(
+    termination_wording: str,
+    termination_decision: AdministrativeDecision,
+) -> None:
+    title = (
+        f"Resolución por la que {termination_wording} autorización administrativa "
+        "previa de la planta solar fotovoltaica Prueba."
+    )
+    actions, _ = _canonicalize_test_actions(
+        title=title,
+        actions=[
+            _action(
+                AdministrativeActionType.PROCEDURE_TERMINATION,
+                termination_decision,
+                title,
+                ["event"],
+            )
+        ],
+    )
+
+    assert [(action.action_type, action.decision) for action in actions] == [
+        (
+            AdministrativeActionType.PROCEDURE_TERMINATION,
+            termination_decision,
+        )
+    ]
+
+
+def test_termination_title_does_not_remove_independent_body_action() -> None:
+    title = (
+        "Resolución por la que se acepta el desistimiento de la solicitud de "
+        "autorización administrativa previa de una fase de la planta solar "
+        "fotovoltaica Prueba."
+    )
+    granted_evidence = (
+        "Asimismo, se otorga autorización administrativa previa para la segunda "
+        "fase de la planta solar fotovoltaica Prueba."
+    )
+    actions, _ = _canonicalize_test_actions(
+        title=title,
+        source_text=f"{title} {granted_evidence}",
+        actions=[
+            _action(
+                AdministrativeActionType.PROCEDURE_TERMINATION,
+                AdministrativeDecision.WITHDRAWN,
+                title,
+                ["event"],
+            ),
+            _action(
+                AdministrativeActionType.PRIOR_ADMINISTRATIVE_AUTHORIZATION,
+                AdministrativeDecision.AUTHORIZED,
+                granted_evidence,
+                ["event"],
+            ),
+        ],
+    )
+
+    assert {
+        (action.action_type, action.decision)
+        for action in actions
+    } == {
+        (
+            AdministrativeActionType.PROCEDURE_TERMINATION,
+            AdministrativeDecision.WITHDRAWN,
+        ),
+        (
+            AdministrativeActionType.PRIOR_ADMINISTRATIVE_AUTHORIZATION,
+            AdministrativeDecision.AUTHORIZED,
+        ),
+    }
+
+
+@pytest.mark.parametrize("grant_wording", ["se otorga la", "se autoriza la"])
+def test_granted_authorization_title_remains_authorized(
+    grant_wording: str,
+) -> None:
+    title = (
+        f"Resolución por la que {grant_wording} autorización administrativa previa "
+        "de la planta solar fotovoltaica Prueba."
+    )
+    actions, _ = _canonicalize_test_actions(
+        title=title,
+        actions=[
+            _action(
+                AdministrativeActionType.PRIOR_ADMINISTRATIVE_AUTHORIZATION,
+                AdministrativeDecision.REQUESTED,
+                title,
+                ["event"],
+            )
+        ],
+    )
+
+    assert actions[0].decision == AdministrativeDecision.AUTHORIZED
+
+
+def test_denied_authorization_title_remains_current_denial() -> None:
+    title = (
+        "Resolución por la que se deniega la autorización administrativa previa "
+        "de la planta solar fotovoltaica Prueba."
+    )
+    actions, _ = _canonicalize_test_actions(
+        title=title,
+        actions=[
+            _action(
+                AdministrativeActionType.PRIOR_ADMINISTRATIVE_AUTHORIZATION,
+                AdministrativeDecision.REQUESTED,
+                title,
+                ["event"],
+            )
+        ],
+    )
+
+    assert [(action.action_type, action.decision) for action in actions] == [
+        (
+            AdministrativeActionType.PRIOR_ADMINISTRATIVE_AUTHORIZATION,
+            AdministrativeDecision.DENIED,
+        )
+    ]
+
+
+def test_authorization_noun_alone_does_not_match_authorize_verb() -> None:
+    title = (
+        "Anuncio de solicitud de autorización administrativa previa para la "
+        "planta solar fotovoltaica Prueba."
+    )
+    actions, _ = _canonicalize_test_actions(
+        title=title,
+        actions=[
+            _action(
+                AdministrativeActionType.PRIOR_ADMINISTRATIVE_AUTHORIZATION,
+                AdministrativeDecision.REQUESTED,
+                title,
+                ["event"],
+            )
+        ],
+    )
+
+    assert actions[0].decision == AdministrativeDecision.REQUESTED
+
+
+def test_effective_title_decision_change_is_recorded() -> None:
+    title = (
+        "Resolución por la que se otorga la autorización administrativa previa "
+        "de la planta solar fotovoltaica Prueba."
+    )
+    actions, adjustments = _canonicalize_test_actions(
+        title=title,
+        actions=[
+            _action(
+                AdministrativeActionType.PRIOR_ADMINISTRATIVE_AUTHORIZATION,
+                AdministrativeDecision.REQUESTED,
+                title,
+                ["event"],
+            )
+        ],
+    )
+
+    assert actions[0].decision == AdministrativeDecision.AUTHORIZED
+    decision_adjustments = [
+        adjustment
+        for adjustment in adjustments
+        if adjustment.startswith("action_1: decisión canonicalizada desde el título:")
+    ]
+    assert len(decision_adjustments) == 1
+    assert "solicitado" in decision_adjustments[0]
+    assert "autorizado" in decision_adjustments[0]
+
+    unchanged_actions, unchanged_adjustments = _canonicalize_test_actions(
+        title=title,
+        actions=[
+            _action(
+                AdministrativeActionType.PRIOR_ADMINISTRATIVE_AUTHORIZATION,
+                AdministrativeDecision.AUTHORIZED,
+                title,
+                ["event"],
+            )
+        ],
+    )
+
+    assert unchanged_actions[0].decision == AdministrativeDecision.AUTHORIZED
+    assert not any(
+        adjustment.startswith(
+            "action_1: decisión canonicalizada desde el título:"
+        )
+        for adjustment in unchanged_adjustments
+    )
+
+
+@pytest.mark.parametrize(
+    "incompatible_decision",
+    [
+        AdministrativeDecision.AUTHORIZED,
+        AdministrativeDecision.WITHDRAWN,
+    ],
+)
+def test_incompatible_decision_is_not_protected_as_environmental_terminal(
+    incompatible_decision: AdministrativeDecision,
+) -> None:
+    assert _should_replace_decision_from_title(
+        action_type=AdministrativeActionType.ENVIRONMENTAL_IMPACT_REPORT,
+        existing=incompatible_decision,
+        inferred=AdministrativeDecision.FORMULATED,
     )
 
 

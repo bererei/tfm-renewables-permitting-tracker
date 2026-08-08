@@ -46,7 +46,8 @@ EXPECTED_CONTRACT_SCHEMA_SHA256 = (
 EXPECTED_INSTRUCTIONS_SHA256 = (
     "4d9b67eba25460e912d7bee361def17272b0d9335738e6306b5a7c45de24561d"
 )
-EXPECTED_EXTRACTION_CONFIG_ID = "db2bc8c3564ce062"
+EXPECTED_EXTRACTION_CONFIG_ID = "d47ce086100e8e43"
+
 
 def _top_level_nodes(source: str) -> dict[str, ast.AST]:
     nodes: dict[str, ast.AST] = {}
@@ -80,6 +81,10 @@ def test_model_provider_and_all_configuration_values_are_exact() -> None:
     assert TRANSIENT_RETRY_BASE_SECONDS == 2.0
     assert CHECKPOINT_EVERY == 5
     assert DOCUMENT_VALIDATION_VERSION == "25"
+    assert config_module._CANONICALIZATION_POLICY == (
+        "termination_object_filter_environmental_terminal_whitelist_"
+        "lexical_authorization_grants_v2"
+    )
     assert ENTITY_MODEL_POLICY == (
         "generation_roots_components_event_targets_v3"
     )
@@ -113,6 +118,7 @@ def test_extraction_config_structure_order_and_values_are_exact() -> None:
         "model_settings",
         "document_validation_version",
         "model_run_timeout_seconds",
+        "canonicalization_policy",
         "entity_model_policy",
         "event_granularity_policy",
         "temporal_policy",
@@ -132,6 +138,7 @@ def test_extraction_config_structure_order_and_values_are_exact() -> None:
         "model_settings": MODEL_SETTINGS,
         "document_validation_version": DOCUMENT_VALIDATION_VERSION,
         "model_run_timeout_seconds": MODEL_RUN_TIMEOUT_SECONDS,
+        "canonicalization_policy": config_module._CANONICALIZATION_POLICY,
         "entity_model_policy": ENTITY_MODEL_POLICY,
         "event_granularity_policy": EVENT_GRANULARITY_POLICY,
         "temporal_policy": TEMPORAL_POLICY,
@@ -168,6 +175,19 @@ def test_relevant_configuration_change_produces_different_hash() -> None:
         "model_name": "changed-model",
     }
 
+    assert _stable_json_hash(changed)[:16] != EXTRACTION_CONFIG_ID
+
+
+def test_canonicalization_policy_change_produces_different_config_id() -> None:
+    changed = {
+        **EXTRACTION_CONFIG,
+        "canonicalization_policy": "changed-canonicalization-policy",
+    }
+
+    assert (
+        EXTRACTION_CONFIG["canonicalization_policy"]
+        == config_module._CANONICALIZATION_POLICY
+    )
     assert _stable_json_hash(changed)[:16] != EXTRACTION_CONFIG_ID
 
 
