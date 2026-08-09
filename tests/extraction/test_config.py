@@ -46,7 +46,7 @@ EXPECTED_CONTRACT_SCHEMA_SHA256 = (
 EXPECTED_INSTRUCTIONS_SHA256 = (
     "b48240832d1b274af0435cea42cc6d305d2aec83b5a3395a1d5ce1529eff0607"
 )
-EXPECTED_EXTRACTION_CONFIG_ID = "24a5bff975c6fd66"
+EXPECTED_EXTRACTION_CONFIG_ID = "67a0bd9d0759a322"
 
 
 def _top_level_nodes(source: str) -> dict[str, ast.AST]:
@@ -83,7 +83,8 @@ def test_model_provider_and_all_configuration_values_are_exact() -> None:
     assert DOCUMENT_VALIDATION_VERSION == "25"
     assert config_module._CANONICALIZATION_POLICY == (
         "termination_object_filter_environmental_terminal_whitelist_"
-        "lexical_authorization_grants_v2"
+        "lexical_authorization_grants_v2_"
+        "explicit_relation_validation_conservative_grouping_v1"
     )
     assert ENTITY_MODEL_POLICY == (
         "generation_roots_components_event_targets_v3"

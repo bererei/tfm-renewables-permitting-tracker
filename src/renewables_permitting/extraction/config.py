@@ -32,7 +32,8 @@ CHECKPOINT_EVERY = 5
 DOCUMENT_VALIDATION_VERSION = "25"
 _CANONICALIZATION_POLICY = (
     "termination_object_filter_environmental_terminal_whitelist_"
-    "lexical_authorization_grants_v2"
+    "lexical_authorization_grants_v2_"
+    "explicit_relation_validation_conservative_grouping_v1"
 )
 ENTITY_MODEL_POLICY = "generation_roots_components_event_targets_v3"
 EVENT_GRANULARITY_POLICY = "canonical_split_independent_generation_projects_v3"

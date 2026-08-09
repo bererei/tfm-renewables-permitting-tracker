@@ -852,6 +852,122 @@ def test_valid_extraction_has_no_issues_and_is_not_mutated() -> None:
     assert extraction.model_dump_json() == original_json
 
 
+def test_validation_rejects_event_spanning_multiple_material_groups() -> None:
+    title = (
+        "Resolución relativa a Parque Solar Alfa, Parque Solar Beta y "
+        "Parque Solar Gamma."
+    )
+    relation_evidence = "Parque Solar Alfa se hibrida con Parque Solar Beta."
+    document = _test_document(
+        "BOE-A-2026-99980",
+        title,
+        f"{relation_evidence} Parque Solar Gamma es un proyecto independiente.",
+    )
+    extraction = _test_extraction(
+        document.boe_id,
+        [PublicationEvent(
+            generation_assets=[
+                _asset(
+                    f"generation_asset_{index}",
+                    name,
+                    GenerationType.PHOTOVOLTAIC,
+                    title,
+                )
+                for index, name in enumerate(
+                    ("Parque Solar Alfa", "Parque Solar Beta", "Parque Solar Gamma"),
+                    start=1,
+                )
+            ],
+            administrative_actions=[_action(
+                AdministrativeActionType.OTHER,
+                AdministrativeDecision.OTHER,
+                title,
+                ["event"],
+            )],
+            generation_relations=[GenerationAssetRelation(
+                source_generation_asset_ref="generation_asset_1",
+                target_generation_asset_ref="generation_asset_2",
+                relation_type=GenerationRelationType.HYBRIDIZED_WITH,
+                evidence=relation_evidence,
+            )],
+            event_summary="Dos plantas integradas y una planta independiente.",
+        )],
+    )
+
+    with pytest.raises(DocumentExtractionValidationError, match="plantas independientes"):
+        validate_extraction_against_document(
+            document=document,
+            extraction=extraction,
+        )
+
+
+def test_validation_accepts_material_group_and_separate_independent_event() -> None:
+    title = (
+        "Resolución relativa a Parque Solar Alfa, Parque Solar Beta y "
+        "Parque Solar Gamma."
+    )
+    relation_evidence = "Parque Solar Alfa se hibrida con Parque Solar Beta."
+    document = _test_document(
+        "BOE-A-2026-99979",
+        title,
+        f"{relation_evidence} Parque Solar Gamma es un proyecto independiente.",
+    )
+    extraction = _test_extraction(
+        document.boe_id,
+        [
+            PublicationEvent(
+                generation_assets=[
+                    _asset(
+                        "generation_asset_1",
+                        "Parque Solar Alfa",
+                        GenerationType.PHOTOVOLTAIC,
+                        title,
+                    ),
+                    _asset(
+                        "generation_asset_2",
+                        "Parque Solar Beta",
+                        GenerationType.PHOTOVOLTAIC,
+                        title,
+                    ),
+                ],
+                administrative_actions=[_action(
+                    AdministrativeActionType.OTHER,
+                    AdministrativeDecision.OTHER,
+                    title,
+                    ["event"],
+                )],
+                generation_relations=[GenerationAssetRelation(
+                    source_generation_asset_ref="generation_asset_1",
+                    target_generation_asset_ref="generation_asset_2",
+                    relation_type=GenerationRelationType.HYBRIDIZED_WITH,
+                    evidence=relation_evidence,
+                )],
+                event_summary="Grupo material Alfa Beta.",
+            ),
+            PublicationEvent(
+                generation_assets=[_asset(
+                    "generation_asset_1",
+                    "Parque Solar Gamma",
+                    GenerationType.PHOTOVOLTAIC,
+                    title,
+                )],
+                administrative_actions=[_action(
+                    AdministrativeActionType.OTHER,
+                    AdministrativeDecision.OTHER,
+                    title,
+                    ["event"],
+                )],
+                event_summary="Proyecto independiente Gamma.",
+            ),
+        ],
+    )
+
+    validate_extraction_against_document(
+        document=document,
+        extraction=extraction,
+    )
+
+
 def test_validation_issues_preserve_exact_order() -> None:
     title = "Resolución sobre la planta solar fotovoltaica Solar Uno."
     document = _test_document("BOE-A-2026-99981", title)
