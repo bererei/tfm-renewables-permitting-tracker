@@ -1,5 +1,3 @@
-import ast
-import json
 import runpy
 from pathlib import Path
 
@@ -19,6 +17,7 @@ from renewables_permitting.extraction.paths import (
     BOE_AI_REVIEW_QUEUE_PATH,
     BOE_CANDIDATES_DOCS_TEXT_PATH,
     CASE_FILE_REFERENCES_PATH,
+    CONFIG_DIR,
     DATA_DIR,
     GENERATION_ASSET_MENTIONS_PATH,
     GENERATION_ASSET_NAMES_PATH,
@@ -34,36 +33,9 @@ from renewables_permitting.extraction.paths import (
 )
 
 
-EXPECTED_PATH_SYMBOLS = {
-    "find_project_root",
-    "PROJECT_ROOT",
-    "DATA_DIR",
-    "SILVER_DIR",
-    "SILVER_BOE_AI_DIR",
-    "BOE_CANDIDATES_DOCS_TEXT_PATH",
-    "BOE_AI_EXTRACTIONS_PATH",
-    "BOE_AI_EXTRACTION_ATTEMPTS_PATH",
-    "BOE_AI_REVIEW_QUEUE_PATH",
-    "BOE_AI_MANUAL_REVIEWS_PATH",
-    "BOE_AI_QUALITY_METRICS_PATH",
-    "BOE_AI_MANUAL_REVIEW_DIR",
-    "PUBLICATION_EVENTS_PATH",
-    "GENERATION_ASSET_MENTIONS_PATH",
-    "GENERATION_ASSET_NAMES_PATH",
-    "ASSOCIATED_COMPONENTS_PATH",
-    "ASSOCIATED_COMPONENT_NAMES_PATH",
-    "ASSOCIATED_COMPONENT_GENERATION_LINKS_PATH",
-    "ADMINISTRATIVE_ACTIONS_PATH",
-    "ADMINISTRATIVE_ACTION_TARGETS_PATH",
-    "PARTICIPANT_MENTIONS_PATH",
-    "LOCATION_MENTIONS_PATH",
-    "GENERATION_RELATIONS_PATH",
-    "TECHNICAL_MENTIONS_PATH",
-    "CASE_FILE_REFERENCES_PATH",
-}
-
 PATHS_BY_NAME = {
     "PROJECT_ROOT": PROJECT_ROOT,
+    "CONFIG_DIR": CONFIG_DIR,
     "DATA_DIR": DATA_DIR,
     "SILVER_DIR": SILVER_DIR,
     "SILVER_BOE_AI_DIR": SILVER_BOE_AI_DIR,
@@ -92,6 +64,7 @@ PATHS_BY_NAME = {
 }
 
 EXPECTED_RELATIVE_PATHS = {
+    "CONFIG_DIR": Path("config"),
     "DATA_DIR": Path("data"),
     "SILVER_DIR": Path("data/silver"),
     "SILVER_BOE_AI_DIR": Path("data/silver/boe_ai"),
@@ -113,7 +86,7 @@ EXPECTED_RELATIVE_PATHS = {
     "BOE_AI_QUALITY_METRICS_PATH": Path(
         "data/silver/boe_ai/boe_ai_quality_metrics.parquet"
     ),
-    "BOE_AI_MANUAL_REVIEW_DIR": Path("data/manual/boe_ai_reviews"),
+    "BOE_AI_MANUAL_REVIEW_DIR": Path("config/manual_reviews/boe_ai"),
     "PUBLICATION_EVENTS_PATH": Path(
         "data/silver/boe_ai/publication_events.parquet"
     ),
@@ -156,17 +129,6 @@ EXPECTED_RELATIVE_PATHS = {
 }
 
 
-def _node_name(node: ast.AST) -> str | None:
-    if isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
-        return node.name
-    if isinstance(node, ast.Assign):
-        if len(node.targets) == 1 and isinstance(node.targets[0], ast.Name):
-            return node.targets[0].id
-    if isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-        return node.target.id
-    return None
-
-
 def _snapshot_tree(root: Path) -> dict[str, tuple[bool, bytes | None]]:
     return {
         str(path.relative_to(root)): (
@@ -203,7 +165,7 @@ def test_find_project_root_uses_pyproject_toml_marker(tmp_path: Path) -> None:
     assert find_project_root(nested) == inner.resolve()
 
 
-def test_find_project_root_error_matches_notebook(
+def test_find_project_root_error_matches_public_contract(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -261,44 +223,19 @@ def test_importing_paths_has_no_filesystem_side_effects(
     assert existing.read_text(encoding="utf-8") == "contenido original"
 
 
-def test_path_nodes_match_notebook_ast() -> None:
-    project_root = Path(__file__).resolve().parents[2]
-    notebook = json.loads(
-        (project_root / "notebooks" / "07_extraccion_ia_v25_1.ipynb").read_text()
+def test_all_configured_paths_are_absolute_and_inside_project_root() -> None:
+    assert all(path.is_absolute() for path in PATHS_BY_NAME.values())
+    assert all(
+        path == PROJECT_ROOT or PROJECT_ROOT in path.parents
+        for path in PATHS_BY_NAME.values()
     )
-    notebook_tree = ast.parse("".join(notebook["cells"][1]["source"]))
-    module_tree = ast.parse(
-        (
-            project_root
-            / "src"
-            / "renewables_permitting"
-            / "extraction"
-            / "paths.py"
-        ).read_text()
-    )
-    notebook_nodes = [
-        node
-        for node in notebook_tree.body
-        if _node_name(node) in EXPECTED_PATH_SYMBOLS
-    ]
-    module_nodes = [
-        node
-        for node in module_tree.body
-        if _node_name(node) is not None
-    ]
+    assert DATA_DIR.parent == PROJECT_ROOT
+    assert CONFIG_DIR.parent == PROJECT_ROOT
+    assert SILVER_DIR.parent == DATA_DIR
+    assert SILVER_BOE_AI_DIR.parent == SILVER_DIR
 
-    assert [_node_name(node) for node in module_nodes] == [
-        _node_name(node) for node in notebook_nodes
-    ]
-    assert {_node_name(node) for node in module_nodes} == EXPECTED_PATH_SYMBOLS
 
-    notebook_by_name = {_node_name(node): node for node in notebook_nodes}
-    module_by_name = {_node_name(node): node for node in module_nodes}
-    for name in EXPECTED_PATH_SYMBOLS:
-        assert ast.dump(
-            module_by_name[name],
-            include_attributes=False,
-        ) == ast.dump(
-            notebook_by_name[name],
-            include_attributes=False,
-        )
+def test_manual_review_inputs_are_versionable_and_outside_data() -> None:
+    assert DATA_DIR not in BOE_AI_MANUAL_REVIEW_DIR.parents
+    assert BOE_AI_MANUAL_REVIEW_DIR.is_relative_to(CONFIG_DIR)
+    assert (BOE_AI_MANUAL_REVIEW_DIR / "README.md").is_file()

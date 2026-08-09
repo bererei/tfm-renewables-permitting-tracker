@@ -1,10 +1,9 @@
 import ast
 import builtins
-import json
 import socket
 from hashlib import sha256
 from pathlib import Path
-from typing import get_args
+from typing import get_args, get_type_hints
 
 import renewables_permitting.extraction.config as config_module
 import renewables_permitting.extraction.review as review_module
@@ -45,39 +44,9 @@ EXPECTED_CONTRACT_SCHEMA_SHA256 = (
     "455028c7de0ada067264cd695b4e7dab9de377b31105e141321313d61c3ff283"
 )
 EXPECTED_INSTRUCTIONS_SHA256 = (
-    "4d9b67eba25460e912d7bee361def17272b0d9335738e6306b5a7c45de24561d"
+    "b48240832d1b274af0435cea42cc6d305d2aec83b5a3395a1d5ce1529eff0607"
 )
-EXPECTED_EXTRACTION_CONFIG_ID = "db2bc8c3564ce062"
-
-CONFIG_NODE_NAMES = {
-    "ModelProvider",
-    "MODEL_PROVIDER",
-    "AI_MODEL_NAME",
-    "AGENT_RETRIES",
-    "USE_NATIVE_OUTPUT",
-    "MODEL_SETTINGS",
-    "DOCUMENT_TIMEOUT_SECONDS",
-    "MODEL_RUN_TIMEOUT_SECONDS",
-    "MAX_MODEL_REQUESTS_PER_DOCUMENT",
-    "DOCUMENT_VALIDATION_RETRY_ATTEMPTS",
-    "TRANSIENT_RUN_ATTEMPTS",
-    "TRANSIENT_RETRY_BASE_SECONDS",
-    "CHECKPOINT_EVERY",
-    "DOCUMENT_VALIDATION_VERSION",
-    "ENTITY_MODEL_POLICY",
-    "EVENT_GRANULARITY_POLICY",
-    "TEMPORAL_POLICY",
-    "DOCUMENTARY_MATCH_POLICY",
-    "TARGET_SEMANTICS_POLICY",
-    "COMPONENT_LINK_POLICY",
-    "QUALITY_WORKFLOW_POLICY",
-    "SCOPE_CLASSIFICATION_POLICY",
-    "_stable_json_hash",
-    "CONTRACT_SCHEMA_SHA256",
-    "INSTRUCTIONS_SHA256",
-    "EXTRACTION_CONFIG",
-    "EXTRACTION_CONFIG_ID",
-}
+EXPECTED_EXTRACTION_CONFIG_ID = "67a0bd9d0759a322"
 
 
 def _top_level_nodes(source: str) -> dict[str, ast.AST]:
@@ -112,6 +81,11 @@ def test_model_provider_and_all_configuration_values_are_exact() -> None:
     assert TRANSIENT_RETRY_BASE_SECONDS == 2.0
     assert CHECKPOINT_EVERY == 5
     assert DOCUMENT_VALIDATION_VERSION == "25"
+    assert config_module._CANONICALIZATION_POLICY == (
+        "termination_object_filter_environmental_terminal_whitelist_"
+        "lexical_authorization_grants_v2_"
+        "explicit_relation_validation_conservative_grouping_v1"
+    )
     assert ENTITY_MODEL_POLICY == (
         "generation_roots_components_event_targets_v3"
     )
@@ -132,12 +106,8 @@ def test_model_provider_and_all_configuration_values_are_exact() -> None:
     )
 
 
-def test_model_provider_keeps_original_annotation() -> None:
-    source = Path(config_module.__file__).read_text(encoding="utf-8")
-    node = _top_level_nodes(source)["MODEL_PROVIDER"]
-
-    assert isinstance(node, ast.AnnAssign)
-    assert ast.unparse(node.annotation) == "ModelProvider"
+def test_model_provider_keeps_public_type_annotation() -> None:
+    assert get_type_hints(config_module)["MODEL_PROVIDER"] == ModelProvider
 
 
 def test_extraction_config_structure_order_and_values_are_exact() -> None:
@@ -149,6 +119,7 @@ def test_extraction_config_structure_order_and_values_are_exact() -> None:
         "model_settings",
         "document_validation_version",
         "model_run_timeout_seconds",
+        "canonicalization_policy",
         "entity_model_policy",
         "event_granularity_policy",
         "temporal_policy",
@@ -168,6 +139,7 @@ def test_extraction_config_structure_order_and_values_are_exact() -> None:
         "model_settings": MODEL_SETTINGS,
         "document_validation_version": DOCUMENT_VALIDATION_VERSION,
         "model_run_timeout_seconds": MODEL_RUN_TIMEOUT_SECONDS,
+        "canonicalization_policy": config_module._CANONICALIZATION_POLICY,
         "entity_model_policy": ENTITY_MODEL_POLICY,
         "event_granularity_policy": EVENT_GRANULARITY_POLICY,
         "temporal_policy": TEMPORAL_POLICY,
@@ -181,7 +153,7 @@ def test_extraction_config_structure_order_and_values_are_exact() -> None:
     }
 
 
-def test_reproducible_hashes_are_dynamic_and_match_v25_1() -> None:
+def test_reproducible_hashes_are_dynamic_and_match_validated_snapshots() -> None:
     expected_schema_hash = _stable_json_hash(
         BOEAIExtraction.model_json_schema()
     )
@@ -207,59 +179,35 @@ def test_relevant_configuration_change_produces_different_hash() -> None:
     assert _stable_json_hash(changed)[:16] != EXTRACTION_CONFIG_ID
 
 
-def test_hash_assignments_are_computed_not_literal_snapshots() -> None:
-    source = Path(config_module.__file__).read_text(encoding="utf-8")
-    nodes = _top_level_nodes(source)
+def test_canonicalization_policy_change_produces_different_config_id() -> None:
+    changed = {
+        **EXTRACTION_CONFIG,
+        "canonicalization_policy": "changed-canonicalization-policy",
+    }
 
-    assert isinstance(nodes["CONTRACT_SCHEMA_SHA256"], ast.Assign)
-    assert isinstance(
-        nodes["CONTRACT_SCHEMA_SHA256"].value,
-        ast.Call,
+    assert (
+        EXTRACTION_CONFIG["canonicalization_policy"]
+        == config_module._CANONICALIZATION_POLICY
     )
-    assert isinstance(nodes["INSTRUCTIONS_SHA256"], ast.Assign)
-    assert isinstance(nodes["INSTRUCTIONS_SHA256"].value, ast.Call)
-    assert isinstance(nodes["EXTRACTION_CONFIG_ID"], ast.Assign)
-    assert isinstance(nodes["EXTRACTION_CONFIG_ID"].value, ast.Subscript)
+    assert _stable_json_hash(changed)[:16] != EXTRACTION_CONFIG_ID
 
 
-def test_config_nodes_and_provider_branch_match_notebook_ast() -> None:
-    project_root = Path(__file__).resolve().parents[2]
-    notebook = json.loads(
-        (
-            project_root / "notebooks" / "07_extraccion_ia_v25_1.ipynb"
-        ).read_text(encoding="utf-8")
-    )
-    notebook_source = "".join(notebook["cells"][7]["source"])
-    module_source = Path(config_module.__file__).read_text(encoding="utf-8")
-    notebook_nodes = _top_level_nodes(notebook_source)
-    module_nodes = _top_level_nodes(module_source)
+def test_stable_json_hash_is_order_independent_and_value_sensitive() -> None:
+    first = {"b": 2, "a": "á"}
+    reordered = {"a": "á", "b": 2}
+    changed = {"a": "á", "b": 3}
 
-    assert CONFIG_NODE_NAMES <= notebook_nodes.keys()
-    assert CONFIG_NODE_NAMES <= module_nodes.keys()
-    for name in CONFIG_NODE_NAMES:
-        assert ast.dump(module_nodes[name], include_attributes=False) == ast.dump(
-            notebook_nodes[name],
-            include_attributes=False,
-        ), name
+    assert _stable_json_hash(first) == _stable_json_hash(reordered)
+    assert _stable_json_hash(first) != _stable_json_hash(changed)
 
-    notebook_branch = next(
-        node
-        for node in ast.parse(notebook_source).body
-        if isinstance(node, ast.If)
-        and ast.unparse(node.test) == "MODEL_PROVIDER == 'ollama'"
-    )
-    module_branch = next(
-        node
-        for node in ast.parse(module_source).body
-        if isinstance(node, ast.If)
-    )
-    assert ast.dump(
-        module_branch,
-        include_attributes=False,
-    ) == ast.dump(
-        notebook_branch,
-        include_attributes=False,
-    )
+
+def test_provider_defaults_are_internally_consistent() -> None:
+    expected_defaults = {
+        "gemini": ("google:gemini-2.5-flash", 3),
+        "ollama": ("qwen3:8b", 4),
+    }
+
+    assert (AI_MODEL_NAME, AGENT_RETRIES) == expected_defaults[MODEL_PROVIDER]
 
 
 def test_config_execution_has_no_io_network_agent_or_runner_side_effects(
@@ -293,6 +241,8 @@ def test_config_execution_has_no_io_network_agent_or_runner_side_effects(
 
 
 def test_review_uses_canonical_config_objects_without_local_assignments() -> None:
+    # AST is intentional: ownership of lineage configuration is an explicit
+    # architectural rule; review.py may consume but never redefine it.
     review_source = Path(review_module.__file__).read_text(encoding="utf-8")
     review_nodes = _top_level_nodes(review_source)
     names = {

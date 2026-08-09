@@ -33,11 +33,9 @@ Notebook operativo:
 notebooks/07_extraccion_ia_v25_2.ipynb
 ```
 
-Notebook histórico de referencia:
-
-```text
-notebooks/07_extraccion_ia_v25_1.ipynb
-```
+El notebook histórico previo ya no forma parte del árbol activo. Sus garantías
+relevantes se verifican directamente sobre `src/renewables_permitting/extraction`
+mediante la suite `tests/extraction`, sin usar el notebook retirado como fixture.
 
 Para consultar el código correspondiente a esta versión:
 

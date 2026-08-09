@@ -1,8 +1,8 @@
 import ast
 import asyncio
 import copy
-import json
 from datetime import date
+from inspect import iscoroutinefunction, signature
 from pathlib import Path
 
 import pandas as pd
@@ -168,12 +168,14 @@ def _manual_review(
     source_hash: str,
     status: str,
     corrected_extraction: BOEProjectExtraction | None = None,
+    source_attempt_id: str = "automatic-attempt",
 ) -> dict:
     return {
         "manual_review_id": review_id,
         "identificador_boe": extraction.boe_id,
         "source_document_sha256": source_hash,
-        "source_attempt_id": "automatic-attempt",
+        "source_attempt_id": source_attempt_id,
+        "extraction_config_id": EXTRACTION_CONFIG_ID,
         "review_status": status,
         "corrected_extraction_json": (
             corrected_extraction.model_dump_json()
@@ -182,7 +184,7 @@ def _manual_review(
         ),
         "reviewer": "reviewer",
         "review_notes": f"Decisión {status}.",
-        "reviewed_at": pd.Timestamp("2026-01-05T00:00:00Z"),
+        "reviewed_at_utc": pd.Timestamp("2026-01-05T00:00:00Z"),
         "contract_schema_sha256": CONTRACT_SCHEMA_SHA256,
         "document_validation_version": DOCUMENT_VALIDATION_VERSION,
     }
@@ -465,7 +467,7 @@ def test_exact_operation_order_arguments_and_return_references(
     assert result["quality_metric"] is metric
 
 
-def test_none_manual_reviews_and_optional_paths_follow_notebook_flow(
+def test_none_manual_reviews_and_optional_paths_follow_public_flow(
     monkeypatch,
 ) -> None:
     events = []
@@ -590,7 +592,7 @@ def test_no_candidates_and_no_attempt_history(monkeypatch) -> None:
     pd.testing.assert_frame_equal(source_df, before_source)
 
 
-def test_candidates_without_attempt_history_return_empty_current_and_queue(
+def test_candidates_without_attempt_history_return_followup_queue(
     monkeypatch,
 ) -> None:
     source_df = _source_df(
@@ -608,9 +610,22 @@ def test_candidates_without_attempt_history_return_empty_current_and_queue(
     assert effects[0][1] is run_df
     assert result["all_attempts"].empty
     assert result["current_extractions"].empty
-    assert result["review_queue"].empty
-    assert result["quality_metric"].iloc[0]["n_source_documents"] == 2
-    assert result["quality_metric"].iloc[0]["n_latest_attempts"] == 0
+    assert result["review_queue"]["identificador_boe"].tolist() == [
+        "BOE-A-2026-20001",
+        "BOE-A-2026-20002",
+    ]
+    assert result["review_queue"]["reason_code"].tolist() == [
+        "source_not_attempted",
+        "source_not_attempted",
+    ]
+    assert result["review_queue"]["source_attempt_id"].isna().all()
+    metric = result["quality_metric"].iloc[0]
+    assert metric["n_source_documents"] == 2
+    assert metric["n_latest_attempts"] == 0
+    assert metric["n_unattempted"] == 2
+    assert metric["coverage_rate"] == 0.0
+    assert metric["n_review_required"] == 2
+    assert metric["quality_status"] == "degraded"
 
 
 def test_all_processed_candidates_still_call_extract_with_supplied_empty_run(
@@ -803,7 +818,11 @@ def test_valid_manual_review_precedes_automatic_extraction(monkeypatch) -> None:
         reason="Corrección manual.",
     )
     source_df = _source_df(
-        (automatic.boe_id, "hash-current", "Planta revisada"),
+        (
+            automatic.boe_id,
+            "hash-current",
+            "Autorización de la planta fotovoltaica Corregida.",
+        ),
     )
     history = pd.DataFrame([
         _attempt(
@@ -834,7 +853,8 @@ def test_valid_manual_review_precedes_automatic_extraction(monkeypatch) -> None:
     )
 
     current = result["current_extractions"].iloc[0]
-    assert current["attempt_id"] == "manual-valid"
+    assert len(current["attempt_id"]) == 24
+    assert current["source_attempt_id"] == "automatic-attempt"
     assert current["selection_source"] == "manually_validated"
     assert current["model_provider"] == "manual"
     assert BOEProjectExtraction.model_validate_json(
@@ -884,7 +904,7 @@ def test_manual_rejection_removes_current_and_resolves_queue(
     assert metric["n_manually_validated"] == 0
 
 
-def test_stale_manual_review_is_ignored_after_source_change(
+def test_stale_manual_review_is_rejected_after_source_change(
     monkeypatch,
 ) -> None:
     automatic = _project("BOE-A-2026-20010", name="Fuente Actual")
@@ -911,20 +931,14 @@ def test_stale_manual_review_is_ignored_after_source_change(
         ),
     ])
 
-    result, _, _ = _run_with_real_review_logic(
-        monkeypatch,
-        run_df=source_df.iloc[0:0].copy(),
-        source_df=source_df,
-        historical_attempts=history,
-        manual_reviews=stale_reviews,
-    )
-
-    current = result["current_extractions"].iloc[0]
-    assert current["attempt_id"] == "new-auto"
-    assert current["selection_source"] == "auto_validated"
-    assert BOEProjectExtraction.model_validate_json(
-        str(current["extraction_json"])
-    ) == automatic
+    with pytest.raises(ValueError, match="source_document_sha256"):
+        _run_with_real_review_logic(
+            monkeypatch,
+            run_df=source_df.iloc[0:0].copy(),
+            source_df=source_df,
+            historical_attempts=history,
+            manual_reviews=stale_reviews,
+        )
 
 
 @pytest.mark.parametrize(
@@ -1150,7 +1164,11 @@ def test_isolated_integration_writes_only_requested_tmp_paths(
     source_df = _source_df(
         (automatic.boe_id, "hash-auto", "Planta Automática"),
         (error_id, "hash-error", "Planta Error"),
-        (reviewed_auto.boe_id, "hash-review", "Planta Revisada"),
+        (
+            reviewed_auto.boe_id,
+            "hash-review",
+            "Autorización de la planta fotovoltaica Después.",
+        ),
         (rejected.boe_id, "hash-rejected", "Planta Rechazada"),
     )
     run_df = source_df.loc[
@@ -1197,12 +1215,14 @@ def test_isolated_integration_writes_only_requested_tmp_paths(
             source_hash="hash-review",
             status="manually_validated",
             corrected_extraction=reviewed_manual,
+            source_attempt_id="reviewed-auto",
         ),
         _manual_review(
             review_id="manual-rejected",
             extraction=rejected,
             source_hash="hash-rejected",
             status="rejected",
+            source_attempt_id="rejected-auto",
         ),
     ])
     stored = {
@@ -1300,10 +1320,18 @@ def test_isolated_integration_writes_only_requested_tmp_paths(
     metric = result["quality_metric"].iloc[0]
     assert metric["n_source_documents"] == 4
     assert metric["n_latest_attempts"] == 4
-    assert metric["n_auto_validated"] == 3
+    assert metric["n_auto_validated"] == 1
     assert metric["n_manually_validated"] == 1
     assert metric["n_rejected"] == 1
     assert metric["n_review_required"] == 1
+    assert (
+        metric["n_auto_validated"]
+        + metric["n_manually_validated"]
+        + metric["n_rejected"]
+        <= metric["n_source_documents"]
+    )
+    assert metric["automatic_validation_rate"] == pytest.approx(0.25)
+    assert metric["effective_validation_rate"] == pytest.approx(0.5)
     persisted_current = pd.read_parquet(current_path)
     persisted_queue = pd.read_parquet(queue_path)
     persisted_quality = pd.read_parquet(quality_path)
@@ -1317,38 +1345,26 @@ def test_isolated_integration_writes_only_requested_tmp_paths(
     )
 
 
-def test_run_and_finalize_extractions_matches_notebook_ast_exactly() -> None:
-    project_root = Path(__file__).resolve().parents[2]
-    notebook = json.loads(
-        (
-            project_root / "notebooks" / "07_extraccion_ia_v25_1.ipynb"
-        ).read_text()
-    )
-    notebook_tree = ast.parse("".join(notebook["cells"][13]["source"]))
-    runner_tree = ast.parse(Path(runner_module.__file__).read_text())
-    notebook_node = next(
-        node
-        for node in notebook_tree.body
-        if isinstance(node, ast.AsyncFunctionDef)
-        and node.name == "run_and_finalize_extractions"
-    )
-    runner_node = next(
-        node
-        for node in runner_tree.body
-        if isinstance(node, ast.AsyncFunctionDef)
-        and node.name == "run_and_finalize_extractions"
-    )
-
-    assert ast.dump(
-        runner_node,
-        include_attributes=False,
-    ) == ast.dump(
-        notebook_node,
-        include_attributes=False,
+def test_run_and_finalize_extractions_keeps_async_public_signature() -> None:
+    assert iscoroutinefunction(run_and_finalize_extractions)
+    assert tuple(signature(run_and_finalize_extractions).parameters) == (
+        "run_df",
+        "source_df",
+        "agent",
+        "attempts_path",
+        "current_path",
+        "review_queue_path",
+        "quality_metrics_path",
+        "manual_reviews",
+        "run_scope",
+        "minimum_auto_validation_rate",
+        "checkpoint_every",
     )
 
 
 def test_no_deferred_or_artificial_finalize_code_was_added() -> None:
+    # AST is intentional: finalization must not absorb notebook-only review,
+    # pilot, or flatten orchestration behind an unconditional wrapper.
     source = Path(runner_module.__file__).read_text()
     tree = ast.parse(source)
 

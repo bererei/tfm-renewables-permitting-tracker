@@ -130,6 +130,22 @@ DECISIONES ADMINISTRATIVAS
   conviertas en autorizacion_administrativa_previa.
 - Una DIA o informe ambiental solo es producto final cuando se formula o
   resuelve. Durante información pública usa evaluacion_impacto_ambiental.
+- action_type identifica qué actuación o producto administrativo publica el BOE;
+  decision captura el resultado más específico explícitamente publicado.
+- Una decisión terminal explícita prevalece sobre expresiones procedimentales
+  como «se formula», «se emite» o «se resuelve». El valor formulado es solo el
+  fallback cuando consta la formulación pero no un resultado más específico.
+  No infieras una decisión terminal que el BOE no exprese.
+- declaracion_impacto_ambiental (DIA): usa favorable o desfavorable cuando esa
+  conclusión sea explícita; si solo consta su formulación, usa formulado.
+- informe_impacto_ambiental: usa sin_efectos_adversos_significativos cuando
+  concluya que no se prevén esos efectos y no es necesaria la evaluación
+  ambiental ordinaria; usa requiere_evaluacion_ambiental_ordinaria cuando
+  determine que debe someterse a ella; sin conclusión terminal, usa formulado.
+- informe_determinacion_afeccion_ambiental: usa favorable, desfavorable,
+  requiere_evaluacion_ambiental_adicional o
+  no_requiere_evaluacion_ambiental_adicional solo cuando el resultado sea
+  explícito; sin resultado terminal representable, usa formulado.
 - is_modification=True solo cuando el acto actual modifica una autorización o
   declaración previa del mismo tipo.
 
@@ -194,6 +210,16 @@ EJEMPLO 5 — FOTOVOLTAICA AUXILIAR
 Un contrato para instalar placas de autoconsumo en un edificio, o una obra de
 abastecimiento/regadío que incorpora paneles para alimentar bombas, no constituye
 un proyecto de generación buscable: usa not_relevant_for_generation_projects.
+
+EJEMPLO 6 — DECISIÓN AMBIENTAL ESPECÍFICA
+
+Título: «se formula declaración de impacto ambiental del proyecto X».
+Cuerpo: «La declaración de impacto ambiental es desfavorable».
+
+- action_type=declaracion_impacto_ambiental y decision=desfavorable: el resultado
+  terminal del cuerpo prevalece sobre la formulación del título;
+- si solo consta la formulación y no una conclusión más específica,
+  decision=formulado.
 """
 
 AGENT_INSTRUCTIONS = "\n\n".join([

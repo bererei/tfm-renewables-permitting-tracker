@@ -175,18 +175,24 @@ def _dedupe_technical_mentions(
     return result
 
 
+_GENERATION_TYPE_PATTERNS: dict[GenerationType, str] = {
+    GenerationType.WIND: r"\be[oó]lic|aerogenerador|parque\s+e[oó]lico",
+    GenerationType.PHOTOVOLTAIC: r"fotovolta|\bplanta\s+solar\b|\bpsfv\b|\bfv\b",
+    GenerationType.CONCENTRATED_SOLAR_POWER: r"termosolar|solar\s+termoel[eé]ctr",
+    GenerationType.HYDROPOWER: r"hidroel[eé]ctr|central\s+hidr[aá]ul",
+    GenerationType.BIOMASS: r"biomasa",
+    GenerationType.BIOGAS: r"biog[aá]s",
+    GenerationType.GEOTHERMAL: r"geot[eé]rm",
+}
+
+
 def _infer_generation_type(text: str) -> GenerationType | None:
     key = _canonical_documentary_text(text).casefold()
-    patterns = {
-        GenerationType.WIND: r"\be[oó]lic|aerogenerador|parque\s+e[oó]lico",
-        GenerationType.PHOTOVOLTAIC: r"fotovolta|\bplanta\s+solar\b|\bpsfv\b|\bfv\b",
-        GenerationType.CONCENTRATED_SOLAR_POWER: r"termosolar|solar\s+termoel[eé]ctr",
-        GenerationType.HYDROPOWER: r"hidroel[eé]ctr|central\s+hidr[aá]ul",
-        GenerationType.BIOMASS: r"biomasa",
-        GenerationType.BIOGAS: r"biog[aá]s",
-        GenerationType.GEOTHERMAL: r"geot[eé]rm",
-    }
-    matches = [item for item, pattern in patterns.items() if re.search(pattern, key)]
+    matches = [
+        item
+        for item, pattern in _GENERATION_TYPE_PATTERNS.items()
+        if re.search(pattern, key)
+    ]
     return matches[0] if len(matches) == 1 else None
 
 
@@ -588,6 +594,67 @@ _ACTION_PATTERNS: dict[AdministrativeActionType, str] = {
 }
 
 
+_TERMINATION_OBJECT_INTRO_RE = re.compile(
+    r"(?:"
+    r"\bde\s+(?:la\s+|las\s+)?solicitud(?:es)?\s+de\s+|"
+    r"\bdel\s+(?:expediente|procedimiento)\s+de\s+|"
+    r",\s*de\s+|"
+    r"\bde\s+"
+    r")$"
+)
+_INDEPENDENT_TITLE_ACTION_RE = re.compile(
+    r"(?:[,;]\s*)?(?:y\s+)?se\s+(?:"
+    r"otorga|concede|autoriza|deniega|somete|formula|aprueba|declara"
+    r")\b"
+)
+
+
+def _termination_object_action_types(
+    title: str,
+) -> set[AdministrativeActionType]:
+    """Identifica actos citados solo como objeto de una terminación actual."""
+
+    key = _canonical_documentary_text(title).casefold()
+    termination = re.search(r"\b(?:desistimiento|archivo|inadmisi[oó]n)\b", key)
+    if termination is None:
+        return set()
+
+    matches_by_type = {
+        action_type: list(re.finditer(pattern, key))
+        for action_type, pattern in _ACTION_PATTERNS.items()
+        if action_type != AdministrativeActionType.PROCEDURE_TERMINATION
+    }
+    matches_after_termination = [
+        match
+        for matches in matches_by_type.values()
+        for match in matches
+        if match.start() >= termination.end()
+    ]
+    if not matches_after_termination:
+        return set()
+
+    first_object_match = min(matches_after_termination, key=lambda match: match.start())
+    intro = key[termination.end():first_object_match.start()]
+    if not _TERMINATION_OBJECT_INTRO_RE.search(intro):
+        return set()
+
+    independent_action = _INDEPENDENT_TITLE_ACTION_RE.search(
+        key,
+        first_object_match.end(),
+    )
+    object_end = independent_action.start() if independent_action else len(key)
+
+    return {
+        action_type
+        for action_type, matches in matches_by_type.items()
+        if matches
+        and all(
+            first_object_match.start() <= match.start() < object_end
+            for match in matches
+        )
+    }
+
+
 def _action_types_from_title(title: str) -> set[AdministrativeActionType]:
     key = _canonical_documentary_text(title).casefold()
     result = {
@@ -599,6 +666,10 @@ def _action_types_from_title(title: str) -> set[AdministrativeActionType]:
     # Una publicación de corrección no vuelve a publicar el acto corregido.
     if AdministrativeActionType.ERROR_CORRECTION in result:
         return {AdministrativeActionType.ERROR_CORRECTION}
+
+    # Los permisos enumerados como objeto de una terminación describen el
+    # procedimiento terminado; no son por sí solos actos actuales adicionales.
+    result -= _termination_object_action_types(title)
 
     is_public_information = bool(re.search(
         r"(?:somete|sometimiento|anuncio)[^.;]{0,180}informaci[oó]n\s+p[uú]blica",
@@ -623,6 +694,33 @@ def _action_types_from_title(title: str) -> set[AdministrativeActionType]:
     return result
 
 
+_ENVIRONMENTAL_TERMINAL_DECISIONS_BY_ACTION_TYPE = {
+    AdministrativeActionType.ENVIRONMENTAL_IMPACT_STATEMENT: frozenset({
+        AdministrativeDecision.FAVORABLE,
+        AdministrativeDecision.UNFAVORABLE,
+    }),
+    AdministrativeActionType.ENVIRONMENTAL_IMPACT_REPORT: frozenset({
+        AdministrativeDecision.NO_SIGNIFICANT_ADVERSE_ENVIRONMENTAL_EFFECTS,
+        AdministrativeDecision.ORDINARY_ENVIRONMENTAL_ASSESSMENT_REQUIRED,
+    }),
+    AdministrativeActionType.ENVIRONMENTAL_AFFECTATION_DETERMINATION_REPORT: (
+        frozenset({
+            AdministrativeDecision.FAVORABLE,
+            AdministrativeDecision.UNFAVORABLE,
+            AdministrativeDecision.FURTHER_ENVIRONMENTAL_ASSESSMENT_REQUIRED,
+            AdministrativeDecision.FURTHER_ENVIRONMENTAL_ASSESSMENT_NOT_REQUIRED,
+        })
+    ),
+}
+_AUTHORIZATION_GRANT_RE = re.compile(
+    r"\b(?:"
+    r"otorga(?:n|r|d[ao]s?)?|"
+    r"concede(?:n|r)?|concedid[ao]s?|"
+    r"autoriza(?:n|r|d[ao]s?)?"
+    r")\b"
+)
+
+
 def _decision_from_title(
     title: str,
     action_type: AdministrativeActionType,
@@ -632,11 +730,7 @@ def _decision_from_title(
         return AdministrativeDecision.SUBMITTED_TO_PUBLIC_INFORMATION
     if action_type == AdministrativeActionType.ERROR_CORRECTION:
         return AdministrativeDecision.RECTIFIED
-    if action_type in {
-        AdministrativeActionType.ENVIRONMENTAL_IMPACT_STATEMENT,
-        AdministrativeActionType.ENVIRONMENTAL_IMPACT_REPORT,
-        AdministrativeActionType.ENVIRONMENTAL_AFFECTATION_DETERMINATION_REPORT,
-    }:
+    if action_type in _ENVIRONMENTAL_TERMINAL_DECISIONS_BY_ACTION_TYPE:
         if re.search(r"desfavorable|no\s+favorable", key):
             return AdministrativeDecision.UNFAVORABLE
         if re.search(r"favorable", key):
@@ -650,7 +744,10 @@ def _decision_from_title(
     }:
         if re.search(r"deniega|denegaci[oó]n", key):
             return AdministrativeDecision.DENIED
-        if re.search(r"solicitud|solicita", key) and not re.search(r"otorga|concede|autoriza", key):
+        if (
+            re.search(r"solicitud|solicita", key)
+            and not _AUTHORIZATION_GRANT_RE.search(key)
+        ):
             return AdministrativeDecision.REQUESTED
         return AdministrativeDecision.AUTHORIZED
     if action_type == AdministrativeActionType.WATER_CONCESSION:
@@ -680,6 +777,26 @@ def _decision_from_title(
             return AdministrativeDecision.INADMISSIBLE
         return AdministrativeDecision.CLOSED
     return AdministrativeDecision.OTHER
+
+
+def _should_replace_decision_from_title(
+    *,
+    action_type: AdministrativeActionType,
+    existing: AdministrativeDecision,
+    inferred: AdministrativeDecision,
+) -> bool:
+    """Preserva resultados ambientales frente al fallback genérico ``formulado``."""
+
+    if (
+        inferred == AdministrativeDecision.FORMULATED
+        and existing
+        in _ENVIRONMENTAL_TERMINAL_DECISIONS_BY_ACTION_TYPE.get(
+            action_type,
+            frozenset(),
+        )
+    ):
+        return False
+    return inferred != AdministrativeDecision.OTHER
 
 
 _MODIFIABLE_ACTION_TYPES = {
@@ -936,18 +1053,25 @@ def _expand_multitechnology_generation_assets(
                 targets.append(target)
         actions.append(action.model_copy(update={"targets": _canonicalize_refs(targets)}))
 
-    relations = list(event.generation_relations)
-    for old_ref, refs in ref_mapping.items():
-        if len(refs) < 2 or relation_evidence is None:
+    relations: list[GenerationAssetRelation] = []
+    discarded_relations = 0
+    for relation in event.generation_relations:
+        source_refs = ref_mapping[relation.source_generation_asset_ref]
+        target_refs = ref_mapping[relation.target_generation_asset_ref]
+        if len(source_refs) != 1 or len(target_refs) != 1:
+            discarded_relations += 1
             continue
-        for index, source in enumerate(refs):
-            for target in refs[index + 1:]:
-                relations.append(GenerationAssetRelation(
-                    source_generation_asset_ref=source,
-                    target_generation_asset_ref=target,
-                    relation_type=GenerationRelationType.HYBRIDIZED_WITH,
-                    evidence=relation_evidence,
-                ))
+        relations.append(relation.model_copy(update={
+            "source_generation_asset_ref": source_refs[0],
+            "target_generation_asset_ref": target_refs[0],
+        }))
+    if discarded_relations:
+        noun = "relación" if discarded_relations == 1 else "relaciones"
+        adjective = "descartada" if discarded_relations == 1 else "descartadas"
+        adjustments.append(
+            f"{discarded_relations} {noun} entre plantas {adjective} al "
+            "desdoblar un extremo multitecnología ambiguo."
+        )
 
     return event.model_copy(update={
         "generation_assets": assets,
@@ -1277,13 +1401,24 @@ def _canonicalize_actions(
             )
             continue
 
-        # Cuando el título contiene el acto actual, normaliza también su decisión.
-        # Evita conservar 'solicitado' cuando el objeto publicado es el sometimiento
-        # a información pública de esa solicitud.
+        # La inferencia desde título puede completar una decisión, pero el fallback
+        # ambiental ``formulado`` no degrada un resultado terminal ya validado.
         if action.action_type in title_types:
             title_decision = _decision_from_title(document_title, action.action_type)
-            if title_decision != AdministrativeDecision.OTHER:
+            if (
+                title_decision != action.decision
+                and _should_replace_decision_from_title(
+                    action_type=action.action_type,
+                    existing=action.decision,
+                    inferred=title_decision,
+                )
+            ):
+                previous_decision = action.decision
                 action.decision = title_decision
+                adjustments.append(
+                    f"action_{index}: decisión canonicalizada desde el título: "
+                    f"{previous_decision.value} -> {title_decision.value}."
+                )
 
         # Elimina antecedentes cuando el título define el objeto actual y el
         # tipo de la cita no forma parte de ese objeto.
@@ -1391,51 +1526,12 @@ def _canonicalize_generation_relations(
     event: PublicationEvent,
     *,
     source_text: str,
-    document_title: str,
 ) -> tuple[PublicationEvent, list[str]]:
     event = event.model_copy(deep=True)
-    valid_refs = {asset.local_generation_asset_ref for asset in event.generation_assets}
-    adjustments: list[str] = []
-    relations: list[GenerationAssetRelation] = []
-
-    for relation in event.generation_relations:
-        if {
-            relation.source_generation_asset_ref,
-            relation.target_generation_asset_ref,
-        } - valid_refs:
-            continue
-        semantic = (
-            r"h[ií]brid"
-            if relation.relation_type == GenerationRelationType.HYBRIDIZED_WITH
-            else r"sustitu|reemplaz"
-        )
-        source_asset = next(
-            asset for asset in event.generation_assets
-            if asset.local_generation_asset_ref == relation.source_generation_asset_ref
-        )
-        target_asset = next(
-            asset for asset in event.generation_assets
-            if asset.local_generation_asset_ref == relation.target_generation_asset_ref
-        )
-        shared_names = {
-            _text_key(name) for name in source_asset.names_raw
-        } & {
-            _text_key(name) for name in target_asset.names_raw
-        }
-        anchors = (
-            [source_asset.names_raw[0]]
-            if shared_names
-            else [source_asset.names_raw[0], target_asset.names_raw[0]]
-        )
-        evidence = _repair_evidence(
-            relation.evidence,
-            source_text=source_text,
-            anchors=anchors,
-            semantic_patterns=[semantic],
-            document_title=document_title,
-        )
-        if evidence is None:
-            continue
+    supported: list[GenerationAssetRelation] = []
+    discarded = 0
+    for proposed in event.generation_relations:
+        relation = proposed.model_copy(deep=True)
         source_ref = relation.source_generation_asset_ref
         target_ref = relation.target_generation_asset_ref
         if (
@@ -1443,42 +1539,21 @@ def _canonicalize_generation_relations(
             and _reference_sort_key(source_ref) > _reference_sort_key(target_ref)
         ):
             source_ref, target_ref = target_ref, source_ref
-        relations.append(relation.model_copy(update={
+        relation = relation.model_copy(update={
             "source_generation_asset_ref": source_ref,
             "target_generation_asset_ref": target_ref,
-            "evidence": evidence,
-        }))
-
-    # Caso común: dos componentes tecnológicos con el mismo nombre híbrido.
-    if len(event.generation_assets) == 2 and not relations:
-        first_asset, second_asset = event.generation_assets
-        shared_names = {
-            _text_key(name) for name in first_asset.names_raw
-        } & {
-            _text_key(name) for name in second_asset.names_raw
-        }
-        hybrid_anchors = (
-            [first_asset.names_raw[0]]
-            if shared_names
-            else [first_asset.names_raw[0], second_asset.names_raw[0]]
-        )
-        hybrid_evidence = _find_literal_span(
-            source_text,
-            anchors=hybrid_anchors,
-            semantic_patterns=[r"h[ií]brid"],
-            document_title=document_title,
-        )
-        if hybrid_evidence is not None:
-            relations.append(GenerationAssetRelation(
-                source_generation_asset_ref=event.generation_assets[0].local_generation_asset_ref,
-                target_generation_asset_ref=event.generation_assets[1].local_generation_asset_ref,
-                relation_type=GenerationRelationType.HYBRIDIZED_WITH,
-                evidence=hybrid_evidence,
-            ))
-            adjustments.append("Relación de hibridación completada desde evidencia literal.")
+        })
+        if _generation_relation_has_documentary_support(
+            event,
+            relation,
+            source_text=source_text,
+        ):
+            supported.append(relation)
+        else:
+            discarded += 1
 
     unique: dict[tuple[str, str, str], GenerationAssetRelation] = {}
-    for relation in relations:
+    for relation in supported:
         key = (
             relation.source_generation_asset_ref,
             relation.target_generation_asset_ref,
@@ -1486,41 +1561,726 @@ def _canonicalize_generation_relations(
         )
         unique.setdefault(key, relation)
     event.generation_relations = list(unique.values())
+
+    adjustments: list[str] = []
+    if discarded:
+        noun = "relación" if discarded == 1 else "relaciones"
+        adjective = "descartada" if discarded == 1 else "descartadas"
+        adjustments.append(
+            f"{discarded} {noun} entre plantas {adjective} por "
+            "soporte documental insuficiente."
+        )
     return event, adjustments
 
 
-def _event_is_integrated(event: PublicationEvent, source_text: str) -> bool:
-    if len(event.generation_assets) <= 1:
+def _generation_relation_semantic_pattern(
+    relation_type: GenerationRelationType,
+) -> str:
+    if relation_type == GenerationRelationType.HYBRIDIZED_WITH:
+        return r"h[ií]brid"
+    return r"sustitu|reemplaz"
+
+
+def _relation_evidence_units(
+    evidence: str,
+    source_text: str,
+) -> list[tuple[str, int, int]]:
+    segments = [
+        _canonical_documentary_text(segment).casefold()
+        for segment in _evidence_segments(evidence)
+    ]
+    if not segments:
+        return []
+    aligned_units: list[tuple[str, int, int]] = []
+    for source_unit in _source_units(source_text):
+        source_key = _canonical_documentary_text(source_unit).casefold()
+        for first_match in re.finditer(re.escape(segments[0]), source_key):
+            cursor = first_match.end()
+            positions = [first_match.span()]
+            for segment in segments[1:]:
+                position = source_key.find(segment, cursor)
+                if position < 0:
+                    break
+                cursor = position + len(segment)
+                positions.append((position, cursor))
+            else:
+                evidence_start = positions[0][0]
+                evidence_end = positions[-1][1]
+                candidate = (source_key, evidence_start, evidence_end)
+                if candidate not in aligned_units:
+                    aligned_units.append(candidate)
+
+    return sorted(
+        aligned_units,
+        key=lambda item: (len(item[0]), item[1], item[2]),
+    )
+
+
+_HYBRID_CONNECTOR_RE = re.compile(
+    r"\b(?:"
+    r"(?:se\s+)?h[ií]brid(?:a(?:n)?|ar[aá]n?|ad[oa]s?)|"
+    r"ser[aá]n?\s+h[ií]bridad[oa]s?|"
+    r"(?:para\s+su|y\s+su|su)\s+hibridaci[oó]n|"
+    r"h[ií]brid[oa]s?"
+    r")\b"
+    r"(?:\s+(?:materialmente|directamente|expresamente|expl[ií]citamente))?"
+    r"\s+con\b",
+    re.IGNORECASE,
+)
+_ACTIVE_REPLACEMENT_RE = re.compile(
+    r"\b(?:sustituye(?:n)?|sustituir[aá]n?|reemplaza(?:n)?|reemplazar[aá]n?)\b"
+    r"(?:\s+(?:materialmente|directamente|expresamente|expl[ií]citamente|"
+    r"[ií]ntegramente))?\s+(?:a|al)\b",
+    re.IGNORECASE,
+)
+_PASSIVE_REPLACEMENT_RE = re.compile(
+    r"\b(?:ser[aá]n?|es|son|fue(?:ron)?|ha(?:n)?\s+sido)\s+"
+    r"(?:sustituid[oa]s?|reemplazad[oa]s?)\s+por\b",
+    re.IGNORECASE,
+)
+_RELATION_SUFFIX_REJECTION_RE = re.compile(
+    r"\b(?:queda\s+)?(?:descartad[ao]s?|excluid[ao]s?|rechazad[ao]s?)\b|"
+    r"\bopci[oó]n\s+descartada\b|"
+    r"\bno\s+siendo\s+autorizad[oa]s?\b|"
+    r"\b(?:relaci[oó]n|hibridaci[oó]n|sustituci[oó]n|reemplazo)\s+"
+    r"(?:no\s+autorizad[oa]s?|denegad[oa]s?)\b|"
+    r"\bsin\s+autorizaci[oó]n\b",
+    re.IGNORECASE,
+)
+_GENERATION_ENDPOINT_ROLE_RE = re.compile(
+    r"\b(?:psf(?:v)?|fv|peol)\b|"
+    r"\b(?:plantas?|parques?|centrales?|instalaciones?|m[oó]dulos?)\s+"
+    r"(?:de\s+generaci[oó]n(?:\s+de\s+energ[ií]a\s+el[eé]ctrica)?|"
+    r"(?:solares?\s+)?fotovoltaic[ao]s?|solares?|e[oó]lic[ao]s?|"
+    r"termosolares?|solar\s+termoel[eé]ctric[ao]s?|"
+    r"hidroel[eé]ctric[ao]s?|de\s+cogeneraci[oó]n"
+    r"(?:\s+termoel[eé]ctrica)?)\b|"
+    r"\baerogeneradores?\b",
+    re.IGNORECASE,
+)
+
+
+def _relation_clause_bounds(
+    unit: str,
+    start: int,
+    end: int,
+) -> tuple[int, int]:
+    clause_start = max(
+        unit.rfind(".", 0, start),
+        unit.rfind(";", 0, start),
+        unit.rfind(":", 0, start),
+    ) + 1
+    clause_ends = [
+        position
+        for mark in ".;:"
+        if (position := unit.find(mark, end)) >= 0
+    ]
+    return clause_start, min(clause_ends, default=len(unit))
+
+
+def _strict_alias_spans(text: str, alias: str) -> list[tuple[int, int]]:
+    return [
+        match.span()
+        for match in re.finditer(
+            rf"(?<!\w){re.escape(alias)}(?!\w)",
+            text,
+            re.IGNORECASE,
+        )
+    ]
+
+
+def _resolved_generation_name_spans(
+    unit: str,
+    event: PublicationEvent,
+) -> list[tuple[int, int, set[str]]]:
+    aliases_by_owner: dict[str, set[str]] = {}
+    for asset in event.generation_assets:
+        for name in asset.names_raw:
+            alias = _canonical_documentary_text(name).casefold()
+            if alias:
+                aliases_by_owner.setdefault(alias, set()).add(
+                    asset.local_generation_asset_ref
+                )
+
+    candidates: list[tuple[int, int, set[str]]] = []
+    for alias in sorted(aliases_by_owner, key=lambda item: (-len(item), item)):
+        owners = aliases_by_owner[alias]
+        for start, end in _strict_alias_spans(unit, alias):
+            candidates.append((start, end, owners))
+
+    ambiguous: set[int] = set()
+    for index, (start, end, _) in enumerate(candidates):
+        for other_index, (other_start, other_end, _) in enumerate(
+            candidates[index + 1:],
+            start=index + 1,
+        ):
+            if not (start < other_end and other_start < end):
+                continue
+            contains_other = start <= other_start and other_end <= end
+            other_contains = other_start <= start and end <= other_end
+            if not contains_other and not other_contains:
+                ambiguous.update((index, other_index))
+
+    accepted: list[tuple[int, int, set[str]]] = []
+    unambiguous = [
+        candidate
+        for index, candidate in enumerate(candidates)
+        if index not in ambiguous
+    ]
+    for start, end, owners in sorted(
+        unambiguous,
+        key=lambda item: (-(item[1] - item[0]), item[0], item[1]),
+    ):
+        if any(
+            start < existing_end and existing_start < end
+            for existing_start, existing_end, _ in accepted
+        ):
+            continue
+        accepted.append((start, end, owners))
+    return sorted(accepted, key=lambda item: (item[0], item[1]))
+
+
+def _generation_relation_name_span_pairs(
+    unit: str,
+    resolved_spans: list[tuple[int, int, set[str]]],
+    event: PublicationEvent,
+    source_asset: GenerationAssetMention,
+    target_asset: GenerationAssetMention,
+) -> list[tuple[tuple[int, int], tuple[int, int]]]:
+    assets_by_ref = {
+        asset.local_generation_asset_ref: asset
+        for asset in event.generation_assets
+    }
+
+    def identifies(
+        span: tuple[int, int],
+        owners: set[str],
+        asset: GenerationAssetMention,
+    ) -> bool:
+        ref = asset.local_generation_asset_ref
+        if owners == {ref}:
+            return True
+        typed_owners = {
+            owner
+            for owner in owners
+            if owner in assets_by_ref
+            and _generation_span_declares_type(
+                unit,
+                span,
+                assets_by_ref[owner].generation_type,
+            )
+        }
+        return typed_owners == {ref}
+
+    return [
+        ((source_start, source_end), (target_start, target_end))
+        for source_start, source_end, source_owners in resolved_spans
+        if identifies(
+            (source_start, source_end),
+            source_owners,
+            source_asset,
+        )
+        for target_start, target_end, target_owners in resolved_spans
+        if identifies(
+            (target_start, target_end),
+            target_owners,
+            target_asset,
+        )
+        and (
+            source_end <= target_start
+            or target_end <= source_start
+        )
+    ]
+
+
+def _generation_span_declares_type(
+    unit: str,
+    span: tuple[int, int],
+    generation_type: GenerationType,
+) -> bool:
+    pattern = _GENERATION_TYPE_PATTERNS.get(generation_type)
+    if pattern is None:
+        return False
+    if re.search(pattern, unit[span[0]:span[1]], re.IGNORECASE):
         return True
-    if event.generation_relations:
-        return True
-    if any(
-        component.component_type == AssociatedComponentType.ENERGY_STORAGE
-        and len(component.related_generation_asset_refs) > 1
-        for component in event.associated_components
+
+    clause_start, _ = _relation_clause_bounds(unit, span[0], span[1])
+    prefix = unit[clause_start:span[0]]
+    qualifiers = (
+        r"(?:\s+(?:existente|en\s+operaci[oó]n|denominad[oa]s?"
+        r"(?:\s+como)?|llamad[oa]s?))*"
+    )
+    return bool(re.search(
+        rf"(?:{pattern})\w*{qualifiers}\s*[\"']?\s*$",
+        prefix,
+        re.IGNORECASE,
+    ))
+
+
+def _generation_span_is_storage_context(
+    unit: str,
+    span: tuple[int, int],
+) -> bool:
+    clause_start, clause_end = _relation_clause_bounds(unit, span[0], span[1])
+    prefix = unit[clause_start:span[0]]
+    suffix = unit[span[1]:clause_end]
+    storage_pattern = _component_pattern(AssociatedComponentType.ENERGY_STORAGE)
+
+    if re.match(
+        r"[\s,\"']*(?:bess\b|bater[ií]as?\b|"
+        r"(?:m[oó]dulos?|sistemas?|instalaciones?)\s+"
+        r"(?:de\s+)?almacenamiento\b)",
+        suffix,
+        re.IGNORECASE,
     ):
         return True
 
-    assets = event.generation_assets
-    for index, source_asset in enumerate(assets):
-        for target_asset in assets[index + 1:]:
-            shared_names = {
-                _text_key(name) for name in source_asset.names_raw
-            } & {
-                _text_key(name) for name in target_asset.names_raw
-            }
-            anchors = (
-                [source_asset.names_raw[0]]
-                if shared_names
-                else [source_asset.names_raw[0], target_asset.names_raw[0]]
-            )
-            if _find_literal_span(
-                source_text,
-                anchors=anchors,
-                semantic_patterns=[r"h[ií]brid|sustitu|reemplaz"],
-            ) is not None:
+    scope_start = clause_start
+    connectors = list(_HYBRID_CONNECTOR_RE.finditer(prefix))
+    if connectors:
+        scope_start += connectors[-1].end()
+    scope = unit[scope_start:span[1]]
+    storage_positions = [
+        match.start()
+        for match in re.finditer(storage_pattern, scope, re.IGNORECASE)
+    ]
+    generation_positions = [
+        match.start() for match in _GENERATION_ENDPOINT_ROLE_RE.finditer(scope)
+    ]
+    if max(storage_positions, default=-1) >= max(generation_positions, default=-1) >= 0:
+        return True
+    if not re.search(storage_pattern, prefix, re.IGNORECASE):
+        return False
+    if re.search(
+        r"\b(?:para\s+su|y\s+su|su)\s+h[ií]brid",
+        suffix,
+        re.IGNORECASE,
+    ):
+        return True
+    return bool(re.search(
+        storage_pattern
+        + r"[^.;:]*(?:(?:asociad[oa]s?|vinculad[oa]s?|destinad[oa]s?)\s+"
+        + r"(?:a|al|con)\b|(?:perteneciente|adscrit[oa]s?|ligad[oa]s?)\s+"
+        + r"(?:a|al)\b|de(?:l|\s+la)\b)[^.;:]*$",
+        prefix,
+        re.IGNORECASE,
+    ))
+
+
+def _relation_target_tail_is_clean(value: str) -> bool:
+    if re.search(r"[.;:]", value):
+        return False
+    if "," in value and not re.fullmatch(
+        r"[^,]*,\s*(?:denominad[oa]s?|llamad[oa]s?)\s*[\"«»]?\s*",
+        value,
+        re.IGNORECASE,
+    ):
+        return False
+    if re.search(
+        _component_pattern(AssociatedComponentType.ENERGY_STORAGE),
+        value,
+        re.IGNORECASE,
+    ):
+        return False
+    return not re.search(
+        r"\b(?:y|e|pero|mientras|aunque|junto|con|transformadores?|"
+        r"expedientes?|tramita\w*|comparte\w*|estudia\w*)\b",
+        value,
+        re.IGNORECASE,
+    )
+
+
+def _relation_predicate_is_negative(
+    unit: str,
+    left_span: tuple[int, int],
+    connector_start: int,
+) -> bool:
+    clause_start, _ = _relation_clause_bounds(
+        unit,
+        left_span[0],
+        left_span[1],
+    )
+    introduction = re.split(
+        r"\bpero\b",
+        unit[clause_start:left_span[0]],
+        flags=re.IGNORECASE,
+    )[-1]
+    if re.search(
+        r"\b(?:no\s+se\s+autoriza\w*\s+que|sin\s+que)\s*$",
+        introduction,
+        re.IGNORECASE,
+    ):
+        return True
+
+    predicate_prefix = unit[left_span[1]:connector_start]
+    return bool(re.search(
+        r"\bno\s+(?!solo\b)(?:se\s+)?$",
+        predicate_prefix,
+        re.IGNORECASE,
+    ))
+
+
+def _relation_clause_suffix_is_rejected(
+    unit: str,
+    source_span: tuple[int, int],
+    target_span: tuple[int, int],
+) -> bool:
+    right_end = max(source_span[1], target_span[1])
+    _, clause_end = _relation_clause_bounds(unit, right_end, right_end)
+    return bool(_RELATION_SUFFIX_REJECTION_RE.search(unit[right_end:clause_end]))
+
+
+def _intervening_generation_names_are_coordinated(
+    unit: str,
+    *,
+    left_end: int,
+    connector_start: int,
+    resolved_spans: list[tuple[int, int, set[str]]],
+) -> bool:
+    intervening = [
+        (start, end)
+        for start, end, _ in resolved_spans
+        if left_end <= start and end <= connector_start
+    ]
+    if not intervening:
+        return True
+
+    cursor = left_end
+    for start, end in intervening:
+        if not re.fullmatch(
+            r"\s*(?:,\s*)?(?:y|e)\s+",
+            unit[cursor:start],
+            re.IGNORECASE,
+        ):
+            return False
+        cursor = end
+    return not unit[cursor:connector_start].strip()
+
+
+def _relation_context_has_no_other_generation_name(
+    *,
+    context_start: int,
+    context_end: int,
+    resolved_spans: list[tuple[int, int, set[str]]],
+) -> bool:
+    return not any(
+        context_start <= start and end <= context_end
+        for start, end, _ in resolved_spans
+    )
+
+
+def _positive_relation_structure_is_supported(
+    unit: str,
+    relation_type: GenerationRelationType,
+    source_span: tuple[int, int],
+    target_span: tuple[int, int],
+    *,
+    resolved_spans: list[tuple[int, int, set[str]]],
+) -> bool:
+    left_span, right_span = sorted((source_span, target_span))
+    between = unit[left_span[1]:right_span[0]]
+    if re.search(r"[.;:]", between):
+        return False
+    if _relation_clause_suffix_is_rejected(unit, source_span, target_span):
+        return False
+
+    def connector_is_local(connector: re.Match[str]) -> bool:
+        connector_start = left_span[1] + connector.start()
+        connector_end = left_span[1] + connector.end()
+        if _relation_predicate_is_negative(unit, left_span, connector_start):
+            return False
+        if not _intervening_generation_names_are_coordinated(
+            unit,
+            left_end=left_span[1],
+            connector_start=connector_start,
+            resolved_spans=resolved_spans,
+        ):
+            return False
+        if not _relation_context_has_no_other_generation_name(
+            context_start=connector_end,
+            context_end=right_span[0],
+            resolved_spans=resolved_spans,
+        ):
+            return False
+        return _relation_target_tail_is_clean(
+            unit[connector_end:right_span[0]]
+        )
+
+    if relation_type == GenerationRelationType.HYBRIDIZED_WITH:
+        for connector in _HYBRID_CONNECTOR_RE.finditer(between):
+            connector_key = connector.group().strip().casefold()
+            source_gap = between[:connector.start()]
+            has_storage = bool(re.search(
+                _component_pattern(AssociatedComponentType.ENERGY_STORAGE),
+                source_gap,
+                re.IGNORECASE,
+            ))
+            allows_storage_bundle = bool(re.match(
+                r"(?:para\s+su|y\s+su|su)\s+hibridaci[oó]n",
+                connector_key,
+            )) and not _generation_span_is_storage_context(unit, left_span)
+            if has_storage and not allows_storage_bundle:
+                continue
+            if connector_is_local(connector):
                 return True
+
+        clause_start, _ = _relation_clause_bounds(
+            unit,
+            left_span[0],
+            right_span[1],
+        )
+        before_left = unit[clause_start:left_span[0]]
+        nominal = re.search(
+            r"\bhibridaci[oó]n\s+de\s+(?:la\s+|el\s+|los\s+|las\s+)?$",
+            before_left,
+            re.IGNORECASE,
+        )
+        if nominal is None or re.search(
+            r"\b(?:carece\s+de|renuncia\s+a\s+la|no\s+se\s+autoriza\w*)\s*$",
+            before_left[:nominal.start()],
+            re.IGNORECASE,
+        ):
+            return False
+        connector = re.match(r"\s+con\b", between, re.IGNORECASE)
+        return bool(
+            connector
+            and _relation_context_has_no_other_generation_name(
+                context_start=left_span[1] + connector.end(),
+                context_end=right_span[0],
+                resolved_spans=resolved_spans,
+            )
+            and _relation_target_tail_is_clean(between[connector.end():])
+        )
+
+    if source_span[1] <= target_span[0]:
+        connector = _ACTIVE_REPLACEMENT_RE.search(between)
+        return bool(connector and connector_is_local(connector))
+
+    connector = _PASSIVE_REPLACEMENT_RE.search(between)
+    return bool(connector and connector_is_local(connector))
+
+
+def _explicit_shared_name_hybrid_is_supported(
+    unit: str,
+    source_asset: GenerationAssetMention,
+    target_asset: GenerationAssetMention,
+    resolved_spans: list[tuple[int, int, set[str]]],
+) -> bool:
+    if source_asset.generation_type == target_asset.generation_type:
+        return False
+    source_pattern = _GENERATION_TYPE_PATTERNS.get(source_asset.generation_type)
+    target_pattern = _GENERATION_TYPE_PATTERNS.get(target_asset.generation_type)
+    if source_pattern is None or target_pattern is None:
+        return False
+
+    endpoint_refs = {
+        source_asset.local_generation_asset_ref,
+        target_asset.local_generation_asset_ref,
+    }
+    shared_aliases = sorted({
+        _canonical_documentary_text(name).casefold()
+        for name in source_asset.names_raw
+    } & {
+        _canonical_documentary_text(name).casefold()
+        for name in target_asset.names_raw
+    }, key=lambda item: (-len(item), item))
+    if not shared_aliases:
+        return False
+    alias_pattern = "(?:" + "|".join(map(re.escape, shared_aliases)) + ")"
+
+    for alias_start, alias_end, owners in resolved_spans:
+        if not endpoint_refs <= owners:
+            continue
+        clause_start, clause_end = _relation_clause_bounds(
+            unit, alias_start, alias_end
+        )
+        if any(
+            clause_start <= start < clause_end and bool(owners - endpoint_refs)
+            for start, _, owners in resolved_spans
+        ):
+            continue
+        clause = unit[clause_start:clause_end]
+        aliases = [
+            (start - clause_start, end - clause_start)
+            for start, end, owners in resolved_spans
+            if clause_start <= start < clause_end and endpoint_refs <= owners
+        ]
+        named_template = re.search(
+            r"(?:\bhibridaci[oó]n\s+de\s+(?:la\s+|el\s+)?"
+            r"(?:instalaci[oó]n|planta)\s+[\"']?" + alias_pattern
+            + r"[\"']?\s+con\s+tecnolog[ií]a\b|"
+            r"\b(?:instalaci[oó]n|planta)\s+h[ií]brid[ao]\s+[\"']?"
+            + alias_pattern + r"[\"']?)",
+            clause,
+            re.IGNORECASE,
+        )
+        source_types = re.finditer(source_pattern, clause, re.IGNORECASE)
+        target_type_spans = [
+            match.span()
+            for match in re.finditer(target_pattern, clause, re.IGNORECASE)
+        ]
+        for source_match in source_types:
+            for target_type in target_type_spans:
+                source_type = source_match.span()
+                if not (
+                    source_type[1] <= target_type[0]
+                    or target_type[1] <= source_type[0]
+                ):
+                    continue
+                left_type, right_type = sorted((source_type, target_type))
+                type_gap = clause[left_type[1]:right_type[0]]
+                connector = _HYBRID_CONNECTOR_RE.search(type_gap)
+                if connector:
+                    connector_start = left_type[1] + connector.start()
+                    alias_encloses_types = any(
+                        start <= left_type[0] and right_type[1] <= end
+                        for start, end in aliases
+                    )
+                    if alias_encloses_types or (
+                        not any(
+                            left_type[1] <= start < connector_start
+                            for start, _ in aliases
+                        )
+                        and any(start >= right_type[1] for start, _ in aliases)
+                    ):
+                        return True
+                if named_template and re.search(
+                    r"\b(?:y|e)\b", type_gap, re.IGNORECASE
+                ):
+                    return True
     return False
+
+
+def _generation_relation_has_documentary_support(
+    event: PublicationEvent,
+    relation: GenerationAssetRelation,
+    *,
+    source_text: str,
+) -> bool:
+    """Exige una relación material literal que identifique ambos activos."""
+
+    assets_by_ref = {
+        asset.local_generation_asset_ref: asset
+        for asset in event.generation_assets
+    }
+    source_asset = assets_by_ref.get(relation.source_generation_asset_ref)
+    target_asset = assets_by_ref.get(relation.target_generation_asset_ref)
+    if source_asset is None or target_asset is None:
+        return False
+    if not _evidence_is_supported(relation.evidence, source_text):
+        return False
+    evidence_key = " ".join(
+        _canonical_documentary_text(segment).casefold()
+        for segment in _evidence_segments(relation.evidence)
+    )
+    if not re.search(
+        _generation_relation_semantic_pattern(relation.relation_type),
+        evidence_key,
+        re.IGNORECASE,
+    ):
+        return False
+
+    for unit, evidence_start, evidence_end in _relation_evidence_units(
+        relation.evidence,
+        source_text,
+    ):
+        context_spans = _resolved_generation_name_spans(unit, event)
+        resolved_spans = [
+            (start, end, owners)
+            for start, end, owners in context_spans
+            if evidence_start <= start and end <= evidence_end
+        ]
+        span_pairs = _generation_relation_name_span_pairs(
+            unit,
+            resolved_spans,
+            event,
+            source_asset,
+            target_asset,
+        )
+        for source_span, target_span in span_pairs:
+            if (
+                _generation_span_is_storage_context(unit, source_span)
+                or _generation_span_is_storage_context(unit, target_span)
+            ):
+                continue
+            if _positive_relation_structure_is_supported(
+                unit,
+                relation.relation_type,
+                source_span,
+                target_span,
+                resolved_spans=context_spans,
+            ):
+                return True
+        if (
+            relation.relation_type == GenerationRelationType.HYBRIDIZED_WITH
+            and _explicit_shared_name_hybrid_is_supported(
+                unit,
+                source_asset,
+                target_asset,
+                resolved_spans,
+            )
+        ):
+            return True
+    return False
+
+
+def _supported_generation_relations(
+    event: PublicationEvent,
+    source_text: str,
+) -> list[GenerationAssetRelation]:
+    return [
+        relation
+        for relation in event.generation_relations
+        if _generation_relation_has_documentary_support(
+            event,
+            relation,
+            source_text=source_text,
+        )
+    ]
+
+
+def _material_generation_groups(
+    event: PublicationEvent,
+    source_text: str,
+    *,
+    supported_relations: list[GenerationAssetRelation] | None = None,
+) -> list[list[str]]:
+    refs = [
+        asset.local_generation_asset_ref
+        for asset in event.generation_assets
+    ]
+    neighbors = {ref: set() for ref in refs}
+    relations = (
+        supported_relations
+        if supported_relations is not None
+        else _supported_generation_relations(event, source_text)
+    )
+    for relation in relations:
+        source_ref = relation.source_generation_asset_ref
+        target_ref = relation.target_generation_asset_ref
+        neighbors[source_ref].add(target_ref)
+        neighbors[target_ref].add(source_ref)
+
+    groups: list[list[str]] = []
+    seen: set[str] = set()
+    for ref in refs:
+        if ref in seen:
+            continue
+        pending = [ref]
+        group_refs: set[str] = set()
+        while pending:
+            current = pending.pop()
+            if current in group_refs:
+                continue
+            group_refs.add(current)
+            pending.extend(neighbors[current] - group_refs)
+        seen.update(group_refs)
+        groups.append([item for item in refs if item in group_refs])
+    return groups
+
+
+def _event_is_integrated(event: PublicationEvent, source_text: str) -> bool:
+    return len(_material_generation_groups(event, source_text)) == 1
 
 
 def _renumber_event(event: PublicationEvent) -> PublicationEvent:
@@ -1566,76 +2326,134 @@ def _renumber_event(event: PublicationEvent) -> PublicationEvent:
     return event
 
 
+def _event_for_material_generation_group(
+    event: PublicationEvent,
+    *,
+    group_refs: list[str],
+    supported_relations: list[GenerationAssetRelation],
+) -> PublicationEvent | None:
+    event = event.model_copy(deep=True)
+    group_set = set(group_refs)
+    generation_assets = [
+        asset
+        for asset in event.generation_assets
+        if asset.local_generation_asset_ref in group_set
+    ]
+
+    associated_components: list[AssociatedComponent] = []
+    for component in event.associated_components:
+        original_refs = component.related_generation_asset_refs
+        if not original_refs:
+            continue
+        related_refs = [ref for ref in original_refs if ref in group_set]
+        if not related_refs:
+            continue
+        associated_components.append(component.model_copy(update={
+            "related_generation_asset_refs": related_refs,
+        }))
+    component_refs = {
+        component.local_component_ref
+        for component in associated_components
+    }
+
+    actions: list[AdministrativeAction] = []
+    for action in event.administrative_actions:
+        if action.targets == ["event"]:
+            actions.append(action.model_copy(deep=True))
+            continue
+        targets = _canonicalize_refs([
+            target
+            for target in action.targets
+            if target in group_set or target in component_refs
+        ])
+        if targets:
+            actions.append(action.model_copy(update={"targets": targets}))
+    if not actions:
+        return None
+
+    generation_relations = [
+        relation.model_copy(deep=True)
+        for relation in supported_relations
+        if {
+            relation.source_generation_asset_ref,
+            relation.target_generation_asset_ref,
+        } <= group_set
+    ]
+    grouped_event = event.model_copy(update={
+        "generation_assets": generation_assets,
+        "associated_components": associated_components,
+        "administrative_actions": actions,
+        "generation_relations": generation_relations,
+    })
+    return _renumber_event(grouped_event)
+
+
 def _split_independent_generation_event(
     event: PublicationEvent,
     *,
     source_text: str,
 ) -> tuple[list[PublicationEvent], list[str]]:
-    if _event_is_integrated(event, source_text):
-        return [_renumber_event(event)], []
+    supported_relations = _supported_generation_relations(event, source_text)
+    groups = _material_generation_groups(
+        event,
+        source_text,
+        supported_relations=supported_relations,
+    )
+    discarded_relations = len(event.generation_relations) - len(supported_relations)
+    relation_adjustments: list[str] = []
+    if discarded_relations:
+        noun = "relación" if discarded_relations == 1 else "relaciones"
+        adjective = "descartada" if discarded_relations == 1 else "descartadas"
+        relation_adjustments.append(
+            f"{discarded_relations} {noun} entre plantas {adjective} por "
+            "soporte documental insuficiente."
+        )
+    if len(groups) == 1:
+        event = event.model_copy(deep=True, update={
+            "generation_relations": [
+                relation.model_copy(deep=True)
+                for relation in supported_relations
+            ]
+        })
+        return [_renumber_event(event)], relation_adjustments
 
     split_events: list[PublicationEvent] = []
-    adjustments = [
-        f"Evento con {len(event.generation_assets)} plantas independientes dividido por planta."
-    ]
-    for asset in event.generation_assets:
-        old_generation_ref = asset.local_generation_asset_ref
-        new_asset = asset.model_copy(update={
-            "local_generation_asset_ref": "generation_asset_1"
-        })
+    discarded_groups = 0
+    for group_refs in groups:
+        grouped_event = _event_for_material_generation_group(
+            event,
+            group_refs=group_refs,
+            supported_relations=supported_relations,
+        )
+        if grouped_event is None:
+            discarded_groups += 1
+        else:
+            split_events.append(grouped_event)
 
-        included_original = [
-            component
-            for component in event.associated_components
-            if not component.related_generation_asset_refs
-            or old_generation_ref in component.related_generation_asset_refs
-        ]
-        component_mapping: dict[str, str] = {}
-        included_components: list[AssociatedComponent] = []
-        for index, component in enumerate(included_original, start=1):
-            new_ref = f"component_{index}"
-            component_mapping[component.local_component_ref] = new_ref
-            included_components.append(component.model_copy(update={
-                "local_component_ref": new_ref,
-                "related_generation_asset_refs": ["generation_asset_1"],
-            }))
-
-        actions: list[AdministrativeAction] = []
-        for action in event.administrative_actions:
-            if action.targets == ["event"]:
-                actions.append(action.model_copy(deep=True))
-                continue
-            mapped_targets: list[str] = []
-            if old_generation_ref in action.targets:
-                mapped_targets.append("generation_asset_1")
-            for target in action.targets:
-                if target in component_mapping:
-                    mapped_targets.append(component_mapping[target])
-            if mapped_targets:
-                all_entities = {"generation_asset_1"} | set(component_mapping.values())
-                canonical_targets = _canonicalize_refs(mapped_targets)
-                if set(canonical_targets) == all_entities:
-                    canonical_targets = ["event"]
-                actions.append(action.model_copy(update={"targets": canonical_targets}))
-
-        if not actions:
-            actions = [
-                action.model_copy(update={"targets": ["event"]})
-                for action in event.administrative_actions
-            ]
-
-        split_events.append(PublicationEvent(
-            generation_assets=[new_asset],
-            associated_components=included_components,
-            administrative_actions=actions,
-            participants=[item.model_copy(deep=True) for item in event.participants],
-            administrative_locations=[
-                item.model_copy(deep=True) for item in event.administrative_locations
-            ],
-            generation_relations=[],
-            case_file_references=list(event.case_file_references),
-            event_summary=event.event_summary,
-        ))
+    adjustments = list(relation_adjustments)
+    unlinked_components = sum(
+        not component.related_generation_asset_refs
+        for component in event.associated_components
+    )
+    if unlinked_components:
+        noun = "componente" if unlinked_components == 1 else "componentes"
+        adjective = "descartado" if unlinked_components == 1 else "descartados"
+        adjustments.append(
+            f"{unlinked_components} {noun} sin vínculos de generación {adjective} "
+            "durante el split por grupos materiales."
+        )
+    if discarded_groups:
+        noun = "grupo" if discarded_groups == 1 else "grupos"
+        material = "material" if discarded_groups == 1 else "materiales"
+        adjective = "descartado" if discarded_groups == 1 else "descartados"
+        adjustments.append(
+            f"{discarded_groups} {noun} {material} {adjective} al no conservar "
+            "ninguna actuación vinculada."
+        )
+    adjustments.append(
+        f"Evento con {len(event.generation_assets)} plantas dividido en "
+        f"{len(groups)} grupos materiales independientes."
+    )
     return split_events, adjustments
 
 
@@ -1761,14 +2579,27 @@ def canonicalize_project_extraction(
                 else:
                     remapped.append(target)
             action.targets = _canonicalize_refs(remapped) if remapped else []
+        remapped_relations: list[GenerationAssetRelation] = []
+        discarded_relation_count = 0
         for relation in event.generation_relations:
-            relation.source_generation_asset_ref = old_to_new.get(
-                relation.source_generation_asset_ref,
-                relation.source_generation_asset_ref,
+            source_ref = relation.source_generation_asset_ref
+            target_ref = relation.target_generation_asset_ref
+            if source_ref not in old_to_new or target_ref not in old_to_new:
+                discarded_relation_count += 1
+                continue
+            remapped_relations.append(relation.model_copy(update={
+                "source_generation_asset_ref": old_to_new[source_ref],
+                "target_generation_asset_ref": old_to_new[target_ref],
+            }))
+        event.generation_relations = remapped_relations
+        if discarded_relation_count:
+            noun = "relación" if discarded_relation_count == 1 else "relaciones"
+            adjective = (
+                "descartada" if discarded_relation_count == 1 else "descartadas"
             )
-            relation.target_generation_asset_ref = old_to_new.get(
-                relation.target_generation_asset_ref,
-                relation.target_generation_asset_ref,
+            adjustments.append(
+                f"{discarded_relation_count} {noun} entre plantas {adjective} "
+                "al eliminar un extremo no documental."
             )
 
         event, current = _expand_multitechnology_generation_assets(
@@ -1838,7 +2669,6 @@ def canonicalize_project_extraction(
         event, current = _canonicalize_generation_relations(
             event,
             source_text=source_text,
-            document_title=document_title,
         )
         adjustments.extend(current)
         event, current = _canonicalize_optional_mentions(

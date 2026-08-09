@@ -1,6 +1,5 @@
-import ast
-import json
 from datetime import date
+from inspect import signature
 from pathlib import Path
 
 import pandas as pd
@@ -194,7 +193,7 @@ def _rich_extraction() -> BOEProjectExtraction:
     )
 
 
-def test_save_writes_all_tables_once_in_notebook_order_and_replaces_files(
+def test_save_writes_all_tables_once_in_contract_order_and_replaces_files(
     flat_paths: dict[str, Path],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -540,55 +539,13 @@ def test_integration_flattens_then_writes_and_preserves_relationships(
     assert list(next(iter(flat_paths.values())).parents[1].rglob("*.tmp")) == []
 
 
-def _top_level_nodes(source: str) -> dict[str, ast.AST]:
-    nodes: dict[str, ast.AST] = {}
-    for node in ast.parse(source).body:
-        if isinstance(node, ast.FunctionDef):
-            nodes[node.name] = node
-        elif isinstance(node, (ast.Assign, ast.AnnAssign)):
-            targets = (
-                node.targets
-                if isinstance(node, ast.Assign)
-                else [node.target]
-            )
-            for target in targets:
-                if isinstance(target, ast.Name):
-                    nodes[target.id] = node
-    return nodes
-
-
-def test_save_flattened_extractions_matches_notebook_ast() -> None:
-    project_root = Path(__file__).resolve().parents[2]
-    notebook = json.loads(
-        (
-            project_root / "notebooks" / "07_extraccion_ia_v25_1.ipynb"
-        ).read_text(encoding="utf-8")
-    )
-    notebook_source = "".join(notebook["cells"][17]["source"])
-    module_source = (
-        project_root
-        / "src"
-        / "renewables_permitting"
-        / "extraction"
-        / "flatten.py"
-    ).read_text(encoding="utf-8")
-    notebook_node = _top_level_nodes(notebook_source)[
-        "save_flattened_extractions"
-    ]
-    module_node = next(
-        node
-        for node in ast.walk(ast.parse(module_source))
-        if isinstance(node, ast.FunctionDef)
-        and node.name == "save_flattened_extractions"
-    )
-
-    assert ast.dump(module_node, include_attributes=False) == ast.dump(
-        notebook_node,
-        include_attributes=False,
+def test_save_flattened_extractions_has_stable_public_signature() -> None:
+    assert tuple(signature(save_flattened_extractions).parameters) == (
+        "current_extractions",
     )
 
 
-def test_flat_table_key_and_path_order_matches_notebook_v25_1() -> None:
+def test_flat_table_key_and_path_order_is_exact() -> None:
     assert list(FLAT_TABLE_COLUMNS) == [
         "publication_events",
         "generation_asset_mentions",

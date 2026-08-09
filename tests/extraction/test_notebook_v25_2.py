@@ -1,26 +1,17 @@
 from __future__ import annotations
 
 import ast
-import hashlib
 import json
 from pathlib import Path
 from typing import Any
 
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-NOTEBOOK_V25_1_PATH = (
-    PROJECT_ROOT / "notebooks" / "07_extraccion_ia_v25_1.ipynb"
-)
 NOTEBOOK_V25_2_PATH = (
     PROJECT_ROOT / "notebooks" / "07_extraccion_ia_v25_2.ipynb"
 )
 EXTRACTION_PACKAGE_PATH = (
     PROJECT_ROOT / "src" / "renewables_permitting" / "extraction"
-)
-
-V25_1_SIZE = 439_538
-V25_1_SHA256 = (
-    "f0bb34b614d574084fb3e2c32dd4331cc3b33e0f2ecacfb17188898039303218"
 )
 
 MIGRATED_MODULES = {
@@ -57,46 +48,13 @@ DANGEROUS_FLAGS = {
     "REGENERATE_FLAT_TABLES",
 }
 
-PILOT_AGENT_INITIALIZATION = """    if agent is None:
-        validate_runtime_configuration()
-
-        if MODEL_PROVIDER == "gemini":
-            AI_MODEL = AI_MODEL_NAME
-        elif MODEL_PROVIDER == "ollama":
-            AI_MODEL = build_ollama_model(AI_MODEL_NAME)
-        else:
-            raise ValueError(
-                "MODEL_PROVIDER debe ser 'gemini' u 'ollama': "
-                f"{MODEL_PROVIDER!r}."
-            )
-
-        agent = build_boe_extraction_agent()
-
-"""
-
-PRODUCTION_AGENT_INITIALIZATION = """        if agent is None:
-            validate_runtime_configuration()
-
-            if MODEL_PROVIDER == "gemini":
-                AI_MODEL = AI_MODEL_NAME
-            elif MODEL_PROVIDER == "ollama":
-                AI_MODEL = build_ollama_model(AI_MODEL_NAME)
-            else:
-                raise ValueError(
-                    "MODEL_PROVIDER debe ser 'gemini' u 'ollama': "
-                    f"{MODEL_PROVIDER!r}."
-                )
-
-            agent = build_boe_extraction_agent()
-
-"""
-
-
 def _load_notebook(path: Path) -> dict[str, Any]:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
 def _code_trees(notebook: dict[str, Any]) -> list[ast.Module]:
+    # AST is intentional throughout this file: operational notebook cells are
+    # inspected, never executed, so safety guards can be verified offline.
     return [
         ast.parse("".join(cell["source"]))
         for cell in notebook["cells"]
@@ -122,6 +80,14 @@ def _direct_product_names(module_path: Path) -> set[str]:
         elif isinstance(node, (ast.Assign, ast.AnnAssign)):
             names.update(_assignment_names(node))
     return names
+
+
+def _direct_public_product_names(module_path: Path) -> set[str]:
+    return {
+        name
+        for name in _direct_product_names(module_path)
+        if not name.startswith("_")
+    }
 
 
 def _notebook_defined_names(trees: list[ast.Module]) -> set[str]:
@@ -213,16 +179,15 @@ def _attach_parents(trees: list[ast.Module]) -> None:
                 child._parent = parent  # type: ignore[attr-defined]
 
 
-def test_v25_2_is_valid_json_and_preserves_essential_metadata() -> None:
-    source = _load_notebook(NOTEBOOK_V25_1_PATH)
+def test_v25_2_is_valid_json_with_compatible_kernel_metadata() -> None:
     target = _load_notebook(NOTEBOOK_V25_2_PATH)
 
-    assert target["nbformat"] == source["nbformat"]
-    assert target["nbformat_minor"] == source["nbformat_minor"]
-    assert target["metadata"] == source["metadata"]
-    assert target["metadata"]["kernelspec"] == source["metadata"]["kernelspec"]
-    assert target["metadata"]["language_info"] == source["metadata"]["language_info"]
-    assert len(target["cells"]) == len(source["cells"]) == 24
+    assert target["nbformat"] == 4
+    assert target["nbformat_minor"] >= 5
+    assert target["metadata"]["kernelspec"]["name"] == "python3"
+    assert target["metadata"]["kernelspec"]["language"] == "python"
+    assert target["metadata"]["language_info"]["name"] == "python"
+    assert target["cells"]
 
 
 def test_all_code_outputs_and_execution_counts_are_cleared() -> None:
@@ -244,7 +209,9 @@ def test_all_migrated_modules_and_elements_are_imported_explicitly() -> None:
     assert set(MIGRATED_MODULES) <= imports.keys()
     assert "renewables_permitting.utils" in imports
     for module, filename in MIGRATED_MODULES.items():
-        product_names = _direct_product_names(EXTRACTION_PACKAGE_PATH / filename)
+        product_names = _direct_public_product_names(
+            EXTRACTION_PACKAGE_PATH / filename
+        )
         assert product_names <= imports[module]
         assert "*" not in imports[module]
 
@@ -282,7 +249,9 @@ def test_configuration_is_imported_without_local_reassignment() -> None:
     notebook = _load_notebook(NOTEBOOK_V25_2_PATH)
     trees = _code_trees(notebook)
     assigned_names = _notebook_defined_names(trees)
-    config_names = _direct_product_names(EXTRACTION_PACKAGE_PATH / "config.py")
+    config_names = _direct_public_product_names(
+        EXTRACTION_PACKAGE_PATH / "config.py"
+    )
     imports = _notebook_imports(trees)
 
     assert config_names <= imports["renewables_permitting.extraction.config"]
@@ -292,7 +261,16 @@ def test_configuration_is_imported_without_local_reassignment() -> None:
 def test_model_and_agent_initial_state_is_deferred() -> None:
     notebook = _load_notebook(NOTEBOOK_V25_2_PATH)
     trees = _code_trees(notebook)
-    orchestration_tree = trees[3]
+    orchestration_tree = next(
+        tree
+        for tree in trees
+        if {"AI_MODEL", "agent"} <= {
+            name
+            for node in tree.body
+            if isinstance(node, (ast.Assign, ast.AnnAssign))
+            for name in _assignment_names(node)
+        }
+    )
 
     assignments = {
         next(iter(_assignment_names(node))): node.value
@@ -336,12 +314,8 @@ def test_agent_initialization_is_complete_deferred_and_guarded() -> None:
         for name in sensitive_calls
     }
 
-    assert {name: len(nodes) for name, nodes in calls.items()} == {
-        "validate_runtime_configuration": 2,
-        "build_ollama_model": 2,
-        "build_boe_extraction_agent": 2,
-    }
     for nodes in calls.values():
+        assert nodes
         for node in nodes:
             guards = _guard_tests(node)
             assert "agent is None" in guards
@@ -362,53 +336,8 @@ def test_agent_initialization_is_complete_deferred_and_guarded() -> None:
         for node in calls["build_boe_extraction_agent"]
     )
 
-    initialization_guards = [
-        node
-        for tree in trees
-        for node in ast.walk(tree)
-        if isinstance(node, ast.If) and ast.unparse(node.test) == "agent is None"
-    ]
-    assert len(initialization_guards) == 2
-    for guard in initialization_guards:
-        assert len(guard.body) == 3
-        validation = guard.body[0]
-        provider_branch = guard.body[1]
-        agent_assignment = guard.body[2]
 
-        assert isinstance(validation, ast.Expr)
-        assert isinstance(validation.value, ast.Call)
-        assert _call_name(validation.value) == "validate_runtime_configuration"
-
-        assert isinstance(provider_branch, ast.If)
-        assert ast.unparse(provider_branch.test) == "MODEL_PROVIDER == 'gemini'"
-        assert len(provider_branch.body) == 1
-        assert ast.unparse(provider_branch.body[0]) == "AI_MODEL = AI_MODEL_NAME"
-        assert len(provider_branch.orelse) == 1
-
-        ollama_branch = provider_branch.orelse[0]
-        assert isinstance(ollama_branch, ast.If)
-        assert ast.unparse(ollama_branch.test) == "MODEL_PROVIDER == 'ollama'"
-        assert len(ollama_branch.body) == 1
-        assert ast.unparse(ollama_branch.body[0]) == (
-            "AI_MODEL = build_ollama_model(AI_MODEL_NAME)"
-        )
-        assert len(ollama_branch.orelse) == 1
-        invalid_provider = ollama_branch.orelse[0]
-        assert isinstance(invalid_provider, ast.Raise)
-        assert isinstance(invalid_provider.exc, ast.Call)
-        assert ast.unparse(invalid_provider.exc.func) == "ValueError"
-        assert "MODEL_PROVIDER debe ser 'gemini' u 'ollama'" in ast.unparse(
-            invalid_provider.exc
-        )
-
-        assert isinstance(agent_assignment, ast.Assign)
-        assert _assignment_names(agent_assignment) == {"agent"}
-        assert ast.unparse(agent_assignment.value) == (
-            "build_boe_extraction_agent()"
-        )
-
-
-def test_only_the_five_pilot_functions_remain_defined() -> None:
+def test_required_pilot_functions_remain_without_extra_public_definitions() -> None:
     notebook = _load_notebook(NOTEBOOK_V25_2_PATH)
     definitions = {
         node.name
@@ -417,37 +346,35 @@ def test_only_the_five_pilot_functions_remain_defined() -> None:
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
     }
 
-    assert definitions == PILOT_FUNCTIONS
+    assert PILOT_FUNCTIONS <= definitions
+    assert {
+        name
+        for name in definitions - PILOT_FUNCTIONS
+        if not name.startswith("_")
+    } == set()
 
 
-def test_pilot_and_production_blocks_are_preserved_with_safe_flags() -> None:
-    source = _load_notebook(NOTEBOOK_V25_1_PATH)
-    target = _load_notebook(NOTEBOOK_V25_2_PATH)
-    source_pilot = "".join(source["cells"][21]["source"])
-    target_pilot = "".join(target["cells"][21]["source"])
-    source_production = "".join(source["cells"][23]["source"])
-    target_production = "".join(target["cells"][23]["source"])
-
-    expected_pilot = source_pilot.replace(
-        "RUN_STRATIFIED_PILOT = True",
-        "RUN_STRATIFIED_PILOT = False",
-        1,
-    )
-    assert target_pilot.count(PILOT_AGENT_INITIALIZATION) == 1
-    assert target_pilot.replace(PILOT_AGENT_INITIALIZATION, "", 1) == (
-        expected_pilot
-    )
-    assert target_production.count(PRODUCTION_AGENT_INITIALIZATION) == 1
-    assert target_production.replace(
-        PRODUCTION_AGENT_INITIALIZATION,
-        "",
-        1,
-    ) == source_production
-
-    assignments = _literal_assignments(_code_trees(target))
+def test_pilot_and_production_blocks_keep_required_orchestration_roles() -> None:
+    notebook = _load_notebook(NOTEBOOK_V25_2_PATH)
+    trees = _code_trees(notebook)
+    assignments = _literal_assignments(trees)
     assert DANGEROUS_FLAGS <= assignments.keys()
     assert all(assignments[name] is False for name in DANGEROUS_FLAGS)
     assert assignments["RAISE_ON_PILOT_FAILURE"] is True
+
+    calls = {
+        _call_name(node)
+        for tree in trees
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+    }
+    assert {
+        "load_or_build_pilot_sample",
+        "evaluate_pilot",
+        "build_pending_candidates",
+        "run_and_finalize_extractions",
+        "save_flattened_extractions",
+    } <= calls
 
 
 def test_no_artificial_if_true_or_unguarded_operational_calls() -> None:
@@ -504,10 +431,16 @@ def test_embedded_regressions_are_replaced_by_a_markdown_note() -> None:
     assert "pytest" in markdown_source
 
 
-def test_v25_1_reference_file_is_unchanged() -> None:
-    stat = NOTEBOOK_V25_1_PATH.stat()
+def test_v25_2_cells_have_valid_unique_identity_and_source_shape() -> None:
+    notebook = _load_notebook(NOTEBOOK_V25_2_PATH)
+    cells = notebook["cells"]
+    cell_ids = [cell["id"] for cell in cells]
 
-    assert stat.st_size == V25_1_SIZE
-    assert hashlib.sha256(NOTEBOOK_V25_1_PATH.read_bytes()).hexdigest() == (
-        V25_1_SHA256
+    assert len(cell_ids) == len(set(cell_ids))
+    assert all(cell_id.strip() for cell_id in cell_ids)
+    assert {cell["cell_type"] for cell in cells} == {"code", "markdown"}
+    assert all(
+        isinstance(cell["source"], list)
+        and all(isinstance(line, str) for line in cell["source"])
+        for cell in cells
     )

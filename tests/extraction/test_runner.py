@@ -1,9 +1,9 @@
 import ast
 import asyncio
 import copy
-import json
 from dataclasses import asdict
 from datetime import date, datetime, timezone
+from inspect import iscoroutinefunction, signature
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -778,7 +778,7 @@ def test_error_without_message_is_preserved_as_empty_string(monkeypatch) -> None
     assert record["error_message"] == ""
 
 
-def test_error_message_is_truncated_at_exact_notebook_limit(monkeypatch) -> None:
+def test_error_message_is_truncated_at_exact_contract_limit(monkeypatch) -> None:
     _freeze_record_variability(monkeypatch)
 
     record = build_error_record(
@@ -929,61 +929,41 @@ def test_get_extraction_model_does_not_add_fallback_for_missing_columns() -> Non
         get_extraction_model(pd.DataFrame(), "BOE-A-2026-12345")
 
 
-def _top_level_nodes(source: str) -> dict[str, ast.AST]:
-    nodes = {}
-    for node in ast.parse(source).body:
-        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
-            nodes[node.name] = node
-        elif isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name):
-                    nodes[target.id] = node
-        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-            nodes[node.target.id] = node
-    return nodes
-
-
-def test_runner_nodes_match_notebook_ast_exactly() -> None:
-    project_root = Path(__file__).resolve().parents[2]
-    notebook = json.loads(
-        (
-            project_root / "notebooks" / "07_extraccion_ia_v25_1.ipynb"
-        ).read_text()
+def test_runner_public_call_signatures_are_stable() -> None:
+    assert iscoroutinefunction(run_agent_with_transient_retries)
+    assert tuple(signature(run_agent_with_transient_retries).parameters) == (
+        "agent",
+        "prompt",
+        "usage",
     )
-    notebook_nodes = _top_level_nodes("".join(notebook["cells"][13]["source"]))
-    module_nodes = _top_level_nodes(
-        (
-            project_root
-            / "src"
-            / "renewables_permitting"
-            / "extraction"
-            / "runner.py"
-        ).read_text()
+    assert tuple(signature(build_success_record).parameters) == (
+        "document",
+        "prepared",
+        "extraction",
+        "duration_seconds",
+        "usage",
+        "adjustments",
+        "processing_stage",
     )
-    expected_names = {
-        "_RETRYABLE_HTTP_STATUS_CODES",
-        "_usage_values",
-        "_is_retryable_model_error",
-        "run_agent_with_transient_retries",
-        "_base_record",
-        "build_success_record",
-        "build_error_record",
-        "get_extraction_model",
-    }
-
-    assert expected_names <= notebook_nodes.keys()
-    assert expected_names <= module_nodes.keys()
-    for name in expected_names:
-        assert ast.dump(
-            module_nodes[name],
-            include_attributes=False,
-        ) == ast.dump(
-            notebook_nodes[name],
-            include_attributes=False,
-        )
+    assert tuple(signature(build_error_record).parameters) == (
+        "document",
+        "prepared",
+        "error",
+        "processing_stage",
+        "duration_seconds",
+        "usage",
+        "extraction",
+        "adjustments",
+    )
+    assert tuple(signature(get_extraction_model).parameters) == (
+        "current_extractions",
+        "boe_id",
+    )
 
 
 def test_runner_import_surface_has_no_agent_or_top_level_execution() -> None:
+    # AST is intentional: the runner import boundary forbids orchestration at
+    # module load time, which cannot be proven from one observed import alone.
     source = Path(runner_module.__file__).read_text()
     tree = ast.parse(source)
 

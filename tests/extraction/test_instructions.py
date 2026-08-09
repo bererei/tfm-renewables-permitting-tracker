@@ -1,6 +1,6 @@
 import ast
 import builtins
-import json
+from hashlib import sha256
 import socket
 from pathlib import Path
 
@@ -13,57 +13,35 @@ from renewables_permitting.extraction.instructions import (
 )
 
 
-INSTRUCTION_NAMES = {
-    "CORE_INSTRUCTIONS",
-    "TAXONOMY_GUIDANCE",
-    "DECISION_EXAMPLES",
-    "AGENT_INSTRUCTIONS",
-}
-
-
-def _top_level_assignments(source: str) -> dict[str, ast.Assign]:
-    assignments: dict[str, ast.Assign] = {}
-    for node in ast.parse(source).body:
-        if not isinstance(node, ast.Assign):
-            continue
-        for target in node.targets:
-            if isinstance(target, ast.Name):
-                assignments[target.id] = node
-    return assignments
-
-
-def _notebook_instruction_values() -> dict[str, str]:
-    project_root = Path(__file__).resolve().parents[2]
-    notebook = json.loads(
-        (
-            project_root / "notebooks" / "07_extraccion_ia_v25_1.ipynb"
-        ).read_text(encoding="utf-8")
-    )
-    namespace: dict[str, str] = {}
-    exec(
-        compile(
-            "".join(notebook["cells"][5]["source"]),
-            "notebook-instructions",
-            "exec",
+def test_instruction_section_hashes_match_validated_snapshots() -> None:
+    values = {
+        "CORE_INSTRUCTIONS": CORE_INSTRUCTIONS,
+        "TAXONOMY_GUIDANCE": TAXONOMY_GUIDANCE,
+        "DECISION_EXAMPLES": DECISION_EXAMPLES,
+        "AGENT_INSTRUCTIONS": AGENT_INSTRUCTIONS,
+    }
+    expected_hashes = {
+        "CORE_INSTRUCTIONS": (
+            "b87be37b9a26466b12a5bbffaa3ea1e24a95a84fc14e39569726e9a9432218df"
         ),
-        namespace,
-    )
-    return {
-        name: namespace[name]
-        for name in INSTRUCTION_NAMES
+        "TAXONOMY_GUIDANCE": (
+            "58cd07a3e6903158e214bffd01b372d73e3235fd7da2cc8d73b1a64fd714d64d"
+        ),
+        "DECISION_EXAMPLES": (
+            "64b13944ad4fc5b41c02f34f0186344033e3a8ae4a8c3ba4dd1d9cb59857a140"
+        ),
+        "AGENT_INSTRUCTIONS": (
+            "b48240832d1b274af0435cea42cc6d305d2aec83b5a3395a1d5ce1529eff0607"
+        ),
     }
 
-
-def test_instruction_values_match_notebook_literally() -> None:
-    notebook_values = _notebook_instruction_values()
-
-    assert CORE_INSTRUCTIONS == notebook_values["CORE_INSTRUCTIONS"]
-    assert TAXONOMY_GUIDANCE == notebook_values["TAXONOMY_GUIDANCE"]
-    assert DECISION_EXAMPLES == notebook_values["DECISION_EXAMPLES"]
-    assert AGENT_INSTRUCTIONS == notebook_values["AGENT_INSTRUCTIONS"]
+    assert {
+        name: sha256(value.encode("utf-8")).hexdigest()
+        for name, value in values.items()
+    } == expected_hashes
 
 
-def test_agent_instructions_use_exact_notebook_order_and_separators() -> None:
+def test_agent_instructions_use_exact_section_order_and_separators() -> None:
     expected = "\n\n".join([
         CORE_INSTRUCTIONS.strip(),
         TAXONOMY_GUIDANCE.strip(),
@@ -75,7 +53,7 @@ def test_agent_instructions_use_exact_notebook_order_and_separators() -> None:
         "Eres un extractor canónico de publicaciones"
     )
     assert AGENT_INSTRUCTIONS.endswith(
-        "usa not_relevant_for_generation_projects."
+        "decision=formulado."
     )
     assert (
         AGENT_INSTRUCTIONS.index("OBJETIVO DEL TFM")
@@ -84,26 +62,44 @@ def test_agent_instructions_use_exact_notebook_order_and_separators() -> None:
     )
 
 
-def test_instruction_assignments_match_notebook_ast() -> None:
-    project_root = Path(__file__).resolve().parents[2]
-    notebook = json.loads(
-        (
-            project_root / "notebooks" / "07_extraccion_ia_v25_1.ipynb"
-        ).read_text(encoding="utf-8")
-    )
-    notebook_source = "".join(notebook["cells"][5]["source"])
-    module_source = Path(instructions_module.__file__).read_text(
-        encoding="utf-8"
-    )
-    notebook_nodes = _top_level_assignments(notebook_source)
-    module_nodes = _top_level_assignments(module_source)
+def test_instruction_sections_are_nonempty_and_included_once() -> None:
+    sections = [CORE_INSTRUCTIONS, TAXONOMY_GUIDANCE, DECISION_EXAMPLES]
+    normalized_sections = [section.strip() for section in sections]
 
-    assert set(module_nodes) == INSTRUCTION_NAMES
-    for name in INSTRUCTION_NAMES:
-        assert ast.dump(module_nodes[name], include_attributes=False) == ast.dump(
-            notebook_nodes[name],
-            include_attributes=False,
-        ), name
+    assert all(normalized_sections)
+    assert all(
+        AGENT_INSTRUCTIONS.count(section) == 1
+        for section in normalized_sections
+    )
+
+
+def test_environmental_decision_guidance_prioritizes_specific_outcomes() -> None:
+    guidance = " ".join(TAXONOMY_GUIDANCE.split())
+    examples = " ".join(DECISION_EXAMPLES.split())
+
+    assert "resultado más específico" in guidance
+    assert "formulado es solo el fallback" in guidance
+    assert "No infieras una decisión terminal" in guidance
+    assert all(
+        value in guidance
+        for value in (
+            "declaracion_impacto_ambiental",
+            "informe_impacto_ambiental",
+            "informe_determinacion_afeccion_ambiental",
+            "desfavorable",
+            "sin_efectos_adversos_significativos",
+            "requiere_evaluacion_ambiental_ordinaria",
+            "requiere_evaluacion_ambiental_adicional",
+            "no_requiere_evaluacion_ambiental_adicional",
+        )
+    )
+    assert "Título: «se formula" in examples
+    assert (
+        "Cuerpo: «La declaración de impacto ambiental es desfavorable»"
+        in examples
+    )
+    assert "decision=desfavorable" in examples
+    assert "decision=formulado" in examples
 
 
 def test_executing_instructions_has_no_io_network_or_agent_side_effects(
@@ -130,6 +126,8 @@ def test_executing_instructions_has_no_io_network_or_agent_side_effects(
     assert namespace["AGENT_INSTRUCTIONS"] == AGENT_INSTRUCTIONS
     assert "agent" not in namespace
     assert "Agent" not in namespace
+    # AST is intentional: instructions.py is a data-only architectural layer
+    # and importing another module would expand its side-effect boundary.
     tree = ast.parse(source)
     assert not any(
         isinstance(node, (ast.Import, ast.ImportFrom))

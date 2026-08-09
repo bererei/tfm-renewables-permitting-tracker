@@ -1,8 +1,7 @@
-import ast
-import json
 from dataclasses import asdict
 from datetime import date, datetime
 from hashlib import sha256
+from inspect import signature
 from pathlib import Path
 
 import pandas as pd
@@ -93,7 +92,7 @@ def test_required_text_rejects_null_values(value: object) -> None:
         ("2026-01-02", date(2026, 1, 2)),
     ],
 )
-def test_required_date_accepts_notebook_inputs(
+def test_required_date_accepts_supported_inputs(
     value: object,
     expected: date,
 ) -> None:
@@ -144,7 +143,7 @@ def test_build_source_document_preserves_values_hash_and_input_row() -> None:
     pd.testing.assert_series_equal(row, original)
 
 
-def test_source_document_hash_matches_notebook_and_changes_per_source_field() -> None:
+def test_source_document_hash_is_stable_and_changes_per_source_field() -> None:
     values = {
         "boe_id": "BOE-A-2026-10001",
         "publication_date": date(2026, 1, 2),
@@ -435,84 +434,15 @@ def test_build_document_prompt_excludes_annex_and_preserves_metadata() -> None:
     assert build_document_prompt(document) == prepared
 
 
-def _top_level_nodes(source: str) -> dict[str, ast.AST]:
-    nodes: dict[str, ast.AST] = {}
-    for node in ast.parse(source).body:
-        if isinstance(node, ast.FunctionDef):
-            nodes[node.name] = node
-        elif isinstance(node, (ast.Assign, ast.AnnAssign)):
-            targets = (
-                node.targets
-                if isinstance(node, ast.Assign)
-                else [node.target]
-            )
-            for target in targets:
-                if isinstance(target, ast.Name):
-                    nodes[target.id] = node
-    return nodes
+def test_documents_public_call_signatures_are_stable() -> None:
+    assert tuple(signature(build_source_document).parameters) == ("row",)
+    assert tuple(signature(select_document_text).parameters) == ("text",)
+    assert tuple(signature(build_document_prompt).parameters) == ("document",)
+    assert MAX_DOCUMENT_CHARS is None
+    assert MIN_SUBSTANTIVE_TEXT_CHARS_BEFORE_ANNEX == 1000
 
 
-def test_document_functions_numeric_constants_and_regex_match_notebook_ast() -> None:
-    project_root = Path(__file__).resolve().parents[2]
-    notebook = json.loads(
-        (
-            project_root / "notebooks" / "07_extraccion_ia_v25_1.ipynb"
-        ).read_text(encoding="utf-8")
-    )
-    notebook_nodes: dict[str, ast.AST] = {}
-    for cell_index in (7, 9):
-        notebook_nodes.update(
-            _top_level_nodes("".join(notebook["cells"][cell_index]["source"]))
-        )
-    module_source = (
-        project_root
-        / "src"
-        / "renewables_permitting"
-        / "extraction"
-        / "documents.py"
-    ).read_text(encoding="utf-8")
-    module_nodes = _top_level_nodes(module_source)
-    expected_names = {
-        "MAX_DOCUMENT_CHARS",
-        "MIN_SUBSTANTIVE_TEXT_CHARS_BEFORE_ANNEX",
-        "_AFFECTED_ASSETS_ANNEX_HEADING_RE",
-        "_required_text",
-        "_required_date",
-        "_source_document_hash",
-        "build_source_document",
-        "select_document_text",
-        "build_document_prompt",
-    }
-
-    assert expected_names <= notebook_nodes.keys()
-    assert expected_names <= module_nodes.keys()
-    for name in expected_names:
-        assert ast.dump(module_nodes[name], include_attributes=False) == ast.dump(
-            notebook_nodes[name],
-            include_attributes=False,
-        ), name
-
-
-def test_document_prompt_template_matches_notebook_literally() -> None:
-    project_root = Path(__file__).resolve().parents[2]
-    notebook = json.loads(
-        (
-            project_root / "notebooks" / "07_extraccion_ia_v25_1.ipynb"
-        ).read_text(encoding="utf-8")
-    )
-    notebook_source = "".join(notebook["cells"][7]["source"])
-    module_source = (
-        project_root
-        / "src"
-        / "renewables_permitting"
-        / "extraction"
-        / "documents.py"
-    ).read_text(encoding="utf-8")
-    notebook_node = _top_level_nodes(notebook_source)[
-        "DOCUMENT_PROMPT_TEMPLATE"
-    ]
-    module_node = _top_level_nodes(module_source)["DOCUMENT_PROMPT_TEMPLATE"]
-
+def test_document_prompt_template_matches_validated_literal() -> None:
     assert DOCUMENT_PROMPT_TEMPLATE == (
         "Analiza exclusivamente la publicación delimitada a continuación.\n"
         "No reproduzcas boe_id ni publication_date en BOEAIExtraction.\n\n"
@@ -523,13 +453,6 @@ def test_document_prompt_template_matches_notebook_literally() -> None:
         "<BOE_DOCUMENT>\n"
         "{document_text}\n"
         "</BOE_DOCUMENT>"
-    )
-    assert ast.get_source_segment(
-        module_source,
-        module_node,
-    ) == ast.get_source_segment(
-        notebook_source,
-        notebook_node,
     )
 
 
