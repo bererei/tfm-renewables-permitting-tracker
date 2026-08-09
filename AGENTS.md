@@ -9,6 +9,28 @@ publications.
 Prioritize a complete, validated, explainable, and evaluable pipeline over
 additional fields, product features, deployment, or architectural complexity.
 
+## TFM closeout mode — highest project priority
+
+Read `docs/TFM_CLOSEOUT.md` before proposing or implementing development work;
+it is the source of truth for the roadmap and phase gates through delivery.
+
+Current phase: **deterministic INE location enrichment**. Next: **project
+grouping**.
+
+- Classify every new proposal as BLOCKER, REQUIRED, OPTIONAL, or POST-TFM. Do
+  not start OPTIONAL or POST-TFM work while BLOCKER or REQUIRED work remains.
+- Give each development task one primary objective. Inspect before modifying,
+  declare non-goals, and implement the smallest sufficient change.
+- Run focused tests and the appropriate regression suite. Report the diff,
+  test results, Git status, and remaining risks, then stop for human review.
+- Do not commit unless explicitly requested, and do not start the next phase
+  automatically.
+- Do not migrate notebooks unless their logic is required by the final Python
+  pipeline or Streamlit application.
+- Prefer a documented non-blocking limitation over an unnecessary refactor.
+- Do not reopen the frozen extractor unless evidence shows that it blocks the
+  vertical product, as defined in `docs/TFM_CLOSEOUT.md`.
+
 ## Sources of truth
 
 - Treat approved domain rules, active data contracts, validated specifications,
