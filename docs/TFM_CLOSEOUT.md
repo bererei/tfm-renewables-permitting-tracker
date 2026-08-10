@@ -34,12 +34,18 @@ tag: tfm-extraction-freeze-2026-08
 Deterministic INE enrichment: DONE
 Project grouping: DONE
 Gold implementation: DONE
+Pipeline integration implementation: DONE
+Canonical 140 regeneration: PENDING
 Gold validation against freeze-run Silver: PENDING
 
 Current phase:
 Pipeline integration + canonical regeneration
 
+Current gate:
+Canonical 140 regeneration
+
 Next:
+Targeted human review
 Gold validation against freeze-run Silver
 
 Then:
@@ -48,9 +54,10 @@ Final holdout evaluation
 Documentation / delivery
 ```
 
-The persisted development Silver predates the final extraction freeze. Gold
-implementation is complete but remains pending validation against a canonical
-freeze-run Silver snapshot.
+The executable Python orchestration layer is complete, but the canonical
+140-document regeneration has not yet been performed. The persisted development
+Silver predates the final extraction freeze, so Gold remains pending validation
+against canonical freeze-run Silver.
 
 The extraction core is frozen. Reopen it only when concrete evidence shows
 that a defect blocks project identification, grouping, chronology, the final
@@ -64,7 +71,7 @@ pipeline, or final evaluation.
 | 2. Deterministic INE enrichment | 10–11 Aug | DONE |
 | 3. Project grouping | 12–15 Aug | DONE |
 | 4. Gold implementation | 16–17 Aug | DONE |
-| 5. Pipeline integration + canonical regeneration | 18–19 Aug | CURRENT |
+| 5. Pipeline integration + canonical regeneration | 18–19 Aug | CURRENT — integration DONE; regeneration PENDING |
 | 6. Gold validation against freeze-run Silver | After canonical regeneration | NEXT |
 | 7. Streamlit | 20–23 Aug | PLANNED |
 | 8. Final holdout evaluation | 24–26 Aug | PLANNED |

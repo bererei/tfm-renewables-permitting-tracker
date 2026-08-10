@@ -14,8 +14,10 @@ additional fields, product features, deployment, or architectural complexity.
 Read `docs/TFM_CLOSEOUT.md` before proposing or implementing development work;
 it is the source of truth for the roadmap and phase gates through delivery.
 
-Current phase: **Pipeline integration + canonical regeneration**. Next:
-**Gold validation against freeze-run Silver**. Then: **Streamlit**.
+Current phase: **Pipeline integration + canonical regeneration**. The executable
+pipeline is complete; the current gate is **canonical 140 regeneration**. Next:
+**targeted human review**, then **Gold validation against freeze-run Silver**,
+then **Streamlit**.
 
 - Classify every new proposal as BLOCKER, REQUIRED, OPTIONAL, or POST-TFM. Do
   not start OPTIONAL or POST-TFM work while BLOCKER or REQUIRED work remains.
