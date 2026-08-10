@@ -33,10 +33,10 @@ Extraction freeze: DONE
 tag: tfm-extraction-freeze-2026-08
 
 Current phase:
-project grouping
+Gold chronology
 
 Next:
-Gold chronology
+Executable Python pipeline
 ```
 
 The extraction core is frozen. Reopen it only when concrete evidence shows
@@ -49,9 +49,9 @@ pipeline, or final evaluation.
 | --- | --- | --- |
 | 1. Extraction freeze | Completed | DONE |
 | 2. Deterministic INE enrichment | 10–11 Aug | DONE |
-| 3. Project grouping | 12–15 Aug | CURRENT |
-| 4. Gold chronology | 16–17 Aug | NEXT |
-| 5. Executable Python pipeline | 18–19 Aug | PLANNED |
+| 3. Project grouping | 12–15 Aug | DONE |
+| 4. Gold chronology | 16–17 Aug | CURRENT |
+| 5. Executable Python pipeline | 18–19 Aug | NEXT |
 | 6. Streamlit | 20–23 Aug | PLANNED |
 | 7. Final holdout evaluation | 24–26 Aug | PLANNED |
 | 8. Documentation / delivery | 27–31 Aug | PLANNED |
