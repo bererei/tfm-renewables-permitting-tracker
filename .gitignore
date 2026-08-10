@@ -1,5 +1,6 @@
 # Personal - Development
 delete/
+runs/
 # Ignorar todo el contenido de data
 data/**
 # Conservar la estructura de directorios
