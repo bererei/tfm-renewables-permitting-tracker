@@ -9,6 +9,14 @@ import pyarrow.parquet as pq
 import pytest
 
 import renewables_permitting.extraction.flat_materialization as materialization
+from renewables_permitting.extraction.config import (
+    AI_MODEL_NAME,
+    CONTRACT_SCHEMA_SHA256,
+    DOCUMENT_VALIDATION_VERSION,
+    EXTRACTION_CONFIG_ID,
+    INSTRUCTIONS_SHA256,
+    MODEL_PROVIDER,
+)
 from renewables_permitting.extraction.flat_contract import (
     FLAT_CONTRACT_VERSION,
     FLAT_TABLE_SPECS,
@@ -158,7 +166,12 @@ def _current_extractions() -> pd.DataFrame:
             "attempt_id": "attempt-auto-1",
             "identificador_boe": relevant.boe_id,
             "source_document_sha256": "a" * 64,
-            "extraction_config_id": "config-v1",
+            "extraction_config_id": EXTRACTION_CONFIG_ID,
+            "contract_schema_sha256": CONTRACT_SCHEMA_SHA256,
+            "instructions_sha256": INSTRUCTIONS_SHA256,
+            "model_provider": MODEL_PROVIDER,
+            "model_name": AI_MODEL_NAME,
+            "document_validation_version": DOCUMENT_VALIDATION_VERSION,
             "selection_source": "auto_validated",
             "extraction_json": relevant.model_dump_json(),
             "titulo": "Título que no debe entrar en el manifiesto",
@@ -170,8 +183,15 @@ def _current_extractions() -> pd.DataFrame:
             "attempt_id": "attempt-manual-2",
             "identificador_boe": non_relevant.boe_id,
             "source_document_sha256": "b" * 64,
-            "extraction_config_id": "config-v1",
+            "extraction_config_id": EXTRACTION_CONFIG_ID,
+            "contract_schema_sha256": CONTRACT_SCHEMA_SHA256,
+            "instructions_sha256": INSTRUCTIONS_SHA256,
+            "model_provider": "manual",
+            "model_name": "human_review",
+            "document_validation_version": DOCUMENT_VALIDATION_VERSION,
             "selection_source": "manually_validated",
+            "source_attempt_id": "attempt-source-2",
+            "manual_review_id": "review-2",
             "extraction_json": non_relevant.model_dump_json(),
             "titulo": "Otro título no publicable",
             "reviewer": "otra-persona",
@@ -179,6 +199,27 @@ def _current_extractions() -> pd.DataFrame:
             "model_response": "otra respuesta completa",
         },
     ])
+
+
+def _current_row(
+    extraction: BOEProjectExtraction,
+    **overrides: object,
+) -> dict[str, object]:
+    row: dict[str, object] = {
+        "attempt_id": f"attempt-{extraction.boe_id}",
+        "identificador_boe": extraction.boe_id,
+        "source_document_sha256": "c" * 64,
+        "extraction_config_id": EXTRACTION_CONFIG_ID,
+        "contract_schema_sha256": CONTRACT_SCHEMA_SHA256,
+        "instructions_sha256": INSTRUCTIONS_SHA256,
+        "model_provider": MODEL_PROVIDER,
+        "model_name": AI_MODEL_NAME,
+        "document_validation_version": DOCUMENT_VALIDATION_VERSION,
+        "selection_source": "auto_validated",
+        "extraction_json": extraction.model_dump_json(),
+    }
+    row.update(overrides)
+    return row
 
 
 def _direct_manifest_context(
@@ -246,6 +287,7 @@ def test_materialize_current_extractions_writes_complete_verified_version(
     result = materialize_current_extractions(
         current,
         output_dir=output_dir,
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
     )
 
     assert isinstance(result, FlatMaterializationResult)
@@ -267,6 +309,83 @@ def test_materialize_current_extractions_writes_complete_verified_version(
     _assert_no_staging(output_dir)
 
 
+@pytest.mark.parametrize(
+    ("configs", "message"),
+    [
+        (["pre-freeze-config", EXTRACTION_CONFIG_ID], "pre-freeze-config"),
+        (["config-a", "config-b"], "config-a"),
+        ([pd.NA, EXTRACTION_CONFIG_ID], "falta"),
+    ],
+)
+def test_provenance_gate_rejects_stale_mixed_or_missing_config_before_writing(
+    tmp_path: Path,
+    configs: list[object],
+    message: str,
+) -> None:
+    current = _current_extractions()
+    current["extraction_config_id"] = configs
+    snapshot = current.copy(deep=True)
+    output_dir = tmp_path / "invalid-provenance"
+
+    with pytest.raises(FlatMaterializationError) as error_info:
+        materialize_current_extractions(
+            current,
+            output_dir=output_dir,
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
+
+    error_message = str(error_info.value)
+    assert EXTRACTION_CONFIG_ID in error_message
+    assert message in error_message
+    assert "BOE-A-2026-10001" in error_message
+    assert not output_dir.exists()
+    _assert_no_staging(output_dir)
+    pd.testing.assert_frame_equal(current, snapshot)
+
+
+def test_provenance_gate_is_row_order_independent_and_manifest_records_config(
+    tmp_path: Path,
+) -> None:
+    current = _current_extractions()
+    shuffled = current.sample(frac=1, random_state=17).reset_index(drop=True)
+
+    first = materialize_current_extractions(
+        current,
+        output_dir=tmp_path / "provenance-first",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+    second = materialize_current_extractions(
+        shuffled,
+        output_dir=tmp_path / "provenance-shuffled",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+
+    assert first.materialization_id == second.materialization_id
+    assert _read_manifest(first.manifest_path)[
+        "extraction_config_id"
+    ] == EXTRACTION_CONFIG_ID
+    assert _read_manifest(second.manifest_path)[
+        "extraction_config_id"
+    ] == EXTRACTION_CONFIG_ID
+
+
+def test_empty_current_contract_materializes_with_explicit_expected_config(
+    tmp_path: Path,
+) -> None:
+    empty_current = pd.DataFrame(columns=["extraction_json"])
+
+    result = materialize_current_extractions(
+        empty_current,
+        output_dir=tmp_path / "empty-current",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+
+    manifest = _read_manifest(result.manifest_path)
+    assert manifest["input_row_count"] == 0
+    assert manifest["extraction_config_id"] == EXTRACTION_CONFIG_ID
+    assert all(count == 0 for count in result.row_counts.values())
+
+
 def test_parquet_names_schemas_counts_hashes_and_indices_follow_contract(
     tmp_path: Path,
 ) -> None:
@@ -274,6 +393,7 @@ def test_parquet_names_schemas_counts_hashes_and_indices_follow_contract(
     result = materialize_current_extractions(
         current,
         output_dir=tmp_path / "schema-version",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
     )
     manifest = _read_manifest(result.manifest_path)
     manifest_tables = {
@@ -336,10 +456,12 @@ def test_manifest_counts_lineage_and_relative_paths_are_safe(
     result = materialize_current_extractions(
         _current_extractions(),
         output_dir=tmp_path / "manifest-version",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
     )
 
     manifest = _read_manifest(result.manifest_path)
     assert manifest["flat_contract_version"] == FLAT_CONTRACT_VERSION
+    assert manifest["extraction_config_id"] == EXTRACTION_CONFIG_ID
     assert manifest["input_row_count"] == 2
     assert manifest["input_with_events_count"] == 1
     assert manifest["input_without_events_count"] == 1
@@ -352,8 +474,18 @@ def test_manifest_counts_lineage_and_relative_paths_are_safe(
         "source_document_sha256",
         "extraction_config_id",
         "selection_source",
+        "manual_review_id",
+        "source_attempt_id",
     ]
     assert len(manifest["lineage"]["records"]) == 2
+    manual_lineage = next(
+        record
+        for record in manifest["lineage"]["records"]
+        if record["selection_source"] == "manually_validated"
+    )
+    assert manual_lineage["source_attempt_id"] == "attempt-source-2"
+    assert manual_lineage["manual_review_id"] == "review-2"
+    assert manual_lineage["extraction_config_id"] == EXTRACTION_CONFIG_ID
     assert all(
         not Path(entry["filename"]).is_absolute()
         for entry in manifest["tables"]
@@ -681,10 +813,12 @@ def test_same_input_has_same_id_and_semantically_equal_tables_across_paths(
     first = materialize_current_extractions(
         current,
         output_dir=tmp_path / "first",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
     )
     second = materialize_current_extractions(
         current.iloc[::-1],
         output_dir=tmp_path / "different" / "second",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
     )
 
     assert first.materialization_id == second.materialization_id
@@ -709,13 +843,19 @@ def test_different_extraction_or_selection_changes_materialization_id(
     baseline = materialize_current_extractions(
         current,
         output_dir=tmp_path / "baseline",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
     )
 
     changed_selection = current.copy(deep=True)
     changed_selection.loc[0, "selection_source"] = "manually_validated"
+    changed_selection.loc[0, "model_provider"] = "manual"
+    changed_selection.loc[0, "model_name"] = "human_review"
+    changed_selection.loc[0, "manual_review_id"] = "review-changed"
+    changed_selection.loc[0, "source_attempt_id"] = "attempt-auto-1"
     selection_result = materialize_current_extractions(
         changed_selection,
         output_dir=tmp_path / "changed-selection",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
     )
 
     changed_extraction = current.copy(deep=True)
@@ -725,6 +865,7 @@ def test_different_extraction_or_selection_changes_materialization_id(
     extraction_result = materialize_current_extractions(
         changed_extraction,
         output_dir=tmp_path / "changed-extraction",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
     )
 
     assert selection_result.materialization_id != baseline.materialization_id
@@ -920,7 +1061,7 @@ def test_direct_api_accepts_exact_counts_and_one_lineage_record_per_input(
     ]
 
 
-def test_lineage_only_uses_columns_that_are_actually_available(
+def test_incomplete_lineage_is_rejected_before_staging(
     tmp_path: Path,
 ) -> None:
     current = pd.DataFrame([{
@@ -928,26 +1069,34 @@ def test_lineage_only_uses_columns_that_are_actually_available(
         "attempt_id": "only-available-lineage",
     }])
 
-    result = materialize_current_extractions(
-        current,
-        output_dir=tmp_path / "limited-lineage",
-    )
+    output_dir = tmp_path / "limited-lineage"
 
-    lineage = _read_manifest(result.manifest_path)["lineage"]
-    assert lineage["columns"] == ["attempt_id"]
-    assert lineage["records"] == [{
-        "attempt_id": "only-available-lineage",
-    }]
+    with pytest.raises(FlatMaterializationError, match="linaje obligatorio"):
+        materialize_current_extractions(
+            current,
+            output_dir=output_dir,
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
+
+    assert not output_dir.exists()
+    _assert_no_staging(output_dir)
 
 
 def test_invalid_extraction_json_is_rejected_before_staging(
     tmp_path: Path,
 ) -> None:
     output_dir = tmp_path / "invalid-json"
-    current = pd.DataFrame({"extraction_json": ["{not-valid-json"]})
+    current = pd.DataFrame([_current_row(
+        _non_relevant_extraction(),
+        extraction_json="{not-valid-json",
+    )])
 
     with pytest.raises(ValueError):
-        materialize_current_extractions(current, output_dir=output_dir)
+        materialize_current_extractions(
+            current,
+            output_dir=output_dir,
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
 
     assert not output_dir.exists()
     _assert_no_staging(output_dir)
@@ -961,13 +1110,12 @@ def test_multiple_events_have_document_and_event_counts(
     second_event["event_summary"] = "Segundo evento de la publicación."
     payload["publication_events"].append(second_event)
     extraction = BOEProjectExtraction.model_validate(payload)
-    current = pd.DataFrame({
-        "extraction_json": [extraction.model_dump_json()],
-    })
+    current = pd.DataFrame([_current_row(extraction)])
 
     result = materialize_current_extractions(
         current,
         output_dir=tmp_path / "multiple-events",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
     )
 
     manifest = _read_manifest(result.manifest_path)
@@ -989,13 +1137,12 @@ def test_uncertain_classification_without_events_is_counted(
         boe_id="BOE-A-2026-30003",
         publication_date=date(2026, 1, 4),
     )
-    current = pd.DataFrame({
-        "extraction_json": [extraction.model_dump_json()],
-    })
+    current = pd.DataFrame([_current_row(extraction)])
 
     result = materialize_current_extractions(
         current,
         output_dir=tmp_path / "uncertain",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
     )
 
     manifest = _read_manifest(result.manifest_path)
@@ -1015,44 +1162,54 @@ def test_duplicate_canonical_boe_is_rejected_even_without_events(
         if with_events
         else _non_relevant_extraction()
     )
-    current = pd.DataFrame({
-        "extraction_json": [
-            extraction.model_dump_json(),
-            extraction.model_dump_json(),
-        ],
-    })
+    current = pd.DataFrame([
+        _current_row(extraction, attempt_id="duplicate-attempt-1"),
+        _current_row(extraction, attempt_id="duplicate-attempt-2"),
+    ])
     output_dir = tmp_path / "duplicate-boe"
 
     with pytest.raises(FlatMaterializationError, match="duplicados"):
-        materialize_current_extractions(current, output_dir=output_dir)
+        materialize_current_extractions(
+            current,
+            output_dir=output_dir,
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
 
     assert not output_dir.exists()
     _assert_no_staging(output_dir)
 
 
 @pytest.mark.parametrize(
-    "row_boe_id",
-    ["BOE-A-2026-99999", pd.NA],
+    ("row_boe_id", "message"),
+    [
+        ("BOE-A-2026-99999", "BOE canónico"),
+        (pd.NA, "identificador_boe"),
+    ],
 )
 def test_row_boe_must_match_canonical_json_boe(
     tmp_path: Path,
     row_boe_id: object,
+    message: str,
 ) -> None:
     extraction = _relevant_extraction()
-    current = pd.DataFrame([{
-        "identificador_boe": row_boe_id,
-        "extraction_json": extraction.model_dump_json(),
-    }])
+    current = pd.DataFrame([_current_row(
+        extraction,
+        identificador_boe=row_boe_id,
+    )])
     output_dir = tmp_path / "inconsistent-boe"
 
-    with pytest.raises(FlatMaterializationError, match="BOE canónico"):
-        materialize_current_extractions(current, output_dir=output_dir)
+    with pytest.raises(FlatMaterializationError, match=message):
+        materialize_current_extractions(
+            current,
+            output_dir=output_dir,
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
 
     assert not output_dir.exists()
     _assert_no_staging(output_dir)
 
 
-def test_missing_optional_row_boe_uses_canonical_json_boe(
+def test_missing_row_boe_is_rejected_by_provenance_gate(
     tmp_path: Path,
 ) -> None:
     extraction = _relevant_extraction()
@@ -1061,15 +1218,17 @@ def test_missing_optional_row_boe_uses_canonical_json_boe(
         "extraction_json": extraction.model_dump_json(),
     }])
 
-    result = materialize_current_extractions(
-        current,
-        output_dir=tmp_path / "canonical-boe",
-    )
+    output_dir = tmp_path / "canonical-boe"
 
-    events = pd.read_parquet(result.table_paths["publication_events"])
-    assert events["identificador_boe"].tolist() == [extraction.boe_id]
-    lineage = _read_manifest(result.manifest_path)["lineage"]
-    assert lineage["columns"] == ["attempt_id"]
+    with pytest.raises(FlatMaterializationError, match="linaje obligatorio"):
+        materialize_current_extractions(
+            current,
+            output_dir=output_dir,
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
+
+    assert not output_dir.exists()
+    _assert_no_staging(output_dir)
 
 
 def test_physical_parquet_hashes_do_not_contribute_to_materialization_id(
@@ -1086,10 +1245,12 @@ def test_physical_parquet_hashes_do_not_contribute_to_materialization_id(
     first = materialize_current_extractions(
         current,
         output_dir=tmp_path / "first-binary",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
     )
     second = materialize_current_extractions(
         current,
         output_dir=tmp_path / "second-binary",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
     )
 
     assert first.materialization_id == second.materialization_id
@@ -1122,6 +1283,7 @@ def test_current_api_rejects_missing_minimum_input_before_writing(
         materialize_current_extractions(
             current_extractions,  # type: ignore[arg-type]
             output_dir=output_dir,
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
         )
 
     assert not output_dir.exists()
@@ -1132,6 +1294,7 @@ def test_public_materialization_signatures_are_stable() -> None:
     assert tuple(signature(materialize_current_extractions).parameters) == (
         "current_extractions",
         "output_dir",
+        "expected_extraction_config_id",
     )
     assert tuple(signature(materialize_flat_tables).parameters) == (
         "tables",

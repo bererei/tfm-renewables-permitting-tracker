@@ -33,6 +33,9 @@ from renewables_permitting.extraction.models import (
     GenerationType,
     PublicationEvent,
 )
+from renewables_permitting.extraction.recanonicalization import (
+    recanonicalize_precanonical_extraction,
+)
 from renewables_permitting.extraction.runner import (
     _REQUIRED_INPUT_COLUMNS,
     extract_documents,
@@ -530,6 +533,7 @@ def test_preclassified_document_skips_agent_and_preserves_exact_state(
     assert record["deterministic_adjustments_json"] == (
         '["Clasificación determinista."]'
     )
+    assert pd.isna(record["precanonical_extraction_json"])
     assert record["usage_requests"] == 0
     assert validation_calls == [{
         "document": document,
@@ -665,6 +669,95 @@ def test_modelled_document_success_uses_exact_prompt_order_and_usage(
     pd.testing.assert_frame_equal(run_df, before)
 
 
+def test_model_attempt_persists_precanonical_and_recanonicalizes_without_agent(
+    monkeypatch,
+) -> None:
+    title = (
+        "Resolución por la que se otorga la autorización administrativa "
+        "previa de la planta solar fotovoltaica Aurora."
+    )
+    run_df = pd.DataFrame([_candidate_row(
+        "BOE-A-2026-11012",
+        title=title,
+    )])
+    document = build_source_document(run_df.iloc[0])
+    base_ai = _ai_extraction("Aurora")
+    event = base_ai.publication_events[0]
+    action = event.administrative_actions[0].model_copy(update={
+        "decision": AdministrativeDecision.REQUESTED,
+        "evidence": title,
+    })
+    asset = event.generation_assets[0].model_copy(update={"evidence": title})
+    ai_extraction = base_ai.model_copy(update={
+        "publication_events": [event.model_copy(update={
+            "generation_assets": [asset],
+            "administrative_actions": [action],
+        })],
+    })
+    agent_calls = 0
+    checkpoint_calls = _install_no_checkpoint_writer(monkeypatch)
+    _install_immediate_wait_for(monkeypatch)
+    monkeypatch.setattr(
+        runner_module,
+        "preclassify_document_without_model",
+        lambda received: (None, []),
+    )
+
+    async def fake_run_agent(*, agent, prompt, usage):
+        nonlocal agent_calls
+        agent_calls += 1
+        return SimpleNamespace(output=ai_extraction)
+
+    monkeypatch.setattr(
+        runner_module,
+        "run_agent_with_transient_retries",
+        fake_run_agent,
+    )
+    monkeypatch.setattr(
+        runner_module,
+        "validate_extraction_against_document",
+        lambda **kwargs: None,
+    )
+    _install_fixed_record_values(
+        monkeypatch,
+        perf_values=[150.0, 151.0, 152.0],
+        uuid_values=["a" * 32],
+    )
+
+    record = asyncio.run(
+        extract_documents(
+            run_df,
+            agent=object(),
+            checkpoint_every=5,
+        )
+    )[0]
+
+    precanonical = BOEProjectExtraction.model_validate_json(
+        record["precanonical_extraction_json"]
+    )
+    canonical = BOEProjectExtraction.model_validate_json(
+        record["extraction_json"]
+    )
+    assert precanonical.publication_events[0].administrative_actions[
+        0
+    ].decision == AdministrativeDecision.REQUESTED
+    assert canonical.publication_events[0].administrative_actions[
+        0
+    ].decision == AdministrativeDecision.AUTHORIZED
+    assert precanonical != canonical
+
+    recanonical, adjustments = recanonicalize_precanonical_extraction(
+        record["precanonical_extraction_json"],
+        document=document,
+    )
+    assert recanonical == canonical
+    assert adjustments
+    assert agent_calls == 1
+    assert checkpoint_calls[0]["dataframe"].iloc[0][
+        "precanonical_extraction_json"
+    ] == record["precanonical_extraction_json"]
+
+
 def test_document_validation_failure_retries_with_exact_corrective_prompt(
     monkeypatch,
 ) -> None:
@@ -761,6 +854,9 @@ def test_document_validation_failure_retries_with_exact_corrective_prompt(
     assert record["deterministic_adjustments_json"] == '["Ajuste 2."]'
     assert BOEProjectExtraction.model_validate_json(
         record["extraction_json"]
+    ) == canonicalized[1]
+    assert BOEProjectExtraction.model_validate_json(
+        record["precanonical_extraction_json"]
     ) == canonicalized[1]
     assert runner_module.debug_state["project_extraction"] == canonicalized[1]
     assert runner_module.debug_state["adjustments"] == ["Ajuste 2."]
@@ -1038,6 +1134,7 @@ def test_unexpected_canonicalization_error_is_recorded_at_exact_stage(
     assert records[0]["error_message"] == "fallo inesperado"
     assert records[0]["processing_stage"] == "canonicalization"
     assert runner_module.debug_state["project_extraction"] is not None
+    assert records[0]["precanonical_extraction_json"] is not None
     assert len(checkpoint_calls) == 1
 
 

@@ -86,6 +86,7 @@ EXPECTED_AI_EXTRACTION_LOG_COLUMNS = [
     "n_administrative_locations",
     "n_generation_relations",
     "n_technical_mentions",
+    "precanonical_extraction_json",
     "extraction_json",
     "extracted_at",
     "duration_seconds",
@@ -306,6 +307,7 @@ def _attempt(
     validation_issues_json: str | None = None,
     extraction_config_id: str = EXTRACTION_CONFIG_ID,
     document_validation_version: str = DOCUMENT_VALIDATION_VERSION,
+    precanonical_extraction_json: str | None = None,
 ) -> dict:
     effective_boe_id = boe_id or (extraction.boe_id if extraction else None)
     if extraction_json is _DEFAULT_EXTRACTION_JSON:
@@ -324,6 +326,7 @@ def _attempt(
         "classification_reason": (
             extraction.classification_reason if extraction else None
         ),
+        "precanonical_extraction_json": precanonical_extraction_json,
         "extraction_json": extraction_json,
         "extracted_at": pd.Timestamp(extracted_at),
         "extraction_status": extraction_status,
@@ -399,7 +402,7 @@ def test_column_contracts_are_exact() -> None:
     assert AI_EXTRACTION_LOG_COLUMNS == EXPECTED_AI_EXTRACTION_LOG_COLUMNS
     assert REVIEW_QUEUE_COLUMNS == EXPECTED_REVIEW_QUEUE_COLUMNS
     assert MANUAL_REVIEW_COLUMNS == EXPECTED_MANUAL_REVIEW_COLUMNS
-    assert len(AI_EXTRACTION_LOG_COLUMNS) == 43
+    assert len(AI_EXTRACTION_LOG_COLUMNS) == 44
     assert len(REVIEW_QUEUE_COLUMNS) == 19
     assert len(MANUAL_REVIEW_COLUMNS) == 12
 
@@ -413,6 +416,7 @@ def test_empty_tables_have_exact_column_contracts() -> None:
     assert queue.empty
     assert reviews.empty
     assert attempts.columns.tolist() == EXPECTED_AI_EXTRACTION_LOG_COLUMNS
+    assert attempts["precanonical_extraction_json"].isna().all()
     assert queue.columns.tolist() == EXPECTED_REVIEW_QUEUE_COLUMNS
     assert reviews.columns.tolist() == EXPECTED_MANUAL_REVIEW_COLUMNS
     assert str(queue["identificador_boe"].dtype) == "string"
@@ -565,6 +569,7 @@ def test_current_successful_selects_latest_current_source_and_excludes_errors() 
             extraction=extraction,
             source_hash="current",
             extracted_at="2026-01-02T00:00:00Z",
+            precanonical_extraction_json="precanonical-newer",
         ),
         _attempt(
             attempt_id="latest_error",
@@ -585,6 +590,9 @@ def test_current_successful_selects_latest_current_source_and_excludes_errors() 
     current = current_successful_ai_extractions(attempts, source_df)
 
     assert current["attempt_id"].tolist() == ["newer"]
+    assert current["precanonical_extraction_json"].tolist() == [
+        "precanonical-newer"
+    ]
 
 
 def test_current_sources_distinguish_changed_document_hash() -> None:
@@ -733,6 +741,8 @@ def test_manual_validation_precedes_automatic_and_outputs_valid_contract() -> No
 
     assert selected["selection_source"].tolist() == ["manually_validated"]
     assert selected["attempt_id"].str.fullmatch(r"[0-9a-f]{24}").all()
+    assert selected["precanonical_extraction_json"].isna().all()
+    assert selected["source_attempt_id"].tolist() == ["automatic"]
     parsed = BOEProjectExtraction.model_validate_json(
         str(selected.iloc[0]["extraction_json"])
     )

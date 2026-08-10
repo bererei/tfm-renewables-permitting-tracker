@@ -621,6 +621,7 @@ def test_complete_success_record_matches_contract_and_values(monkeypatch) -> Non
         "n_administrative_locations": 1,
         "n_generation_relations": 1,
         "n_technical_mentions": 2,
+        "precanonical_extraction_json": None,
         "extraction_json": extraction.model_dump_json(),
         "extracted_at": pd.Timestamp(_FIXED_NOW),
         "duration_seconds": 1.25,
@@ -695,6 +696,7 @@ def test_complete_error_record_without_extraction_matches_contract(
         "n_administrative_locations": None,
         "n_generation_relations": None,
         "n_technical_mentions": None,
+        "precanonical_extraction_json": None,
         "extraction_json": None,
         "extracted_at": pd.Timestamp(_FIXED_NOW),
         "duration_seconds": 9.5,
@@ -944,6 +946,7 @@ def test_runner_public_call_signatures_are_stable() -> None:
         "usage",
         "adjustments",
         "processing_stage",
+        "precanonical_extraction",
     )
     assert tuple(signature(build_error_record).parameters) == (
         "document",
@@ -954,6 +957,7 @@ def test_runner_public_call_signatures_are_stable() -> None:
         "usage",
         "extraction",
         "adjustments",
+        "precanonical_extraction",
     )
     assert tuple(signature(get_extraction_model).parameters) == (
         "current_extractions",

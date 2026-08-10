@@ -62,6 +62,7 @@ AI_EXTRACTION_LOG_COLUMNS = [
     "n_administrative_locations",
     "n_generation_relations",
     "n_technical_mentions",
+    "precanonical_extraction_json",
     "extraction_json",
     "extracted_at",
     "duration_seconds",

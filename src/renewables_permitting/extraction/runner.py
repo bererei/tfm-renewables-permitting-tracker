@@ -189,6 +189,7 @@ def build_success_record(
     usage: RunUsage,
     adjustments: list[str],
     processing_stage: str = "completed",
+    precanonical_extraction: BOEProjectExtraction | None = None,
 ) -> dict[str, Any]:
     counts = _count_extracted_nodes(extraction)
     record = {
@@ -197,6 +198,11 @@ def build_success_record(
         "document_scope": extraction.document_scope.value if extraction.document_scope else None,
         "classification_reason": extraction.classification_reason,
         **counts,
+        "precanonical_extraction_json": (
+            precanonical_extraction.model_dump_json()
+            if precanonical_extraction is not None
+            else None
+        ),
         "extraction_json": extraction.model_dump_json(),
         "extracted_at": datetime.now(timezone.utc),
         "duration_seconds": duration_seconds,
@@ -226,6 +232,7 @@ def build_error_record(
     usage: RunUsage,
     extraction: BOEProjectExtraction | None,
     adjustments: list[str],
+    precanonical_extraction: BOEProjectExtraction | None = None,
 ) -> dict[str, Any]:
     issues = error.issues if isinstance(error, DocumentExtractionValidationError) else []
     counts = _count_extracted_nodes(extraction) if extraction else {
@@ -248,6 +255,11 @@ def build_error_record(
         ),
         "classification_reason": extraction.classification_reason if extraction else None,
         **counts,
+        "precanonical_extraction_json": (
+            precanonical_extraction.model_dump_json()
+            if precanonical_extraction is not None
+            else None
+        ),
         "extraction_json": extraction.model_dump_json() if extraction else None,
         "extracted_at": datetime.now(timezone.utc),
         "duration_seconds": duration_seconds,
@@ -290,6 +302,7 @@ async def extract_documents(
         document = build_source_document(row)
         prepared: PreparedDocumentPrompt | None = None
         project_extraction: BOEProjectExtraction | None = None
+        precanonical_extraction: BOEProjectExtraction | None = None
         adjustments: list[str] = []
         usage = RunUsage()
         processing_stage = "build_prompt"
@@ -347,13 +360,14 @@ async def extract_documents(
                         raise TypeError("El agente no devolvió BOEAIExtraction.")
 
                     processing_stage = "canonicalization"
-                    project_extraction = build_boe_project_extraction(
+                    precanonical_extraction = build_boe_project_extraction(
                         ai_extraction,
                         boe_id=document.boe_id,
                         publication_date=document.publication_date,
                     )
+                    project_extraction = precanonical_extraction
                     project_extraction, adjustments = canonicalize_project_extraction(
-                        project_extraction,
+                        precanonical_extraction,
                         source_text=f"{document.title}\n{document.text}",
                         document_title=document.title,
                     )
@@ -388,6 +402,7 @@ async def extract_documents(
                     usage=usage,
                     adjustments=adjustments,
                     processing_stage="completed",
+                    precanonical_extraction=precanonical_extraction,
                 )
             print(
                 "  OK "
@@ -406,6 +421,7 @@ async def extract_documents(
                 usage=usage,
                 extraction=project_extraction,
                 adjustments=adjustments,
+                precanonical_extraction=precanonical_extraction,
             )
             print(f"  ERROR {type(error).__name__}: {error}")
 

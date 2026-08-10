@@ -15,6 +15,13 @@ import pandas as pd
 import pyarrow as pa
 import pyarrow.parquet as pq
 
+from renewables_permitting.extraction.config import (
+    AI_MODEL_NAME,
+    CONTRACT_SCHEMA_SHA256,
+    DOCUMENT_VALIDATION_VERSION,
+    INSTRUCTIONS_SHA256,
+    MODEL_PROVIDER,
+)
 from renewables_permitting.extraction.flat_contract import (
     FLAT_CONTRACT_VERSION,
     FLAT_TABLE_SPECS,
@@ -36,6 +43,8 @@ _LINEAGE_COLUMNS = (
     "source_document_sha256",
     "extraction_config_id",
     "selection_source",
+    "manual_review_id",
+    "source_attempt_id",
 )
 _ERROR_SAMPLE_LIMIT = 5
 
@@ -284,6 +293,7 @@ def _normalise_manifest_context(
             f"entradas={input_row_count}."
         )
     return {
+        "extraction_config_id": context.get("extraction_config_id"),
         "input_row_count": input_row_count,
         "input_with_events_count": input_with_events_count,
         "input_without_events_count": input_without_events_count,
@@ -292,8 +302,184 @@ def _normalise_manifest_context(
     }
 
 
+def _is_missing_text(value: Any) -> bool:
+    if value is None or value is pd.NA:
+        return True
+    try:
+        if bool(pd.isna(value)):
+            return True
+    except (TypeError, ValueError):
+        return False
+    return not isinstance(value, str) or not value.strip()
+
+
+def _provenance_sample_boe_ids(
+    current_extractions: pd.DataFrame,
+    mask: pd.Series,
+) -> list[str]:
+    if "identificador_boe" not in current_extractions.columns:
+        return ["<missing-identificador_boe>"]
+    return sorted({
+        str(value)
+        for value in current_extractions.loc[mask, "identificador_boe"]
+        if not _is_missing_text(value)
+    })[:_ERROR_SAMPLE_LIMIT]
+
+
+def _validate_current_extractions_provenance(
+    current_extractions: pd.DataFrame,
+    *,
+    expected_extraction_config_id: str,
+) -> None:
+    """Bloquea Selected/Current incompatible antes de crear staging Silver."""
+
+    if _is_missing_text(expected_extraction_config_id):
+        raise ValueError(
+            "expected_extraction_config_id debe ser texto no vacío."
+        )
+    if current_extractions.empty:
+        return
+    required_columns = (
+        "identificador_boe",
+        "attempt_id",
+        "source_document_sha256",
+        "extraction_config_id",
+        "contract_schema_sha256",
+        "instructions_sha256",
+        "model_provider",
+        "model_name",
+        "document_validation_version",
+        "selection_source",
+        "extraction_json",
+    )
+    missing_columns = [
+        column for column in required_columns
+        if column not in current_extractions.columns
+    ]
+    if missing_columns:
+        raise FlatMaterializationError(
+            "current_extractions no contiene el linaje obligatorio: "
+            f"columnas_faltantes={missing_columns!r}."
+        )
+    config_missing = current_extractions["extraction_config_id"].map(
+        _is_missing_text
+    )
+    config_mismatch = ~current_extractions[
+        "extraction_config_id"
+    ].eq(expected_extraction_config_id).fillna(False)
+    if config_mismatch.any():
+        found_configs = sorted({
+            str(value)
+            for value in current_extractions.loc[
+                ~config_missing,
+                "extraction_config_id",
+            ]
+        })
+        raise FlatMaterializationError(
+            "Configuración de extracción incompatible antes de Silver: "
+            f"expected={expected_extraction_config_id!r}; "
+            f"found={found_configs!r}; "
+            f"falta={int(config_missing.sum())}; "
+            "sample_boe_ids="
+            f"{_provenance_sample_boe_ids(current_extractions, config_mismatch)!r}."
+        )
+
+    expected_values = {
+        "contract_schema_sha256": CONTRACT_SCHEMA_SHA256,
+        "instructions_sha256": INSTRUCTIONS_SHA256,
+        "document_validation_version": DOCUMENT_VALIDATION_VERSION,
+    }
+    for column, expected in expected_values.items():
+        mismatch = ~current_extractions[column].eq(expected).fillna(False)
+        if mismatch.any():
+            found = sorted({
+                str(value)
+                for value in current_extractions.loc[
+                    ~current_extractions[column].map(_is_missing_text),
+                    column,
+                ]
+            })
+            raise FlatMaterializationError(
+                f"Linaje incompatible en {column!r}: expected={expected!r}; "
+                f"found={found!r}; sample_boe_ids="
+                f"{_provenance_sample_boe_ids(current_extractions, mismatch)!r}."
+            )
+
+    for column in (
+        "identificador_boe",
+        "attempt_id",
+        "source_document_sha256",
+        "extraction_json",
+    ):
+        missing = current_extractions[column].map(_is_missing_text)
+        if missing.any():
+            raise FlatMaterializationError(
+                f"Falta el campo de procedencia obligatorio {column!r}; "
+                "sample_boe_ids="
+                f"{_provenance_sample_boe_ids(current_extractions, missing)!r}."
+            )
+
+    selection = current_extractions["selection_source"]
+    invalid_selection = ~selection.isin(
+        ["auto_validated", "manually_validated"]
+    ).fillna(False)
+    if invalid_selection.any():
+        raise FlatMaterializationError(
+            "selection_source debe ser auto_validated o manually_validated; "
+            "sample_boe_ids="
+            f"{_provenance_sample_boe_ids(current_extractions, invalid_selection)!r}."
+        )
+
+    manual = selection.eq("manually_validated").fillna(False)
+    automatic = ~manual
+    for column, expected in (
+        ("model_provider", MODEL_PROVIDER),
+        ("model_name", AI_MODEL_NAME),
+    ):
+        mismatch = automatic & ~current_extractions[column].eq(
+            expected
+        ).fillna(False)
+        if mismatch.any():
+            raise FlatMaterializationError(
+                f"Linaje automático incompatible en {column!r}; "
+                f"expected={expected!r}; sample_boe_ids="
+                f"{_provenance_sample_boe_ids(current_extractions, mismatch)!r}."
+            )
+
+    if manual.any():
+        for column, expected in (
+            ("model_provider", "manual"),
+            ("model_name", "human_review"),
+        ):
+            mismatch = manual & ~current_extractions[column].eq(
+                expected
+            ).fillna(False)
+            if mismatch.any():
+                raise FlatMaterializationError(
+                    f"Linaje manual incompatible en {column!r}; "
+                    f"expected={expected!r}; sample_boe_ids="
+                    f"{_provenance_sample_boe_ids(current_extractions, mismatch)!r}."
+                )
+        for column in ("manual_review_id", "source_attempt_id"):
+            if column not in current_extractions.columns:
+                raise FlatMaterializationError(
+                    "El linaje manual requiere la columna "
+                    f"{column!r}."
+                )
+            missing = manual & current_extractions[column].map(
+                _is_missing_text
+            )
+            if missing.any():
+                raise FlatMaterializationError(
+                    f"El linaje manual requiere {column!r}; sample_boe_ids="
+                    f"{_provenance_sample_boe_ids(current_extractions, missing)!r}."
+                )
+
+
 def _current_context(
     current_extractions: pd.DataFrame,
+    *,
+    extraction_config_id: str,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     models: list[BOEProjectExtraction] = []
     identity: list[dict[str, Any]] = []
@@ -367,6 +553,7 @@ def _current_context(
     )
     return (
         {
+            "extraction_config_id": extraction_config_id,
             "input_row_count": len(models),
             "input_with_events_count": with_events,
             "input_without_events_count": len(models) - with_events,
@@ -384,6 +571,7 @@ def _materialization_id(
 ) -> str:
     payload = {
         "flat_contract_version": FLAT_CONTRACT_VERSION,
+        "extraction_config_id": context["extraction_config_id"],
         "input_identity": identity,
         "input_counts": {
             "input_row_count": context["input_row_count"],
@@ -427,6 +615,7 @@ def _manifest_payload(
     return {
         "materialization_id": materialization_id,
         "flat_contract_version": FLAT_CONTRACT_VERSION,
+        "extraction_config_id": context["extraction_config_id"],
         "created_at_utc": (
             datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         ),
@@ -631,11 +820,13 @@ def materialize_current_extractions(
     current_extractions: pd.DataFrame,
     *,
     output_dir: Path,
+    expected_extraction_config_id: str,
 ) -> FlatMaterializationResult:
     """Valida la entrada canónica y publica una versión Silver completa.
 
-    Los conteos proceden de los modelos Pydantic, los BOE deben ser únicos y
-    la llamada presupone un único escritor para ``output_dir``.
+    El linaje debe coincidir con ``expected_extraction_config_id`` antes del
+    flattening. Los conteos proceden de los modelos Pydantic, los BOE deben
+    ser únicos y la llamada presupone un único escritor para ``output_dir``.
     """
 
     if not isinstance(current_extractions, pd.DataFrame):
@@ -646,10 +837,17 @@ def materialize_current_extractions(
         raise ValueError(
             "current_extractions debe incluir la columna 'extraction_json'."
         )
+    _validate_current_extractions_provenance(
+        current_extractions,
+        expected_extraction_config_id=expected_extraction_config_id,
+    )
 
     output_dir = Path(output_dir).absolute()
     _validate_output_available(output_dir)
-    context, identity = _current_context(current_extractions)
+    context, identity = _current_context(
+        current_extractions,
+        extraction_config_id=expected_extraction_config_id,
+    )
     tables = flatten_current_extractions(current_extractions)
     return _materialize_validated_flat_tables(
         tables,

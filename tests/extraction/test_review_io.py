@@ -304,6 +304,7 @@ def test_load_attempts_existing_file_normalises_and_preserves_history(
     ]
     assert result["attempt_id"].tolist() == ["attempt-1"]
     assert result["historical_column"].tolist() == ["historical"]
+    assert result["precanonical_extraction_json"].isna().all()
     assert str(result["extracted_at"].dtype).startswith("datetime64")
 
 
@@ -1697,7 +1698,7 @@ def test_review_io_public_signatures_are_stable() -> None:
 
 
 def test_review_column_contracts_include_manual_traceability() -> None:
-    assert len(AI_EXTRACTION_LOG_COLUMNS) == 43
+    assert len(AI_EXTRACTION_LOG_COLUMNS) == 44
     assert len(REVIEW_QUEUE_COLUMNS) == 19
     assert len(MANUAL_REVIEW_COLUMNS) == 12
     assert "extraction_config_id" in MANUAL_REVIEW_COLUMNS
