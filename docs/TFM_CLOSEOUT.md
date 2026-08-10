@@ -33,10 +33,10 @@ Extraction freeze: DONE
 tag: tfm-extraction-freeze-2026-08
 
 Current phase:
-deterministic INE location enrichment
+project grouping
 
 Next:
-project grouping
+Gold chronology
 ```
 
 The extraction core is frozen. Reopen it only when concrete evidence shows
@@ -48,9 +48,9 @@ pipeline, or final evaluation.
 | Phase | Window | Status |
 | --- | --- | --- |
 | 1. Extraction freeze | Completed | DONE |
-| 2. Deterministic INE enrichment | 10–11 Aug | CURRENT |
-| 3. Project grouping | 12–15 Aug | NEXT |
-| 4. Gold chronology | 16–17 Aug | PLANNED |
+| 2. Deterministic INE enrichment | 10–11 Aug | DONE |
+| 3. Project grouping | 12–15 Aug | CURRENT |
+| 4. Gold chronology | 16–17 Aug | NEXT |
 | 5. Executable Python pipeline | 18–19 Aug | PLANNED |
 | 6. Streamlit | 20–23 Aug | PLANNED |
 | 7. Final holdout evaluation | 24–26 Aug | PLANNED |
@@ -117,7 +117,7 @@ Record secondary defects as known limitations.
 
 ## INE phase exit criteria
 
-The current phase is **deterministic INE location enrichment**. Its production
+The completed phase is **deterministic INE location enrichment**. Its production
 logic must live in Python modules, not depend on a notebook, and remain
 deterministic and reproducible.
 
