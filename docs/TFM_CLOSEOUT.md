@@ -31,13 +31,26 @@ perfect + exhaustive
 ```text
 Extraction freeze: DONE
 tag: tfm-extraction-freeze-2026-08
+Deterministic INE enrichment: DONE
+Project grouping: DONE
+Gold implementation: DONE
+Gold validation against freeze-run Silver: PENDING
 
 Current phase:
-Gold chronology
+Pipeline integration + canonical regeneration
 
 Next:
-Executable Python pipeline
+Gold validation against freeze-run Silver
+
+Then:
+Streamlit
+Final holdout evaluation
+Documentation / delivery
 ```
+
+The persisted development Silver predates the final extraction freeze. Gold
+implementation is complete but remains pending validation against a canonical
+freeze-run Silver snapshot.
 
 The extraction core is frozen. Reopen it only when concrete evidence shows
 that a defect blocks project identification, grouping, chronology, the final
@@ -50,11 +63,12 @@ pipeline, or final evaluation.
 | 1. Extraction freeze | Completed | DONE |
 | 2. Deterministic INE enrichment | 10–11 Aug | DONE |
 | 3. Project grouping | 12–15 Aug | DONE |
-| 4. Gold chronology | 16–17 Aug | CURRENT |
-| 5. Executable Python pipeline | 18–19 Aug | NEXT |
-| 6. Streamlit | 20–23 Aug | PLANNED |
-| 7. Final holdout evaluation | 24–26 Aug | PLANNED |
-| 8. Documentation / delivery | 27–31 Aug | PLANNED |
+| 4. Gold implementation | 16–17 Aug | DONE |
+| 5. Pipeline integration + canonical regeneration | 18–19 Aug | CURRENT |
+| 6. Gold validation against freeze-run Silver | After canonical regeneration | NEXT |
+| 7. Streamlit | 20–23 Aug | PLANNED |
+| 8. Final holdout evaluation | 24–26 Aug | PLANNED |
+| 9. Documentation / delivery | 27–31 Aug | PLANNED |
 
 ## Scope freeze
 
@@ -139,6 +153,23 @@ Minimum behavior:
 The phase exits when all of those criteria are satisfied by production `.py`
 code and an unresolved municipality does not prevent province or autonomous
 community resolution.
+
+## Pipeline integration exit criteria
+
+The executable Python pipeline must cover this local transformation path:
+
+```text
+BOE source
+→ document preparation
+→ extraction
+→ validated Silver
+→ INE
+→ grouping
+→ Gold
+```
+
+It must not require notebooks. Streamlit consumes Gold and is not part of the
+transformation pipeline.
 
 ## Definition of Done for a phase
 
