@@ -100,6 +100,19 @@ class MunicipalityReferenceMaterialization:
     semantic_reference_sha256: str
 
 
+@dataclass(frozen=True)
+class LoadedMunicipalityReference:
+    """Municipality snapshot reloaded after physical and semantic checks."""
+
+    input_dir: Path
+    dimension_path: Path
+    manifest_path: Path
+    dimension: pd.DataFrame
+    semantic_reference_id: str
+    semantic_reference_sha256: str
+    manifest: dict[str, Any]
+
+
 def _validate_source_columns(
     dataframe: pd.DataFrame,
     required: tuple[str, ...],
@@ -664,4 +677,84 @@ def materialize_municipality_dimension(
         manifest_path=output_dir / MUNICIPALITY_MANIFEST_FILENAME,
         semantic_reference_id=semantic_id,
         semantic_reference_sha256=semantic_hash,
+    )
+
+
+def load_municipality_reference(
+    snapshot_dir: Path,
+) -> LoadedMunicipalityReference:
+    """Load one versioned INE snapshot after manifest and hash validation."""
+
+    snapshot_dir = Path(snapshot_dir).absolute()
+    manifest_path = snapshot_dir / MUNICIPALITY_MANIFEST_FILENAME
+    dimension_path = snapshot_dir / MUNICIPALITY_DIMENSION_FILENAME
+    if not manifest_path.is_file() or manifest_path.is_symlink():
+        raise ValueError(
+            f"El snapshot INE no contiene un manifest válido: {manifest_path}"
+        )
+    if not dimension_path.is_file() or dimension_path.is_symlink():
+        raise ValueError(
+            f"El snapshot INE no contiene la dimensión: {dimension_path}"
+        )
+    expected_files = {
+        MUNICIPALITY_MANIFEST_FILENAME,
+        MUNICIPALITY_DIMENSION_FILENAME,
+    }
+    if {path.name for path in snapshot_dir.iterdir()} != expected_files:
+        raise ValueError(
+            "El snapshot INE no contiene exactamente los artefactos esperados."
+        )
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError("No se pudo leer el manifest INE.") from error
+    if not isinstance(manifest, dict):
+        raise ValueError("El manifest INE no es un objeto JSON.")
+    if manifest.get("reference_type") != MUNICIPALITY_REFERENCE_TYPE:
+        raise ValueError("El manifest no corresponde a una referencia INE.")
+    if (
+        manifest.get("contract_version")
+        != MUNICIPALITY_REFERENCE_CONTRACT_VERSION
+    ):
+        raise ValueError("La versión contractual de la referencia INE no coincide.")
+    output = manifest.get("output")
+    if not isinstance(output, dict):
+        raise ValueError("El manifest INE no contiene metadata de output.")
+    if output.get("filename") != MUNICIPALITY_DIMENSION_FILENAME:
+        raise ValueError("El manifest INE declara un filename no contractual.")
+    expected_physical_hash = output.get("parquet_sha256")
+    if (
+        not isinstance(expected_physical_hash, str)
+        or len(expected_physical_hash) != 64
+        or _sha256_file(dimension_path) != expected_physical_hash
+    ):
+        raise ValueError("El hash físico de la dimensión INE no coincide.")
+
+    dimension = pd.read_parquet(dimension_path)
+    validate_municipality_dimension(dimension)
+    if output.get("row_count") != len(dimension):
+        raise ValueError("El row_count de la dimensión INE no coincide.")
+    actual_schema = [
+        {"name": column, "dtype": str(dimension[column].dtype)}
+        for column in MUNICIPALITY_DIMENSION_COLUMNS
+    ]
+    if output.get("schema") != actual_schema:
+        raise ValueError("El schema de la dimensión INE no coincide con el manifest.")
+    if output.get("logical_key") != list(MUNICIPALITY_LOGICAL_KEY):
+        raise ValueError("La clave lógica INE no coincide con el contrato.")
+
+    semantic_hash = compute_municipality_reference_hash(dimension)
+    semantic_id = semantic_hash[:16]
+    if manifest.get("semantic_reference_sha256") != semantic_hash:
+        raise ValueError("El hash semántico de la referencia INE no coincide.")
+    if manifest.get("semantic_reference_id") != semantic_id:
+        raise ValueError("El semantic reference ID de INE no coincide.")
+    return LoadedMunicipalityReference(
+        input_dir=snapshot_dir,
+        dimension_path=dimension_path,
+        manifest_path=manifest_path,
+        dimension=dimension,
+        semantic_reference_id=semantic_id,
+        semantic_reference_sha256=semantic_hash,
+        manifest=manifest,
     )

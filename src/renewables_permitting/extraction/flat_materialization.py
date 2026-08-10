@@ -60,6 +60,18 @@ class FlatMaterializationResult:
     materialization_id: str
 
 
+@dataclass(frozen=True)
+class LoadedFlatMaterialization:
+    """Silver snapshot reloaded only after full manifest verification."""
+
+    input_dir: Path
+    manifest_path: Path
+    tables: Mapping[str, pd.DataFrame]
+    materialization_id: str
+    extraction_config_id: str
+    manifest: Mapping[str, Any]
+
+
 class FlatMaterializationError(RuntimeError):
     """Indica que una materialización no superó su verificación."""
 
@@ -610,6 +622,7 @@ def _manifest_payload(
     tables: Mapping[str, pd.DataFrame],
     *,
     context: Mapping[str, Any],
+    input_identity: list[dict[str, Any]],
     materialization_id: str,
 ) -> dict[str, Any]:
     return {
@@ -628,6 +641,7 @@ def _manifest_payload(
             "columns": context["lineage_columns"],
             "records": context["lineage"],
         },
+        "input_identity": input_identity,
         "tables": _table_manifest_entries(staging_dir, tables),
     }
 
@@ -744,6 +758,7 @@ def _materialize_validated_flat_tables(
             staging_dir,
             tables,
             context=context,
+            input_identity=identity,
             materialization_id=materialization_id,
         )
         manifest_path = staging_dir / _MANIFEST_FILENAME
@@ -854,4 +869,186 @@ def materialize_current_extractions(
         output_dir=output_dir,
         manifest_context=context,
         input_identity=identity,
+    )
+
+
+def _manifest_sha256(value: Any, *, field_name: str) -> str:
+    if (
+        not isinstance(value, str)
+        or len(value) != 64
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
+        raise FlatMaterializationError(
+            f"El manifest Silver contiene {field_name!r} no válido."
+        )
+    return value
+
+
+def load_flat_materialization(
+    snapshot_dir: Path,
+    *,
+    expected_extraction_config_id: str,
+) -> LoadedFlatMaterialization:
+    """Load and verify one complete 13-table Silver materialization.
+
+    The manifest, physical hashes, Arrow schemas, relational contract,
+    extraction configuration and deterministic materialization identity are
+    verified before any table is returned.
+    """
+
+    if _is_missing_text(expected_extraction_config_id):
+        raise ValueError(
+            "expected_extraction_config_id debe ser texto no vacío."
+        )
+    snapshot_dir = Path(snapshot_dir).absolute()
+    manifest_path = snapshot_dir / _MANIFEST_FILENAME
+    if not manifest_path.is_file() or manifest_path.is_symlink():
+        raise FlatMaterializationError(
+            f"El snapshot Silver no contiene un manifest válido: {manifest_path}"
+        )
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise FlatMaterializationError(
+            "No se pudo leer el manifest Silver."
+        ) from error
+    if not isinstance(manifest, dict):
+        raise FlatMaterializationError("El manifest Silver no es un objeto JSON.")
+    if manifest.get("flat_contract_version") != FLAT_CONTRACT_VERSION:
+        raise FlatMaterializationError(
+            "Versión de contrato Silver incompatible: "
+            f"{manifest.get('flat_contract_version')!r}."
+        )
+    extraction_config_id = manifest.get("extraction_config_id")
+    if not isinstance(extraction_config_id, str) or not extraction_config_id:
+        raise FlatMaterializationError(
+            "El manifest Silver no contiene extraction_config_id."
+        )
+    if extraction_config_id != expected_extraction_config_id:
+        raise FlatMaterializationError(
+            "El manifest Silver contiene una extraction config incompatible: "
+            f"expected={expected_extraction_config_id!r}; "
+            f"found={extraction_config_id!r}."
+        )
+    materialization_id = _manifest_sha256(
+        manifest.get("materialization_id"),
+        field_name="materialization_id",
+    )
+
+    entries = manifest.get("tables")
+    if (
+        manifest.get("table_count") != len(FLAT_TABLE_SPECS)
+        or not isinstance(entries, list)
+        or len(entries) != len(FLAT_TABLE_SPECS)
+    ):
+        raise FlatMaterializationError(
+            "El manifest Silver no declara exactamente las 13 tablas."
+        )
+    entries_by_name: dict[str, Mapping[str, Any]] = {}
+    for entry in entries:
+        if not isinstance(entry, Mapping):
+            raise FlatMaterializationError(
+                "El manifest Silver contiene una entrada de tabla inválida."
+            )
+        table_name = entry.get("table_name")
+        if not isinstance(table_name, str) or table_name in entries_by_name:
+            raise FlatMaterializationError(
+                "El manifest Silver contiene nombres de tabla inválidos o duplicados."
+            )
+        entries_by_name[table_name] = entry
+    if set(entries_by_name) != set(FLAT_TABLE_SPECS):
+        raise FlatMaterializationError(
+            "Las tablas del manifest Silver no coinciden con el contrato."
+        )
+
+    expected_files = {
+        _MANIFEST_FILENAME,
+        *(spec.filename for spec in FLAT_TABLE_SPECS.values()),
+    }
+    if not snapshot_dir.is_dir() or {
+        path.name for path in snapshot_dir.iterdir()
+    } != expected_files:
+        raise FlatMaterializationError(
+            "El snapshot Silver no contiene exactamente los artefactos esperados."
+        )
+
+    tables: dict[str, pd.DataFrame] = {}
+    for table_name, table_spec in FLAT_TABLE_SPECS.items():
+        entry = entries_by_name[table_name]
+        if (
+            entry.get("filename") != table_spec.filename
+            or entry.get("columns") != list(table_spec.column_names)
+            or entry.get("primary_key") != list(table_spec.primary_key)
+            or entry.get("arrow_schema")
+            != _arrow_schema_payload(table_spec.arrow_schema)
+        ):
+            raise FlatMaterializationError(
+                f"El manifest Silver contradice el contrato de {table_name!r}."
+            )
+        table_path = snapshot_dir / table_spec.filename
+        if not table_path.is_file() or table_path.is_symlink():
+            raise FlatMaterializationError(
+                f"Falta el Parquet Silver {table_spec.filename!r}."
+            )
+        expected_hash = _manifest_sha256(
+            entry.get("sha256"),
+            field_name=f"tables[{table_name}].sha256",
+        )
+        if _sha256_file(table_path) != expected_hash:
+            raise FlatMaterializationError(
+                f"El hash físico de la tabla Silver {table_name!r} no coincide."
+            )
+        dataframe = _read_contract_parquet(table_path, table_spec)
+        row_count = entry.get("row_count")
+        if isinstance(row_count, bool) or row_count != len(dataframe):
+            raise FlatMaterializationError(
+                f"El row_count de {table_name!r} no coincide con el Parquet."
+            )
+        tables[table_name] = dataframe
+    validate_flat_tables(tables)
+    if manifest.get("materialized_event_count") != len(
+        tables["publication_events"]
+    ):
+        raise FlatMaterializationError(
+            "El conteo de eventos del manifest Silver no coincide."
+        )
+
+    lineage = manifest.get("lineage")
+    if not isinstance(lineage, Mapping):
+        raise FlatMaterializationError("El manifest Silver no contiene linaje.")
+    context = _normalise_manifest_context({
+        "extraction_config_id": extraction_config_id,
+        "input_row_count": manifest.get("input_row_count"),
+        "input_with_events_count": manifest.get("input_with_events_count"),
+        "input_without_events_count": manifest.get("input_without_events_count"),
+        "lineage": lineage.get("records"),
+    })
+    if lineage.get("columns") != context["lineage_columns"]:
+        raise FlatMaterializationError(
+            "Las columnas de linaje del manifest Silver no coinciden."
+        )
+    input_identity = manifest.get("input_identity")
+    if not isinstance(input_identity, list) or any(
+        not isinstance(record, Mapping) for record in input_identity
+    ):
+        raise FlatMaterializationError(
+            "El manifest Silver no contiene input_identity verificable."
+        )
+    recomputed_id = _materialization_id(
+        tables,
+        identity=[dict(record) for record in input_identity],
+        context=context,
+    )
+    if recomputed_id != materialization_id:
+        raise FlatMaterializationError(
+            "El materialization_id Silver no coincide con tablas e identidad."
+        )
+
+    return LoadedFlatMaterialization(
+        input_dir=snapshot_dir,
+        manifest_path=manifest_path,
+        tables=MappingProxyType(tables),
+        materialization_id=materialization_id,
+        extraction_config_id=extraction_config_id,
+        manifest=MappingProxyType(manifest),
     )
