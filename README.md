@@ -26,9 +26,15 @@ El refinamiento determinista de decisiones sustantivas IDAA está implementado.
 La extracción canónica permanece inmutable: `silver --corrections` puede aplicar
 el registro versionado de cinco exclusiones históricas antes del flattening y
 publica su auditoría junto a Silver, de modo que Silver y Gold son
-regenerables. El run recanonicalizado y corregido final sigue pendiente; el
-freeze de reemplazo aún no está cerrado. Una interfaz de revisión en Streamlit
-es trabajo posterior.
+regenerables.
+
+## Estado actual
+
+El core data freeze fue validado el **2026-08-13** sobre 140 documentos BOE:
+116 proyectos de generación, 165 actuaciones administrativas y 169 eventos de
+proyecto. La declaración reproducible y sus identidades están en
+[`docs/freezes/core_data_freeze_2026-08-13.md`](docs/freezes/core_data_freeze_2026-08-13.md).
+El siguiente desarrollo es `project_locations` + Streamlit.
 
 Las nuevas llamadas al modelo requieren `--execute-model`; un cambio semántico
 INE exige confirmación explícita antes del rebuild. Usa `--dry-run` para

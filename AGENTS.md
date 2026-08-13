@@ -14,20 +14,20 @@ additional fields, product features, deployment, or architectural complexity.
 Read `docs/TFM_CLOSEOUT.md` before proposing or implementing development work;
 it is the source of truth for the roadmap and phase gates through delivery.
 
-Current phase: **Pipeline integration + canonical regeneration**. The executable
-pipeline is complete. The historical extraction freeze remains preserved, but
-its canonical 140 review demonstrated chronology-blocking deterministic
-decision defects and authorised a limited reopening for `desestim*` and IDAA
-substantive-decision semantics. Both deterministic refinements and the batch
-recanonicalization path are implemented. Approved human corrections are now
-versioned, immutable inputs applied between the canonical extraction snapshot
-and Silver; five historical-action exclusions are registered. The
-**controlled recanonicalized/corrected execution and validation into a new
-snapshot** remain pending; generation roots and event structure are unchanged,
-and Gemini does not need to be called again. The extraction freeze is not yet
-closed.
-Next: complete targeted human review, validate Gold against the replacement
-freeze-run Silver, then Streamlit.
+Final core data freeze: **COMPLETE**. The validated run is
+`runs/canonical-140-freeze-final-candidate-20260813/`, and its versioned
+declaration is `docs/freezes/core_data_freeze_2026-08-13.md`. The freeze covers
+the extraction contract and canonicalisation, versioned human corrections,
+the 13 Silver tables, deterministic INE enrichment and project grouping, and
+Gold `projects` and `project_events`.
+
+Current phase: **product completion**. Next: `project_locations`, Streamlit MVP,
+final product validation, and TFM documentation/delivery. `project_locations`
+is an additive Gold deliverable and must not alter frozen project IDs or
+`project_events` semantics. Generation remains the project root, manual
+corrections remain traceable, derived Parquets must not be edited, and Gold
+must remain regenerable. Do not reopen extraction without a concrete material
+defect under the rule in `docs/TFM_CLOSEOUT.md`.
 
 - Classify every new proposal as BLOCKER, REQUIRED, OPTIONAL, or POST-TFM. Do
   not start OPTIONAL or POST-TFM work while BLOCKER or REQUIRED work remains.
