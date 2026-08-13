@@ -395,6 +395,29 @@ def test_prior_authorization_accepts_desestimated_decision() -> None:
     assert action.decision.value == "desestimado"
 
 
+@pytest.mark.parametrize(
+    "decision",
+    [
+        AdministrativeDecision.FORMULATED,
+        AdministrativeDecision.ORDINARY_ENVIRONMENTAL_ASSESSMENT_REQUIRED,
+        AdministrativeDecision.NO_SIGNIFICANT_ADVERSE_ENVIRONMENTAL_EFFECTS,
+    ],
+)
+def test_idaa_accepts_approved_existing_decision_domain(
+    decision: AdministrativeDecision,
+) -> None:
+    action = AdministrativeAction(
+        action_type=(
+            AdministrativeActionType.ENVIRONMENTAL_AFFECTATION_DETERMINATION_REPORT
+        ),
+        decision=decision,
+        targets=["event"],
+        evidence="Se formula informe de determinación de afección ambiental.",
+    )
+
+    assert action.decision == decision
+
+
 def test_legacy_energy_general_scope_is_supported() -> None:
     extraction = BOEAIExtraction(
         classification_status="classified",

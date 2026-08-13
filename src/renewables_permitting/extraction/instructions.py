@@ -142,10 +142,12 @@ DECISIONES ADMINISTRATIVAS
   concluya que no se prevén esos efectos y no es necesaria la evaluación
   ambiental ordinaria; usa requiere_evaluacion_ambiental_ordinaria cuando
   determine que debe someterse a ella; sin conclusión terminal, usa formulado.
-- informe_determinacion_afeccion_ambiental: usa favorable, desfavorable,
-  requiere_evaluacion_ambiental_adicional o
-  no_requiere_evaluacion_ambiental_adicional solo cuando el resultado sea
-  explícito; sin resultado terminal representable, usa formulado.
+- informe_determinacion_afeccion_ambiental: usa
+  requiere_evaluacion_ambiental_ordinaria cuando determine que el proyecto debe
+  someterse a ella; usa sin_efectos_adversos_significativos cuando concluya que
+  no se aprecian esos efectos y el proyecto puede continuar. Usa formulado solo
+  cuando el informe se emita pero su sentido no pueda determinarse de forma
+  fiable. No derives el sentido de antecedentes, solicitudes o alegaciones.
 - is_modification=True solo cuando el acto actual modifica una autorización o
   declaración previa del mismo tipo.
 

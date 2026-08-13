@@ -1818,6 +1818,292 @@ def test_formulated_remains_environmental_fallback_without_adjustment() -> None:
     assert not any("decisión" in adjustment for adjustment in adjustments)
 
 
+def _canonicalize_idaa_decision(
+    *,
+    source_text: str,
+    initial_decision: AdministrativeDecision = AdministrativeDecision.FORMULATED,
+    action_type: AdministrativeActionType = (
+        AdministrativeActionType.ENVIRONMENTAL_AFFECTATION_DETERMINATION_REPORT
+    ),
+) -> tuple[AdministrativeAction, list[str]]:
+    title = (
+        "Resolución por la que se formula informe de determinación de "
+        "afección ambiental del proyecto Prueba."
+    )
+    if action_type != (
+        AdministrativeActionType.ENVIRONMENTAL_AFFECTATION_DETERMINATION_REPORT
+    ):
+        title = (
+            "Resolución por la que se formula informe de impacto ambiental "
+            "del proyecto Prueba."
+        )
+    actions, adjustments = _canonicalize_test_actions(
+        title=title,
+        source_text=f"{title}\n{source_text}",
+        actions=[_action(
+            action_type,
+            initial_decision,
+            title,
+            ["event"],
+        )],
+    )
+    return actions[0], adjustments
+
+
+def test_idaa_recovers_ordinary_environmental_assessment_outcome() -> None:
+    action, adjustments = _canonicalize_idaa_decision(source_text=(
+        "Esta Dirección General resuelve la formulación de informe de "
+        "determinación de afección ambiental en el sentido de que el proyecto "
+        "Prueba se someta a la tramitación del procedimiento de evaluación "
+        "ambiental ordinaria."
+    ))
+
+    assert action.decision == (
+        AdministrativeDecision.ORDINARY_ENVIRONMENTAL_ASSESSMENT_REQUIRED
+    )
+    assert any("requiere_evaluacion_ambiental_ordinaria" in item for item in adjustments)
+
+
+def test_idaa_recovers_no_significant_adverse_effects_outcome() -> None:
+    action, adjustments = _canonicalize_idaa_decision(source_text=(
+        "Esta Dirección General resuelve la formulación de informe de "
+        "determinación de afección ambiental en el sentido de que el proyecto "
+        "Prueba puede continuar porque no se aprecian efectos adversos "
+        "significativos en el medio ambiente."
+    ))
+
+    assert action.decision == (
+        AdministrativeDecision.NO_SIGNIFICANT_ADVERSE_ENVIRONMENTAL_EFFECTS
+    )
+    assert any("sin_efectos_adversos_significativos" in item for item in adjustments)
+
+
+def test_idaa_keeps_formulated_when_substantive_outcome_is_not_recoverable() -> None:
+    action, adjustments = _canonicalize_idaa_decision(source_text=(
+        "Esta Dirección General formula el informe del proyecto Prueba, con "
+        "las condiciones recogidas en el anexo."
+    ))
+
+    assert action.decision == AdministrativeDecision.FORMULATED
+    assert not any("decisión IDAA" in item for item in adjustments)
+
+
+def test_generic_idaa_title_does_not_degrade_correct_substantive_decision() -> None:
+    action, adjustments = _canonicalize_idaa_decision(
+        source_text="Se publica el informe relativo al proyecto Prueba.",
+        initial_decision=(
+            AdministrativeDecision.ORDINARY_ENVIRONMENTAL_ASSESSMENT_REQUIRED
+        ),
+    )
+
+    assert action.decision == (
+        AdministrativeDecision.ORDINARY_ENVIRONMENTAL_ASSESSMENT_REQUIRED
+    )
+    assert not any("decisión IDAA" in item for item in adjustments)
+
+
+@pytest.mark.parametrize(
+    "source_text",
+    [
+        (
+            "En los antecedentes se solicitó que el proyecto Prueba se "
+            "sometiera a evaluación ambiental ordinaria."
+        ),
+        (
+            "En sus alegaciones, la asociación pide la evaluación ambiental "
+            "ordinaria del proyecto Prueba."
+        ),
+    ],
+)
+def test_idaa_does_not_infer_outcome_from_history_or_allegations(
+    source_text: str,
+) -> None:
+    action, _ = _canonicalize_idaa_decision(source_text=source_text)
+
+    assert action.decision == AdministrativeDecision.FORMULATED
+
+
+def test_idaa_substantive_rule_is_isolated_from_other_action_types() -> None:
+    action, _ = _canonicalize_idaa_decision(
+        source_text=(
+            "Esta Dirección General resuelve la formulación de informe de "
+            "determinación de afección ambiental en el sentido de que el "
+            "proyecto Prueba se someta a evaluación ambiental ordinaria."
+        ),
+        action_type=AdministrativeActionType.ENVIRONMENTAL_IMPACT_REPORT,
+    )
+
+    assert action.action_type == AdministrativeActionType.ENVIRONMENTAL_IMPACT_REPORT
+    assert action.decision == AdministrativeDecision.FORMULATED
+
+
+@pytest.mark.parametrize(
+    ("source_text", "expected"),
+    [
+        (
+            "ESTA DIRECCIÓN GENERAL RESUELVE LA FORMULACIÓN DE INFORME DE "
+            "DETERMINACIÓN DE AFECCIÓN AMBIENTAL EN EL SENTIDO DE QUE EL "
+            "PROYECTO PRUEBA DEBE SOMETERSE A EVALUACIÓN AMBIENTAL ORDINARIA.",
+            AdministrativeDecision.ORDINARY_ENVIRONMENTAL_ASSESSMENT_REQUIRED,
+        ),
+        (
+            "Esta Direccion General resuelve la formulacion de informe de "
+            "determinacion de afeccion ambiental en el sentido de que no se "
+            "preven efectos adversos significativos para el proyecto Prueba.",
+            AdministrativeDecision.NO_SIGNIFICANT_ADVERSE_ENVIRONMENTAL_EFFECTS,
+        ),
+    ],
+)
+def test_idaa_outcome_matching_handles_case_accents_and_inflection(
+    source_text: str,
+    expected: AdministrativeDecision,
+) -> None:
+    action, _ = _canonicalize_idaa_decision(source_text=source_text)
+
+    assert action.decision == expected
+
+
+@pytest.mark.parametrize(
+    (
+        "boe_id",
+        "project_name",
+        "initial_decision",
+        "expected_decision",
+        "resolutive_wording",
+        "event_count",
+    ),
+    [
+        (
+            "BOE-A-2023-10297",
+            "Planta Fotovoltaica Hibridación PE Angostillos",
+            AdministrativeDecision.FORMULATED,
+            AdministrativeDecision.ORDINARY_ENVIRONMENTAL_ASSESSMENT_REQUIRED,
+            "continúe con la tramitación del procedimiento de evaluación ambiental ordinario",
+            2,
+        ),
+        (
+            "BOE-A-2023-1938",
+            "Instalación Híbrida Radona II",
+            AdministrativeDecision.FURTHER_ENVIRONMENTAL_ASSESSMENT_NOT_REQUIRED,
+            AdministrativeDecision.NO_SIGNIFICANT_ADVERSE_ENVIRONMENTAL_EFFECTS,
+            "continúe con la autorización, al no apreciarse efectos adversos significativos en el medio ambiente que requieran su sometimiento a procedimiento de evaluación ambiental",
+            2,
+        ),
+        (
+            "BOE-A-2023-1939",
+            "Planta fotovoltaica Elawan Ayora III",
+            AdministrativeDecision.FURTHER_ENVIRONMENTAL_ASSESSMENT_NOT_REQUIRED,
+            AdministrativeDecision.NO_SIGNIFICANT_ADVERSE_ENVIRONMENTAL_EFFECTS,
+            "continúe con la autorización, al no apreciarse efectos adversos significativos en el medio ambiente que requieran su sometimiento a procedimiento de evaluación ambiental",
+            1,
+        ),
+        (
+            "BOE-A-2023-1941",
+            "Planta híbrida fotovoltaica Dehesilla I",
+            AdministrativeDecision.FURTHER_ENVIRONMENTAL_ASSESSMENT_NOT_REQUIRED,
+            AdministrativeDecision.NO_SIGNIFICANT_ADVERSE_ENVIRONMENTAL_EFFECTS,
+            "continúe con la autorización, al no apreciarse efectos adversos significativos en el medio ambiente que requieran su sometimiento a procedimiento de evaluación ambiental",
+            1,
+        ),
+        (
+            "BOE-A-2023-1942",
+            "Parque Eólico Carballoso",
+            AdministrativeDecision.FURTHER_ENVIRONMENTAL_ASSESSMENT_NOT_REQUIRED,
+            AdministrativeDecision.NO_SIGNIFICANT_ADVERSE_ENVIRONMENTAL_EFFECTS,
+            "continúe con la autorización, al no apreciarse efectos adversos significativos en el medio ambiente que requieran su sometimiento a procedimiento de evaluación ambiental",
+            1,
+        ),
+        (
+            "BOE-A-2023-1943",
+            "Planta híbrida fotovoltaica Dehesilla II",
+            AdministrativeDecision.FURTHER_ENVIRONMENTAL_ASSESSMENT_NOT_REQUIRED,
+            AdministrativeDecision.NO_SIGNIFICANT_ADVERSE_ENVIRONMENTAL_EFFECTS,
+            "continúe con la autorización, al no apreciarse efectos adversos significativos en el medio ambiente que requieran su sometimiento a procedimiento de evaluación ambiental",
+            1,
+        ),
+        (
+            "BOE-A-2024-9608",
+            "Instalación solar FV La Puebla 1",
+            AdministrativeDecision.FORMULATED,
+            AdministrativeDecision.ORDINARY_ENVIRONMENTAL_ASSESSMENT_REQUIRED,
+            "se someta a la tramitación del procedimiento de evaluación ambiental ordinario",
+            1,
+        ),
+        (
+            "BOE-A-2025-18282",
+            "Instalación fotovoltaica Hibridación Loma Gorda",
+            AdministrativeDecision.UNFAVORABLE,
+            AdministrativeDecision.ORDINARY_ENVIRONMENTAL_ASSESSMENT_REQUIRED,
+            "se someta a la tramitación del procedimiento de evaluación ambiental ordinario",
+            1,
+        ),
+        (
+            "BOE-A-2025-18283",
+            "Instalación fotovoltaica Hibridación San Gil",
+            AdministrativeDecision.FURTHER_ENVIRONMENTAL_ASSESSMENT_REQUIRED,
+            AdministrativeDecision.ORDINARY_ENVIRONMENTAL_ASSESSMENT_REQUIRED,
+            "se someta a la tramitación del procedimiento de evaluación ambiental ordinario",
+            1,
+        ),
+    ],
+)
+def test_known_corpus_idaa_outcomes_are_canonicalized_without_structural_change(
+    boe_id: str,
+    project_name: str,
+    initial_decision: AdministrativeDecision,
+    expected_decision: AdministrativeDecision,
+    resolutive_wording: str,
+    event_count: int,
+) -> None:
+    title = (
+        "Resolución por la que se formula informe de determinación de afección "
+        f"ambiental del proyecto {project_name}."
+    )
+    events = [
+        PublicationEvent(
+            generation_assets=[_asset(
+                "generation_asset_1",
+                project_name,
+                GenerationType.PHOTOVOLTAIC,
+                project_name,
+            )],
+            administrative_actions=[_action(
+                AdministrativeActionType.ENVIRONMENTAL_AFFECTATION_DETERMINATION_REPORT,
+                initial_decision,
+                title,
+                ["event"],
+            )],
+            event_summary=f"IDAA del proyecto {project_name}.",
+        )
+        for _ in range(event_count)
+    ]
+    extraction = _test_extraction(boe_id, events)
+    original_json = extraction.model_dump_json()
+    conclusion = (
+        "Esta Dirección General resuelve la formulación de informe de "
+        "determinación de afección ambiental en el sentido de que el proyecto "
+        f"{project_name} {resolutive_wording}."
+    )
+
+    canonical, _ = canonicalize_project_extraction(
+        extraction,
+        source_text=f"{title}\n{conclusion}",
+        document_title=title,
+    )
+
+    assert len(canonical.publication_events) == event_count
+    assert all(
+        action.action_type
+        == AdministrativeActionType.ENVIRONMENTAL_AFFECTATION_DETERMINATION_REPORT
+        and action.decision == expected_decision
+        and action.targets == ["event"]
+        and action.evidence == title
+        for event in canonical.publication_events
+        for action in event.administrative_actions
+    )
+    assert extraction.model_dump_json() == original_json
+
+
 @pytest.mark.parametrize(
     ("action_type", "terminal_decision", "product_title"),
     [

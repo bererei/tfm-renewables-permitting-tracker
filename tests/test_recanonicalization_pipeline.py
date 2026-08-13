@@ -18,7 +18,6 @@ from renewables_permitting.extraction.config import (
     CONTRACT_SCHEMA_SHA256,
     EXTRACTION_CONFIG,
     EXTRACTION_CONFIG_ID,
-    INSTRUCTIONS_SHA256,
 )
 from renewables_permitting.extraction.documents import build_source_document
 from renewables_permitting.extraction.models import (
@@ -49,6 +48,9 @@ NOW = datetime(2026, 8, 13, 10, tzinfo=timezone.utc)
 SOURCE_CONFIG_ID = "67a0bd9d0759a322"
 SOURCE_CONTRACT_SHA256 = (
     "455028c7de0ada067264cd695b4e7dab9de377b31105e141321313d61c3ff283"
+)
+SOURCE_INSTRUCTIONS_SHA256 = (
+    "b48240832d1b274af0435cea42cc6d305d2aec83b5a3395a1d5ce1529eff0607"
 )
 SOURCE_POLICY = (
     "termination_object_filter_environmental_terminal_whitelist_"
@@ -151,6 +153,7 @@ def _historical_attempts(documents: pd.DataFrame) -> pd.DataFrame:
             ),
             "extraction_config_id": SOURCE_CONFIG_ID,
             "contract_schema_sha256": SOURCE_CONTRACT_SHA256,
+            "instructions_sha256": SOURCE_INSTRUCTIONS_SHA256,
         })
         records.append(record)
     legacy_columns = [
@@ -194,7 +197,7 @@ def _write_historical_snapshot(tmp_path: Path) -> tuple[Path, Path]:
         "extraction_config_id": SOURCE_CONFIG_ID,
         "model_provider": "gemini",
         "model_name": "google:gemini-2.5-flash",
-        "instructions_sha256": INSTRUCTIONS_SHA256,
+        "instructions_sha256": SOURCE_INSTRUCTIONS_SHA256,
         "contract_schema_sha256": SOURCE_CONTRACT_SHA256,
         "document_validation_version": "25",
         "document_identity_sha256": pipeline._documents_identity(documents),
@@ -479,6 +482,7 @@ def test_batch_record_applies_only_the_explicit_desestimation_decision(
         "attempt_id": f"source-{boe_id}",
         "extraction_config_id": SOURCE_CONFIG_ID,
         "contract_schema_sha256": SOURCE_CONTRACT_SHA256,
+        "instructions_sha256": SOURCE_INSTRUCTIONS_SHA256,
     })
 
     record = build_recanonicalized_attempt_record(

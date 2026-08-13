@@ -37,6 +37,8 @@ Project grouping: DONE
 Gold implementation: DONE
 Pipeline integration implementation: DONE
 Batch recanonicalization capability: DONE
+IDAA substantive decision refinement: IMPLEMENTED
+Human correction layer: PENDING
 Replacement canonical recanonicalization: PENDING
 Gold validation against freeze-run Silver: PENDING
 
@@ -47,7 +49,7 @@ Current gate:
 Controlled recanonicalization and validation into a new snapshot
 
 Next:
-Targeted human review
+Human correction layer and targeted human review
 Gold validation against freeze-run Silver
 
 Then:
@@ -58,13 +60,16 @@ Documentation / delivery
 
 The executable Python orchestration layer is complete. The historical canonical
 140 run and extraction-freeze tag remain immutable references. Targeted review
-found a deterministic authorization-decision defect: explicit `desestim*`
-wording was degraded to `solicitado`. The limited correction changes decision
-semantics only; it does not change generation roots, events, grouping, or
-locations. Stored precanonical outputs and the implemented batch command allow
-a controlled recanonicalization without calling Gemini. A replacement freeze
-remains pending until that command creates a new snapshot and the result is
-validated, after which Gold must be regenerated and checked against its Silver.
+found deterministic decision defects: explicit `desestim*` wording was
+degraded to `solicitado`, and substantive IDAA outcomes were represented with
+incomplete or inconsistent decisions. Both deterministic refinements are
+implemented and change decision semantics only; they do not change generation
+roots, events, grouping, or locations. The human correction layer remains
+pending. Stored precanonical outputs and the implemented batch command allow a
+controlled recanonicalization without calling Gemini. A replacement freeze
+remains pending until the corrections are integrated, that command creates a
+new snapshot, and the result is validated, after which Gold must be regenerated
+and checked against its Silver.
 
 Outside this limited decision correction, the extraction core remains frozen.
 Reopen it only when concrete evidence shows that a defect blocks project
@@ -131,13 +136,14 @@ block the vertical product:
 ## Extraction freeze rule
 
 The tag `tfm-extraction-freeze-2026-08` and its canonical run remain historical
-references. A demonstrated chronology defect authorised one limited reopening:
+references. Demonstrated chronology defects authorised one limited reopening:
 the contract and canonicalisation of explicit `desestim*` authorization
-decisions. It does not authorise changes to generation roots, granularity,
-targets, participants, components, grouping, or locations, and it does not
-require new Gemini calls. The replacement extraction freeze may be declared
-only after controlled recanonicalization into a new snapshot and validation of
-the affected corpus.
+decisions and substantive IDAA decisions. It does not authorise changes to
+generation roots, granularity, targets, participants, components, grouping, or
+locations, and it does not require new Gemini calls. The human correction layer
+is still pending. The replacement extraction freeze may be declared only after
+controlled recanonicalization into a new snapshot and validation of the
+affected corpus.
 
 Outside that limited correction, do not reopen the extraction contract,
 canonicalisation, granularity, targets, participants, or components unless a

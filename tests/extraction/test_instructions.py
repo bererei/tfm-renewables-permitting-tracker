@@ -25,13 +25,13 @@ def test_instruction_section_hashes_match_validated_snapshots() -> None:
             "b87be37b9a26466b12a5bbffaa3ea1e24a95a84fc14e39569726e9a9432218df"
         ),
         "TAXONOMY_GUIDANCE": (
-            "58cd07a3e6903158e214bffd01b372d73e3235fd7da2cc8d73b1a64fd714d64d"
+            "68b6d54f4d700b192f2a67cfaf31b64b329e4f409eadcc5111e33c082c2831bd"
         ),
         "DECISION_EXAMPLES": (
             "64b13944ad4fc5b41c02f34f0186344033e3a8ae4a8c3ba4dd1d9cb59857a140"
         ),
         "AGENT_INSTRUCTIONS": (
-            "b48240832d1b274af0435cea42cc6d305d2aec83b5a3395a1d5ce1529eff0607"
+            "153b0a19c0f0709c78396acd8e0350e7d3b8d67044db14f76029cc9acbdf5580"
         ),
     }
 
@@ -89,8 +89,6 @@ def test_environmental_decision_guidance_prioritizes_specific_outcomes() -> None
             "desfavorable",
             "sin_efectos_adversos_significativos",
             "requiere_evaluacion_ambiental_ordinaria",
-            "requiere_evaluacion_ambiental_adicional",
-            "no_requiere_evaluacion_ambiental_adicional",
         )
     )
     assert "Título: «se formula" in examples
@@ -100,6 +98,19 @@ def test_environmental_decision_guidance_prioritizes_specific_outcomes() -> None
     )
     assert "decision=desfavorable" in examples
     assert "decision=formulado" in examples
+
+
+def test_idaa_guidance_uses_substantive_decisions_and_safe_fallback() -> None:
+    guidance = " ".join(TAXONOMY_GUIDANCE.split())
+
+    idaa_guidance = guidance.split(
+        "informe_determinacion_afeccion_ambiental:",
+        maxsplit=1,
+    )[1].split("- is_modification", maxsplit=1)[0]
+    assert "requiere_evaluacion_ambiental_ordinaria" in idaa_guidance
+    assert "sin_efectos_adversos_significativos" in idaa_guidance
+    assert "formulado" in idaa_guidance
+    assert "antecedentes" in guidance
 
 
 def test_executing_instructions_has_no_io_network_or_agent_side_effects(

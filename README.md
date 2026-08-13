@@ -22,6 +22,10 @@ de reconstruir el histórico. `recanonicalize` valida un freeze histórico
 aprobado y reaplica únicamente la política determinista sobre sus payloads
 precanónicos, conservando el linaje y sin llamar al modelo.
 
+El refinamiento determinista de decisiones sustantivas IDAA está implementado.
+La capa de correcciones humanas y el run recanonicalizado final siguen
+pendientes; el freeze de reemplazo aún no está cerrado.
+
 Las nuevas llamadas al modelo requieren `--execute-model`; un cambio semántico
 INE exige confirmación explícita antes del rebuild. Usa `--dry-run` para
 inspeccionar el plan sin red, modelo, publicación ni downstream.

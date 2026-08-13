@@ -16,12 +16,13 @@ it is the source of truth for the roadmap and phase gates through delivery.
 
 Current phase: **Pipeline integration + canonical regeneration**. The executable
 pipeline is complete. The historical extraction freeze remains preserved, but
-its canonical 140 review demonstrated a chronology-blocking deterministic
-decision defect and authorised a limited reopening for `desestim*` semantics.
-The batch recanonicalization path is implemented. The current gate is its
-**controlled execution and validation into a new snapshot**; generation roots
-and event structure are unchanged, and Gemini does not need to be called again.
-A new extraction freeze is pending that execution and validation.
+its canonical 140 review demonstrated chronology-blocking deterministic
+decision defects and authorised a limited reopening for `desestim*` and IDAA
+substantive-decision semantics. Both deterministic refinements and the batch
+recanonicalization path are implemented. The human correction layer and the
+**controlled execution and validation into a new snapshot** remain pending;
+generation roots and event structure are unchanged, and Gemini does not need
+to be called again. The extraction freeze is not yet closed.
 Next: complete targeted human review, validate Gold against the replacement
 freeze-run Silver, then Streamlit.
 

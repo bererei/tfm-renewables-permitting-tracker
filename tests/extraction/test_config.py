@@ -44,9 +44,13 @@ EXPECTED_CONTRACT_SCHEMA_SHA256 = (
     "7960b8718df138c75e92230a4b4b32c03872cdd7c6ac20a5f3521226e709c81c"
 )
 EXPECTED_INSTRUCTIONS_SHA256 = (
+    "153b0a19c0f0709c78396acd8e0350e7d3b8d67044db14f76029cc9acbdf5580"
+)
+EXPECTED_EXTRACTION_CONFIG_ID = "8158661f76a31c87"
+PRE_IDAA_INSTRUCTIONS_SHA256 = (
     "b48240832d1b274af0435cea42cc6d305d2aec83b5a3395a1d5ce1529eff0607"
 )
-EXPECTED_EXTRACTION_CONFIG_ID = "00303cf56466f39d"
+PRE_IDAA_EXTRACTION_CONFIG_ID = "00303cf56466f39d"
 PRE_LIMITED_REOPEN_CONTRACT_SCHEMA_SHA256 = (
     "455028c7de0ada067264cd695b4e7dab9de377b31105e141321313d61c3ff283"
 )
@@ -87,7 +91,7 @@ def test_model_provider_and_all_configuration_values_are_exact() -> None:
     assert DOCUMENT_VALIDATION_VERSION == "25"
     assert config_module._CANONICALIZATION_POLICY == (
         "termination_object_filter_environmental_terminal_whitelist_"
-        "lexical_authorization_decisions_v3_"
+        "lexical_authorization_decisions_v3_idaa_substantive_outcomes_v1_"
         "explicit_relation_validation_conservative_grouping_v1"
     )
     assert ENTITY_MODEL_POLICY == (
@@ -199,6 +203,12 @@ def test_canonicalization_policy_change_produces_different_config_id() -> None:
 def test_limited_freeze_reopen_changes_contract_and_productive_identity() -> None:
     assert CONTRACT_SCHEMA_SHA256 != PRE_LIMITED_REOPEN_CONTRACT_SCHEMA_SHA256
     assert EXTRACTION_CONFIG_ID != PRE_LIMITED_REOPEN_EXTRACTION_CONFIG_ID
+
+
+def test_idaa_refinement_preserves_schema_and_changes_productive_identity() -> None:
+    assert CONTRACT_SCHEMA_SHA256 == EXPECTED_CONTRACT_SCHEMA_SHA256
+    assert INSTRUCTIONS_SHA256 != PRE_IDAA_INSTRUCTIONS_SHA256
+    assert EXTRACTION_CONFIG_ID != PRE_IDAA_EXTRACTION_CONFIG_ID
 
 
 def test_stable_json_hash_is_order_independent_and_value_sensitive() -> None:

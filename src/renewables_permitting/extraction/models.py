@@ -268,6 +268,8 @@ _ALLOWED_DECISIONS_BY_ACTION_TYPE: dict[
         AdministrativeDecision.FORMULATED,
         AdministrativeDecision.FAVORABLE,
         AdministrativeDecision.UNFAVORABLE,
+        AdministrativeDecision.NO_SIGNIFICANT_ADVERSE_ENVIRONMENTAL_EFFECTS,
+        AdministrativeDecision.ORDINARY_ENVIRONMENTAL_ASSESSMENT_REQUIRED,
         AdministrativeDecision.FURTHER_ENVIRONMENTAL_ASSESSMENT_REQUIRED,
         AdministrativeDecision.FURTHER_ENVIRONMENTAL_ASSESSMENT_NOT_REQUIRED,
     },

@@ -707,11 +707,33 @@ _ENVIRONMENTAL_TERMINAL_DECISIONS_BY_ACTION_TYPE = {
         frozenset({
             AdministrativeDecision.FAVORABLE,
             AdministrativeDecision.UNFAVORABLE,
+            AdministrativeDecision.NO_SIGNIFICANT_ADVERSE_ENVIRONMENTAL_EFFECTS,
+            AdministrativeDecision.ORDINARY_ENVIRONMENTAL_ASSESSMENT_REQUIRED,
             AdministrativeDecision.FURTHER_ENVIRONMENTAL_ASSESSMENT_REQUIRED,
             AdministrativeDecision.FURTHER_ENVIRONMENTAL_ASSESSMENT_NOT_REQUIRED,
         })
     ),
 }
+_IDAA_RESOLUTIVE_INTRO_RE = re.compile(
+    r"\bresuelve\s+la\s+formulaci[oó]n\s+de(?:l)?\s+informe\s+de\s+"
+    r"determinaci[oó]n\s+de\s+afecci[oó]n\s+ambiental\s+en\s+el\s+"
+    r"sentido\s+de\s+que\b",
+    re.IGNORECASE,
+)
+_IDAA_ORDINARY_ASSESSMENT_RE = re.compile(
+    r"\b(?:"
+    r"se\s+someta\s+a|"
+    r"deb[ae]\s+someterse\s+a|"
+    r"contin[uú]e\s+con"
+    r")\b[^.;]{0,700}\b(?:procedimiento\s+de\s+)?"
+    r"evaluaci[oó]n\s+ambiental\s+ordinari[oa]\b",
+    re.IGNORECASE,
+)
+_IDAA_NO_SIGNIFICANT_EFFECTS_RE = re.compile(
+    r"\bno\s+(?:se\s+)?(?:aprecian|apreciarse|prev[eé]n)\s+"
+    r"efectos\s+adversos\s+significativos\b",
+    re.IGNORECASE,
+)
 _AUTHORIZATION_GRANT_RE = re.compile(
     r"\b(?:"
     r"otorga(?:n|r|d[ao]s?)?|"
@@ -829,6 +851,43 @@ def _should_replace_decision_from_title(
     ):
         return False
     return inferred != AdministrativeDecision.OTHER
+
+
+def _idaa_substantive_decision(
+    action: AdministrativeAction,
+    *,
+    source_text: str,
+    document_title: str,
+) -> AdministrativeDecision | None:
+    """Deriva solo el sentido explícito del IDAA resolutivo actual."""
+
+    if action.action_type != (
+        AdministrativeActionType.ENVIRONMENTAL_AFFECTATION_DETERMINATION_REPORT
+    ):
+        return None
+    if action.action_type not in _action_types_from_title(document_title):
+        return None
+
+    candidates = [action.evidence, *_source_units(source_text)]
+    seen: set[str] = set()
+    for candidate in candidates:
+        key = _canonical_documentary_text(candidate).casefold()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        intro = _IDAA_RESOLUTIVE_INTRO_RE.search(key)
+        if intro is None:
+            continue
+        conclusion = key[intro.end():]
+        if _IDAA_ORDINARY_ASSESSMENT_RE.search(conclusion):
+            return (
+                AdministrativeDecision.ORDINARY_ENVIRONMENTAL_ASSESSMENT_REQUIRED
+            )
+        if _IDAA_NO_SIGNIFICANT_EFFECTS_RE.search(conclusion):
+            return (
+                AdministrativeDecision.NO_SIGNIFICANT_ADVERSE_ENVIRONMENTAL_EFFECTS
+            )
+    return None
 
 
 _MODIFIABLE_ACTION_TYPES = {
@@ -1451,6 +1510,23 @@ def _canonicalize_actions(
                     f"action_{index}: decisión canonicalizada desde el título: "
                     f"{previous_decision.value} -> {title_decision.value}."
                 )
+
+        substantive_idaa_decision = _idaa_substantive_decision(
+            action,
+            source_text=source_text,
+            document_title=document_title,
+        )
+        if (
+            substantive_idaa_decision is not None
+            and substantive_idaa_decision != action.decision
+        ):
+            previous_decision = action.decision
+            action.decision = substantive_idaa_decision
+            adjustments.append(
+                f"action_{index}: decisión IDAA canonicalizada desde el "
+                f"sentido resolutivo: {previous_decision.value} -> "
+                f"{substantive_idaa_decision.value}."
+            )
 
         # Elimina antecedentes cuando el título define el objeto actual y el
         # tipo de la cita no forma parte de ese objeto.
