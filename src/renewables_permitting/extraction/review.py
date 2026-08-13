@@ -34,6 +34,21 @@ from renewables_permitting.extraction.validation import (
 )
 
 
+_RECANONICALIZATION_LINEAGE_COLUMNS = [
+    "attempt_origin",
+    "source_attempt_id",
+    "source_extraction_config_id",
+    "source_contract_schema_sha256",
+    "source_instructions_sha256",
+    "source_canonicalization_policy",
+    "source_model_provider",
+    "source_model_name",
+    "target_canonicalization_policy",
+    "recanonicalized_at",
+    "recanonicalization_source_run",
+]
+
+
 AI_EXTRACTION_LOG_COLUMNS = [
     "attempt_id",
     "identificador_boe",
@@ -45,6 +60,7 @@ AI_EXTRACTION_LOG_COLUMNS = [
     "input_selection_strategy",
     "input_selection_marker",
     "input_excluded_chars",
+    *_RECANONICALIZATION_LINEAGE_COLUMNS,
     "extraction_config_id",
     "contract_schema_sha256",
     "instructions_sha256",
@@ -137,6 +153,9 @@ def combine_ai_extraction_attempt_frames(
 def current_successful_ai_extractions(
     attempts: pd.DataFrame,
     source_df: pd.DataFrame,
+    *,
+    expected_extraction_config_id: str = EXTRACTION_CONFIG_ID,
+    expected_document_validation_version: str = DOCUMENT_VALIDATION_VERSION,
 ) -> pd.DataFrame:
     attempts = normalise_ai_extraction_attempts_log(attempts)
     attempts["identificador_boe"] = attempts["identificador_boe"].astype(
@@ -150,9 +169,11 @@ def current_successful_ai_extractions(
         & attempts["document_validation_status"].eq("passed").fillna(False)
         & attempts["classification_status"].eq("classified").fillna(False)
         & attempts["document_validation_version"]
-        .eq(DOCUMENT_VALIDATION_VERSION)
+        .eq(expected_document_validation_version)
         .fillna(False)
-        & attempts["extraction_config_id"].eq(EXTRACTION_CONFIG_ID).fillna(False)
+        & attempts["extraction_config_id"]
+        .eq(expected_extraction_config_id)
+        .fillna(False)
     ].copy()
     sources = _target_source_keys(source_df)
     successful = successful.merge(
@@ -825,6 +846,9 @@ def _validate_manual_reviews(
 def _latest_attempts_for_current_sources(
     attempts: pd.DataFrame,
     source_df: pd.DataFrame,
+    *,
+    expected_extraction_config_id: str = EXTRACTION_CONFIG_ID,
+    expected_document_validation_version: str = DOCUMENT_VALIDATION_VERSION,
 ) -> pd.DataFrame:
     attempts = normalise_ai_extraction_attempts_log(attempts)
     sources = _target_source_keys(source_df)
@@ -838,9 +862,11 @@ def _latest_attempts_for_current_sources(
         "source_document_sha256"
     ].astype("string")
     current = attempts.loc[
-        attempts["extraction_config_id"].eq(EXTRACTION_CONFIG_ID).fillna(False)
+        attempts["extraction_config_id"]
+        .eq(expected_extraction_config_id)
+        .fillna(False)
         & attempts["document_validation_version"]
-        .eq(DOCUMENT_VALIDATION_VERSION)
+        .eq(expected_document_validation_version)
         .fillna(False)
     ].merge(
         sources,
@@ -912,9 +938,18 @@ def build_review_queue(
     attempts: pd.DataFrame,
     source_df: pd.DataFrame,
     manual_reviews: pd.DataFrame | None = None,
+    expected_extraction_config_id: str = EXTRACTION_CONFIG_ID,
+    expected_document_validation_version: str = DOCUMENT_VALIDATION_VERSION,
 ) -> pd.DataFrame:
     sources = _validated_target_sources(source_df)
-    latest_attempts = _latest_attempts_for_current_sources(attempts, sources)
+    latest_attempts = _latest_attempts_for_current_sources(
+        attempts,
+        sources,
+        expected_extraction_config_id=expected_extraction_config_id,
+        expected_document_validation_version=(
+            expected_document_validation_version
+        ),
+    )
 
     manual_reviews = (
         empty_manual_reviews()
@@ -1054,6 +1089,8 @@ def select_best_valid_extractions(
     attempts: pd.DataFrame,
     source_df: pd.DataFrame,
     manual_reviews: pd.DataFrame | None = None,
+    expected_extraction_config_id: str = EXTRACTION_CONFIG_ID,
+    expected_document_validation_version: str = DOCUMENT_VALIDATION_VERSION,
 ) -> pd.DataFrame:
     """Selecciona una única extracción vigente por BOE.
 
@@ -1063,7 +1100,14 @@ def select_best_valid_extractions(
     3. ninguna extracción si la última revisión manual la rechaza.
     """
 
-    auto = current_successful_ai_extractions(attempts, source_df).copy()
+    auto = current_successful_ai_extractions(
+        attempts,
+        source_df,
+        expected_extraction_config_id=expected_extraction_config_id,
+        expected_document_validation_version=(
+            expected_document_validation_version
+        ),
+    ).copy()
     if not auto.empty:
         auto["selection_source"] = "auto_validated"
 

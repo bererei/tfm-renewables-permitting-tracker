@@ -18,7 +18,9 @@ coordina el flujo completo desde ese origen o desde `--documents`. `extract` y
 `silver` permiten reanudar por etapas. `build-reference-data` crea una referencia
 INE candidata sin ejecutar downstream; `downstream` reutiliza Silver sin volver
 a ejecutar la extracción, y `refresh-reference-data` compara referencias antes
-de reconstruir el histórico.
+de reconstruir el histórico. `recanonicalize` valida un freeze histórico
+aprobado y reaplica únicamente la política determinista sobre sus payloads
+precanónicos, conservando el linaje y sin llamar al modelo.
 
 Las nuevas llamadas al modelo requieren `--execute-model`; un cambio semántico
 INE exige confirmación explícita antes del rebuild. Usa `--dry-run` para

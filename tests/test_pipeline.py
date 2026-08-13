@@ -238,6 +238,7 @@ def test_cli_help_lists_the_minimal_command_surface() -> None:
     for command in (
         "source",
         "extract",
+        "recanonicalize",
         "silver",
         "downstream",
         "build-reference-data",

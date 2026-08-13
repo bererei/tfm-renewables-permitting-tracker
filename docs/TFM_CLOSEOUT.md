@@ -36,6 +36,7 @@ Deterministic INE enrichment: DONE
 Project grouping: DONE
 Gold implementation: DONE
 Pipeline integration implementation: DONE
+Batch recanonicalization capability: DONE
 Replacement canonical recanonicalization: PENDING
 Gold validation against freeze-run Silver: PENDING
 
@@ -60,10 +61,10 @@ The executable Python orchestration layer is complete. The historical canonical
 found a deterministic authorization-decision defect: explicit `desestim*`
 wording was degraded to `solicitado`. The limited correction changes decision
 semantics only; it does not change generation roots, events, grouping, or
-locations. Stored precanonical outputs allow a controlled recanonicalization
-without calling Gemini. A replacement freeze remains pending until that new
-snapshot is rebuilt and validated, after which Gold must be regenerated and
-checked against its Silver.
+locations. Stored precanonical outputs and the implemented batch command allow
+a controlled recanonicalization without calling Gemini. A replacement freeze
+remains pending until that command creates a new snapshot and the result is
+validated, after which Gold must be regenerated and checked against its Silver.
 
 Outside this limited decision correction, the extraction core remains frozen.
 Reopen it only when concrete evidence shows that a defect blocks project
@@ -77,7 +78,7 @@ identification, grouping, chronology, the final pipeline, or final evaluation.
 | 2. Deterministic INE enrichment | 10–11 Aug | DONE |
 | 3. Project grouping | 12–15 Aug | DONE |
 | 4. Gold implementation | 16–17 Aug | DONE |
-| 5. Pipeline integration + canonical regeneration | 18–19 Aug | CURRENT — integration DONE; controlled recanonicalization PENDING |
+| 5. Pipeline integration + canonical regeneration | 18–19 Aug | CURRENT — integration and batch capability DONE; real recanonicalization PENDING |
 | 6. Gold validation against freeze-run Silver | After canonical regeneration | NEXT |
 | 7. Streamlit | 20–23 Aug | PLANNED |
 | 8. Final holdout evaluation | 24–26 Aug | PLANNED |

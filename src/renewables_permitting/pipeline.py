@@ -52,6 +52,7 @@ from renewables_permitting.extraction.config import (
     CHECKPOINT_EVERY,
     CONTRACT_SCHEMA_SHA256,
     DOCUMENT_VALIDATION_VERSION,
+    EXTRACTION_CONFIG,
     EXTRACTION_CONFIG_ID,
     INSTRUCTIONS_SHA256,
     MODEL_PROVIDER,
@@ -66,6 +67,10 @@ from renewables_permitting.extraction.flat_materialization import (
     materialize_current_extractions,
 )
 from renewables_permitting.extraction.persistence import save_parquet_atomic
+from renewables_permitting.extraction.recanonicalization import (
+    build_recanonicalized_attempt_record,
+    historical_recanonicalization_identity,
+)
 from renewables_permitting.extraction.review import (
     build_review_queue,
     empty_ai_extraction_attempts_log,
@@ -191,12 +196,49 @@ class LoadedExtractionSnapshot:
     manifest: Mapping[str, Any]
 
 
+@dataclass(frozen=True)
+class RecanonicalizationPlan:
+    """Validated, write-free plan for a frozen extraction snapshot."""
+
+    source_snapshot: Path
+    output_dir: Path
+    documents: pd.DataFrame
+    source: LoadedExtractionSnapshot
+    source_run_id: str
+    source_attempt_count: int
+    precanonical_record_count: int
+    deterministic_record_count: int
+    target_record_count: int
+    model_calls: int = 0
+
+
+@dataclass(frozen=True)
+class RecanonicalizationStageResult(ExtractionStageResult):
+    """Published recanonicalized extraction snapshot and migration counts."""
+
+    source_attempt_count: int
+    precanonical_record_count: int
+    deterministic_record_count: int
+    model_calls: int
+
+
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
 
 def _created_at() -> str:
     return _utc_now().isoformat().replace("+00:00", "Z")
+
+
+def _normalise_created_at(value: datetime | None) -> datetime:
+    instant = _utc_now() if value is None else value
+    if instant.tzinfo is None or instant.utcoffset() is None:
+        raise ValueError("created_at must include timezone information.")
+    return instant.astimezone(timezone.utc)
+
+
+def _format_created_at(value: datetime) -> str:
+    return value.isoformat().replace("+00:00", "Z")
 
 
 def _sha256_file(path: Path) -> str:
@@ -290,10 +332,17 @@ def _frame_equal(
     for column in common:
         left_values = left_ordered[column]
         right_values = right_ordered[column]
-        both_missing = left_values.isna() & right_values.isna()
-        equal = left_values.eq(right_values).fillna(False)
-        if not (both_missing | equal).all():
-            return False
+        for left_value, right_value in zip(
+            left_values, right_values, strict=True
+        ):
+            left_missing = bool(pd.isna(left_value))
+            right_missing = bool(pd.isna(right_value))
+            if left_missing or right_missing:
+                if left_missing and right_missing:
+                    continue
+                return False
+            if not bool(left_value == right_value):
+                return False
     return True
 
 
@@ -864,6 +913,9 @@ def run_extraction_stage(
             "model_name": AI_MODEL_NAME,
             "instructions_sha256": INSTRUCTIONS_SHA256,
             "contract_schema_sha256": CONTRACT_SCHEMA_SHA256,
+            "canonicalization_policy": EXTRACTION_CONFIG[
+                "canonicalization_policy"
+            ],
             "document_validation_version": DOCUMENT_VALIDATION_VERSION,
             "document_identity_sha256": _documents_identity(plan.documents),
             "counts": {
@@ -916,18 +968,50 @@ def load_extraction_snapshot(
     snapshot_dir: Path,
     *,
     expected_extraction_config_id: str,
+    allow_historical: bool = False,
 ) -> LoadedExtractionSnapshot:
     """Recompute selection and the blocking queue from a stage snapshot."""
 
-    _validate_expected_config(expected_extraction_config_id)
+    historical_identity = None
+    if allow_historical:
+        try:
+            historical_identity = historical_recanonicalization_identity(
+                expected_extraction_config_id
+            )
+        except ValueError as error:
+            raise PipelineError(
+                "Historical extraction configuration is incompatible."
+            ) from error
+    else:
+        _validate_expected_config(expected_extraction_config_id)
     snapshot_dir = Path(snapshot_dir).absolute()
     manifest = _load_json_manifest(snapshot_dir, stage="Extraction")
     if (
         manifest.get("stage") != "extraction"
         or manifest.get("stage_version") != PIPELINE_STAGE_VERSION
-        or manifest.get("extraction_config_id") != EXTRACTION_CONFIG_ID
+        or manifest.get("extraction_config_id")
+        != expected_extraction_config_id
     ):
         raise PipelineError("Extraction snapshot metadata is incompatible.")
+    if historical_identity is not None and (
+        manifest.get("contract_schema_sha256")
+        != historical_identity.contract_schema_sha256
+        or manifest.get("instructions_sha256")
+        != historical_identity.instructions_sha256
+        or manifest.get("model_provider")
+        != historical_identity.model_provider
+        or manifest.get("model_name") != historical_identity.model_name
+    ):
+        raise PipelineError(
+            "Historical extraction snapshot identity is incompatible."
+        )
+    if not allow_historical and (
+        manifest.get("contract_schema_sha256") != CONTRACT_SCHEMA_SHA256
+        or manifest.get("instructions_sha256") != INSTRUCTIONS_SHA256
+        or manifest.get("document_validation_version")
+        != DOCUMENT_VALIDATION_VERSION
+    ):
+        raise PipelineError("Extraction snapshot provenance is incompatible.")
     expected_files = {
         _EXTRACTION_MANIFEST,
         _EXTRACTION_DOCUMENTS,
@@ -954,15 +1038,56 @@ def load_extraction_snapshot(
         pd.read_parquet(current_path)
     )
     persisted_queue = pd.read_parquet(queue_path)
+    manifest_validation_version = manifest.get("document_validation_version")
+    if not isinstance(manifest_validation_version, str):
+        raise PipelineError(
+            "Extraction manifest has no document validation identity."
+        )
+    if allow_historical and not manual.empty:
+        raise PipelineError(
+            "Historical snapshots with manual decisions cannot be replayed "
+            "automatically."
+        )
+    if allow_historical:
+        for label, frame in (
+            ("attempts", attempts),
+            ("current_extractions", persisted_current),
+        ):
+            if frame.empty:
+                continue
+            expected_lineage = {
+                "extraction_config_id": expected_extraction_config_id,
+                "contract_schema_sha256": (
+                    historical_identity.contract_schema_sha256
+                ),
+                "instructions_sha256": (
+                    historical_identity.instructions_sha256
+                ),
+                "model_provider": historical_identity.model_provider,
+                "model_name": historical_identity.model_name,
+                "document_validation_version": manifest_validation_version,
+            }
+            for column, expected_value in expected_lineage.items():
+                matches = frame[column].astype("string").eq(
+                    expected_value
+                ).fillna(False)
+                if not matches.all():
+                    raise PipelineError(
+                        f"Historical {label} lineage mismatch: {column}."
+                    )
     current = select_best_valid_extractions(
         attempts=attempts,
         source_df=documents,
         manual_reviews=manual,
+        expected_extraction_config_id=expected_extraction_config_id,
+        expected_document_validation_version=manifest_validation_version,
     )
     queue = build_review_queue(
         attempts=attempts,
         source_df=documents,
         manual_reviews=manual,
+        expected_extraction_config_id=expected_extraction_config_id,
+        expected_document_validation_version=manifest_validation_version,
     )
     if manifest.get("document_identity_sha256") != _documents_identity(
         documents
@@ -1000,6 +1125,330 @@ def load_extraction_snapshot(
         current_extractions=current,
         review_queue=queue,
         manifest=manifest,
+    )
+
+
+def plan_recanonicalization_snapshot(
+    *,
+    source_snapshot: Path,
+    documents: Path | pd.DataFrame,
+    output_dir: Path,
+    source_expected_extraction_config_id: str,
+    target_expected_extraction_config_id: str,
+) -> RecanonicalizationPlan:
+    """Validate one frozen source and classify its replayable records."""
+
+    output_dir = _validate_new_output(output_dir)
+    _validate_expected_config(target_expected_extraction_config_id)
+    source_snapshot = Path(source_snapshot).absolute()
+    source = load_extraction_snapshot(
+        source_snapshot,
+        expected_extraction_config_id=(
+            source_expected_extraction_config_id
+        ),
+        allow_historical=True,
+    )
+    if not source.manual_reviews.empty:
+        raise PipelineError(
+            "Manual review decisions are not transferred by recanonicalization."
+        )
+    source_blocking = int(
+        source.review_queue["reason_severity"]
+        .eq("blocking")
+        .fillna(False)
+        .sum()
+    )
+    if source_blocking:
+        raise PipelineError(
+            "The source extraction snapshot has blocking review records."
+        )
+
+    prepared_documents = (
+        prepare_documents(documents)
+        if isinstance(documents, pd.DataFrame)
+        else load_documents_input(Path(documents))
+    )
+    if _documents_identity(prepared_documents) != _documents_identity(
+        source.documents
+    ):
+        raise PipelineError(
+            "Recanonicalization documents do not match the source snapshot."
+        )
+    if len(source.current_extractions) != len(prepared_documents):
+        raise PipelineError(
+            "The source snapshot does not contain one current extraction per "
+            "document."
+        )
+    selection_sources = source.current_extractions.get("selection_source")
+    if selection_sources is None or not selection_sources.astype(
+        "string"
+    ).eq("auto_validated").fillna(False).all():
+        raise PipelineError(
+            "The source snapshot contains non-automatic current selections."
+        )
+    if source.attempts["attempt_id"].astype("string").duplicated().any():
+        raise PipelineError("The source snapshot contains duplicate attempt IDs.")
+
+    source_attempt_ids = set(source.attempts["attempt_id"].astype(str))
+    selected_attempt_ids = set(
+        source.current_extractions["attempt_id"].astype(str)
+    )
+    if not selected_attempt_ids.issubset(source_attempt_ids):
+        raise PipelineError(
+            "A current source extraction has no matching attempt record."
+        )
+    selected_attempts = source.attempts.loc[
+        source.attempts["attempt_id"].astype(str).isin(selected_attempt_ids)
+    ].copy()
+    if len(selected_attempts) != len(prepared_documents):
+        raise PipelineError(
+            "The source current selection is not one-to-one with attempts."
+        )
+    has_precanonical = selected_attempts[
+        "precanonical_extraction_json"
+    ].notna() & selected_attempts["precanonical_extraction_json"].astype(
+        "string"
+    ).str.strip().ne("")
+    source_run_id = source_snapshot.parent.name
+    if not source_run_id:
+        raise PipelineError("The source snapshot has no stable run name.")
+    return RecanonicalizationPlan(
+        source_snapshot=source_snapshot,
+        output_dir=output_dir,
+        documents=prepared_documents,
+        source=source,
+        source_run_id=source_run_id,
+        source_attempt_count=len(source.attempts),
+        precanonical_record_count=int(has_precanonical.sum()),
+        deterministic_record_count=int((~has_precanonical).sum()),
+        target_record_count=len(selected_attempts),
+    )
+
+
+def _print_recanonicalization_plan(plan: RecanonicalizationPlan) -> None:
+    print(f"source records: {plan.source_attempt_count}")
+    print(f"precanonical records: {plan.precanonical_record_count}")
+    print(f"deterministic records: {plan.deterministic_record_count}")
+    print(f"target records: {plan.target_record_count}")
+    print(f"model calls: {plan.model_calls}")
+    print(f"target extraction config: {EXTRACTION_CONFIG_ID}")
+    print(f"output: {plan.output_dir}")
+
+
+def build_recanonicalized_attempts(
+    plan: RecanonicalizationPlan,
+    *,
+    recanonicalized_at: datetime,
+) -> pd.DataFrame:
+    """Apply the batch transformation in memory without any stage writes."""
+
+    source_identity = historical_recanonicalization_identity(
+        str(plan.source.manifest["extraction_config_id"])
+    )
+    instant = _normalise_created_at(recanonicalized_at)
+    source_attempts = {
+        str(row["attempt_id"]): row
+        for _, row in plan.source.attempts.iterrows()
+    }
+    source_current = plan.source.current_extractions.sort_values(
+        "identificador_boe", kind="stable"
+    )
+    documents_by_id = {
+        str(row["identificador"]): row
+        for _, row in plan.documents.iterrows()
+    }
+    records: list[dict[str, Any]] = []
+    for _, selected in source_current.iterrows():
+        boe_id = str(selected["identificador_boe"])
+        if boe_id not in documents_by_id:
+            raise PipelineError(
+                f"Source selection has no matching document: {boe_id}."
+            )
+        source_attempt = source_attempts[str(selected["attempt_id"])]
+        records.append(build_recanonicalized_attempt_record(
+            source_attempt,
+            document=build_source_document(documents_by_id[boe_id]),
+            source_identity=source_identity,
+            source_run_id=plan.source_run_id,
+            recanonicalized_at=instant,
+        ))
+    return normalise_ai_extraction_attempts_log(
+        pd.DataFrame(records)
+    ).sort_values("identificador_boe", kind="stable").reset_index(drop=True)
+
+
+def recanonicalize_extraction_snapshot(
+    *,
+    source_snapshot: Path,
+    documents: Path | pd.DataFrame,
+    output_dir: Path,
+    source_expected_extraction_config_id: str,
+    target_expected_extraction_config_id: str,
+    created_at: datetime | None = None,
+) -> RecanonicalizationStageResult:
+    """Publish a target snapshot by replaying only deterministic policy code."""
+
+    plan = plan_recanonicalization_snapshot(
+        source_snapshot=source_snapshot,
+        documents=documents,
+        output_dir=output_dir,
+        source_expected_extraction_config_id=(
+            source_expected_extraction_config_id
+        ),
+        target_expected_extraction_config_id=(
+            target_expected_extraction_config_id
+        ),
+    )
+    _print_recanonicalization_plan(plan)
+    instant = _normalise_created_at(created_at)
+    source_identity = historical_recanonicalization_identity(
+        source_expected_extraction_config_id
+    )
+    attempts = build_recanonicalized_attempts(
+        plan,
+        recanonicalized_at=instant,
+    )
+    manual_reviews = empty_manual_reviews()
+    current = select_best_valid_extractions(
+        attempts=attempts,
+        source_df=plan.documents,
+        manual_reviews=manual_reviews,
+    )
+    review_queue = build_review_queue(
+        attempts=attempts,
+        source_df=plan.documents,
+        manual_reviews=manual_reviews,
+    )
+    blocking_count = int(
+        review_queue["reason_severity"].eq("blocking").fillna(False).sum()
+    )
+
+    staging_dir, prefix = _staging_directory(plan.output_dir)
+    published = False
+    try:
+        document_path = staging_dir / _EXTRACTION_DOCUMENTS
+        attempt_path = staging_dir / _EXTRACTION_ATTEMPTS
+        manual_path = staging_dir / _EXTRACTION_MANUAL_REVIEWS
+        current_path = staging_dir / _EXTRACTION_CURRENT
+        queue_path = staging_dir / _EXTRACTION_REVIEW_QUEUE
+        plan.documents.to_parquet(document_path, index=False)
+        save_parquet_atomic(attempts, attempt_path)
+        save_parquet_atomic(manual_reviews, manual_path)
+        save_parquet_atomic(current, current_path)
+        save_parquet_atomic(review_queue, queue_path)
+
+        source_artifacts = plan.source.manifest.get("artifacts")
+        if not isinstance(source_artifacts, Mapping):
+            raise PipelineError("Source manifest has no artifact lineage.")
+        source_attempt_artifact = source_artifacts.get("attempts")
+        if not isinstance(source_attempt_artifact, Mapping) or not isinstance(
+            source_attempt_artifact.get("sha256"), str
+        ):
+            raise PipelineError("Source attempt hash lineage is missing.")
+        source_manifest_hash = _sha256_file(
+            plan.source_snapshot / _EXTRACTION_MANIFEST
+        )
+        snapshot_identity = sha256(_canonical_json_bytes({
+            "document_identity_sha256": _documents_identity(plan.documents),
+            "source_manifest_sha256": source_manifest_hash,
+            "source_attempts_sha256": source_attempt_artifact["sha256"],
+            "source_extraction_config_id": (
+                source_identity.extraction_config_id
+            ),
+            "target_extraction_config_id": EXTRACTION_CONFIG_ID,
+        })).hexdigest()
+        manifest = {
+            "stage": "extraction",
+            "stage_version": PIPELINE_STAGE_VERSION,
+            "snapshot_type": "recanonicalized_extraction",
+            "snapshot_identity_sha256": snapshot_identity,
+            "created_at": _format_created_at(instant),
+            "extraction_config_id": EXTRACTION_CONFIG_ID,
+            "model_provider": MODEL_PROVIDER,
+            "model_name": AI_MODEL_NAME,
+            "instructions_sha256": INSTRUCTIONS_SHA256,
+            "contract_schema_sha256": CONTRACT_SCHEMA_SHA256,
+            "canonicalization_policy": EXTRACTION_CONFIG[
+                "canonicalization_policy"
+            ],
+            "document_validation_version": DOCUMENT_VALIDATION_VERSION,
+            "document_identity_sha256": _documents_identity(plan.documents),
+            "source": {
+                "run_id": plan.source_run_id,
+                "snapshot_name": plan.source_snapshot.name,
+                "manifest_sha256": source_manifest_hash,
+                "attempts_sha256": source_attempt_artifact["sha256"],
+                "extraction_config_id": source_identity.extraction_config_id,
+                "contract_schema_sha256": (
+                    source_identity.contract_schema_sha256
+                ),
+                "instructions_sha256": source_identity.instructions_sha256,
+                "canonicalization_policy": (
+                    source_identity.canonicalization_policy
+                ),
+                "model_provider": source_identity.model_provider,
+                "model_name": source_identity.model_name,
+            },
+            "target": {
+                "extraction_config_id": EXTRACTION_CONFIG_ID,
+                "contract_schema_sha256": CONTRACT_SCHEMA_SHA256,
+                "instructions_sha256": INSTRUCTIONS_SHA256,
+                "canonicalization_policy": EXTRACTION_CONFIG[
+                    "canonicalization_policy"
+                ],
+            },
+            "counts": {
+                "documents": len(plan.documents),
+                "source_attempts": plan.source_attempt_count,
+                "precanonical_recanonicalized": (
+                    plan.precanonical_record_count
+                ),
+                "deterministic_preserved": plan.deterministic_record_count,
+                "model_calls": 0,
+                "attempts": len(attempts),
+                "current_extractions": len(current),
+                "blocking_review": blocking_count,
+            },
+            "artifacts": {
+                "documents": _artifact(document_path, plan.documents),
+                "attempts": _artifact(attempt_path, attempts),
+                "manual_reviews": _artifact(
+                    manual_path, manual_reviews
+                ),
+                "current_extractions": _artifact(current_path, current),
+                "review_queue": _artifact(queue_path, review_queue),
+            },
+        }
+        manifest_path = staging_dir / _EXTRACTION_MANIFEST
+        _write_json(manifest_path, manifest)
+        load_extraction_snapshot(
+            staging_dir,
+            expected_extraction_config_id=target_expected_extraction_config_id,
+        )
+        _validate_new_output(plan.output_dir)
+        staging_dir.rename(plan.output_dir)
+        published = True
+    finally:
+        if not published:
+            _cleanup_staging(staging_dir, plan.output_dir, prefix)
+
+    return RecanonicalizationStageResult(
+        output_dir=plan.output_dir,
+        documents_path=plan.output_dir / _EXTRACTION_DOCUMENTS,
+        attempts_path=plan.output_dir / _EXTRACTION_ATTEMPTS,
+        manual_reviews_path=plan.output_dir / _EXTRACTION_MANUAL_REVIEWS,
+        current_extractions_path=plan.output_dir / _EXTRACTION_CURRENT,
+        review_queue_path=plan.output_dir / _EXTRACTION_REVIEW_QUEUE,
+        manifest_path=plan.output_dir / _EXTRACTION_MANIFEST,
+        total_documents=len(plan.documents),
+        compatible_existing_count=0,
+        pending_document_count=0,
+        model_calls_planned=0,
+        blocking_review_count=blocking_count,
+        source_attempt_count=plan.source_attempt_count,
+        precanonical_record_count=plan.precanonical_record_count,
+        deterministic_record_count=plan.deterministic_record_count,
+        model_calls=0,
     )
 
 
@@ -1078,6 +1527,23 @@ def _build_parser() -> argparse.ArgumentParser:
     extract.add_argument("--execute-model", action="store_true")
     _add_expected_config(extract)
     _add_dry_run(extract)
+
+    recanonicalize = subparsers.add_parser(
+        "recanonicalize",
+        help="replay a frozen extraction snapshot without model calls",
+    )
+    recanonicalize.add_argument(
+        "--source-extraction-snapshot", type=Path, required=True
+    )
+    recanonicalize.add_argument("--documents", type=Path, required=True)
+    recanonicalize.add_argument("--output-dir", type=Path, required=True)
+    recanonicalize.add_argument(
+        "--source-expected-extraction-config-id", required=True
+    )
+    recanonicalize.add_argument(
+        "--target-expected-extraction-config-id", required=True
+    )
+    _add_dry_run(recanonicalize)
 
     silver = subparsers.add_parser("silver", help="selection to Silver")
     silver.add_argument("--extraction-snapshot", type=Path, required=True)
@@ -1184,6 +1650,35 @@ def _handle_extract(args: argparse.Namespace) -> int:
         if result.blocking_review_count:
             return EXIT_REVIEW_REQUIRED
     return EXIT_SUCCESS
+
+
+def _handle_recanonicalize(args: argparse.Namespace) -> int:
+    arguments = {
+        "source_snapshot": args.source_extraction_snapshot,
+        "documents": args.documents,
+        "output_dir": args.output_dir,
+        "source_expected_extraction_config_id": (
+            args.source_expected_extraction_config_id
+        ),
+        "target_expected_extraction_config_id": (
+            args.target_expected_extraction_config_id
+        ),
+    }
+    if args.dry_run:
+        plan = plan_recanonicalization_snapshot(**arguments)
+        _print_recanonicalization_plan(plan)
+        print("DRY RUN: no model/network/write execution performed")
+        return EXIT_SUCCESS
+    result = recanonicalize_extraction_snapshot(**arguments)
+    print(
+        f"recanonicalization complete: output={result.output_dir} "
+        f"blocking_review={result.blocking_review_count}"
+    )
+    return (
+        EXIT_REVIEW_REQUIRED
+        if result.blocking_review_count
+        else EXIT_SUCCESS
+    )
 
 
 def _handle_silver(args: argparse.Namespace) -> int:
@@ -1472,6 +1967,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     handlers = {
         "source": _handle_source,
         "extract": _handle_extract,
+        "recanonicalize": _handle_recanonicalize,
         "silver": _handle_silver,
         "downstream": _handle_downstream,
         "build-reference-data": _handle_build_reference,

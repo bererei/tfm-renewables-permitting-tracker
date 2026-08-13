@@ -1698,7 +1698,7 @@ def test_review_io_public_signatures_are_stable() -> None:
 
 
 def test_review_column_contracts_include_manual_traceability() -> None:
-    assert len(AI_EXTRACTION_LOG_COLUMNS) == 44
+    assert len(AI_EXTRACTION_LOG_COLUMNS) == 55
     assert len(REVIEW_QUEUE_COLUMNS) == 19
     assert len(MANUAL_REVIEW_COLUMNS) == 12
     assert "extraction_config_id" in MANUAL_REVIEW_COLUMNS

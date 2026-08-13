@@ -1,15 +1,24 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
+from datetime import datetime, timezone
+from hashlib import sha256
+from types import MappingProxyType
 from typing import Any, Mapping
+
+import pandas as pd
 
 from renewables_permitting.extraction.canonicalization import (
     canonicalize_project_extraction,
+    preclassify_document_without_model,
 )
 from renewables_permitting.extraction.config import (
     CONTRACT_SCHEMA_SHA256,
+    DOCUMENT_VALIDATION_VERSION,
     EXTRACTION_CONFIG,
     EXTRACTION_CONFIG_ID,
+    INSTRUCTIONS_SHA256,
 )
 from renewables_permitting.extraction.models import (
     BOEProjectExtraction,
@@ -18,6 +27,44 @@ from renewables_permitting.extraction.models import (
 from renewables_permitting.extraction.validation import (
     validate_extraction_against_document,
 )
+from renewables_permitting.extraction.review import (
+    _count_extracted_nodes,
+    normalise_ai_extraction_attempts_log,
+)
+
+
+@dataclass(frozen=True)
+class HistoricalExtractionIdentity:
+    """One explicitly supported frozen extraction identity."""
+
+    extraction_config_id: str
+    contract_schema_sha256: str
+    instructions_sha256: str
+    canonicalization_policy: str
+    model_provider: str
+    model_name: str
+
+
+_FREEZE_SOURCE_IDENTITY = HistoricalExtractionIdentity(
+    extraction_config_id="67a0bd9d0759a322",
+    contract_schema_sha256=(
+        "455028c7de0ada067264cd695b4e7dab9de377b31105e141321313d61c3ff283"
+    ),
+    instructions_sha256=(
+        "b48240832d1b274af0435cea42cc6d305d2aec83b5a3395a1d5ce1529eff0607"
+    ),
+    canonicalization_policy=(
+        "termination_object_filter_environmental_terminal_whitelist_"
+        "lexical_authorization_grants_v2_"
+        "explicit_relation_validation_conservative_grouping_v1"
+    ),
+    model_provider="gemini",
+    model_name="google:gemini-2.5-flash",
+)
+
+SUPPORTED_RECANONICALIZATION_SOURCE_IDENTITIES = MappingProxyType({
+    _FREEZE_SOURCE_IDENTITY.extraction_config_id: _FREEZE_SOURCE_IDENTITY,
+})
 
 
 @dataclass(frozen=True)
@@ -144,3 +191,180 @@ def recanonicalize_attempt_with_provenance(
             EXTRACTION_CONFIG["canonicalization_policy"]
         ),
     )
+
+
+def historical_recanonicalization_identity(
+    extraction_config_id: str,
+) -> HistoricalExtractionIdentity:
+    """Resolve only frozen source identities explicitly approved for replay."""
+
+    try:
+        return SUPPORTED_RECANONICALIZATION_SOURCE_IDENTITIES[
+            extraction_config_id
+        ]
+    except KeyError as error:
+        raise ValueError(
+            "La configuración histórica no está aprobada para "
+            f"recanonicalización: {extraction_config_id!r}."
+        ) from error
+
+
+def _is_missing(value: Any) -> bool:
+    if value is None or value is pd.NA:
+        return True
+    try:
+        return bool(pd.isna(value))
+    except (TypeError, ValueError):
+        return False
+
+
+def _recanonicalized_attempt_id(
+    *,
+    source_attempt_id: str,
+    source_document_sha256: str,
+) -> str:
+    identity = (
+        "recanonicalized-attempt-v1|"
+        f"{source_attempt_id}|{source_document_sha256}|{EXTRACTION_CONFIG_ID}"
+    )
+    return sha256(identity.encode("utf-8")).hexdigest()[:32]
+
+
+def build_recanonicalized_attempt_record(
+    source_attempt: Mapping[str, Any],
+    *,
+    document: BOESourceDocument,
+    source_identity: HistoricalExtractionIdentity,
+    source_run_id: str,
+    recanonicalized_at: datetime,
+) -> dict[str, Any]:
+    """Build one target attempt without issuing or impersonating an AI call."""
+
+    source_attempt_id = _required_attempt_text(source_attempt, "attempt_id")
+    source_config_id = _required_attempt_text(
+        source_attempt, "extraction_config_id"
+    )
+    if source_config_id != source_identity.extraction_config_id:
+        raise ValueError(
+            "El intento de origen no coincide con la identidad histórica."
+        )
+    if _required_attempt_text(
+        source_attempt, "contract_schema_sha256"
+    ) != source_identity.contract_schema_sha256:
+        raise ValueError(
+            "El contrato del intento no coincide con la identidad histórica."
+        )
+    if _required_attempt_text(
+        source_attempt, "instructions_sha256"
+    ) != source_identity.instructions_sha256:
+        raise ValueError(
+            "Las instrucciones del intento no coinciden con la identidad "
+            "histórica."
+        )
+    if _required_attempt_text(
+        source_attempt, "source_document_sha256"
+    ) != document.source_document_sha256:
+        raise ValueError(
+            "El intento de origen no corresponde al documento fuente."
+        )
+
+    precanonical_json = source_attempt.get("precanonical_extraction_json")
+    if _is_missing(precanonical_json):
+        extraction, adjustments = preclassify_document_without_model(document)
+        if extraction is None:
+            raise ValueError(
+                "Un intento sin payload pre-canónico no puede reproducirse "
+                "por la vía determinista vigente."
+            )
+        source_extraction = BOEProjectExtraction.model_validate_json(
+            _required_attempt_text(source_attempt, "extraction_json")
+        )
+        if source_extraction != extraction:
+            raise ValueError(
+                "La extracción determinista histórica cambió semánticamente."
+            )
+        validate_extraction_against_document(
+            document=document,
+            extraction=extraction,
+        )
+        attempt_origin = "deterministic_reissued"
+        source_model_provider: Any = pd.NA
+        source_model_name: Any = pd.NA
+        model_provider: Any = pd.NA
+        model_name: Any = pd.NA
+        processing_stage = "deterministic_scope_guard"
+    else:
+        result = recanonicalize_attempt_with_provenance(
+            source_attempt,
+            document=document,
+        )
+        extraction = result.extraction
+        adjustments = list(result.adjustments)
+        attempt_origin = "recanonicalized"
+        source_model_provider = result.source_model_provider
+        source_model_name = result.source_model_name
+        model_provider = result.source_model_provider
+        model_name = result.source_model_name
+        processing_stage = "recanonicalized"
+
+    instant = recanonicalized_at
+    if instant.tzinfo is None or instant.utcoffset() is None:
+        raise ValueError("recanonicalized_at debe incluir zona horaria.")
+    instant = instant.astimezone(timezone.utc)
+    counts = _count_extracted_nodes(extraction)
+    record = dict(source_attempt)
+    record.update({
+        "attempt_id": _recanonicalized_attempt_id(
+            source_attempt_id=source_attempt_id,
+            source_document_sha256=document.source_document_sha256,
+        ),
+        "attempt_origin": attempt_origin,
+        "source_attempt_id": source_attempt_id,
+        "source_extraction_config_id": source_identity.extraction_config_id,
+        "source_contract_schema_sha256": (
+            source_identity.contract_schema_sha256
+        ),
+        "source_instructions_sha256": source_identity.instructions_sha256,
+        "source_canonicalization_policy": (
+            source_identity.canonicalization_policy
+        ),
+        "source_model_provider": source_model_provider,
+        "source_model_name": source_model_name,
+        "target_canonicalization_policy": EXTRACTION_CONFIG[
+            "canonicalization_policy"
+        ],
+        "recanonicalized_at": instant,
+        "recanonicalization_source_run": source_run_id,
+        "extraction_config_id": EXTRACTION_CONFIG_ID,
+        "contract_schema_sha256": CONTRACT_SCHEMA_SHA256,
+        "instructions_sha256": INSTRUCTIONS_SHA256,
+        "model_provider": model_provider,
+        "model_name": model_name,
+        "document_validation_version": DOCUMENT_VALIDATION_VERSION,
+        "classification_status": extraction.classification_status.value,
+        "document_scope": (
+            extraction.document_scope.value
+            if extraction.document_scope is not None
+            else None
+        ),
+        "classification_reason": extraction.classification_reason,
+        **counts,
+        "extraction_json": extraction.model_dump_json(),
+        "extracted_at": instant,
+        "extraction_status": "ok",
+        "error_type": None,
+        "error_message": None,
+        "processing_stage": processing_stage,
+        "document_validation_status": "passed",
+        "document_validation_issue_count": 0,
+        "validation_issues_json": None,
+        "deterministic_adjustment_count": len(adjustments),
+        "deterministic_adjustments_json": (
+            json.dumps(adjustments, ensure_ascii=False)
+            if adjustments
+            else None
+        ),
+    })
+    return normalise_ai_extraction_attempts_log(
+        pd.DataFrame([record])
+    ).iloc[0].to_dict()

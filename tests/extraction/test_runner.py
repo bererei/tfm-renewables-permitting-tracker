@@ -18,6 +18,7 @@ from renewables_permitting.extraction.config import (
     AI_MODEL_NAME,
     CONTRACT_SCHEMA_SHA256,
     DOCUMENT_VALIDATION_VERSION,
+    EXTRACTION_CONFIG,
     EXTRACTION_CONFIG_ID,
     INSTRUCTIONS_SHA256,
     MAX_MODEL_REQUESTS_PER_DOCUMENT,
@@ -274,6 +275,19 @@ def _expected_base_record(
             prepared.input_selection_marker if prepared else None
         ),
         "input_excluded_chars": prepared.input_excluded_chars if prepared else None,
+        "attempt_origin": "model" if prepared is not None else "deterministic",
+        "source_attempt_id": None,
+        "source_extraction_config_id": None,
+        "source_contract_schema_sha256": None,
+        "source_instructions_sha256": None,
+        "source_canonicalization_policy": None,
+        "source_model_provider": None,
+        "source_model_name": None,
+        "target_canonicalization_policy": EXTRACTION_CONFIG[
+            "canonicalization_policy"
+        ],
+        "recanonicalized_at": None,
+        "recanonicalization_source_run": None,
         "extraction_config_id": EXTRACTION_CONFIG_ID,
         "contract_schema_sha256": CONTRACT_SCHEMA_SHA256,
         "instructions_sha256": INSTRUCTIONS_SHA256,

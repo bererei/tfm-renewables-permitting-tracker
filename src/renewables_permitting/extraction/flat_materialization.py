@@ -444,11 +444,19 @@ def _validate_current_extractions_provenance(
 
     manual = selection.eq("manually_validated").fillna(False)
     automatic = ~manual
+    deterministic_origin = (
+        current_extractions["attempt_origin"].astype("string").isin(
+            ["deterministic", "deterministic_reissued"]
+        )
+        if "attempt_origin" in current_extractions.columns
+        else pd.Series(False, index=current_extractions.index)
+    )
+    model_backed = automatic & ~deterministic_origin
     for column, expected in (
         ("model_provider", MODEL_PROVIDER),
         ("model_name", AI_MODEL_NAME),
     ):
-        mismatch = automatic & ~current_extractions[column].eq(
+        mismatch = model_backed & ~current_extractions[column].eq(
             expected
         ).fillna(False)
         if mismatch.any():

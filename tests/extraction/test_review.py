@@ -69,6 +69,17 @@ EXPECTED_AI_EXTRACTION_LOG_COLUMNS = [
     "input_selection_strategy",
     "input_selection_marker",
     "input_excluded_chars",
+    "attempt_origin",
+    "source_attempt_id",
+    "source_extraction_config_id",
+    "source_contract_schema_sha256",
+    "source_instructions_sha256",
+    "source_canonicalization_policy",
+    "source_model_provider",
+    "source_model_name",
+    "target_canonicalization_policy",
+    "recanonicalized_at",
+    "recanonicalization_source_run",
     "extraction_config_id",
     "contract_schema_sha256",
     "instructions_sha256",
@@ -402,7 +413,7 @@ def test_column_contracts_are_exact() -> None:
     assert AI_EXTRACTION_LOG_COLUMNS == EXPECTED_AI_EXTRACTION_LOG_COLUMNS
     assert REVIEW_QUEUE_COLUMNS == EXPECTED_REVIEW_QUEUE_COLUMNS
     assert MANUAL_REVIEW_COLUMNS == EXPECTED_MANUAL_REVIEW_COLUMNS
-    assert len(AI_EXTRACTION_LOG_COLUMNS) == 44
+    assert len(AI_EXTRACTION_LOG_COLUMNS) == 55
     assert len(REVIEW_QUEUE_COLUMNS) == 19
     assert len(MANUAL_REVIEW_COLUMNS) == 12
 
@@ -819,11 +830,10 @@ def test_manual_selection_preserves_dtypes_without_concat_future_warning() -> No
     assert str(selected["duration_seconds"].dtype) == "float64"
     assert str(selected["extracted_at"].dtype) == "datetime64[ns, UTC]"
     assert selected.columns.tolist() == [
-        *AI_EXTRACTION_LOG_COLUMNS,
-        "selection_source",
-        "manual_review_id",
-        "source_attempt_id",
-        "review_status",
+            *AI_EXTRACTION_LOG_COLUMNS,
+            "selection_source",
+            "manual_review_id",
+            "review_status",
         "reviewed_at_utc",
         "reviewer",
         "review_notes",
@@ -1850,11 +1860,15 @@ def test_review_public_workflow_signatures_are_stable() -> None:
         "attempts",
         "source_df",
         "manual_reviews",
+        "expected_extraction_config_id",
+        "expected_document_validation_version",
     )
     assert tuple(signature(select_best_valid_extractions).parameters) == (
         "attempts",
         "source_df",
         "manual_reviews",
+        "expected_extraction_config_id",
+        "expected_document_validation_version",
     )
     assert tuple(signature(build_pending_candidates).parameters) == (
         "source_df",
