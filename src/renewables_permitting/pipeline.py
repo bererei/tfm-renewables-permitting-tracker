@@ -60,11 +60,21 @@ from renewables_permitting.extraction.config import (
 from renewables_permitting.extraction.documents import (
     build_source_document,
 )
+from renewables_permitting.extraction.corrections import (
+    apply_administrative_action_corrections,
+    load_administrative_action_corrections,
+)
 from renewables_permitting.extraction.flat_materialization import (
     FlatMaterializationError,
     FlatMaterializationResult,
     load_flat_materialization,
     materialize_current_extractions,
+)
+from renewables_permitting.extraction.flat_validation import (
+    validate_flat_tables,
+)
+from renewables_permitting.extraction.flatten import (
+    flatten_current_extractions,
 )
 from renewables_permitting.extraction.persistence import save_parquet_atomic
 from renewables_permitting.extraction.recanonicalization import (
@@ -1128,6 +1138,36 @@ def load_extraction_snapshot(
     )
 
 
+def _extraction_snapshot_identity(
+    loaded: LoadedExtractionSnapshot,
+) -> str:
+    """Return a path-independent identity for a verified extraction snapshot."""
+
+    persisted = loaded.manifest.get("snapshot_identity_sha256")
+    if isinstance(persisted, str) and re.fullmatch(r"[0-9a-f]{64}", persisted):
+        return persisted
+    artifacts = loaded.manifest.get("artifacts")
+    if not isinstance(artifacts, Mapping):
+        raise PipelineError("Extraction snapshot has no artifact identity.")
+    artifact_hashes: dict[str, str] = {}
+    for name in sorted(artifacts):
+        entry = artifacts[name]
+        if not isinstance(entry, Mapping) or not isinstance(
+            entry.get("sha256"), str
+        ):
+            raise PipelineError("Extraction artifact identity is incomplete.")
+        artifact_hashes[name] = str(entry["sha256"])
+    return sha256(_canonical_json_bytes({
+        "stage": loaded.manifest.get("stage"),
+        "stage_version": loaded.manifest.get("stage_version"),
+        "extraction_config_id": loaded.manifest.get("extraction_config_id"),
+        "document_identity_sha256": loaded.manifest.get(
+            "document_identity_sha256"
+        ),
+        "artifact_sha256": artifact_hashes,
+    })).hexdigest()
+
+
 def plan_recanonicalization_snapshot(
     *,
     source_snapshot: Path,
@@ -1457,6 +1497,7 @@ def run_silver_stage(
     extraction_snapshot: Path,
     output_dir: Path,
     expected_extraction_config_id: str,
+    corrections: Path | None = None,
     dry_run: bool = False,
 ) -> FlatMaterializationResult | LoadedExtractionSnapshot:
     """Publish Silver only after recomputing a zero-blocker review gate."""
@@ -1480,13 +1521,41 @@ def run_silver_stage(
         f"silver: current={len(loaded.current_extractions)} "
         f"output={output_dir}"
     )
+    loaded_corrections = (
+        load_administrative_action_corrections(corrections)
+        if corrections is not None
+        else None
+    )
+    if loaded_corrections is not None:
+        print(
+            "silver corrections: "
+            f"approved={len(loaded_corrections.corrections)} "
+            f"identity={loaded_corrections.semantic_identity}"
+        )
     if dry_run:
+        if loaded_corrections is not None:
+            correction_application = apply_administrative_action_corrections(
+                loaded.current_extractions,
+                loaded_corrections,
+                source_extraction_snapshot_id=(
+                    _extraction_snapshot_identity(loaded)
+                ),
+            )
+            validate_flat_tables(flatten_current_extractions(
+                correction_application.effective_current_extractions
+            ))
         print("DRY RUN: Silver was not materialized")
         return loaded
     return materialize_current_extractions(
         loaded.current_extractions,
         output_dir=output_dir,
         expected_extraction_config_id=expected_extraction_config_id,
+        corrections=loaded_corrections,
+        source_extraction_snapshot_id=(
+            _extraction_snapshot_identity(loaded)
+            if loaded_corrections is not None
+            else None
+        ),
     )
 
 
@@ -1548,6 +1617,11 @@ def _build_parser() -> argparse.ArgumentParser:
     silver = subparsers.add_parser("silver", help="selection to Silver")
     silver.add_argument("--extraction-snapshot", type=Path, required=True)
     silver.add_argument("--output-dir", type=Path, required=True)
+    silver.add_argument(
+        "--corrections",
+        type=Path,
+        help="explicit approved administrative-action corrections CSV",
+    )
     _add_expected_config(silver)
     _add_dry_run(silver)
 
@@ -1686,6 +1760,7 @@ def _handle_silver(args: argparse.Namespace) -> int:
         extraction_snapshot=args.extraction_snapshot,
         output_dir=args.output_dir,
         expected_extraction_config_id=args.expected_extraction_config_id,
+        corrections=args.corrections,
         dry_run=args.dry_run,
     )
     if isinstance(result, FlatMaterializationResult):

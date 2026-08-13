@@ -22,6 +22,12 @@ from renewables_permitting.extraction.config import (
     INSTRUCTIONS_SHA256,
     MODEL_PROVIDER,
 )
+from renewables_permitting.extraction.corrections import (
+    APPLIED_CORRECTION_COLUMNS,
+    AdministrativeActionCorrectionResult,
+    LoadedAdministrativeActionCorrections,
+    apply_administrative_action_corrections,
+)
 from renewables_permitting.extraction.flat_contract import (
     FLAT_CONTRACT_VERSION,
     FLAT_TABLE_SPECS,
@@ -37,6 +43,7 @@ from renewables_permitting.extraction.models import BOEProjectExtraction
 
 
 _MANIFEST_FILENAME = "manifest.json"
+_APPLIED_CORRECTIONS_FILENAME = "applied_corrections.parquet"
 _LINEAGE_COLUMNS = (
     "identificador_boe",
     "attempt_id",
@@ -47,6 +54,23 @@ _LINEAGE_COLUMNS = (
     "source_attempt_id",
 )
 _ERROR_SAMPLE_LIMIT = 5
+_APPLIED_CORRECTIONS_SCHEMA = pa.schema([
+    pa.field("correction_id", pa.string(), nullable=False),
+    pa.field("correction_version", pa.int64(), nullable=False),
+    pa.field("boe_id", pa.string(), nullable=False),
+    pa.field("entity_type", pa.string(), nullable=False),
+    pa.field("entity_id", pa.string(), nullable=False),
+    pa.field("operation", pa.string(), nullable=False),
+    pa.field("reason_code", pa.string(), nullable=False),
+    pa.field("source_action_type", pa.string(), nullable=False),
+    pa.field("source_decision", pa.string(), nullable=False),
+    pa.field("source_evidence_sha256", pa.string(), nullable=False),
+    pa.field("corrections_file_sha256", pa.string(), nullable=False),
+    pa.field("corrections_identity", pa.string(), nullable=False),
+    pa.field("source_extraction_snapshot_id", pa.string(), nullable=False),
+    pa.field("source_extraction_config_id", pa.string(), nullable=False),
+    pa.field("applied", pa.bool_(), nullable=False),
+])
 
 
 @dataclass(frozen=True)
@@ -58,6 +82,7 @@ class FlatMaterializationResult:
     table_paths: Mapping[str, Path]
     row_counts: Mapping[str, int]
     materialization_id: str
+    applied_corrections_path: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -214,6 +239,47 @@ def _read_contract_parquet(
             "el contrato."
         )
     return arrow_table.to_pandas()
+
+
+def _write_applied_corrections(
+    dataframe: pd.DataFrame,
+    path: Path,
+) -> None:
+    """Write the correction audit sidecar with its closed Arrow schema."""
+
+    if tuple(dataframe.columns) != APPLIED_CORRECTION_COLUMNS:
+        raise FlatMaterializationError(
+            "El sidecar de correcciones no coincide con su contrato."
+        )
+    arrow_table = pa.Table.from_pandas(
+        dataframe,
+        schema=_APPLIED_CORRECTIONS_SCHEMA,
+        preserve_index=False,
+        safe=True,
+    )
+    pq.write_table(arrow_table, path)
+
+
+def _read_applied_corrections(path: Path) -> pd.DataFrame:
+    """Reload and type the correction audit sidecar for round-trip checks."""
+
+    arrow_table = pq.read_table(path)
+    if not arrow_table.schema.equals(
+        _APPLIED_CORRECTIONS_SCHEMA,
+        check_metadata=False,
+    ):
+        raise FlatMaterializationError(
+            "El esquema Arrow de applied_corrections no coincide."
+        )
+    dataframe = arrow_table.to_pandas()
+    for column in APPLIED_CORRECTION_COLUMNS:
+        if column == "correction_version":
+            dataframe[column] = dataframe[column].astype("Int64")
+        elif column == "applied":
+            dataframe[column] = dataframe[column].astype("boolean")
+        else:
+            dataframe[column] = dataframe[column].astype("string")
+    return dataframe
 
 
 def _normalise_lineage_records(
@@ -588,6 +654,7 @@ def _materialization_id(
     *,
     identity: list[dict[str, Any]],
     context: Mapping[str, Any],
+    corrections_context: Mapping[str, Any] | None = None,
 ) -> str:
     payload = {
         "flat_contract_version": FLAT_CONTRACT_VERSION,
@@ -602,7 +669,67 @@ def _materialization_id(
         },
         "semantic_table_sha256": _semantic_table_hashes(tables),
     }
+    if corrections_context is not None:
+        payload["corrections"] = {
+            "identity": corrections_context["identity"],
+            "correction_ids": corrections_context["correction_ids"],
+        }
     return sha256(_canonical_json_bytes(payload)).hexdigest()
+
+
+def _derived_source_snapshot_id(
+    *,
+    extraction_config_id: str,
+    source_identity: list[dict[str, Any]],
+) -> str:
+    """Derive a path-free fallback identity for direct API callers."""
+
+    return sha256(_canonical_json_bytes({
+        "extraction_config_id": extraction_config_id,
+        "input_identity": source_identity,
+    })).hexdigest()
+
+
+def _corrections_context(
+    corrections: LoadedAdministrativeActionCorrections,
+    application: AdministrativeActionCorrectionResult,
+    *,
+    source_extraction_snapshot_id: str,
+    extraction_config_id: str,
+) -> dict[str, Any]:
+    """Build manifest metadata from a fully applied correction registry."""
+
+    correction_ids = sorted(
+        application.applied_corrections["correction_id"].astype(str).tolist()
+    )
+    return {
+        "applied": True,
+        "logical_path": corrections.logical_path,
+        "content_sha256": corrections.file_sha256,
+        "identity": corrections.semantic_identity,
+        "approved_count": len(corrections.corrections),
+        "applied_count": len(application.applied_corrections),
+        "correction_ids": correction_ids,
+        "source_extraction_snapshot_id": source_extraction_snapshot_id,
+        "source_extraction_config_id": extraction_config_id,
+    }
+
+
+def _no_corrections_context(extraction_config_id: str) -> dict[str, Any]:
+    """Describe explicitly that a Silver snapshot has no correction layer."""
+
+    return {
+        "applied": False,
+        "logical_path": None,
+        "content_sha256": None,
+        "identity": None,
+        "approved_count": 0,
+        "applied_count": 0,
+        "correction_ids": [],
+        "source_extraction_snapshot_id": None,
+        "source_extraction_config_id": extraction_config_id,
+        "artifact": None,
+    }
 
 
 def _table_manifest_entries(
@@ -632,8 +759,9 @@ def _manifest_payload(
     context: Mapping[str, Any],
     input_identity: list[dict[str, Any]],
     materialization_id: str,
+    corrections_context: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
-    return {
+    payload = {
         "materialization_id": materialization_id,
         "flat_contract_version": FLAT_CONTRACT_VERSION,
         "extraction_config_id": context["extraction_config_id"],
@@ -652,6 +780,22 @@ def _manifest_payload(
         "input_identity": input_identity,
         "tables": _table_manifest_entries(staging_dir, tables),
     }
+    if corrections_context is None:
+        payload["corrections"] = _no_corrections_context(
+            str(context["extraction_config_id"])
+        )
+    else:
+        artifact_path = staging_dir / _APPLIED_CORRECTIONS_FILENAME
+        payload["corrections"] = {
+            **corrections_context,
+            "artifact": {
+                "filename": _APPLIED_CORRECTIONS_FILENAME,
+                "row_count": corrections_context["applied_count"],
+                "columns": list(APPLIED_CORRECTION_COLUMNS),
+                "sha256": _sha256_file(artifact_path),
+            },
+        }
+    return payload
 
 
 def _validate_output_available(output_dir: Path) -> None:
@@ -681,6 +825,7 @@ def _verify_expected_files(
     staging_dir: Path,
     *,
     include_manifest: bool,
+    include_applied_corrections: bool = False,
 ) -> None:
     expected = {
         table_spec.filename
@@ -688,6 +833,8 @@ def _verify_expected_files(
     }
     if include_manifest:
         expected.add(_MANIFEST_FILENAME)
+    if include_applied_corrections:
+        expected.add(_APPLIED_CORRECTIONS_FILENAME)
     actual = {path.name for path in staging_dir.iterdir()}
     if actual != expected or any(
         not (staging_dir / filename).is_file()
@@ -730,6 +877,8 @@ def _materialize_validated_flat_tables(
     output_dir: Path,
     manifest_context: Mapping[str, Any] | None,
     input_identity: list[dict[str, Any]] | None = None,
+    correction_application: AdministrativeActionCorrectionResult | None = None,
+    corrections_context: Mapping[str, Any] | None = None,
 ) -> FlatMaterializationResult:
     output_dir = Path(output_dir).absolute()
     _validate_output_available(output_dir)
@@ -739,6 +888,7 @@ def _materialize_validated_flat_tables(
         tables,
         identity=identity,
         context=context,
+        corrections_context=corrections_context,
     )
 
     parent_dir = output_dir.parent
@@ -759,8 +909,32 @@ def _materialize_validated_flat_tables(
                 staging_dir / table_spec.filename,
                 table_spec,
             )
-        _verify_expected_files(staging_dir, include_manifest=False)
+        if correction_application is not None:
+            _write_applied_corrections(
+                correction_application.applied_corrections,
+                staging_dir / _APPLIED_CORRECTIONS_FILENAME,
+            )
+        _verify_expected_files(
+            staging_dir,
+            include_manifest=False,
+            include_applied_corrections=correction_application is not None,
+        )
         _reload_and_verify_tables(staging_dir, tables)
+        if correction_application is not None:
+            reloaded_corrections = _read_applied_corrections(
+                staging_dir / _APPLIED_CORRECTIONS_FILENAME
+            )
+            try:
+                pd.testing.assert_frame_equal(
+                    reloaded_corrections,
+                    correction_application.applied_corrections,
+                    check_dtype=True,
+                    check_exact=True,
+                )
+            except AssertionError as error:
+                raise FlatMaterializationError(
+                    "El sidecar de correcciones releído no coincide."
+                ) from error
 
         manifest = _manifest_payload(
             staging_dir,
@@ -768,6 +942,7 @@ def _materialize_validated_flat_tables(
             context=context,
             input_identity=identity,
             materialization_id=materialization_id,
+            corrections_context=corrections_context,
         )
         manifest_path = staging_dir / _MANIFEST_FILENAME
         manifest_path.write_text(
@@ -786,7 +961,11 @@ def _materialize_validated_flat_tables(
             raise FlatMaterializationError(
                 "El manifiesto releído no coincide con el escrito."
             )
-        _verify_expected_files(staging_dir, include_manifest=True)
+        _verify_expected_files(
+            staging_dir,
+            include_manifest=True,
+            include_applied_corrections=correction_application is not None,
+        )
 
         _validate_output_available(output_dir)
         staging_dir.rename(output_dir)
@@ -813,6 +992,11 @@ def _materialize_validated_flat_tables(
         table_paths=table_paths,
         row_counts=row_counts,
         materialization_id=materialization_id,
+        applied_corrections_path=(
+            output_dir / _APPLIED_CORRECTIONS_FILENAME
+            if correction_application is not None
+            else None
+        ),
     )
 
 
@@ -844,6 +1028,8 @@ def materialize_current_extractions(
     *,
     output_dir: Path,
     expected_extraction_config_id: str,
+    corrections: LoadedAdministrativeActionCorrections | None = None,
+    source_extraction_snapshot_id: str | None = None,
 ) -> FlatMaterializationResult:
     """Valida la entrada canónica y publica una versión Silver completa.
 
@@ -867,16 +1053,53 @@ def materialize_current_extractions(
 
     output_dir = Path(output_dir).absolute()
     _validate_output_available(output_dir)
-    context, identity = _current_context(
+    source_context, source_identity = _current_context(
         current_extractions,
         extraction_config_id=expected_extraction_config_id,
     )
-    tables = flatten_current_extractions(current_extractions)
+    effective_current = current_extractions
+    correction_application = None
+    correction_context = None
+    if corrections is not None:
+        snapshot_id = source_extraction_snapshot_id or _derived_source_snapshot_id(
+            extraction_config_id=expected_extraction_config_id,
+            source_identity=source_identity,
+        )
+        correction_application = apply_administrative_action_corrections(
+            current_extractions,
+            corrections,
+            source_extraction_snapshot_id=snapshot_id,
+        )
+        effective_current = (
+            correction_application.effective_current_extractions
+        )
+        correction_context = _corrections_context(
+            corrections,
+            correction_application,
+            source_extraction_snapshot_id=snapshot_id,
+            extraction_config_id=expected_extraction_config_id,
+        )
+    elif source_extraction_snapshot_id is not None:
+        raise ValueError(
+            "source_extraction_snapshot_id solo se admite junto con corrections."
+        )
+
+    context, identity = _current_context(
+        effective_current,
+        extraction_config_id=expected_extraction_config_id,
+    )
+    if context["lineage"] != source_context["lineage"]:
+        raise FlatMaterializationError(
+            "La aplicación de correcciones alteró el linaje de extracción."
+        )
+    tables = flatten_current_extractions(effective_current)
     return _materialize_validated_flat_tables(
         tables,
         output_dir=output_dir,
         manifest_context=context,
         input_identity=identity,
+        correction_application=correction_application,
+        corrections_context=correction_context,
     )
 
 
@@ -890,6 +1113,84 @@ def _manifest_sha256(value: Any, *, field_name: str) -> str:
             f"El manifest Silver contiene {field_name!r} no válido."
         )
     return value
+
+
+def _validated_corrections_manifest(
+    manifest: Mapping[str, Any],
+    *,
+    extraction_config_id: str,
+) -> Mapping[str, Any] | None:
+    """Validate correction metadata while accepting legacy Silver manifests."""
+
+    metadata = manifest.get("corrections")
+    if metadata is None:
+        return None
+    if not isinstance(metadata, Mapping) or not isinstance(
+        metadata.get("applied"), bool
+    ):
+        raise FlatMaterializationError(
+            "El manifest Silver contiene metadata de correcciones inválida."
+        )
+    if metadata.get("source_extraction_config_id") != extraction_config_id:
+        raise FlatMaterializationError(
+            "La config fuente del sidecar no coincide con Silver."
+        )
+    if not metadata["applied"]:
+        expected = _no_corrections_context(extraction_config_id)
+        if dict(metadata) != expected:
+            raise FlatMaterializationError(
+                "El manifest declara correcciones inactivas incoherentes."
+            )
+        return None
+
+    logical_path = metadata.get("logical_path")
+    if (
+        not isinstance(logical_path, str)
+        or not logical_path
+        or Path(logical_path).is_absolute()
+    ):
+        raise FlatMaterializationError(
+            "La ruta lógica del registro de correcciones no es válida."
+        )
+    for field_name in ("content_sha256", "identity"):
+        _manifest_sha256(metadata.get(field_name), field_name=field_name)
+    snapshot_id = metadata.get("source_extraction_snapshot_id")
+    if not isinstance(snapshot_id, str) or not snapshot_id:
+        raise FlatMaterializationError(
+            "Falta la identidad del snapshot de extracción fuente."
+        )
+    approved_count = metadata.get("approved_count")
+    applied_count = metadata.get("applied_count")
+    correction_ids = metadata.get("correction_ids")
+    if (
+        isinstance(approved_count, bool)
+        or not isinstance(approved_count, int)
+        or isinstance(applied_count, bool)
+        or not isinstance(applied_count, int)
+        or approved_count <= 0
+        or applied_count != approved_count
+        or not isinstance(correction_ids, list)
+        or correction_ids != sorted(set(correction_ids))
+        or len(correction_ids) != applied_count
+        or any(not isinstance(value, str) or not value for value in correction_ids)
+    ):
+        raise FlatMaterializationError(
+            "Los conteos o IDs de correcciones del manifest no son válidos."
+        )
+    artifact = metadata.get("artifact")
+    if not isinstance(artifact, Mapping) or (
+        artifact.get("filename") != _APPLIED_CORRECTIONS_FILENAME
+        or artifact.get("row_count") != applied_count
+        or artifact.get("columns") != list(APPLIED_CORRECTION_COLUMNS)
+    ):
+        raise FlatMaterializationError(
+            "El artefacto de correcciones del manifest no es válido."
+        )
+    _manifest_sha256(
+        artifact.get("sha256"),
+        field_name="corrections.artifact.sha256",
+    )
+    return metadata
 
 
 def load_flat_materialization(
@@ -942,6 +1243,10 @@ def load_flat_materialization(
         manifest.get("materialization_id"),
         field_name="materialization_id",
     )
+    corrections_metadata = _validated_corrections_manifest(
+        manifest,
+        extraction_config_id=extraction_config_id,
+    )
 
     entries = manifest.get("tables")
     if (
@@ -973,6 +1278,8 @@ def load_flat_materialization(
         _MANIFEST_FILENAME,
         *(spec.filename for spec in FLAT_TABLE_SPECS.values()),
     }
+    if corrections_metadata is not None:
+        expected_files.add(_APPLIED_CORRECTIONS_FILENAME)
     if not snapshot_dir.is_dir() or {
         path.name for path in snapshot_dir.iterdir()
     } != expected_files:
@@ -1020,6 +1327,46 @@ def load_flat_materialization(
         raise FlatMaterializationError(
             "El conteo de eventos del manifest Silver no coincide."
         )
+    if corrections_metadata is not None:
+        artifact = corrections_metadata["artifact"]
+        sidecar_path = snapshot_dir / _APPLIED_CORRECTIONS_FILENAME
+        if not sidecar_path.is_file() or sidecar_path.is_symlink():
+            raise FlatMaterializationError(
+                "Falta el sidecar Silver de correcciones aplicadas."
+            )
+        if _sha256_file(sidecar_path) != artifact["sha256"]:
+            raise FlatMaterializationError(
+                "El hash físico del sidecar de correcciones no coincide."
+            )
+        applied = _read_applied_corrections(sidecar_path)
+        if len(applied) != corrections_metadata["applied_count"]:
+            raise FlatMaterializationError(
+                "El row_count del sidecar de correcciones no coincide."
+            )
+        observed_ids = applied["correction_id"].astype(str).tolist()
+        if observed_ids != corrections_metadata["correction_ids"]:
+            raise FlatMaterializationError(
+                "Los IDs del sidecar de correcciones no coinciden."
+            )
+        expected_sidecar_values = {
+            "corrections_file_sha256": corrections_metadata[
+                "content_sha256"
+            ],
+            "corrections_identity": corrections_metadata["identity"],
+            "source_extraction_snapshot_id": corrections_metadata[
+                "source_extraction_snapshot_id"
+            ],
+            "source_extraction_config_id": extraction_config_id,
+        }
+        for column, expected in expected_sidecar_values.items():
+            if not applied[column].eq(expected).all():
+                raise FlatMaterializationError(
+                    f"El sidecar contradice {column!r}."
+                )
+        if not applied["applied"].eq(True).all():
+            raise FlatMaterializationError(
+                "El sidecar contiene correcciones no aplicadas."
+            )
 
     lineage = manifest.get("lineage")
     if not isinstance(lineage, Mapping):
@@ -1046,6 +1393,7 @@ def load_flat_materialization(
         tables,
         identity=[dict(record) for record in input_identity],
         context=context,
+        corrections_context=corrections_metadata,
     )
     if recomputed_id != materialization_id:
         raise FlatMaterializationError(

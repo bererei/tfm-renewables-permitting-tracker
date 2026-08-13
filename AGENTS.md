@@ -19,10 +19,13 @@ pipeline is complete. The historical extraction freeze remains preserved, but
 its canonical 140 review demonstrated chronology-blocking deterministic
 decision defects and authorised a limited reopening for `desestim*` and IDAA
 substantive-decision semantics. Both deterministic refinements and the batch
-recanonicalization path are implemented. The human correction layer and the
-**controlled execution and validation into a new snapshot** remain pending;
-generation roots and event structure are unchanged, and Gemini does not need
-to be called again. The extraction freeze is not yet closed.
+recanonicalization path are implemented. Approved human corrections are now
+versioned, immutable inputs applied between the canonical extraction snapshot
+and Silver; five historical-action exclusions are registered. The
+**controlled recanonicalized/corrected execution and validation into a new
+snapshot** remain pending; generation roots and event structure are unchanged,
+and Gemini does not need to be called again. The extraction freeze is not yet
+closed.
 Next: complete targeted human review, validate Gold against the replacement
 freeze-run Silver, then Streamlit.
 

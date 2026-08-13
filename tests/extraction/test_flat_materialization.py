@@ -1295,6 +1295,8 @@ def test_public_materialization_signatures_are_stable() -> None:
         "current_extractions",
         "output_dir",
         "expected_extraction_config_id",
+        "corrections",
+        "source_extraction_snapshot_id",
     )
     assert tuple(signature(materialize_flat_tables).parameters) == (
         "tables",

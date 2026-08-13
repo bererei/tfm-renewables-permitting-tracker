@@ -23,8 +23,12 @@ aprobado y reaplica únicamente la política determinista sobre sus payloads
 precanónicos, conservando el linaje y sin llamar al modelo.
 
 El refinamiento determinista de decisiones sustantivas IDAA está implementado.
-La capa de correcciones humanas y el run recanonicalizado final siguen
-pendientes; el freeze de reemplazo aún no está cerrado.
+La extracción canónica permanece inmutable: `silver --corrections` puede aplicar
+el registro versionado de cinco exclusiones históricas antes del flattening y
+publica su auditoría junto a Silver, de modo que Silver y Gold son
+regenerables. El run recanonicalizado y corregido final sigue pendiente; el
+freeze de reemplazo aún no está cerrado. Una interfaz de revisión en Streamlit
+es trabajo posterior.
 
 Las nuevas llamadas al modelo requieren `--execute-model`; un cambio semántico
 INE exige confirmación explícita antes del rebuild. Usa `--dry-run` para

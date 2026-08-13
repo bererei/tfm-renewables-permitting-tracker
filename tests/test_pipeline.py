@@ -20,6 +20,10 @@ from renewables_permitting.extraction.config import (
     EXTRACTION_CONFIG_ID,
     INSTRUCTIONS_SHA256,
 )
+from renewables_permitting.extraction.corrections import (
+    ADMINISTRATIVE_ACTION_CORRECTION_COLUMNS,
+    evidence_sha256,
+)
 from renewables_permitting.extraction.models import (
     AdministrativeAction,
     AdministrativeActionType,
@@ -246,6 +250,24 @@ def test_cli_help_lists_the_minimal_command_surface() -> None:
         "run",
     ):
         assert command in output
+
+
+def test_silver_help_exposes_explicit_corrections_option() -> None:
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "renewables_permitting.pipeline",
+            "silver",
+            "--help",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0
+    assert "--corrections" in completed.stdout
 
 
 def test_source_subcommand_uses_existing_apis_without_network(
@@ -516,6 +538,93 @@ def test_resume_with_manual_review_reuses_attempt_and_materializes_silver(
 
     assert extraction.blocking_review_count == 0
     assert silver.output_dir.exists()
+
+
+def test_silver_cli_applies_explicit_versioned_corrections(
+    tmp_path: Path,
+) -> None:
+    documents = _documents()
+    prepared = pipeline.prepare_documents(documents)
+    row = prepared.iloc[0]
+    extraction = _project_extraction(row)
+    historical_evidence = "Se convocó información pública anteriormente."
+    event = extraction.publication_events[0].model_copy(
+        update={
+            "administrative_actions": [
+                *extraction.publication_events[0].administrative_actions,
+                AdministrativeAction(
+                    action_type=AdministrativeActionType.PUBLIC_INFORMATION,
+                    decision=AdministrativeDecision.ANNOUNCED,
+                    targets=["event"],
+                    evidence=historical_evidence,
+                ),
+            ]
+        },
+        deep=True,
+    )
+    extraction = extraction.model_copy(
+        update={"publication_events": [event]}, deep=True
+    )
+    document = build_source_document(row)
+    attempts = normalise_ai_extraction_attempts_log(pd.DataFrame([
+        build_success_record(
+            document=document,
+            prepared=None,
+            extraction=extraction,
+            duration_seconds=0.1,
+            usage=RunUsage(),
+            adjustments=[],
+        )
+    ]))
+    extraction_stage = pipeline.run_extraction_stage(
+        documents=_write_documents(tmp_path / "input"),
+        attempts=_write_attempts(tmp_path, attempts),
+        output_dir=tmp_path / "extraction",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+    correction = pd.DataFrame([{
+        "correction_id": "pipeline-historical-action-v1",
+        "correction_version": 1,
+        "status": "approved",
+        "boe_id": "BOE-A-2026-101",
+        "entity_type": "administrative_action",
+        "operation": "exclude",
+        "administrative_action_id": "BOE-A-2026-101_event_1_action_2",
+        "expected_action_type": "informacion_publica",
+        "expected_decision": "convocado",
+        "expected_evidence_sha256": evidence_sha256(historical_evidence),
+        "reason_code": "historical_antecedent_misattributed",
+        "reason": "El trámite pertenece a un antecedente histórico.",
+        "decision_source": "synthetic-human-review:v1",
+        "reviewed_on": "2026-08-13",
+        "reviewer": "human_tfm_review",
+    }], columns=ADMINISTRATIVE_ACTION_CORRECTION_COLUMNS)
+    correction_path = tmp_path / "corrections.csv"
+    correction.to_csv(correction_path, index=False)
+    output_dir = tmp_path / "silver-corrected"
+
+    code = pipeline.main([
+        "silver",
+        "--extraction-snapshot", str(extraction_stage.output_dir),
+        "--output-dir", str(output_dir),
+        "--expected-extraction-config-id", EXTRACTION_CONFIG_ID,
+        "--corrections", str(correction_path),
+    ])
+
+    assert code == 0
+    loaded = pipeline.load_flat_materialization(
+        output_dir,
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+    assert len(loaded.tables["administrative_actions"]) == 1
+    assert (output_dir / "applied_corrections.parquet").is_file()
+    manifest = json.loads(
+        (output_dir / "manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["corrections"]["applied_count"] == 1
+    assert manifest["corrections"]["source_extraction_config_id"] == (
+        EXTRACTION_CONFIG_ID
+    )
 
 
 def test_stale_expected_config_fails_before_any_stage_output(tmp_path) -> None:
