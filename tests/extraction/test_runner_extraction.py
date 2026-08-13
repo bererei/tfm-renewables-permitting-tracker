@@ -13,8 +13,11 @@ import pytest
 import renewables_permitting.extraction.runner as runner_module
 from renewables_permitting.extraction.agent import RunUsage
 from renewables_permitting.extraction.config import (
+    CONTRACT_SCHEMA_SHA256,
     DOCUMENT_TIMEOUT_SECONDS,
     DOCUMENT_VALIDATION_RETRY_ATTEMPTS,
+    EXTRACTION_CONFIG,
+    EXTRACTION_CONFIG_ID,
     MAX_MODEL_REQUESTS_PER_DOCUMENT,
 )
 from renewables_permitting.extraction.documents import (
@@ -34,6 +37,7 @@ from renewables_permitting.extraction.models import (
     PublicationEvent,
 )
 from renewables_permitting.extraction.recanonicalization import (
+    recanonicalize_attempt_with_provenance,
     recanonicalize_precanonical_extraction,
 )
 from renewables_permitting.extraction.runner import (
@@ -756,6 +760,123 @@ def test_model_attempt_persists_precanonical_and_recanonicalizes_without_agent(
     assert checkpoint_calls[0]["dataframe"].iloc[0][
         "precanonical_extraction_json"
     ] == record["precanonical_extraction_json"]
+
+
+def test_recanonicalization_applies_desestimation_without_model() -> None:
+    boe_id = "BOE-A-2026-9582"
+    title = (
+        "Resolución por la que se desestima la solicitud de autorización "
+        "administrativa previa del parque eólico «Crecente»."
+    )
+    document = build_source_document(pd.Series(_candidate_row(
+        boe_id,
+        title=title,
+        text=title,
+    )))
+    precanonical = BOEProjectExtraction(
+        classification_status=ClassificationStatus.CLASSIFIED,
+        document_scope=DocumentScope.GENERATION_PROJECT_SPECIFIC,
+        classification_reason="Publicación relativa al parque Crecente.",
+        publication_events=[PublicationEvent(
+            generation_assets=[GenerationAssetMention(
+                local_generation_asset_ref="generation_asset_1",
+                names_raw=["Crecente"],
+                generation_type=GenerationType.WIND,
+                evidence="parque eólico «Crecente»",
+            )],
+            administrative_actions=[AdministrativeAction(
+                action_type=(
+                    AdministrativeActionType.PRIOR_ADMINISTRATIVE_AUTHORIZATION
+                ),
+                decision=AdministrativeDecision.DENIED,
+                targets=["event"],
+                evidence=title,
+            )],
+            event_summary="Desestimación de la autorización de Crecente.",
+        )],
+        boe_id=boe_id,
+        publication_date=document.publication_date,
+    )
+    original_json = precanonical.model_dump_json()
+
+    canonical, adjustments = recanonicalize_precanonical_extraction(
+        original_json,
+        document=document,
+    )
+
+    assert canonical.publication_events[0].administrative_actions[0].decision.value == (
+        "desestimado"
+    )
+    assert "denegado -> desestimado" in adjustments[0]
+    assert precanonical.model_dump_json() == original_json
+
+
+def test_recanonicalization_preserves_source_attempt_and_records_active_policy() -> None:
+    boe_id = "BOE-A-2026-9582"
+    title = (
+        "Resolución por la que se desestima la solicitud de autorización "
+        "administrativa previa del parque eólico «Crecente»."
+    )
+    document = build_source_document(pd.Series(_candidate_row(
+        boe_id,
+        title=title,
+        text=title,
+    )))
+    precanonical = BOEProjectExtraction(
+        classification_status=ClassificationStatus.CLASSIFIED,
+        document_scope=DocumentScope.GENERATION_PROJECT_SPECIFIC,
+        classification_reason="Publicación relativa al parque Crecente.",
+        publication_events=[PublicationEvent(
+            generation_assets=[GenerationAssetMention(
+                local_generation_asset_ref="generation_asset_1",
+                names_raw=["Crecente"],
+                generation_type=GenerationType.WIND,
+                evidence="parque eólico «Crecente»",
+            )],
+            administrative_actions=[AdministrativeAction(
+                action_type=(
+                    AdministrativeActionType.PRIOR_ADMINISTRATIVE_AUTHORIZATION
+                ),
+                decision=AdministrativeDecision.DENIED,
+                targets=["event"],
+                evidence=title,
+            )],
+            event_summary="Desestimación de la autorización de Crecente.",
+        )],
+        boe_id=boe_id,
+        publication_date=document.publication_date,
+    )
+    source_attempt = {
+        "attempt_id": "original-attempt",
+        "source_document_sha256": document.source_document_sha256,
+        "extraction_config_id": "historical-config",
+        "contract_schema_sha256": "historical-contract",
+        "instructions_sha256": "historical-instructions",
+        "model_provider": "gemini",
+        "model_name": "historical-model",
+        "precanonical_extraction_json": precanonical.model_dump_json(),
+    }
+    source_snapshot = dict(source_attempt)
+
+    result = recanonicalize_attempt_with_provenance(
+        source_attempt,
+        document=document,
+    )
+
+    assert source_attempt == source_snapshot
+    assert result.source_attempt_id == "original-attempt"
+    assert result.source_extraction_config_id == "historical-config"
+    assert result.source_contract_schema_sha256 == "historical-contract"
+    assert result.source_model_provider == "gemini"
+    assert result.source_model_name == "historical-model"
+    assert result.extraction_config_id == EXTRACTION_CONFIG_ID
+    assert result.contract_schema_sha256 == CONTRACT_SCHEMA_SHA256
+    assert result.canonicalization_policy == (
+        EXTRACTION_CONFIG["canonicalization_policy"]
+    )
+    assert result.extraction.publication_events[0].administrative_actions[
+        0
+    ].decision.value == "desestimado"
 
 
 def test_document_validation_failure_retries_with_exact_corrective_prompt(

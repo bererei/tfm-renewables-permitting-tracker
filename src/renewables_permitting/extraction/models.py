@@ -215,6 +215,7 @@ class AdministrativeDecision(str, Enum):
     MODIFIED = "modificado"
     EXTENDED = "prorrogado"
     DENIED = "denegado"
+    DESESTIMADO = "desestimado"
     CLOSED = "archivado"
     WITHDRAWN = "desistido"
     INADMISSIBLE = "inadmitido"
@@ -275,6 +276,7 @@ _ALLOWED_DECISIONS_BY_ACTION_TYPE: dict[
         AdministrativeDecision.SUBMITTED_TO_PUBLIC_INFORMATION,
         AdministrativeDecision.AUTHORIZED,
         AdministrativeDecision.DENIED,
+        AdministrativeDecision.DESESTIMADO,
     },
     AdministrativeActionType.CONSTRUCTION_ADMINISTRATIVE_AUTHORIZATION: {
         AdministrativeDecision.REQUESTED,

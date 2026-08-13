@@ -9,6 +9,7 @@ from pydantic import TypeAdapter, ValidationError
 from renewables_permitting.extraction.models import (
     BOE_ID_ADAPTER,
     ActionTargetRef,
+    AdministrativeAction,
     AdministrativeActionType,
     AdministrativeDecision,
     AdministrativeLocationLevel,
@@ -31,7 +32,7 @@ from renewables_permitting.extraction.models import (
 
 
 EXPECTED_SCHEMA_SHA256 = (
-    "455028c7de0ada067264cd695b4e7dab9de377b31105e141321313d61c3ff283"
+    "7960b8718df138c75e92230a4b4b32c03872cdd7c6ac20a5f3521226e709c81c"
 )
 
 
@@ -369,6 +370,7 @@ def test_action_target_ref_pattern() -> None:
                 ("MODIFIED", "modificado"),
                 ("EXTENDED", "prorrogado"),
                 ("DENIED", "denegado"),
+                ("DESESTIMADO", "desestimado"),
                 ("CLOSED", "archivado"),
                 ("WITHDRAWN", "desistido"),
                 ("INADMISSIBLE", "inadmitido"),
@@ -380,6 +382,17 @@ def test_action_target_ref_pattern() -> None:
 )
 def test_enum_members_are_exact(enum_type: type, expected_members: list) -> None:
     assert [(member.name, member.value) for member in enum_type] == expected_members
+
+
+def test_prior_authorization_accepts_desestimated_decision() -> None:
+    action = AdministrativeAction(
+        action_type=AdministrativeActionType.PRIOR_ADMINISTRATIVE_AUTHORIZATION,
+        decision="desestimado",
+        targets=["event"],
+        evidence="Se desestima la autorización administrativa previa.",
+    )
+
+    assert action.decision.value == "desestimado"
 
 
 def test_legacy_energy_general_scope_is_supported() -> None:

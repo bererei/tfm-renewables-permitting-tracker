@@ -29,20 +29,21 @@ perfect + exhaustive
 ## Current status
 
 ```text
-Extraction freeze: DONE
-tag: tfm-extraction-freeze-2026-08
+Extraction freeze: LIMITED REOPEN — deterministic decision semantics only
+historical tag preserved: tfm-extraction-freeze-2026-08
+historical canonical run preserved: canonical-140-freeze-20260811
 Deterministic INE enrichment: DONE
 Project grouping: DONE
 Gold implementation: DONE
 Pipeline integration implementation: DONE
-Canonical 140 regeneration: PENDING
+Replacement canonical recanonicalization: PENDING
 Gold validation against freeze-run Silver: PENDING
 
 Current phase:
 Pipeline integration + canonical regeneration
 
 Current gate:
-Canonical 140 regeneration
+Controlled recanonicalization and validation into a new snapshot
 
 Next:
 Targeted human review
@@ -54,24 +55,29 @@ Final holdout evaluation
 Documentation / delivery
 ```
 
-The executable Python orchestration layer is complete, but the canonical
-140-document regeneration has not yet been performed. The persisted development
-Silver predates the final extraction freeze, so Gold remains pending validation
-against canonical freeze-run Silver.
+The executable Python orchestration layer is complete. The historical canonical
+140 run and extraction-freeze tag remain immutable references. Targeted review
+found a deterministic authorization-decision defect: explicit `desestim*`
+wording was degraded to `solicitado`. The limited correction changes decision
+semantics only; it does not change generation roots, events, grouping, or
+locations. Stored precanonical outputs allow a controlled recanonicalization
+without calling Gemini. A replacement freeze remains pending until that new
+snapshot is rebuilt and validated, after which Gold must be regenerated and
+checked against its Silver.
 
-The extraction core is frozen. Reopen it only when concrete evidence shows
-that a defect blocks project identification, grouping, chronology, the final
-pipeline, or final evaluation.
+Outside this limited decision correction, the extraction core remains frozen.
+Reopen it only when concrete evidence shows that a defect blocks project
+identification, grouping, chronology, the final pipeline, or final evaluation.
 
 ## Roadmap
 
 | Phase | Window | Status |
 | --- | --- | --- |
-| 1. Extraction freeze | Completed | DONE |
+| 1. Extraction freeze | Completed; limited decision fix in progress | HISTORICAL FREEZE PRESERVED — NEW FREEZE PENDING |
 | 2. Deterministic INE enrichment | 10–11 Aug | DONE |
 | 3. Project grouping | 12–15 Aug | DONE |
 | 4. Gold implementation | 16–17 Aug | DONE |
-| 5. Pipeline integration + canonical regeneration | 18–19 Aug | CURRENT — integration DONE; regeneration PENDING |
+| 5. Pipeline integration + canonical regeneration | 18–19 Aug | CURRENT — integration DONE; controlled recanonicalization PENDING |
 | 6. Gold validation against freeze-run Silver | After canonical regeneration | NEXT |
 | 7. Streamlit | 20–23 Aug | PLANNED |
 | 8. Final holdout evaluation | 24–26 Aug | PLANNED |
@@ -123,9 +129,18 @@ block the vertical product:
 
 ## Extraction freeze rule
 
-The tag `tfm-extraction-freeze-2026-08` marks the frozen extraction core. Do
-not reopen the extraction contract, canonicalisation, granularity, targets,
-participants, or components unless a demonstrated defect prevents this flow:
+The tag `tfm-extraction-freeze-2026-08` and its canonical run remain historical
+references. A demonstrated chronology defect authorised one limited reopening:
+the contract and canonicalisation of explicit `desestim*` authorization
+decisions. It does not authorise changes to generation roots, granularity,
+targets, participants, components, grouping, or locations, and it does not
+require new Gemini calls. The replacement extraction freeze may be declared
+only after controlled recanonicalization into a new snapshot and validation of
+the affected corpus.
+
+Outside that limited correction, do not reopen the extraction contract,
+canonicalisation, granularity, targets, participants, or components unless a
+demonstrated defect prevents this flow:
 
 ```text
 project identity

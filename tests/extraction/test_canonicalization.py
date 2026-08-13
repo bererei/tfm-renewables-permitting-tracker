@@ -2064,6 +2064,241 @@ def test_denied_authorization_title_remains_current_denial() -> None:
     ]
 
 
+@pytest.mark.parametrize(
+    "decision_wording",
+    [
+        "se desestima la solicitud de",
+        "la solicitud desestimada de",
+        "se declara desestimado el procedimiento de",
+        "se resuelve la desestimación de la solicitud de",
+        "se acuerda desestimar la solicitud de",
+    ],
+)
+def test_desestimation_wording_is_a_terminal_authorization_decision(
+    decision_wording: str,
+) -> None:
+    title = (
+        f"Resolución por la que {decision_wording} autorización administrativa "
+        "previa de la planta solar fotovoltaica Prueba."
+    )
+    actions, _ = _canonicalize_test_actions(
+        title=title.upper(),
+        actions=[
+            _action(
+                AdministrativeActionType.PRIOR_ADMINISTRATIVE_AUTHORIZATION,
+                AdministrativeDecision.UNKNOWN,
+                title,
+                ["event"],
+            )
+        ],
+        source_text=title,
+    )
+
+    assert actions[0].decision.value == "desestimado"
+
+
+@pytest.mark.parametrize(
+    "existing_decision",
+    [
+        AdministrativeDecision.REQUESTED,
+        AdministrativeDecision.DENIED,
+    ],
+)
+def test_explicit_desestimation_refines_existing_authorization_decision(
+    existing_decision: AdministrativeDecision,
+) -> None:
+    title = (
+        "Resolución por la que se desestima la solicitud de autorización "
+        "administrativa previa de la planta solar fotovoltaica Prueba."
+    )
+    actions, _ = _canonicalize_test_actions(
+        title=title,
+        actions=[
+            _action(
+                AdministrativeActionType.PRIOR_ADMINISTRATIVE_AUTHORIZATION,
+                existing_decision,
+                title,
+                ["event"],
+            )
+        ],
+    )
+
+    assert actions[0].decision.value == "desestimado"
+
+
+def test_generic_request_title_does_not_degrade_existing_denial() -> None:
+    title = (
+        "Anuncio de solicitud de autorización administrativa previa para la "
+        "planta solar fotovoltaica Prueba."
+    )
+    actions, adjustments = _canonicalize_test_actions(
+        title=title,
+        actions=[
+            _action(
+                AdministrativeActionType.PRIOR_ADMINISTRATIVE_AUTHORIZATION,
+                AdministrativeDecision.DENIED,
+                title,
+                ["event"],
+            )
+        ],
+    )
+
+    assert actions[0].decision == AdministrativeDecision.DENIED
+    assert not any("decisión canonicalizada" in item for item in adjustments)
+
+
+def test_unrelated_desestimation_does_not_override_explicit_authorization_grant() -> None:
+    title = (
+        "Resolución por la que se desestiman las alegaciones y se otorga la "
+        "autorización administrativa previa de la planta solar fotovoltaica "
+        "Prueba."
+    )
+    actions, _ = _canonicalize_test_actions(
+        title=title,
+        actions=[
+            _action(
+                AdministrativeActionType.PRIOR_ADMINISTRATIVE_AUTHORIZATION,
+                AdministrativeDecision.REQUESTED,
+                title,
+                ["event"],
+            )
+        ],
+    )
+
+    assert actions[0].decision == AdministrativeDecision.AUTHORIZED
+
+
+def test_desestimated_authorization_and_archived_termination_remain_separate() -> None:
+    title = (
+        "Resolución por la que se desestima la solicitud de autorización "
+        "administrativa previa de la planta solar fotovoltaica Prueba."
+    )
+    archive_evidence = (
+        "Desestimar la solicitud de autorización administrativa previa, "
+        "acordando el archivo del expediente PFot-Prueba."
+    )
+    actions, _ = _canonicalize_test_actions(
+        title=title,
+        source_text=f"{title} {archive_evidence}",
+        actions=[
+            _action(
+                AdministrativeActionType.PRIOR_ADMINISTRATIVE_AUTHORIZATION,
+                AdministrativeDecision.UNKNOWN,
+                title,
+                ["event"],
+            ),
+            _action(
+                AdministrativeActionType.PROCEDURE_TERMINATION,
+                AdministrativeDecision.CLOSED,
+                archive_evidence,
+                ["event"],
+            ),
+        ],
+    )
+
+    assert [(action.action_type.value, action.decision.value) for action in actions] == [
+        ("autorizacion_administrativa_previa", "desestimado"),
+        ("terminacion_procedimiento", "archivado"),
+    ]
+
+
+@pytest.mark.parametrize(
+    ("boe_id", "title", "precanonical_decision", "archive_evidence"),
+    [
+        (
+            "BOE-A-2025-26112",
+            "Resolución de 3 de diciembre de 2025, de la Dirección General de "
+            "Política Energética y Minas, por la que se desestima la solicitud "
+            "de Benbros Solar IV, SL, de autorización administrativa previa de "
+            "la instalación fotovoltaica FV Vizmalo, de 113,016 MW de potencia "
+            "instalada, y de su infraestructura de evacuación, en las provincias "
+            "de Burgos y Palencia.",
+            AdministrativeDecision.UNKNOWN,
+            "Desestimar la solicitud de autorización administrativa previa de la "
+            "instalación fotovoltaica FV Vizmalo, acordando el archivo del "
+            "expediente PFot-1098.",
+        ),
+        (
+            "BOE-A-2026-9582",
+            "Resolución de 16 de abril de 2026, de la Dirección General de "
+            "Política Energética y Minas, por la que se desestima la solicitud "
+            "de FRV Sotillos, SLU, de autorización administrativa previa del "
+            "parque eólico «Crecente», de 54 MW de potencia instalada, y de su "
+            "infraestructura de evacuación, en la provincia de Pontevedra.",
+            AdministrativeDecision.DENIED,
+            None,
+        ),
+        (
+            "BOE-A-2024-16662",
+            "Resolución de 10 de julio de 2024, de la Dirección General de "
+            "Política Energética y Minas, por la que se desestima la solicitud "
+            "de El Refugio Fotovoltaico, SLU, de autorización administrativa "
+            "previa del parque fotovoltaico El Refugio, de 116,55 MW de potencia "
+            "instalada, y de su infraestructura de evacuación, en las provincias "
+            "de Toledo y Madrid.",
+            AdministrativeDecision.UNKNOWN,
+            None,
+        ),
+    ],
+)
+def test_known_desestimation_titles_are_canonicalized_as_desestimated(
+    boe_id: str,
+    title: str,
+    precanonical_decision: AdministrativeDecision,
+    archive_evidence: str | None,
+) -> None:
+    actions = [
+        _action(
+            AdministrativeActionType.PRIOR_ADMINISTRATIVE_AUTHORIZATION,
+            precanonical_decision,
+            title,
+            ["event"],
+        )
+    ]
+    if archive_evidence is not None:
+        actions.append(_action(
+            AdministrativeActionType.PROCEDURE_TERMINATION,
+            AdministrativeDecision.CLOSED,
+            archive_evidence,
+            ["event"],
+        ))
+    extraction = _test_extraction(
+        boe_id,
+        [
+            PublicationEvent(
+                generation_assets=[
+                    _asset(
+                        "generation_asset_1",
+                        "Prueba",
+                        GenerationType.PHOTOVOLTAIC,
+                        "planta solar fotovoltaica Prueba",
+                    )
+                ],
+                administrative_actions=actions,
+                event_summary="Actuación administrativa de la planta Prueba.",
+            )
+        ],
+    )
+
+    canonical, _ = canonicalize_project_extraction(
+        extraction,
+        source_text=" ".join(filter(None, [
+            title,
+            archive_evidence,
+            "planta solar fotovoltaica Prueba",
+        ])),
+        document_title=title,
+    )
+
+    canonical_actions = canonical.publication_events[0].administrative_actions
+    assert canonical_actions[0].decision.value == "desestimado"
+    if archive_evidence is not None:
+        assert [(action.action_type.value, action.decision.value) for action in canonical_actions] == [
+            ("autorizacion_administrativa_previa", "desestimado"),
+            ("terminacion_procedimiento", "archivado"),
+        ]
+
+
 def test_authorization_noun_alone_does_not_match_authorize_verb() -> None:
     title = (
         "Anuncio de solicitud de autorización administrativa previa para la "

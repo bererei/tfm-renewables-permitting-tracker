@@ -719,6 +719,36 @@ _AUTHORIZATION_GRANT_RE = re.compile(
     r"autoriza(?:n|r|d[ao]s?)?"
     r")\b"
 )
+_AUTHORIZATION_DESESTIMATION_RE = re.compile(
+    r"(?:"
+    r"\bdesestim(?:a(?:n)?|ar|ad[ao]s?|aci[oó]n(?:es)?)\b"
+    r"[^.;]{0,160}\b(?:solicitud(?:es)?|procedimiento)\b|"
+    r"\b(?:solicitud(?:es)?|procedimiento)\b[^.;]{0,160}"
+    r"\bdesestim(?:a(?:n)?|ar|ad[ao]s?|aci[oó]n(?:es)?)\b"
+    r")"
+)
+
+
+def _authorization_decision_from_title(
+    title_key: str,
+    *,
+    action_type: AdministrativeActionType,
+) -> AdministrativeDecision:
+    """Prioriza resultados explícitos sobre una solicitud procedimental."""
+
+    if (
+        action_type
+        == AdministrativeActionType.PRIOR_ADMINISTRATIVE_AUTHORIZATION
+        and _AUTHORIZATION_DESESTIMATION_RE.search(title_key)
+    ):
+        return AdministrativeDecision.DESESTIMADO
+    if re.search(r"\b(?:deniega|denegaci[oó]n)\b", title_key):
+        return AdministrativeDecision.DENIED
+    if _AUTHORIZATION_GRANT_RE.search(title_key):
+        return AdministrativeDecision.AUTHORIZED
+    if re.search(r"\b(?:solicitud|solicita)\b", title_key):
+        return AdministrativeDecision.REQUESTED
+    return AdministrativeDecision.AUTHORIZED
 
 
 def _decision_from_title(
@@ -742,14 +772,10 @@ def _decision_from_title(
         AdministrativeActionType.OPERATING_AUTHORIZATION,
         AdministrativeActionType.OWNERSHIP_CHANGE,
     }:
-        if re.search(r"deniega|denegaci[oó]n", key):
-            return AdministrativeDecision.DENIED
-        if (
-            re.search(r"solicitud|solicita", key)
-            and not _AUTHORIZATION_GRANT_RE.search(key)
-        ):
-            return AdministrativeDecision.REQUESTED
-        return AdministrativeDecision.AUTHORIZED
+        return _authorization_decision_from_title(
+            key,
+            action_type=action_type,
+        )
     if action_type == AdministrativeActionType.WATER_CONCESSION:
         if re.search(r"deniega|denegaci[oó]n", key):
             return AdministrativeDecision.DENIED
@@ -785,7 +811,13 @@ def _should_replace_decision_from_title(
     existing: AdministrativeDecision,
     inferred: AdministrativeDecision,
 ) -> bool:
-    """Preserva resultados ambientales frente al fallback genérico ``formulado``."""
+    """Aplica precedencia explícita sin degradar resultados informativos."""
+
+    if (
+        inferred == AdministrativeDecision.REQUESTED
+        and existing != AdministrativeDecision.UNKNOWN
+    ):
+        return False
 
     if (
         inferred == AdministrativeDecision.FORMULATED
