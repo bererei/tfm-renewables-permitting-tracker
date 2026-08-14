@@ -5,6 +5,7 @@ from typing import Any
 
 import pandas as pd
 
+from renewables_permitting.project_locations import build_project_locations
 from renewables_permitting.utils import (
     is_null_like,
     normalize_text_or_none,
@@ -798,7 +799,7 @@ def build_gold_tables(
     project_grouping: pd.DataFrame,
     resolved_locations: pd.DataFrame,
 ) -> dict[str, pd.DataFrame]:
-    """Regenerate the two logical Gold tables from explicit validated inputs."""
+    """Regenerate the four logical Gold tables from validated inputs."""
 
     project_events = build_project_events(
         publication_events=publication_events,
@@ -818,4 +819,15 @@ def build_gold_tables(
         project_grouping=project_grouping,
         project_events=project_events,
     )
-    return {"projects": projects, "project_events": project_events}
+    location_tables = build_project_locations(
+        publication_events=publication_events,
+        generation_asset_mentions=generation_asset_mentions,
+        project_grouping=project_grouping,
+        projects=projects,
+        resolved_locations=resolved_locations,
+    )
+    return {
+        "projects": projects,
+        "project_events": project_events,
+        **location_tables,
+    }

@@ -45,15 +45,15 @@ Human correction layer: DONE — 5 approved historical-action exclusions
 Final corrected canonical run: DONE
 Formal freeze validation: DONE — PASSED
 Gold validation against freeze-run Silver: DONE
+Additive Gold project locations implementation: DONE
 
 Current phase:
 Product completion
 
 Current gate:
-Additive Gold `project_locations`, without changing frozen project IDs or `project_events`
+Persist and validate additive Gold `project_locations` against the freeze
 
 Next:
-`project_locations`
 Streamlit MVP
 Final product validation
 TFM documentation and delivery
@@ -67,10 +67,11 @@ Its Silver and Gold outputs passed formal validation and an independent
 deterministic reconstruction without model calls. The final core data freeze is
 declared in `docs/freezes/core_data_freeze_2026-08-13.md`.
 
-The next REQUIRED work is additive: build `project_locations`, then the
-Streamlit MVP, final product validation, and TFM documentation/delivery.
-`project_locations` must not change frozen project IDs or `project_events`
-semantics.
+The additive `project_locations` and `project_location_sources` code and
+contracts are complete without changing frozen project IDs or `project_events`
+semantics. Their persistent materialization and final validation remain
+pending. The next REQUIRED work is to complete that validation, then deliver
+the Streamlit MVP, final product validation, and TFM documentation/delivery.
 
 Outside this limited decision correction, the extraction core remains frozen.
 Reopen it only when concrete evidence shows that a defect blocks project
@@ -86,7 +87,7 @@ identification, grouping, chronology, the final pipeline, or final evaluation.
 | 4. Gold implementation | 16–17 Aug | DONE |
 | 5. Pipeline integration + canonical regeneration | 18–19 Aug | DONE |
 | 6. Gold validation against freeze-run Silver | Completed 13 Aug | DONE |
-| 7. Project locations + Streamlit MVP | 20–23 Aug | NEXT — REQUIRED |
+| 7. Project locations + Streamlit MVP | 20–23 Aug | IN PROGRESS — REQUIRED |
 | 8. Final holdout evaluation | 24–26 Aug | PLANNED |
 | 9. Documentation / delivery | 27–31 Aug | PLANNED |
 

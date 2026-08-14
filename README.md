@@ -34,7 +34,20 @@ El core data freeze fue validado el **2026-08-13** sobre 140 documentos BOE:
 116 proyectos de generación, 165 actuaciones administrativas y 169 eventos de
 proyecto. La declaración reproducible y sus identidades están en
 [`docs/freezes/core_data_freeze_2026-08-13.md`](docs/freezes/core_data_freeze_2026-08-13.md).
-El siguiente desarrollo es `project_locations` + Streamlit.
+La extensión Gold aditiva `project_locations` está implementada junto con
+`project_location_sources`, que conserva el linaje de cada territorio hasta la
+mención, el evento y el BOE fuente. No cambia los project IDs ni
+`project_events` congelados. Su materialización persistente y validación final,
+así como Streamlit, siguen pendientes.
+
+La interfaz utilizará **“Territorio”** como filtro y **“Ámbito territorial del
+proyecto”** en la ficha. Nota metodológica aprobada:
+
+> Incluye los territorios asociados en las publicaciones a la planta de
+> generación o a otros componentes del proyecto, como sistemas de
+> almacenamiento o infraestructuras de evacuación. Las publicaciones no
+> siempre permiten determinar a qué componente concreto corresponde cada
+> territorio.
 
 Las nuevas llamadas al modelo requieren `--execute-model`; un cambio semántico
 INE exige confirmación explícita antes del rebuild. Usa `--dry-run` para

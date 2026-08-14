@@ -51,6 +51,10 @@ from renewables_permitting.location_resolution import (
     LOCATION_RESOLUTION_COLUMNS,
 )
 from renewables_permitting.project_grouping import PROJECT_GROUPING_COLUMNS
+from renewables_permitting.project_locations import (
+    PROJECT_LOCATION_SOURCES_COLUMNS,
+    PROJECT_LOCATIONS_COLUMNS,
+)
 
 
 FIXED_CREATED_AT = datetime(2026, 8, 10, 12, tzinfo=timezone.utc)
@@ -170,6 +174,10 @@ def test_valid_downstream_materializes_all_artifacts_with_lineage(tmp_path) -> N
     grouping = pd.read_parquet(result.project_grouping_path)
     projects = pd.read_parquet(result.projects_path)
     project_events = pd.read_parquet(result.project_events_path)
+    project_locations = pd.read_parquet(result.project_locations_path)
+    project_location_sources = pd.read_parquet(
+        result.project_location_sources_path
+    )
     downstream_manifest = json.loads(
         result.downstream_manifest_path.read_text(encoding="utf-8")
     )
@@ -182,9 +190,15 @@ def test_valid_downstream_materializes_all_artifacts_with_lineage(tmp_path) -> N
     assert len(grouping) == 2
     assert len(projects) == 1
     assert len(project_events) == 2
+    assert len(project_locations) == 1
+    assert len(project_location_sources) == 2
     assert tuple(grouping.columns) == PROJECT_GROUPING_COLUMNS
     assert tuple(projects.columns) == PROJECTS_COLUMNS
     assert tuple(project_events.columns) == PROJECT_EVENTS_COLUMNS
+    assert tuple(project_locations.columns) == PROJECT_LOCATIONS_COLUMNS
+    assert tuple(project_location_sources.columns) == (
+        PROJECT_LOCATION_SOURCES_COLUMNS
+    )
     assert set(LOCATION_RESOLUTION_COLUMNS).issubset(resolved.columns)
     assert projects["project_id"].is_unique
     assert not project_events.duplicated([
@@ -221,6 +235,31 @@ def test_valid_downstream_materializes_all_artifacts_with_lineage(tmp_path) -> N
     assert gold_manifest["tables"]["project_events"]["parquet_sha256"] == (
         _file_hash(result.project_events_path)
     )
+    assert gold_manifest["tables"]["project_locations"]["parquet_sha256"] == (
+        _file_hash(result.project_locations_path)
+    )
+    assert gold_manifest["tables"]["project_location_sources"][
+        "parquet_sha256"
+    ] == _file_hash(result.project_location_sources_path)
+    assert gold_manifest["tables"]["project_locations"]["sources"] == [
+        "projects",
+        "publication_events",
+        "generation_asset_mentions",
+        "project_grouping",
+        "resolved_locations",
+    ]
+    assert gold_manifest["tables"]["project_locations"][
+        "contract_version"
+    ] == "1"
+    assert gold_manifest["tables"]["project_location_sources"][
+        "contract_version"
+    ] == "1"
+    assert gold_manifest["project_locations_audit"] == {
+        "multiproject_source_expansions": 0,
+        "resolved_source_location_mentions": 2,
+        "source_location_mentions": 2,
+        "unresolved_source_location_mentions_omitted": 0,
+    }
 
 
 def test_stale_or_missing_silver_fails_before_publishing(tmp_path) -> None:
@@ -335,6 +374,8 @@ def test_repeatability_and_input_order_do_not_change_identity(tmp_path) -> None:
         "project_grouping_path",
         "projects_path",
         "project_events_path",
+        "project_locations_path",
+        "project_location_sources_path",
     ):
         pd.testing.assert_frame_equal(
             pd.read_parquet(getattr(first, attribute)),
@@ -398,6 +439,36 @@ def test_materialization_failure_cleans_created_staging(
     assert not list(tmp_path.glob(".failed-write-output.staging-*"))
 
 
+def test_project_location_write_failure_never_publishes_partial_gold(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    silver, ine = _materialize_inputs(tmp_path)
+    output_dir = tmp_path / "failed-location-output"
+    original_writer = downstream_module._write_verified_parquet
+
+    def fail_project_locations(frame, path, **kwargs):
+        if path.name == "project_locations.parquet":
+            raise RuntimeError("synthetic project_locations failure")
+        return original_writer(frame, path, **kwargs)
+
+    monkeypatch.setattr(
+        downstream_module,
+        "_write_verified_parquet",
+        fail_project_locations,
+    )
+    with pytest.raises(DownstreamError, match="materialization"):
+        run_downstream(
+            silver_snapshot=silver.output_dir,
+            municipality_reference=ine.output_dir,
+            output_dir=output_dir,
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
+
+    assert not output_dir.exists()
+    assert not list(tmp_path.glob(".failed-location-output.staging-*"))
+
+
 def test_empty_valid_silver_produces_typed_empty_downstream(tmp_path) -> None:
     silver = materialize_current_extractions(
         pd.DataFrame(columns=["extraction_json"]),
@@ -417,13 +488,23 @@ def test_empty_valid_silver_produces_typed_empty_downstream(tmp_path) -> None:
     grouping = pd.read_parquet(result.project_grouping_path)
     projects = pd.read_parquet(result.projects_path)
     project_events = pd.read_parquet(result.project_events_path)
+    project_locations = pd.read_parquet(result.project_locations_path)
+    project_location_sources = pd.read_parquet(
+        result.project_location_sources_path
+    )
     assert resolved.empty
     assert grouping.empty
     assert projects.empty
     assert project_events.empty
+    assert project_locations.empty
+    assert project_location_sources.empty
     assert tuple(grouping.columns) == PROJECT_GROUPING_COLUMNS
     assert tuple(projects.columns) == PROJECTS_COLUMNS
     assert tuple(project_events.columns) == PROJECT_EVENTS_COLUMNS
+    assert tuple(project_locations.columns) == PROJECT_LOCATIONS_COLUMNS
+    assert tuple(project_location_sources.columns) == (
+        PROJECT_LOCATION_SOURCES_COLUMNS
+    )
 
 
 def test_downstream_has_no_ai_or_user_interaction(tmp_path, monkeypatch) -> None:

@@ -12,6 +12,10 @@ from renewables_permitting.gold import (
     build_project_events,
     build_projects,
 )
+from renewables_permitting.project_locations import (
+    PROJECT_LOCATION_SOURCES_COLUMNS,
+    PROJECT_LOCATIONS_COLUMNS,
+)
 
 
 def _frame(
@@ -446,6 +450,33 @@ def _gold_inputs() -> dict[str, pd.DataFrame]:
             "province_resolution_status": "string",
         },
     )
+    event_metadata = publication_events.set_index("event_id")
+    resolved_locations["identificador_boe"] = resolved_locations[
+        "event_id"
+    ].map(event_metadata["identificador_boe"]).astype("string")
+    resolved_locations["fecha_publicacion"] = pd.to_datetime(
+        resolved_locations["event_id"].map(
+            event_metadata["fecha_publicacion"]
+        )
+    )
+    resolved_locations["municipality_norm"] = resolved_locations[
+        "municipality"
+    ].str.casefold().astype("string")
+    resolved_locations["province_norm"] = resolved_locations[
+        "province"
+    ].str.casefold().astype("string")
+    resolved_locations["autonomous_community"] = pd.Series(
+        ["Andalucía"] * len(resolved_locations), dtype="string"
+    )
+    resolved_locations["autonomous_community_norm"] = pd.Series(
+        ["andalucía"] * len(resolved_locations), dtype="string"
+    )
+    resolved_locations["ine_autonomous_community_code"] = pd.Series(
+        ["01"] * len(resolved_locations), dtype="string"
+    )
+    resolved_locations["autonomous_community_resolution_status"] = pd.Series(
+        ["resolved"] * len(resolved_locations), dtype="string"
+    )
     return {
         "publication_events": publication_events,
         "generation_asset_mentions": generation_asset_mentions,
@@ -561,6 +592,33 @@ def test_project_action_key_is_unique_after_legitimate_expansion() -> None:
     assert len(result) == 7
 
 
+def test_additive_location_build_preserves_existing_gold_tables() -> None:
+    inputs = _gold_inputs()
+    expected_events = build_project_events(
+        publication_events=inputs["publication_events"],
+        generation_asset_mentions=inputs["generation_asset_mentions"],
+        administrative_actions=inputs["administrative_actions"],
+        administrative_action_targets=inputs["administrative_action_targets"],
+        associated_component_generation_links=inputs[
+            "associated_component_generation_links"
+        ],
+        project_grouping=inputs["project_grouping"],
+    )
+    expected_projects = build_projects(
+        publication_events=inputs["publication_events"],
+        generation_asset_mentions=inputs["generation_asset_mentions"],
+        generation_asset_names=inputs["generation_asset_names"],
+        resolved_locations=inputs["resolved_locations"],
+        project_grouping=inputs["project_grouping"],
+        project_events=expected_events,
+    )
+
+    result = build_gold_tables(**inputs)
+
+    pd.testing.assert_frame_equal(result["projects"], expected_projects)
+    pd.testing.assert_frame_equal(result["project_events"], expected_events)
+
+
 def test_projects_are_a_compact_catalog_with_separate_counts() -> None:
     outputs = build_gold_tables(**_gold_inputs())
     projects = outputs["projects"].set_index("project_id")
@@ -625,14 +683,19 @@ def test_gold_is_reproducible_order_independent_and_does_not_mutate_inputs() -> 
     }
     permuted = build_gold_tables(**shuffled)
 
-    for table_name in ("projects", "project_events"):
+    for table_name in (
+        "projects",
+        "project_events",
+        "project_locations",
+        "project_location_sources",
+    ):
         pd.testing.assert_frame_equal(first[table_name], second[table_name])
         pd.testing.assert_frame_equal(first[table_name], permuted[table_name])
     for name, original in originals.items():
         pd.testing.assert_frame_equal(inputs[name], original)
 
 
-def test_typed_empty_gold_outputs_have_only_the_two_contract_tables() -> None:
+def test_typed_empty_gold_outputs_have_all_four_contract_tables() -> None:
     empty_inputs = {
         name: frame.iloc[0:0].copy()
         for name, frame in _gold_inputs().items()
@@ -640,11 +703,22 @@ def test_typed_empty_gold_outputs_have_only_the_two_contract_tables() -> None:
 
     outputs = build_gold_tables(**empty_inputs)
 
-    assert set(outputs) == {"projects", "project_events"}
+    assert set(outputs) == {
+        "projects",
+        "project_events",
+        "project_locations",
+        "project_location_sources",
+    }
     assert tuple(outputs["projects"].columns) == PROJECTS_COLUMNS
     assert tuple(outputs["project_events"].columns) == PROJECT_EVENTS_COLUMNS
+    assert tuple(outputs["project_locations"].columns) == PROJECT_LOCATIONS_COLUMNS
+    assert tuple(outputs["project_location_sources"].columns) == (
+        PROJECT_LOCATION_SOURCES_COLUMNS
+    )
     assert outputs["projects"].empty
     assert outputs["project_events"].empty
+    assert outputs["project_locations"].empty
+    assert outputs["project_location_sources"].empty
     assert all(str(dtype) != "object" for dtype in outputs["projects"].dtypes)
     assert all(
         str(dtype) != "object" for dtype in outputs["project_events"].dtypes

@@ -1213,4 +1213,6 @@ def test_real_contracts_flow_documents_to_silver_to_downstream(
 
     assert result.projects_path.exists()
     assert result.project_events_path.exists()
+    assert result.project_locations_path.exists()
+    assert result.project_location_sources_path.exists()
     assert pd.read_parquet(result.projects_path)["project_id"].nunique() == 1

@@ -30,11 +30,17 @@ from renewables_permitting.project_grouping import (
     PROJECT_GROUPING_COLUMNS,
     group_projects,
 )
+from renewables_permitting.project_locations import (
+    PROJECT_LOCATION_SOURCES_COLUMNS,
+    PROJECT_LOCATIONS_COLUMNS,
+    PROJECT_LOCATIONS_CONTRACT_VERSION,
+    project_locations_semantic_hash,
+)
 
 
-DOWNSTREAM_CONTRACT_VERSION = "1"
-DOWNSTREAM_BUILD_VERSION = "deterministic_downstream_v1"
-GOLD_MATERIALIZATION_CONTRACT_VERSION = "1"
+DOWNSTREAM_CONTRACT_VERSION = "2"
+DOWNSTREAM_BUILD_VERSION = "deterministic_downstream_v2"
+GOLD_MATERIALIZATION_CONTRACT_VERSION = "2"
 
 _RESOLVED_LOCATIONS_FILENAME = "resolved_locations.parquet"
 _PROJECT_GROUPING_FILENAME = "project_grouping.parquet"
@@ -43,6 +49,8 @@ _GOLD_DIRECTORY = "gold"
 _GOLD_MANIFEST_FILENAME = "manifest.json"
 _PROJECTS_FILENAME = "projects.parquet"
 _PROJECT_EVENTS_FILENAME = "project_events.parquet"
+_PROJECT_LOCATIONS_FILENAME = "project_locations.parquet"
+_PROJECT_LOCATION_SOURCES_FILENAME = "project_location_sources.parquet"
 
 
 @dataclass(frozen=True)
@@ -54,6 +62,8 @@ class DownstreamResult:
     project_grouping_path: Path
     projects_path: Path
     project_events_path: Path
+    project_locations_path: Path
+    project_location_sources_path: Path
     downstream_manifest_path: Path
     gold_manifest_path: Path
     materialization_id: str
@@ -197,14 +207,30 @@ def _validate_project_grouping(
 
 
 def _validate_gold_tables(tables: Mapping[str, pd.DataFrame]) -> None:
-    if set(tables) != {"projects", "project_events"}:
-        raise ValueError("Gold debe contener exactamente sus dos tablas.")
+    expected_tables = {
+        "projects",
+        "project_events",
+        "project_locations",
+        "project_location_sources",
+    }
+    if set(tables) != expected_tables:
+        raise ValueError("Gold debe contener exactamente sus cuatro tablas.")
     projects = tables["projects"]
     project_events = tables["project_events"]
+    project_locations = tables["project_locations"]
+    project_location_sources = tables["project_location_sources"]
     if tuple(projects.columns) != PROJECTS_COLUMNS:
         raise ValueError("projects no conserva su contrato de columnas.")
     if tuple(project_events.columns) != PROJECT_EVENTS_COLUMNS:
         raise ValueError("project_events no conserva su contrato de columnas.")
+    if tuple(project_locations.columns) != PROJECT_LOCATIONS_COLUMNS:
+        raise ValueError("project_locations no conserva su contrato de columnas.")
+    if tuple(project_location_sources.columns) != (
+        PROJECT_LOCATION_SOURCES_COLUMNS
+    ):
+        raise ValueError(
+            "project_location_sources no conserva su contrato de columnas."
+        )
     if projects["project_id"].isna().any() or projects[
         "project_id"
     ].duplicated().any():
@@ -218,6 +244,31 @@ def _validate_gold_tables(tables: Mapping[str, pd.DataFrame]) -> None:
         projects["project_id"].astype(str)
     ):
         raise ValueError("project_events contiene project_id huérfanos.")
+    if project_locations["project_location_id"].isna().any() or (
+        project_locations["project_location_id"].duplicated().any()
+    ):
+        raise ValueError("project_locations contiene una PK nula o duplicada.")
+    source_pk = ["project_location_id", "location_mention_id"]
+    if project_location_sources[source_pk].isna().any().any() or (
+        project_location_sources.duplicated(source_pk).any()
+    ):
+        raise ValueError(
+            "project_location_sources contiene una PK nula o duplicada."
+        )
+    if set(project_locations["project_id"].astype(str)) - set(
+        projects["project_id"].astype(str)
+    ):
+        raise ValueError("project_locations contiene project_id huérfanos.")
+    location_ids = set(project_locations["project_location_id"].astype(str))
+    source_location_ids = set(
+        project_location_sources["project_location_id"].astype(str)
+    )
+    if source_location_ids - location_ids:
+        raise ValueError(
+            "project_location_sources contiene project_location_id huérfanos."
+        )
+    if location_ids - source_location_ids:
+        raise ValueError("project_locations contiene filas sin fuente.")
 
 
 def _write_verified_parquet(
@@ -398,6 +449,16 @@ def run_downstream(
                 gold_dir / _PROJECT_EVENTS_FILENAME,
                 primary_key=("project_id", "administrative_action_id"),
             ),
+            "project_locations": _write_verified_parquet(
+                gold_tables["project_locations"],
+                gold_dir / _PROJECT_LOCATIONS_FILENAME,
+                primary_key=("project_location_id",),
+            ),
+            "project_location_sources": _write_verified_parquet(
+                gold_tables["project_location_sources"],
+                gold_dir / _PROJECT_LOCATION_SOURCES_FILENAME,
+                primary_key=("project_location_id", "location_mention_id"),
+            ),
         }
         artifact_metadata["resolved_locations"]["lineage"] = {
             "silver_materialization_id": silver.materialization_id,
@@ -412,6 +473,57 @@ def run_downstream(
                 "resolved_locations"
             ]["semantic_sha256"],
         }
+        location_sources = [
+            "projects",
+            "publication_events",
+            "generation_asset_mentions",
+            "project_grouping",
+            "resolved_locations",
+        ]
+        artifact_metadata["project_locations"]["sources"] = location_sources
+        artifact_metadata["project_locations"]["contract_version"] = (
+            PROJECT_LOCATIONS_CONTRACT_VERSION
+        )
+        artifact_metadata["project_locations"]["lineage"] = {
+            "silver_materialization_id": silver.materialization_id,
+            "extraction_config_id": silver.extraction_config_id,
+            "ine_reference_id": ine.semantic_reference_id,
+            "resolved_locations_id": artifact_metadata[
+                "resolved_locations"
+            ]["semantic_sha256"],
+            "project_grouping_id": artifact_metadata[
+                "project_grouping"
+            ]["semantic_sha256"],
+        }
+        artifact_metadata["project_location_sources"]["sources"] = [
+            "project_locations",
+            "resolved_locations",
+            "publication_events",
+        ]
+        artifact_metadata["project_location_sources"]["contract_version"] = (
+            PROJECT_LOCATIONS_CONTRACT_VERSION
+        )
+        artifact_metadata["project_location_sources"]["lineage"] = dict(
+            artifact_metadata["project_locations"]["lineage"]
+        )
+        project_location_sources = gold_tables["project_location_sources"]
+        resolved_source_mentions = project_location_sources[
+            "location_mention_id"
+        ].nunique()
+        project_locations_audit = {
+            "source_location_mentions": len(resolved_locations),
+            "resolved_source_location_mentions": resolved_source_mentions,
+            "unresolved_source_location_mentions_omitted": (
+                len(resolved_locations) - resolved_source_mentions
+            ),
+            "multiproject_source_expansions": (
+                len(project_location_sources) - resolved_source_mentions
+            ),
+        }
+        project_locations_bundle_hash = project_locations_semantic_hash(
+            gold_tables["project_locations"],
+            project_location_sources,
+        )
         materialization_id = _downstream_materialization_id(
             silver_materialization_id=silver.materialization_id,
             extraction_config_id=silver.extraction_config_id,
@@ -433,9 +545,19 @@ def run_downstream(
             "project_grouping_id": artifact_metadata[
                 "project_grouping"
             ]["semantic_sha256"],
+            "project_locations_semantic_sha256": (
+                project_locations_bundle_hash
+            ),
+            "project_locations_audit": project_locations_audit,
             "tables": {
                 "projects": artifact_metadata["projects"],
                 "project_events": artifact_metadata["project_events"],
+                "project_locations": artifact_metadata[
+                    "project_locations"
+                ],
+                "project_location_sources": artifact_metadata[
+                    "project_location_sources"
+                ],
             },
         }
         _write_manifest(gold_dir / _GOLD_MANIFEST_FILENAME, gold_manifest)
@@ -477,6 +599,8 @@ def run_downstream(
         expected_gold = {
             _PROJECTS_FILENAME,
             _PROJECT_EVENTS_FILENAME,
+            _PROJECT_LOCATIONS_FILENAME,
+            _PROJECT_LOCATION_SOURCES_FILENAME,
             _GOLD_MANIFEST_FILENAME,
         }
         if {path.name for path in staging_dir.iterdir()} != expected_root:
@@ -506,6 +630,14 @@ def run_downstream(
         projects_path=output_dir / _GOLD_DIRECTORY / _PROJECTS_FILENAME,
         project_events_path=(
             output_dir / _GOLD_DIRECTORY / _PROJECT_EVENTS_FILENAME
+        ),
+        project_locations_path=(
+            output_dir / _GOLD_DIRECTORY / _PROJECT_LOCATIONS_FILENAME
+        ),
+        project_location_sources_path=(
+            output_dir
+            / _GOLD_DIRECTORY
+            / _PROJECT_LOCATION_SOURCES_FILENAME
         ),
         downstream_manifest_path=(
             output_dir / _DOWNSTREAM_MANIFEST_FILENAME
