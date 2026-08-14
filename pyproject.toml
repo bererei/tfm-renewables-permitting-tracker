@@ -13,6 +13,7 @@ dependencies = [
     "requests",
     "pyarrow",
     "pydantic-ai",
+    "streamlit>=1.35,<2",
 ]
 
 [project.optional-dependencies]

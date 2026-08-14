@@ -319,13 +319,15 @@ def _write_manifest(path: Path, payload: Mapping[str, Any]) -> None:
         raise ValueError(f"El manifest {path.name!r} no supera el round trip.")
 
 
-def _downstream_materialization_id(
+def compute_downstream_materialization_id(
     *,
     silver_materialization_id: str,
     extraction_config_id: str,
     ine_reference_sha256: str,
-    artifacts: Mapping[str, Mapping[str, Any]],
+    artifact_semantic_sha256: Mapping[str, str],
 ) -> str:
+    """Return the path- and timestamp-independent downstream snapshot ID."""
+
     payload = {
         "contract_version": DOWNSTREAM_CONTRACT_VERSION,
         "build_version": DOWNSTREAM_BUILD_VERSION,
@@ -334,8 +336,10 @@ def _downstream_materialization_id(
         "extraction_config_id": extraction_config_id,
         "ine_reference_sha256": ine_reference_sha256,
         "artifact_semantic_sha256": {
-            name: metadata["semantic_sha256"]
-            for name, metadata in sorted(artifacts.items())
+            name: semantic_hash
+            for name, semantic_hash in sorted(
+                artifact_semantic_sha256.items()
+            )
         },
     }
     return sha256(_canonical_json_bytes(payload)).hexdigest()
@@ -524,11 +528,14 @@ def run_downstream(
             gold_tables["project_locations"],
             project_location_sources,
         )
-        materialization_id = _downstream_materialization_id(
+        materialization_id = compute_downstream_materialization_id(
             silver_materialization_id=silver.materialization_id,
             extraction_config_id=silver.extraction_config_id,
             ine_reference_sha256=ine.semantic_reference_sha256,
-            artifacts=artifact_metadata,
+            artifact_semantic_sha256={
+                name: str(metadata["semantic_sha256"])
+                for name, metadata in artifact_metadata.items()
+            },
         )
         gold_manifest = {
             "contract_version": GOLD_MATERIALIZATION_CONTRACT_VERSION,

@@ -218,6 +218,24 @@ def test_valid_downstream_materializes_all_artifacts_with_lineage(tmp_path) -> N
     assert gold_manifest["downstream_materialization_id"] == (
         result.materialization_id
     )
+    artifact_semantic_sha256 = {
+        "resolved_locations": downstream_manifest["artifacts"][
+            "resolved_locations"
+        ]["semantic_sha256"],
+        "project_grouping": downstream_manifest["artifacts"][
+            "project_grouping"
+        ]["semantic_sha256"],
+        **{
+            name: metadata["semantic_sha256"]
+            for name, metadata in gold_manifest["tables"].items()
+        },
+    }
+    assert downstream_module.compute_downstream_materialization_id(
+        silver_materialization_id=silver.materialization_id,
+        extraction_config_id=EXTRACTION_CONFIG_ID,
+        ine_reference_sha256=ine.semantic_reference_sha256,
+        artifact_semantic_sha256=artifact_semantic_sha256,
+    ) == result.materialization_id
     assert downstream_manifest["artifacts"]["resolved_locations"][
         "parquet_sha256"
     ] == _file_hash(result.resolved_locations_path)

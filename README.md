@@ -34,11 +34,13 @@ El core data freeze fue validado el **2026-08-13** sobre 140 documentos BOE:
 116 proyectos de generación, 165 actuaciones administrativas y 169 eventos de
 proyecto. La declaración reproducible y sus identidades están en
 [`docs/freezes/core_data_freeze_2026-08-13.md`](docs/freezes/core_data_freeze_2026-08-13.md).
-La extensión Gold aditiva `project_locations` está implementada junto con
-`project_location_sources`, que conserva el linaje de cada territorio hasta la
-mención, el evento y el BOE fuente. No cambia los project IDs ni
-`project_events` congelados. Su materialización persistente y validación final,
-así como Streamlit, siguen pendientes.
+La extensión Gold aditiva `project_locations` está materializada y validada
+junto con `project_location_sources`, que conserva el linaje de cada territorio
+hasta la mención, el evento y el BOE fuente. No cambia los project IDs ni
+`project_events` congelados. El MVP local y read-only de Streamlit también está
+implementado y consume exclusivamente las cuatro tablas Gold validadas:
+`projects`, `project_events`, `project_locations` y
+`project_location_sources`.
 
 La interfaz utilizará **“Territorio”** como filtro y **“Ámbito territorial del
 proyecto”** en la ficha. Nota metodológica aprobada:
@@ -52,6 +54,28 @@ proyecto”** en la ficha. Nota metodológica aprobada:
 Las nuevas llamadas al modelo requieren `--execute-model`; un cambio semántico
 INE exige confirmación explícita antes del rebuild. Usa `--dry-run` para
 inspeccionar el plan sin red, modelo, publicación ni downstream.
+
+## Aplicación Streamlit local
+
+Ejecuta el MVP read-only desde la raíz del repositorio:
+
+```bash
+uv run streamlit run streamlit_app.py
+```
+
+La aplicación utiliza por defecto el snapshot Gold local validado. El operador
+puede configurar su ubicación e identidad esperada sin exponer paths en la UI:
+
+```bash
+RENEWABLES_GOLD_DIR=/path/to/gold \
+RENEWABLES_EXPECTED_DOWNSTREAM_ID=<downstream-id> \
+uv run streamlit run streamlit_app.py
+```
+
+El MVP no escribe en Gold ni ejecuta el pipeline. El despliegue público y el
+flujo de reportes/correcciones desde la interfaz siguen pendientes. Cuando se
+implemente ese flujo, la usuaria no tendrá que introducir manualmente hashes,
+IDs internos ni identificadores de versión.
 
 
 ## Versión validada del pipeline de extracción

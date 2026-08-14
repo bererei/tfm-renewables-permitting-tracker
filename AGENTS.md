@@ -24,12 +24,14 @@ Gold `projects` and `project_events`.
 Current phase: **product completion**. The additive Gold `project_locations`
 and `project_location_sources` implementation is complete without altering
 frozen project IDs or `project_events` semantics; its persistent
-materialization and final validation remain pending. Next: validate that
-materialization, then build the Streamlit MVP, complete product validation, and
-finish the TFM documentation/delivery. Generation remains the project root,
-manual corrections remain traceable, derived Parquets must not be edited, and
-Gold must remain regenerable. Do not reopen extraction without a concrete
-material defect under the rule in `docs/TFM_CLOSEOUT.md`.
+materialization and final validation are complete. The local read-only
+Streamlit MVP is implemented over the four validated Gold tables. Next:
+complete final product validation and the TFM documentation/delivery. Public
+deployment and UI-based error reports/corrections remain pending. Generation
+remains the project root, manual corrections remain traceable, derived
+Parquets must not be edited, and Gold must remain regenerable. Do not reopen
+extraction without a concrete material defect under the rule in
+`docs/TFM_CLOSEOUT.md`.
 
 - Classify every new proposal as BLOCKER, REQUIRED, OPTIONAL, or POST-TFM. Do
   not start OPTIONAL or POST-TFM work while BLOCKER or REQUIRED work remains.
