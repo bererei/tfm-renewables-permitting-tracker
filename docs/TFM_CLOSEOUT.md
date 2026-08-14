@@ -2,8 +2,8 @@
 
 This document is the source of truth for current status, delivery priorities,
 calendar, risks and phase gates through **31 August 2026**. Stable engineering
-rules live in `AGENTS.md`; user procedures and command examples will live in
-`docs/USER_GUIDE.md` once that guide is created.
+rules live in `AGENTS.md`; user procedures and command examples are implemented
+in `docs/USER_GUIDE.md`, whose first version is pending human review.
 
 ## Mission
 
@@ -49,8 +49,11 @@ Delivery deadline: **31 August 2026**. Scope freeze: **19 August 2026**.
 | Core freeze: `projects` and `project_events` | Frozen and reproducibly validated | `docs/freezes/core_data_freeze_2026-08-13.md`; tag `tfm-core-freeze-2026-08-13` |
 | Gold `project_locations` and `project_location_sources` | Implemented, persistently materialized, reproducibly validated, committed and pushed | Commit `9a0916d`; frozen project IDs and `project_events` semantics unchanged |
 | Local read-only Streamlit MVP | Implemented, validated, committed and pushed | Commit `479f513`, also at `origin/tfm-final` |
-| Closeout documentation consolidation | In progress | Working-tree changes in `AGENTS.md` and this document; not yet committed or pushed |
-| Public read-only web application | Planned | No deployment has been declared |
+| Closeout documentation consolidation | Committed and pushed | Commit `f64e5d7`, also at `origin/tfm-final` |
+| `docs/USER_GUIDE.md` | implemented — pending human review | Complete first version in the working tree; not committed |
+| `docs/STREAMLIT_CODE_GUIDE.md` and selective comments | REQUIRED pending | Not implemented |
+| Local read-only Gold explorer | REQUIRED pending | Not implemented |
+| Public read-only web application | REQUIRED pending | No deployment has been declared |
 
 The core freeze covers extraction and canonicalisation, versioned corrections,
 the 13 Silver tables, INE enrichment, grouping, `projects` and
@@ -73,30 +76,33 @@ The local MVP already provides:
 
 Current phase: **product completion**.
 
-Current gate: review and commit this documentation consolidation.
+Current gate: human review of `docs/USER_GUIDE.md`.
 
-Next: create the user and code guides, then add the local Gold audit view.
+Next: review and commit the user guide, then create the code guide and add the
+local Gold audit view.
 
 ## REQUIRED before delivery
 
-1. **Consolidate documentation — IN PROGRESS.** Keep stable rules in
-   `AGENTS.md` and volatile planning here; review and commit the result.
-2. **Create `docs/USER_GUIDE.md` — PLANNED.** Make the local product and update
-   workflow understandable to a beginner using verified commands.
-3. **Create `docs/STREAMLIT_CODE_GUIDE.md` — PLANNED.** Explain file
+1. **Consolidate documentation — COMMITTED AND PUSHED.** Stable rules live in
+   `AGENTS.md` and volatile planning here; checkpoint `f64e5d7`.
+2. **Create `docs/USER_GUIDE.md` — implemented — pending human review.** The
+   first complete version documents the local product and update workflow with
+   commands verified against the real CLI.
+3. **Create `docs/STREAMLIT_CODE_GUIDE.md` — REQUIRED PENDING.** Explain file
    responsibilities, safe extension points, UI/data separation and focused
    tests.
-4. **Add selective Spanish comments — PLANNED.** Comment only non-obvious
-   loader, cache, filter, navigation, chronology, territory and read-only
-   decisions.
-5. **Add a local read-only Gold explorer — PLANNED.** Cover the four Gold
-   tables with rows, columns, dtypes, PK/FK, nulls, domains, simple filters and
-   a data dictionary; it must not write data.
+4. **Add selective Spanish comments — REQUIRED PENDING.** Comment only
+   non-obvious loader, cache, filter, navigation, chronology, territory and
+   read-only decisions.
+5. **Add a local read-only Gold explorer — REQUIRED PENDING.** Cover the four
+   Gold tables with rows, columns, dtypes, PK/FK, nulls, domains, simple filters
+   and a data dictionary; it must not write data.
 6. **Perform the visual review and priority improvements — PLANNED.** Focus on
    clarity, navigation, filters, project detail, chronology, territorial scope,
    methodology, empty states and non-technical language.
-7. **Publish a reproducible read-only web version — PLANNED.** Keep pipeline
-   execution, writes, authentication and administration out of the public app.
+7. **Publish a reproducible read-only web version — REQUIRED PENDING.** Keep
+   pipeline execution, writes, authentication and administration out of the
+   public app.
 8. **Complete final validation and delivery — PLANNED.** Include product and
    methodological evaluation, the pending final holdout, reproducibility
    evidence, screenshots, documentation and the written TFM. The holdout
@@ -137,8 +143,8 @@ approved corrections must never edit Gold or other derived Parquets directly.
 
 | Window | Planned outcome | Status at 14 Aug |
 | --- | --- | --- |
-| 14–15 Aug | Close MVP and planning | MVP committed and pushed; planning consolidation in progress |
-| 15–18 Aug | User guide, code guide and selective comments | Planned |
+| 14–15 Aug | Close MVP and planning | MVP `479f513` and planning consolidation `f64e5d7` committed and pushed |
+| 15–18 Aug | User guide, code guide and selective comments | User guide implemented — pending human review; remaining items planned |
 | 18–21 Aug | Local Gold explorer and structural/semantic audit | Planned |
 | 21–23 Aug | Priority visual and usability improvements | Planned |
 | 23–25 Aug | Audit missing fields and decide CONDITIONAL scope | Planned |
@@ -171,11 +177,11 @@ Cut scope in this order when schedule risk appears:
 
 ## Documentation and operational deliverables
 
-`docs/USER_GUIDE.md` will be the detailed source for architecture concepts,
-real CLI commands, adding BOE documents, extraction/review, corrections from VS
-Code, Silver/Gold regeneration, validation, publication, rollback, examples,
-troubleshooting and glossary. The practical correction procedure belongs there,
-not in `AGENTS.md` or this roadmap.
+`docs/USER_GUIDE.md` is the implemented, pending-review source for architecture
+concepts, real CLI commands, adding BOE documents, extraction/review,
+corrections from VS Code, Silver/Gold regeneration, validation, publication,
+rollback, examples, troubleshooting and glossary. The practical correction
+procedure belongs there, not in `AGENTS.md` or this roadmap.
 
 `docs/STREAMLIT_CODE_GUIDE.md` will document module responsibilities, safe UI
 changes, adding columns or filters, view changes and the tests required for each
@@ -213,12 +219,12 @@ POST-TFM features do not reopen it.
 Approved manual corrections remain versioned inputs applied before Silver. Do
 not edit generated Parquets. Distinguish isolated from systematic defects,
 review diffs and tests, calculate technical identifiers automatically, and
-regenerate validated Silver and Gold. The detailed operator workflow remains a
-`docs/USER_GUIDE.md` deliverable.
+regenerate validated Silver and Gold. The detailed operator workflow is
+implemented in `docs/USER_GUIDE.md` and remains pending human review.
 
 ## Final delivery checklist
 
-- [ ] Documentation consolidation reviewed, committed and pushed.
+- [x] Documentation consolidation reviewed, committed and pushed (`f64e5d7`).
 - [ ] `docs/USER_GUIDE.md` complete; all commands verified.
 - [ ] `docs/STREAMLIT_CODE_GUIDE.md` and selective comments complete.
 - [ ] Local Gold explorer and audit complete without writes.
