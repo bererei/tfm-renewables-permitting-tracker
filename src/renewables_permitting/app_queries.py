@@ -90,6 +90,9 @@ class ProjectNotFoundError(LookupError):
 def _humanize_unknown(value: str, *, domain: str) -> str:
     """Humanize a future domain code while retaining it in technical logs."""
 
+    # Los códigos canónicos se conservan en Gold y las etiquetas solo cambian su
+    # presentación. Si aparece un código futuro, se registra y se humaniza en
+    # vez de ocultarlo o hacer fallar toda la interfaz.
     LOGGER.warning("Valor desconocido en el dominio %s: %s", domain, value)
     return value.replace("_", " ").strip().capitalize()
 
@@ -210,6 +213,9 @@ def _territorial_project_ids(
 ) -> set[str] | None:
     """Intersect project sets for active hierarchical territorial filters."""
 
+    # isin combina con OR los valores de una categoría: por ejemplo, una de dos
+    # provincias. Los conjuntos de cada nivel activo se intersectan después,
+    # aplicando AND entre comunidad, provincia y municipio.
     active_sets: list[set[str]] = []
     if autonomous_communities:
         rows = locations[
@@ -220,6 +226,9 @@ def _territorial_project_ids(
         rows = locations[locations["province"].isin(provinces)]
         active_sets.append(set(rows["project_id"].astype(str)))
     if municipalities:
+        # Solo una fila publicada a nivel municipality puede satisfacer este
+        # filtro. Una mención province-only o autonomous-community-only no se
+        # convierte artificialmente en un municipio más preciso.
         rows = locations[
             (locations["location_level"] == "municipality")
             & locations["municipality"].isin(municipalities)
@@ -242,6 +251,9 @@ def _event_project_ids(
 
     if start_date is None and end_date is None and not action_types and not decisions:
         return None
+    # Los filtros se aplican sucesivamente al mismo conjunto de filas de
+    # project_events. Así, fecha, actuación y decisión deben coincidir en una
+    # misma fila, no en eventos diferentes del mismo proyecto.
     rows = events.copy()
     if start_date is not None:
         rows = rows[rows["publication_date"].ge(pd.Timestamp(start_date))]
@@ -303,6 +315,9 @@ def filter_projects(
     )
     if event_ids is not None:
         catalog = catalog[catalog["project_id"].astype(str).isin(event_ids)]
+    # Un proyecto puede coincidir con varias filas territoriales o de eventos,
+    # pero aquí solo se filtra el catálogo maestro, que tiene una fila por
+    # project_id. La copia evita modificar el dataset compartido.
     return catalog.reset_index(drop=True).copy()
 
 
@@ -325,6 +340,9 @@ def get_filter_options(
     selected_provinces = _selected(provinces)
     if selected_provinces:
         locations = locations[locations["province"].isin(selected_provinces)]
+    # Las opciones siguen la jerarquía elegida por la usuaria y los municipios
+    # salen solo de filas municipality. Las menciones menos precisas siguen
+    # disponibles en provincia o comunidad, sin inventar un nivel inferior.
     municipalities = _sorted_unique(locations.loc[
         locations["location_level"] == "municipality", "municipality"
     ])
@@ -355,6 +373,9 @@ def get_project_timeline(dataset: GoldDataset, project_id: str) -> pd.DataFrame:
     rows = dataset.project_events[
         dataset.project_events["project_id"] == project_id
     ].copy()
+    # La cronología se ordena por publication_date, event_index y
+    # administrative_action_index. administrative_action_id actúa como último
+    # desempate para obtener siempre el mismo orden.
     return rows.sort_values(
         [
             "publication_date",

@@ -1136,10 +1136,13 @@ unset RENEWABLES_GOLD_DIR RENEWABLES_EXPECTED_DOWNSTREAM_ID
 ## 16. Estado de las funciones futuras
 
 **Disponible:** aplicación Streamlit local y read-only sobre las cuatro tablas
-Gold, con catálogo, ficha, cronología, territorio y metodología.
+Gold, con catálogo, ficha, cronología, territorio y metodología. La
+[guía técnica de Streamlit](STREAMLIT_CODE_GUIDE.md) documenta su arquitectura,
+extensiones seguras y tests; sus comentarios selectivos están implementados y
+pendientes de revisión humana.
 
-**REQUIRED pendiente:** explorador local read-only de Gold, despliegue web
-read-only reproducible, guía técnica y comentarios selectivos de Streamlit.
+**REQUIRED pendiente:** explorador local read-only de Gold y despliegue web
+read-only reproducible.
 Que la aplicación funcione localmente no significa que exista ya un despliegue
 público.
 
@@ -1203,6 +1206,8 @@ automática de snapshots documentales tampoco está disponible actualmente.
 - [README](../README.md): inicio rápido y estado del producto.
 - [Reglas de trabajo](../AGENTS.md): contratos, freeze y salvaguardas.
 - [Roadmap de cierre](TFM_CLOSEOUT.md): prioridades y gates hasta la entrega.
+- [Guía técnica de Streamlit](STREAMLIT_CODE_GUIDE.md): arquitectura del MVP,
+  extensiones seguras y tests para modificar su código.
 - [Declaración del core freeze](freezes/core_data_freeze_2026-08-13.md).
 - [CLI del pipeline](../src/renewables_permitting/pipeline.py).
 - [Configuración de extracción](../src/renewables_permitting/extraction/config.py).

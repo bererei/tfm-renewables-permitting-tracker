@@ -287,6 +287,9 @@ def _validated_table_path(
 ) -> Path:
     """Resolve a table path and reject path traversal or external symlinks."""
 
+    # El nombre del archivo procede del manifest y se resuelve dentro de
+    # gold_dir. Si la ruta o un symlink apuntan fuera, relative_to falla y evita
+    # que el loader abra un archivo ajeno al snapshot validado.
     root = gold_dir.resolve(strict=True)
     candidate = gold_dir / filename
     try:
@@ -316,6 +319,9 @@ def _load_and_validate_table(
         table_name=table_name,
         filename=str(metadata["filename"]),
     )
+    # El hash físico comprueba ahora los bytes exactos del Parquet. Después de
+    # leerlo, el hash semántico comprobará su contenido tabular normalizado:
+    # protegen aspectos distintos y uno no sustituye al otro.
     expected_hash = metadata.get("parquet_sha256")
     if not isinstance(expected_hash, str) or _sha256_file(path) != expected_hash:
         raise GoldIntegrityError(
@@ -428,6 +434,9 @@ def load_gold_dataset(
     directory = Path(gold_dir)
     if not directory.is_dir() or directory.is_symlink():
         raise GoldDatasetError("El directorio del dataset Gold no está disponible.")
+    # El manifest declara la versión, las cuatro tablas y sus identidades. Se
+    # valida antes de aceptar el dataset para no confiar únicamente en que los
+    # archivos tengan los nombres esperados.
     manifest = _read_manifest(directory)
     metadata = _validate_manifest(manifest)
     expected_parquets = set(_TABLE_FILENAMES.values())
@@ -458,6 +467,9 @@ def load_gold_dataset(
         raise GoldIntegrityError(
             "El hash semántico conjunto de localizaciones no coincide."
         )
+    # No basta con aceptar el downstream ID escrito en el manifest: se recalcula
+    # desde las identidades de entrada y los hashes semánticos contractuales.
+    # Así, una edición coordinada del manifest no puede aparentar el mismo run.
     recomputed_downstream_id = compute_downstream_materialization_id(
         silver_materialization_id=str(manifest["silver_materialization_id"]),
         extraction_config_id=str(manifest["extraction_config_id"]),
@@ -472,10 +484,14 @@ def load_gold_dataset(
         },
     )
     if recomputed_downstream_id != manifest["downstream_materialization_id"]:
+        # Si el ID recalculado contradice al declarado, el snapshot es
+        # internamente incoherente y se comunica como GoldIntegrityError.
         raise GoldIntegrityError(
             "La identidad contractual del dataset no coincide con su contenido."
         )
     if recomputed_downstream_id != expected_downstream_id:
+        # Si contenido y manifest coinciden pero no son el ID configurado por el
+        # operador, el snapshot es válido pero es otra versión: GoldVersionError.
         raise GoldVersionError(
             "La versión del dataset no coincide con la esperada."
         )

@@ -61,6 +61,9 @@ _FILTER_KEYS = (
 )
 
 
+# Streamlit conserva en caché el dataset ya validado para no releer los Parquet
+# en cada interacción. La ruta Gold y el downstream ID identifican el snapshot;
+# si cambia cualquiera de los dos, se carga y valida una versión nueva.
 @st.cache_data(show_spinner="Verificando el dataset Gold…")
 def _load_cached(gold_dir: str, expected_downstream_id: str) -> GoldDataset:
     """Cache a verified dataset using only serializable configuration values."""
@@ -74,6 +77,9 @@ def _load_cached(gold_dir: str, expected_downstream_id: str) -> GoldDataset:
 def _configured_dataset() -> GoldDataset:
     """Resolve operator-only environment configuration and load Gold safely."""
 
+    # Estas variables de entorno son configuración del operador, no valores de
+    # widgets. Determinan qué directorio Gold y qué downstream ID debe cargar y
+    # verificar la aplicación.
     raw_dir = os.environ.get("RENEWABLES_GOLD_DIR", DEFAULT_GOLD_DIR)
     expected_id = os.environ.get(
         "RENEWABLES_EXPECTED_DOWNSTREAM_ID",
@@ -88,6 +94,9 @@ def _configured_dataset() -> GoldDataset:
 def _load_or_stop() -> GoldDataset:
     """Render one safe Spanish error and stop before exposing technical details."""
 
+    # El log conserva la excepción completa para el diagnóstico técnico. La
+    # interfaz muestra mensajes comprensibles y no expone rutas internas,
+    # detalles del contrato ni trazas a la usuaria.
     try:
         return _configured_dataset()
     except GoldVersionError:
@@ -112,6 +121,9 @@ def _load_or_stop() -> GoldDataset:
 def _navigate(view: str, *, project_id: str | None = None) -> None:
     """Persist navigation identity in query parameters and request a rerun."""
 
+    # view y project_id se guardan en la URL mediante query parameters. Esto
+    # permite recargar o compartir una ficha y mantiene la URL como autoridad
+    # de navegación, en vez de depender solo de session_state.
     st.query_params.clear()
     st.query_params["view"] = view
     if project_id is not None:
@@ -147,6 +159,9 @@ def _clear_filter_state() -> None:
 def _retain_compatible_state(key: str, options: tuple[str, ...]) -> None:
     """Drop stale hierarchical selections before their widget is instantiated."""
 
+    # Al cambiar una comunidad o provincia, una selección hija anterior puede
+    # dejar de existir entre las nuevas opciones. Se elimina antes de reconstruir
+    # el multiselect para evitar un estado de widget incompatible.
     current = st.session_state.get(key, [])
     compatible = [value for value in current if value in options]
     if compatible != list(current):
@@ -319,6 +334,9 @@ def _render_explore(dataset: GoldDataset) -> None:
     )
     selected_rows = selection.selection.rows
     if selected_rows:
+        # Streamlit devuelve la posición visual de la fila seleccionada. Se usa
+        # esa posición para recuperar el project_id del resultado filtrado; el
+        # índice de pantalla no se trata como una identidad persistente.
         project_id = str(filtered.iloc[selected_rows[0]]["project_id"])
         _navigate("ficha", project_id=project_id)
 
@@ -500,6 +518,8 @@ def _render_methodology(dataset: GoldDataset) -> None:
         "detallados, targets concretos ni un estado jurídico consolidado porque "
         "esos campos no forman parte de las cuatro tablas Gold consumidas."
     )
+    # Estas cardinalidades se calculan desde el Gold que se acaba de cargar. No
+    # se escriben cifras fijas que quedarían obsoletas al cambiar de snapshot.
     st.subheader("Versión")
     st.markdown(
         f"- core freeze: `{CORE_FREEZE_TAG}`\n"
@@ -527,6 +547,9 @@ def main() -> None:
         "generación eléctrica."
     )
     dataset = _load_or_stop()
+    # En cada rerun se leen view y project_id desde los query parameters, que son
+    # la autoridad de navegación. session_state se reserva para el estado
+    # transitorio de los widgets y no decide qué vista está abierta.
     raw_view = st.query_params.get("view", "explorar")
     view = raw_view if raw_view in {"explorar", "ficha", "metodologia"} else "explorar"
     if view != raw_view:

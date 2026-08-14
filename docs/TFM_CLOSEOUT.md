@@ -3,7 +3,7 @@
 This document is the source of truth for current status, delivery priorities,
 calendar, risks and phase gates through **31 August 2026**. Stable engineering
 rules live in `AGENTS.md`; user procedures and command examples are implemented
-in `docs/USER_GUIDE.md`, whose first version is pending human review.
+in `docs/USER_GUIDE.md`, committed at checkpoint `898df2b`.
 
 ## Mission
 
@@ -50,8 +50,8 @@ Delivery deadline: **31 August 2026**. Scope freeze: **19 August 2026**.
 | Gold `project_locations` and `project_location_sources` | Implemented, persistently materialized, reproducibly validated, committed and pushed | Commit `9a0916d`; frozen project IDs and `project_events` semantics unchanged |
 | Local read-only Streamlit MVP | Implemented, validated, committed and pushed | Commit `479f513`, also at `origin/tfm-final` |
 | Closeout documentation consolidation | Committed and pushed | Commit `f64e5d7`, also at `origin/tfm-final` |
-| `docs/USER_GUIDE.md` | implemented — pending human review | Complete first version in the working tree; not committed |
-| `docs/STREAMLIT_CODE_GUIDE.md` and selective comments | REQUIRED pending | Not implemented |
+| `docs/USER_GUIDE.md` | Implemented, reviewed, committed and pushed | Commit `898df2b`, also at `origin/tfm-final` |
+| `docs/STREAMLIT_CODE_GUIDE.md` and selective comments | Implemented — pending human review | Technical architecture and non-obvious decisions documented without behavior changes |
 | Local read-only Gold explorer | REQUIRED pending | Not implemented |
 | Public read-only web application | REQUIRED pending | No deployment has been declared |
 
@@ -76,24 +76,25 @@ The local MVP already provides:
 
 Current phase: **product completion**.
 
-Current gate: human review of `docs/USER_GUIDE.md`.
+Current gate: human review of `docs/STREAMLIT_CODE_GUIDE.md` and the selective
+Spanish comments.
 
-Next: review and commit the user guide, then create the code guide and add the
-local Gold audit view.
+Next: review and commit the code guide and comments, then add the local Gold
+audit view.
 
 ## REQUIRED before delivery
 
 1. **Consolidate documentation — COMMITTED AND PUSHED.** Stable rules live in
    `AGENTS.md` and volatile planning here; checkpoint `f64e5d7`.
-2. **Create `docs/USER_GUIDE.md` — implemented — pending human review.** The
-   first complete version documents the local product and update workflow with
-   commands verified against the real CLI.
-3. **Create `docs/STREAMLIT_CODE_GUIDE.md` — REQUIRED PENDING.** Explain file
-   responsibilities, safe extension points, UI/data separation and focused
-   tests.
-4. **Add selective Spanish comments — REQUIRED PENDING.** Comment only
-   non-obvious loader, cache, filter, navigation, chronology, territory and
-   read-only decisions.
+2. **Create `docs/USER_GUIDE.md` — COMMITTED AND PUSHED.** The complete first
+   version documents the local product and update workflow; checkpoint
+   `898df2b`.
+3. **Create `docs/STREAMLIT_CODE_GUIDE.md` — IMPLEMENTED, PENDING HUMAN
+   REVIEW.** It explains file responsibilities, safe extension points,
+   UI/data separation and focused tests.
+4. **Add selective Spanish comments — IMPLEMENTED, PENDING HUMAN REVIEW.** The
+   comments cover only non-obvious loader, cache, filter and navigation
+   decisions, without changing behavior.
 5. **Add a local read-only Gold explorer — REQUIRED PENDING.** Cover the four
    Gold tables with rows, columns, dtypes, PK/FK, nulls, domains, simple filters
    and a data dictionary; it must not write data.
@@ -144,7 +145,7 @@ approved corrections must never edit Gold or other derived Parquets directly.
 | Window | Planned outcome | Status at 14 Aug |
 | --- | --- | --- |
 | 14–15 Aug | Close MVP and planning | MVP `479f513` and planning consolidation `f64e5d7` committed and pushed |
-| 15–18 Aug | User guide, code guide and selective comments | User guide implemented — pending human review; remaining items planned |
+| 15–18 Aug | User guide, code guide and selective comments | User guide committed; code guide and comments implemented — pending human review |
 | 18–21 Aug | Local Gold explorer and structural/semantic audit | Planned |
 | 21–23 Aug | Priority visual and usability improvements | Planned |
 | 23–25 Aug | Audit missing fields and decide CONDITIONAL scope | Planned |
@@ -177,15 +178,15 @@ Cut scope in this order when schedule risk appears:
 
 ## Documentation and operational deliverables
 
-`docs/USER_GUIDE.md` is the implemented, pending-review source for architecture
+`docs/USER_GUIDE.md` is the committed source for architecture
 concepts, real CLI commands, adding BOE documents, extraction/review,
 corrections from VS Code, Silver/Gold regeneration, validation, publication,
 rollback, examples, troubleshooting and glossary. The practical correction
 procedure belongs there, not in `AGENTS.md` or this roadmap.
 
-`docs/STREAMLIT_CODE_GUIDE.md` will document module responsibilities, safe UI
+`docs/STREAMLIT_CODE_GUIDE.md` now documents module responsibilities, safe UI
 changes, adding columns or filters, view changes and the tests required for each
-kind of modification.
+kind of modification; it remains pending human review.
 
 The documentation Definition of Done is stated once in `AGENTS.md`. Before
 delivery, confirm that the user guide examples execute against the real CLI and
@@ -220,12 +221,12 @@ Approved manual corrections remain versioned inputs applied before Silver. Do
 not edit generated Parquets. Distinguish isolated from systematic defects,
 review diffs and tests, calculate technical identifiers automatically, and
 regenerate validated Silver and Gold. The detailed operator workflow is
-implemented in `docs/USER_GUIDE.md` and remains pending human review.
+implemented in `docs/USER_GUIDE.md`.
 
 ## Final delivery checklist
 
 - [x] Documentation consolidation reviewed, committed and pushed (`f64e5d7`).
-- [ ] `docs/USER_GUIDE.md` complete; all commands verified.
+- [x] `docs/USER_GUIDE.md` complete, reviewed, committed and pushed (`898df2b`).
 - [ ] `docs/STREAMLIT_CODE_GUIDE.md` and selective comments complete.
 - [ ] Local Gold explorer and audit complete without writes.
 - [ ] Priority visual review complete on the local app.
