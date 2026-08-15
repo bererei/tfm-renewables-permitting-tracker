@@ -31,7 +31,9 @@ flowchart LR
     A[Gold Parquet + manifest] --> B[app_data.py]
     B --> C[GoldDataset validado]
     C --> D[app_queries.py]
+    C --> G[app_audit.py]
     D --> E[streamlit_app.py]
+    G --> E
     E --> F[Usuaria]
 ```
 
@@ -68,14 +70,29 @@ detalle, cronología, localizaciones, linaje territorial y enlaces BOE. También
 centraliza las etiquetas de dominio mostradas a la usuaria. No conoce widgets,
 variables de entorno ni rutas.
 
+### `src/renewables_permitting/app_audit.py`
+
+Contiene las consultas puras del explorador técnico: resumen de esquema y
+calidad, filtros fila a fila y las vistas derivadas de resumen por proyecto y
+trazabilidad territorial. Consume el `GoldDataset` ya validado, devuelve copias
+y no importa Streamlit ni realiza I/O. La trazabilidad conserva una fila por
+fuente territorial y no une `project_events`, evitando multiplicar una fuente
+por todas las actuaciones de su evento.
+
+`GOLD_TABLE_SPECS`, definido en `app_data.py`, expone de forma inmutable nombre,
+columnas, orden, dtypes, PK, relaciones, granularidad y dominios. El loader y el
+explorador reutilizan esta fuente; no mantengas otra lista de columnas en la UI.
+
 ### Tests
 
 - `tests/test_app_data.py` protege manifest, versiones, hashes, rutas,
   schemas, PK/FK, downstream ID e inmutabilidad convencional.
 - `tests/test_app_queries.py` protege catálogo, filtros, jerarquía territorial,
   semántica same-row, orden, copias y casos inexistentes.
+- `tests/test_app_audit.py` protege metadatos, calidad, filtros de las cuatro
+  tablas, vistas derivadas, granularidad e inmutabilidad.
 - `tests/test_streamlit_app.py` protege navegación, widgets, métricas dinámicas,
-  estados de error y las tres vistas mediante `AppTest`.
+  estados de error y las vistas públicas y de auditoría mediante `AppTest`.
 
 ## 4. Flujo de carga contractual
 
@@ -200,8 +217,12 @@ asignaciones inplace sobre `dataset.*`.
 ### `build_boe_url(boe_id)`
 
 - **Entrada:** ID BOE contractual.
-- **Salida:** URL pública `https://www.boe.es/txt.php?id=...`.
-- **Responsabilidad:** validar el formato antes de construir el enlace.
+- **Salida:** URL pública `https://www.boe.es/diario_boe/txt.php?id=...`,
+  derivada determinísticamente del ID BOE.
+- **Responsabilidad:** validar el formato antes de construir el enlace. Los
+  documentos fuente conservan sus URL canónicas, pero Gold no las propaga; una
+  futura tabla de publicaciones podría preservarlas sin que sea un requisito
+  del MVP actual.
 - **Tests:** URL válida y rechazo de identificadores no contractuales.
 
 Las funciones `label_*` también son públicas para presentación. Los códigos
@@ -249,10 +270,15 @@ de entrada.
 - `view=explorar` abre el catálogo;
 - `view=ficha&project_id=...` abre el detalle;
 - `view=metodologia` abre la metodología.
+- `view=datos` abre la auditoría solo si
+  `RENEWABLES_ENABLE_DATA_EXPLORER` vale `1`, `true`, `yes` u `on`, sin
+  distinguir mayúsculas y minúsculas.
 
 Los botones actualizan los parámetros y solicitan un rerun. Un `view`
 desconocido se normaliza a `explorar`. Una ficha sin proyecto o con ID
 inexistente muestra un estado seguro y permite volver al catálogo.
+El explorador está desactivado por defecto; un acceso directo a `view=datos`
+sin habilitación vuelve a **Explorar** sin revelar configuración ni rutas.
 
 El estado de sesión se usa solo para widgets. Cuando cambia una comunidad o
 provincia, las selecciones hijas incompatibles se eliminan antes de crear el
@@ -282,11 +308,23 @@ Implementa su semántica pura en `app_queries.py`, añade opciones jerárquicas 
 corresponde, pruébala en `test_app_queries.py` y solo entonces crea el widget en
 `streamlit_app.py`. Define explícitamente OR, AND y granularidad same-row.
 
+Si el filtro pertenece al explorador técnico, impleméntalo en `app_audit.py`,
+prueba OR, AND, fechas, orden e inmutabilidad en `test_app_audit.py`, y añade
+después el widget específico en `streamlit_app.py`.
+
 ### Añadir una vista
 
 Añade un valor de `view`, su renderer y la navegación mediante query params.
 La vista debe consumir consultas puras y manejar IDs inexistentes. Amplía
 `AppTest` con acceso directo por URL y navegación desde la interfaz.
+
+Una vista derivada de auditoría debe declarar su granularidad, reutilizar las
+consultas existentes cuando encajen y vivir en `app_audit.py`. No la conviertas
+en una tabla Gold ni unas tablas con granularidades incompatibles en un join
+global. Para añadir una tabla canónica al explorador, primero debe existir en el
+contrato Gold productivo; después amplía una sola vez `GOLD_TABLE_SPECS`, el
+loader y sus tests. La UI debe obtener de esa especificación columnas, PK y
+relaciones.
 
 ### Consumir un nuevo dato Gold
 
@@ -318,6 +356,7 @@ UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
 uv run --with pytest pytest -q -p no:cacheprovider \
   tests/test_app_data.py \
   tests/test_app_queries.py \
+  tests/test_app_audit.py \
   tests/test_streamlit_app.py
 ```
 
@@ -357,6 +396,8 @@ registra el detalle técnico y muestra mensajes breves que no filtran rutas.
 
 - [ ] El cambio tiene un solo objetivo y no abre el pipeline desde la UI.
 - [ ] Streamlit sigue consumiendo exclusivamente las cuatro tablas Gold.
+- [ ] El explorador sigue desactivado por defecto y no ofrece escritura,
+      edición ni descargas.
 - [ ] Las consultas siguen siendo puras y devuelven copias.
 - [ ] No se han duplicado contratos ni mappings innecesariamente.
 - [ ] Navegación y widgets tienen estados vacíos e incompatibles cubiertos.
@@ -375,6 +416,8 @@ registra el detalle técnico y muestra mensajes breves que no filtran rutas.
 - [Aplicación Streamlit](../streamlit_app.py)
 - [Loader Gold](../src/renewables_permitting/app_data.py)
 - [Consultas de aplicación](../src/renewables_permitting/app_queries.py)
+- [Consultas de auditoría](../src/renewables_permitting/app_audit.py)
 - [Tests del loader](../tests/test_app_data.py)
 - [Tests de consultas](../tests/test_app_queries.py)
+- [Tests del explorador](../tests/test_app_audit.py)
 - [Tests de Streamlit](../tests/test_streamlit_app.py)

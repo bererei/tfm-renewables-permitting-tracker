@@ -444,4 +444,4 @@ def build_boe_url(boe_id: str) -> str:
 
     if not isinstance(boe_id, str) or not _BOE_ID_RE.fullmatch(boe_id):
         raise ValueError("El identificador BOE no tiene el formato esperado.")
-    return f"https://www.boe.es/txt.php?id={boe_id}"
+    return f"https://www.boe.es/diario_boe/txt.php?id={boe_id}"

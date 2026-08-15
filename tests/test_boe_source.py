@@ -35,7 +35,7 @@ def _summary_payload() -> dict:
             "identificador": boe_id,
             "control": "2026/1",
             "titulo": title,
-            "url_html": f"https://www.boe.es/txt.php?id={boe_id}",
+            "url_html": f"https://www.boe.es/diario_boe/txt.php?id={boe_id}",
             "url_xml": f"https://www.boe.es/xml.php?id={boe_id}",
         }
 

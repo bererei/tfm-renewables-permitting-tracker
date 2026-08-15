@@ -33,7 +33,7 @@ def _items() -> pd.DataFrame:
             "fecha_publicacion": pd.Timestamp(publication_date),
             "titulo": title,
             "url_xml": f"https://www.boe.es/xml.php?id={boe_id}",
-            "url_html": f"https://www.boe.es/txt.php?id={boe_id}",
+            "url_html": f"https://www.boe.es/diario_boe/txt.php?id={boe_id}",
             "source": "boe",
             "summary_sha256": "a" * 64,
         })

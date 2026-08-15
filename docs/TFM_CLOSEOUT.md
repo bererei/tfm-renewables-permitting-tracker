@@ -51,8 +51,8 @@ Delivery deadline: **31 August 2026**. Scope freeze: **19 August 2026**.
 | Local read-only Streamlit MVP | Implemented, validated, committed and pushed | Commit `479f513`, also at `origin/tfm-final` |
 | Closeout documentation consolidation | Committed and pushed | Commit `f64e5d7`, also at `origin/tfm-final` |
 | `docs/USER_GUIDE.md` | Implemented, reviewed, committed and pushed | Commit `898df2b`, also at `origin/tfm-final` |
-| `docs/STREAMLIT_CODE_GUIDE.md` and selective comments | Implemented — pending human review | Technical architecture and non-obvious decisions documented without behavior changes |
-| Local read-only Gold explorer | REQUIRED pending | Not implemented |
+| `docs/STREAMLIT_CODE_GUIDE.md` and selective comments | Implemented, reviewed, committed and pushed | Commit `cb144e1`, also at `origin/tfm-final` |
+| Local read-only Gold explorer | Implemented — pending human review | Configuration-gated audit of four canonical tables and two safe derived views |
 | Public read-only web application | REQUIRED pending | No deployment has been declared |
 
 The core freeze covers extraction and canonicalisation, versioned corrections,
@@ -76,11 +76,10 @@ The local MVP already provides:
 
 Current phase: **product completion**.
 
-Current gate: human review of `docs/STREAMLIT_CODE_GUIDE.md` and the selective
-Spanish comments.
+Current gate: human review of the local read-only Gold explorer.
 
-Next: review and commit the code guide and comments, then add the local Gold
-audit view.
+Next: perform the visual review and priority improvements after the explorer
+has been reviewed.
 
 ## REQUIRED before delivery
 
@@ -89,15 +88,15 @@ audit view.
 2. **Create `docs/USER_GUIDE.md` — COMMITTED AND PUSHED.** The complete first
    version documents the local product and update workflow; checkpoint
    `898df2b`.
-3. **Create `docs/STREAMLIT_CODE_GUIDE.md` — IMPLEMENTED, PENDING HUMAN
-   REVIEW.** It explains file responsibilities, safe extension points,
-   UI/data separation and focused tests.
-4. **Add selective Spanish comments — IMPLEMENTED, PENDING HUMAN REVIEW.** The
-   comments cover only non-obvious loader, cache, filter and navigation
-   decisions, without changing behavior.
-5. **Add a local read-only Gold explorer — REQUIRED PENDING.** Cover the four
-   Gold tables with rows, columns, dtypes, PK/FK, nulls, domains, simple filters
-   and a data dictionary; it must not write data.
+3. **Create `docs/STREAMLIT_CODE_GUIDE.md` — COMMITTED AND PUSHED.** It explains
+   file responsibilities, safe extension points, UI/data separation and
+   focused tests; checkpoint `cb144e1`.
+4. **Add selective Spanish comments — COMMITTED AND PUSHED.** The comments
+   cover only non-obvious loader, cache, filter and navigation decisions,
+   without changing behavior; checkpoint `cb144e1`.
+5. **Add a local read-only Gold explorer — IMPLEMENTED, PENDING HUMAN REVIEW.**
+   It covers the four Gold tables with rows, columns, dtypes, PK/FK, nulls,
+   domains, filters and a data dictionary without writing data.
 6. **Perform the visual review and priority improvements — PLANNED.** Focus on
    clarity, navigation, filters, project detail, chronology, territorial scope,
    methodology, empty states and non-technical language.
@@ -227,7 +226,8 @@ implemented in `docs/USER_GUIDE.md`.
 
 - [x] Documentation consolidation reviewed, committed and pushed (`f64e5d7`).
 - [x] `docs/USER_GUIDE.md` complete, reviewed, committed and pushed (`898df2b`).
-- [ ] `docs/STREAMLIT_CODE_GUIDE.md` and selective comments complete.
+- [x] `docs/STREAMLIT_CODE_GUIDE.md` and selective comments complete,
+      reviewed, committed and pushed (`cb144e1`).
 - [ ] Local Gold explorer and audit complete without writes.
 - [ ] Priority visual review complete on the local app.
 - [ ] CONDITIONAL fields explicitly included or cut after audit.

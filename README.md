@@ -77,6 +77,14 @@ flujo de reportes/correcciones desde la interfaz siguen pendientes. Cuando se
 implemente ese flujo, la usuaria no tendrá que introducir manualmente hashes,
 IDs internos ni identificadores de versión.
 
+El explorador técnico de las tablas Gold está desactivado por defecto. Para
+habilitarlo expresamente en una sesión local:
+
+```bash
+RENEWABLES_ENABLE_DATA_EXPLORER=true \
+uv run streamlit run streamlit_app.py
+```
+
 
 ## Versión validada del pipeline de extracción
 

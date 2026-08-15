@@ -55,7 +55,7 @@ def _candidate() -> pd.DataFrame:
         "doc_file_stem": "20260102_BOE-A-2026-1",
         "fecha_publicacion": pd.Timestamp("2026-01-02"),
         "titulo": "Autorizacion del parque Aurora.",
-        "url_html": "https://www.boe.es/txt.php?id=BOE-A-2026-1",
+        "url_html": "https://www.boe.es/diario_boe/txt.php?id=BOE-A-2026-1",
         "url_xml": "https://www.boe.es/xml.php?id=BOE-A-2026-1",
         "source": "boe",
         "summary_sha256": "a" * 64,

@@ -602,10 +602,27 @@ def test_unknown_project_raises_specific_error() -> None:
         get_project_detail(synthetic_dataset(), "project_missing")
 
 
-def test_build_boe_url_validates_identifier() -> None:
-    assert build_boe_url("BOE-A-2024-100") == (
-        "https://www.boe.es/txt.php?id=BOE-A-2024-100"
-    )
+@pytest.mark.parametrize(
+    ("boe_id", "expected_url"),
+    [
+        (
+            "BOE-A-2023-10306",
+            "https://www.boe.es/diario_boe/txt.php?id=BOE-A-2023-10306",
+        ),
+        (
+            "BOE-B-2026-19389",
+            "https://www.boe.es/diario_boe/txt.php?id=BOE-B-2026-19389",
+        ),
+    ],
+)
+def test_build_boe_url_validates_identifier(
+    boe_id: str,
+    expected_url: str,
+) -> None:
+    assert build_boe_url(boe_id) == expected_url
+
+
+def test_build_boe_url_rejects_invalid_identifier() -> None:
     with pytest.raises(ValueError):
         build_boe_url("../../etc/passwd")
 

@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from hashlib import sha256
 from pathlib import Path
+from types import MappingProxyType
 from typing import Any, Mapping
 
 import pandas as pd
@@ -25,13 +26,7 @@ from renewables_permitting.project_locations import (
 )
 
 
-_TABLE_COLUMNS: Mapping[str, tuple[str, ...]] = {
-    "projects": PROJECTS_COLUMNS,
-    "project_events": PROJECT_EVENTS_COLUMNS,
-    "project_locations": PROJECT_LOCATIONS_COLUMNS,
-    "project_location_sources": PROJECT_LOCATION_SOURCES_COLUMNS,
-}
-_TABLE_DTYPES: Mapping[str, Mapping[str, str]] = {
+_GOLD_TABLE_DTYPES: Mapping[str, Mapping[str, str]] = {
     "projects": {
         "project_id": "string",
         "project_name": "string",
@@ -84,18 +79,6 @@ _TABLE_DTYPES: Mapping[str, Mapping[str, str]] = {
         "publication_date": "datetime64[ns]",
     },
 }
-_TABLE_PRIMARY_KEYS: Mapping[str, tuple[str, ...]] = {
-    "projects": ("project_id",),
-    "project_events": ("project_id", "administrative_action_id"),
-    "project_locations": ("project_location_id",),
-    "project_location_sources": (
-        "project_location_id",
-        "location_mention_id",
-    ),
-}
-_TABLE_FILENAMES: Mapping[str, str] = {
-    name: f"{name}.parquet" for name in _TABLE_COLUMNS
-}
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
@@ -117,6 +100,123 @@ class GoldIntegrityError(GoldDatasetError):
 
 class GoldSchemaError(GoldIntegrityError):
     """A Gold table does not have its expected application-facing schema."""
+
+
+@dataclass(frozen=True)
+class GoldRelationship:
+    """One declared relationship from a Gold table to another Gold table."""
+
+    columns: tuple[str, ...]
+    target_table: str
+    target_columns: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class GoldTableSpec:
+    """Immutable application metadata for one canonical Gold table."""
+
+    name: str
+    label: str
+    filename: str
+    description: str
+    granularity: str
+    columns: tuple[str, ...]
+    dtypes: Mapping[str, str]
+    primary_key: tuple[str, ...]
+    relationships: tuple[GoldRelationship, ...] = ()
+    domain_columns: tuple[str, ...] = ()
+
+
+def _gold_table_spec(
+    *,
+    name: str,
+    label: str,
+    description: str,
+    granularity: str,
+    columns: tuple[str, ...],
+    primary_key: tuple[str, ...],
+    relationships: tuple[GoldRelationship, ...] = (),
+    domain_columns: tuple[str, ...] = (),
+) -> GoldTableSpec:
+    """Build a public immutable spec from the loader's dtype contract."""
+
+    return GoldTableSpec(
+        name=name,
+        label=label,
+        filename=f"{name}.parquet",
+        description=description,
+        granularity=granularity,
+        columns=columns,
+        dtypes=MappingProxyType(dict(_GOLD_TABLE_DTYPES[name])),
+        primary_key=primary_key,
+        relationships=relationships,
+        domain_columns=domain_columns,
+    )
+
+
+GOLD_TABLE_SPECS: Mapping[str, GoldTableSpec] = MappingProxyType({
+    "projects": _gold_table_spec(
+        name="projects",
+        label="Proyectos",
+        description="Catálogo de proyectos canónicos de generación.",
+        granularity="una fila por proyecto",
+        columns=PROJECTS_COLUMNS,
+        primary_key=("project_id",),
+        domain_columns=("technology",),
+    ),
+    "project_events": _gold_table_spec(
+        name="project_events",
+        label="Eventos de proyecto",
+        description=(
+            "Atribuciones de actuaciones administrativas publicadas a proyectos."
+        ),
+        granularity=(
+            "una fila por atribución project_id × administrative_action_id"
+        ),
+        columns=PROJECT_EVENTS_COLUMNS,
+        primary_key=("project_id", "administrative_action_id"),
+        relationships=(
+            GoldRelationship(("project_id",), "projects", ("project_id",)),
+        ),
+        domain_columns=("action_type", "decision", "is_modification"),
+    ),
+    "project_locations": _gold_table_spec(
+        name="project_locations",
+        label="Territorios de proyectos",
+        description="Asociaciones territoriales canónicas de cada proyecto.",
+        granularity="una fila por asociación canónica project_id × territorio",
+        columns=PROJECT_LOCATIONS_COLUMNS,
+        primary_key=("project_location_id",),
+        relationships=(
+            GoldRelationship(("project_id",), "projects", ("project_id",)),
+        ),
+        domain_columns=("location_level",),
+    ),
+    "project_location_sources": _gold_table_spec(
+        name="project_location_sources",
+        label="Fuentes territoriales",
+        description=(
+            "Fuentes BOE que sustentan cada asociación territorial canónica."
+        ),
+        granularity=(
+            "una fila por project_location_id × location_mention_id"
+        ),
+        columns=PROJECT_LOCATION_SOURCES_COLUMNS,
+        primary_key=("project_location_id", "location_mention_id"),
+        relationships=(
+            GoldRelationship(
+                ("project_location_id",),
+                "project_locations",
+                ("project_location_id",),
+            ),
+            GoldRelationship(
+                ("event_id", "boe_id", "publication_date"),
+                "project_events",
+                ("event_id", "boe_id", "publication_date"),
+            ),
+        ),
+    ),
+})
 
 
 @dataclass(frozen=True)
@@ -261,18 +361,19 @@ def _validate_manifest(
             "La identidad de la referencia INE no es válida."
         )
     tables = manifest.get("tables")
-    if not isinstance(tables, dict) or set(tables) != set(_TABLE_COLUMNS):
+    if not isinstance(tables, dict) or set(tables) != set(GOLD_TABLE_SPECS):
         raise GoldManifestError("Gold debe declarar exactamente sus cuatro tablas.")
     for name, metadata in tables.items():
         if not isinstance(metadata, dict):
             raise GoldManifestError(
                 f"La declaración de la tabla {name!r} no es válida."
             )
-        if metadata.get("filename") != _TABLE_FILENAMES[name]:
+        spec = GOLD_TABLE_SPECS[name]
+        if metadata.get("filename") != spec.filename:
             raise GoldManifestError(
                 f"El filename declarado para {name!r} no es válido."
             )
-        if metadata.get("primary_key") != list(_TABLE_PRIMARY_KEYS[name]):
+        if metadata.get("primary_key") != list(spec.primary_key):
             raise GoldManifestError(
                 f"La clave primaria declarada para {name!r} no es válida."
             )
@@ -337,9 +438,10 @@ def _load_and_validate_table(
         raise GoldIntegrityError(
             f"La cardinalidad de {table_name!r} no coincide con el manifest."
         )
-    expected_columns = _TABLE_COLUMNS[table_name]
+    spec = GOLD_TABLE_SPECS[table_name]
+    expected_columns = spec.columns
     expected_schema = [
-        {"name": column, "dtype": _TABLE_DTYPES[table_name][column]}
+        {"name": column, "dtype": spec.dtypes[column]}
         for column in expected_columns
     ]
     if (
@@ -350,7 +452,7 @@ def _load_and_validate_table(
         raise GoldSchemaError(
             f"El esquema de {table_name!r} no coincide con el contrato."
         )
-    primary_key = _TABLE_PRIMARY_KEYS[table_name]
+    primary_key = spec.primary_key
     expected_semantic_hash = metadata.get("semantic_sha256")
     if (
         not isinstance(expected_semantic_hash, str)
@@ -365,7 +467,8 @@ def _load_and_validate_table(
 def _validate_primary_keys(tables: Mapping[str, pd.DataFrame]) -> None:
     """Reject null or duplicate values in every declared Gold primary key."""
 
-    for name, key in _TABLE_PRIMARY_KEYS.items():
+    for name, spec in GOLD_TABLE_SPECS.items():
+        key = spec.primary_key
         values = tables[name].loc[:, list(key)]
         if values.isna().any().any() or values.duplicated().any():
             raise GoldIntegrityError(
@@ -439,7 +542,7 @@ def load_gold_dataset(
     # archivos tengan los nombres esperados.
     manifest = _read_manifest(directory)
     metadata = _validate_manifest(manifest)
-    expected_parquets = set(_TABLE_FILENAMES.values())
+    expected_parquets = {spec.filename for spec in GOLD_TABLE_SPECS.values()}
     actual_parquets = {path.name for path in directory.glob("*.parquet")}
     if expected_parquets - actual_parquets:
         raise GoldIntegrityError("Falta una tabla contractual del dataset Gold.")
@@ -451,7 +554,7 @@ def load_gold_dataset(
             table_name=name,
             metadata=metadata[name],
         )
-        for name in _TABLE_COLUMNS
+        for name in GOLD_TABLE_SPECS
     }
     _validate_primary_keys(tables)
     _validate_foreign_keys(tables)
@@ -479,7 +582,7 @@ def load_gold_dataset(
             "project_grouping": str(manifest["project_grouping_id"]),
             **{
                 name: str(metadata[name]["semantic_sha256"])
-                for name in _TABLE_COLUMNS
+                for name in GOLD_TABLE_SPECS
             },
         },
     )

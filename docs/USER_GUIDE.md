@@ -409,6 +409,43 @@ La vista **Metodología** explica alcance, fuentes, freeze y limitaciones. Es la
 referencia apropiada antes de interpretar ausencias o comparar el producto con
 un registro administrativo exhaustivo.
 
+### Auditoría de datos Gold
+
+Esta vista técnica está desactivada por defecto. Para habilitarla solo durante
+una sesión local de inspección, inicia la aplicación así:
+
+```bash
+RENEWABLES_ENABLE_DATA_EXPLORER=true \
+uv run streamlit run streamlit_app.py
+```
+
+La navegación mostrará entonces **Auditoría de datos**. Sus seis opciones son:
+
+- **Proyectos**, **Eventos de proyecto**, **Territorios de proyectos** y
+  **Fuentes territoriales**: las cuatro tablas Gold canónicas;
+- **Resumen por proyecto**: vista agregada con una fila por proyecto;
+- **Trazabilidad territorial**: vista derivada con una fila por fuente de una
+  asociación territorial.
+
+En cada tabla canónica, **Contenido** permite filtrar y consultar las filas,
+**Esquema** muestra columnas, dtypes, nulabilidad observada, valores distintos
+y roles PK/FK, y **Calidad** resume duplicados de PK, nulos, dominios y rangos
+de fecha. Los filtros combinan varias opciones de una categoría con OR y
+categorías distintas con AND. Los identificadores técnicos se conservan porque
+permiten seguir el linaje.
+
+Gold no tiene una tabla plana universal: eventos, territorios y fuentes tienen
+granularidades distintas y un join indiscriminado multiplicaría filas. La
+trazabilidad territorial une únicamente proyecto, territorio y fuente
+documental; no añade todas las actuaciones. El resumen y la trazabilidad son
+consultas en memoria, no nuevas tablas Gold.
+
+El explorador es estrictamente de solo lectura: no edita celdas, no descarga ni
+genera archivos y no ejecuta el pipeline. Nunca se debe usar para corregir un
+Parquet. Si detectas una anomalía, documenta la evidencia y corrígela en la
+fuente versionada o etapa productiva correspondiente, seguida de regeneración
+y validación.
+
 ## 8. Modelo Gold
 
 Gold no es una tabla gigante: son cuatro tablas con granularidades distintas.
