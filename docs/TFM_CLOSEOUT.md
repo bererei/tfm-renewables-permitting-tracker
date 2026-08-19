@@ -1,23 +1,9 @@
-# TFM closeout roadmap
+# TFM Closeout
 
-This document is the source of truth for current status, delivery priorities,
-calendar, risks and phase gates through **31 August 2026**. Stable engineering
-rules live in `AGENTS.md`; user procedures and command examples are implemented
-in `docs/USER_GUIDE.md`, committed at checkpoint `898df2b`.
-
-## Mission
-
-Deliver a complete, reproducible and evaluated vertical product:
-
-```text
-BOE
-→ extraction
-→ validated Silver
-→ deterministic INE enrichment
-→ project grouping
-→ Gold chronology and territory
-→ read-only Streamlit application
-```
+Operational source of truth for status, dependencies, gates, calendar, risks
+and scope cuts through the **31 August 2026** delivery. Stable engineering
+rules live in `AGENTS.md`; user procedures in `docs/USER_GUIDE.md`; Streamlit
+architecture in `docs/STREAMLIT_CODE_GUIDE.md`.
 
 Decision rule:
 
@@ -27,218 +13,269 @@ complete + reproducible + evaluated
 perfect + exhaustive
 ```
 
-Delivery deadline: **31 August 2026**. Scope freeze: **19 August 2026**.
+The August delivery scope is frozen from **19 August 2026**. Only the REQUIRED
+work listed here may enter the product.
 
-## Status vocabulary
-
-- **Implemented**: the behavior exists in the working repository.
-- **Validated**: the relevant automated or reproducibility checks passed at its
-  recorded checkpoint.
-- **Committed**: the implementation is in Git history.
-- **Pushed**: the commit is reachable from `origin/tfm-final`.
-- **Deployed**: a reproducible public instance exists; local execution alone is
-  not deployment.
-
-## Current status — 15 August 2026
+## 1. Current validated state
 
 | Area | Status | Evidence |
 | --- | --- | --- |
-| 13-table Silver contract and materialization | Implemented, validated, committed and pushed | Included in the final core freeze |
-| Versioned human action corrections | Implemented, validated, committed and pushed | Five approved exclusions applied without editing derived Parquets |
-| Deterministic territory resolution and project grouping | Implemented, validated, committed and pushed | Included in the final core freeze |
-| Core freeze: `projects` and `project_events` | Frozen and reproducibly validated | `docs/freezes/core_data_freeze_2026-08-13.md`; tag `tfm-core-freeze-2026-08-13` |
-| Gold `project_locations` and `project_location_sources` | Implemented, persistently materialized, reproducibly validated, committed and pushed | Commit `9a0916d`; frozen project IDs and `project_events` semantics unchanged |
-| Local read-only Streamlit MVP | Implemented, validated, committed and pushed | Commit `479f513`, also at `origin/tfm-final` |
-| Closeout documentation consolidation | Committed and pushed | Commit `f64e5d7`, also at `origin/tfm-final` |
-| `docs/USER_GUIDE.md` | Implemented, reviewed, committed and pushed | Commit `898df2b`, also at `origin/tfm-final` |
-| `docs/STREAMLIT_CODE_GUIDE.md` and selective comments | Implemented, reviewed, committed and pushed | Commit `cb144e1`, also at `origin/tfm-final` |
-| Local read-only Gold explorer | Implemented, validated, committed and pushed | Commit `c35136d`; configuration-gated audit of four canonical tables and two safe derived views |
-| Published situation and action filtering | Implemented — pending human review | Latest-per-action and historical interpretations, same-row dates/situations and OR/AND action matching |
-| Public read-only web application | REQUIRED pending | No deployment has been declared |
+| Core extraction, Silver, INE enrichment, grouping, `projects` and `project_events` | FROZEN, validated, committed and tagged | `docs/freezes/core_data_freeze_2026-08-13.md`; `tfm-core-freeze-2026-08-13` |
+| Gold `project_locations` and `project_location_sources` | Validated, committed and pushed | `9a0916d`; frozen project membership and events unchanged |
+| Local read-only Streamlit MVP | Validated, committed and pushed | `479f513` |
+| `docs/USER_GUIDE.md` | Reviewed, committed and pushed | `898df2b` |
+| `docs/STREAMLIT_CODE_GUIDE.md` | Reviewed, committed and pushed | `cb144e1` |
+| Gold data explorer | Validated, committed and pushed | `c35136d`; local and disabled by default |
+| Canonical BOE URL fix | Tested, committed and pushed | `c35136d` |
+| Administrative situation filters | Validated, committed and pushed | `523887a`: latest/historical, situation, action, OR/AND and `matching_action_types` |
 
-The core freeze covers extraction and canonicalisation, versioned corrections,
-the 13 Silver tables, INE enrichment, grouping, `projects` and
-`project_events`. The two location tables and Streamlit were deliberately
-additive and remain outside that frozen scope, as the freeze declaration
-states.
+The validated application reads only the four contractual Gold tables,
+verifies the expected downstream identity and never reads Silver or executes
+the pipeline. Project detail always uses the complete published chronology,
+independently of the filters used to locate the project.
 
-The local MVP already provides:
+Current phase: **product completion**. Public deployment, minimum safe error
+reporting and the final holdout remain pending. No additional analytical Gold
+field has received GO.
 
-- a contractual Gold loader that verifies the expected downstream identity and
-  the four table contracts;
-- read-only access to `projects`, `project_events`, `project_locations` and
-  `project_location_sources`, with no Silver or pipeline access;
-- deterministic filters, including OR within a dimension, AND between
-  dimensions, same-row action/decision matching and territorial hierarchy;
-- a project catalogue, project detail, published administrative chronology and
-  methodology view;
-- query, loader and downstream regression tests plus Streamlit `AppTest`
-  coverage.
+## 2. August delivery objective
 
-Current phase: **product completion**.
+Deliver a public Streamlit dashboard for following named electricity-generation
+projects through administrative information published in the BOE. The product
+must be secure, reproducible, documented, validated and **read-only with
+respect to Gold and the analytical pipeline**.
 
-Current gate: human review of published-situation and action filtering.
+The approved product scope includes:
 
-Next: perform the priority visual review of the public application after this
-filtering phase has been reviewed.
+- dynamic project and BOE-publication KPIs;
+- a territorial map;
+- latest-published-situation and publication-evolution charts;
+- project exploration using the implemented filters;
+- project detail with full published chronology;
+- methodology, limitations and data-version information;
+- a separate minimum safe channel for reporting possible errors.
 
-## REQUIRED before delivery
+Exact pages, layout, widgets, navigation, chart granularity, map interaction,
+libraries, empty states and wireframes belong to
+`docs/APP_PRODUCT_SPEC.md`, not to this roadmap.
 
-1. **Consolidate documentation — COMMITTED AND PUSHED.** Stable rules live in
-   `AGENTS.md` and volatile planning here; checkpoint `f64e5d7`.
-2. **Create `docs/USER_GUIDE.md` — COMMITTED AND PUSHED.** The complete first
-   version documents the local product and update workflow; checkpoint
-   `898df2b`.
-3. **Create `docs/STREAMLIT_CODE_GUIDE.md` — COMMITTED AND PUSHED.** It explains
-   file responsibilities, safe extension points, UI/data separation and
-   focused tests; checkpoint `cb144e1`.
-4. **Add selective Spanish comments — COMMITTED AND PUSHED.** The comments
-   cover only non-obvious loader, cache, filter and navigation decisions,
-   without changing behavior; checkpoint `cb144e1`.
-5. **Add a local read-only Gold explorer — COMMITTED AND PUSHED.**
-   It covers the four Gold tables with rows, columns, dtypes, PK/FK, nulls,
-   domains, filters and a data dictionary without writing data; checkpoint
-   `c35136d`.
-6. **Perform the visual review and priority improvements — PLANNED.** Focus on
-   clarity, navigation, filters, project detail, chronology, territorial scope,
-   methodology, empty states and non-technical language.
-7. **Publish a reproducible read-only web version — REQUIRED PENDING.** Keep
-   pipeline execution, writes, authentication and administration out of the
-   public app.
-8. **Complete final validation and delivery — PLANNED.** Include product and
-   methodological evaluation, the pending final holdout, reproducibility
-   evidence, screenshots, documentation and the written TFM. The holdout
-   remains outside the frozen data scope, as declared by the freeze document.
+### Critical methodological definitions
 
-## CONDITIONAL work
+- **Territory:** the planned measure is the number of distinct projects
+  associated with each published territory. Do not call it density without a
+  denominator. The map represents administrative territories in which BOE
+  publications place an installation or associated component; it does not
+  represent exact plant coordinates.
+- **Administration:** use **última decisión publicada por trámite**. Do not
+  present the result as an inferred legal **estado actual**.
+- **Power:** **PROPOSED / CONDITIONAL KPI**. `APP_DATA_CATALOG` must establish
+  granularity, unit, additivity and absence of duplicate counting before any
+  formula is approved. If the audit fails, omit the KPI and document the
+  limitation; do not describe power as energy production.
 
-Audit promoter, participants, capacity, associated components and publication
-title before adding any of them. For each field, measure coverage, nullability,
-quality, ambiguity, granularity, history and lineage.
+### Read-only and error reporting boundary
 
-Implement a field before delivery only when all of these conditions hold:
+The dashboard and data layer are read-only: they do not modify Gold, Silver,
+`runs/` or the pipeline. A separate reporting channel may accept bounded user
+input, but it must not modify analytical data, execute the pipeline, approve a
+correction or become part of the analytical query layer. “Public app
+read-only” refers to the dataset and dashboard; it does not forbid an isolated,
+approved report submission mechanism.
 
-- the data already exists with sufficient quality;
-- its Gold granularity and contract are clear;
-- its source lineage is preserved;
-- the change is bounded and does not reopen the frozen core;
-- it does not put REQUIRED work or the deadline at risk.
+### Documentation boundaries
 
-Streamlit must not read Silver directly to compensate for a missing Gold field.
-Missing, ambiguous or low-quality fields are documented limitations, not a
-reason to force a late schema expansion.
-
-## POST-TFM backlog
-
-- public “Reportar posible error” button and persistent report storage;
-- separate administrative application;
-- authentication, authorisation and role management;
-- report review and assisted/versioned correction generation;
-- controlled administrative pipeline execution;
-- daily BOE updates, scheduling, monitoring and full automation;
-- production hardening beyond the minimum reproducible public deployment.
-
-The public and administrative applications remain separate. Reports and
-approved corrections must never edit Gold or other derived Parquets directly.
-
-## Calendar
-
-| Window | Planned outcome | Status at 14 Aug |
-| --- | --- | --- |
-| 14–15 Aug | Close MVP and planning | MVP `479f513` and planning consolidation `f64e5d7` committed and pushed |
-| 15–18 Aug | User guide, code guide and selective comments | User guide committed; code guide and comments implemented — pending human review |
-| 18–21 Aug | Local Gold explorer and structural/semantic audit | Planned |
-| 21–23 Aug | Priority visual and usability improvements | Planned |
-| 23–25 Aug | Audit missing fields and decide CONDITIONAL scope | Planned |
-| 25–27 Aug | Reproducible read-only web publication | Planned |
-| 27–29 Aug | Final evaluation, validation, screenshots and documentation | Planned |
-| 30–31 Aug | Incident margin, written TFM and delivery | Planned |
-
-After the **19 August scope freeze**, start only work that directly protects a
-REQUIRED deliverable, fixes a blocker in the vertical product, or preserves
-critical reproducibility. Do not use the remaining calendar to add convenience
-features.
-
-## Risks and scope cuts
-
-| Risk | Control or cut |
+| Document | Responsibility |
 | --- | --- |
-| Documentation drifts from the executable CLI | Verify every documented command against the real CLI and update the user guide with affected changes |
-| Conditional fields consume the delivery window | Audit first; omit any field without reliable granularity and lineage |
-| Public deployment expands into operations | Deploy only the read-only Gold application; defer admin, writes, accounts and automation |
-| Visual refinement delays validation | Fix only comprehension, navigation and accessibility issues that affect the demonstration |
-| A late data concern reopens extraction | Apply the freeze reopening rule below; record secondary issues as limitations |
-| A new snapshot is mistaken for validated output | Require manifests, contractual identities, reproducible checks and explicit validation status |
+| `docs/APP_DATA_CATALOG.md` | What data exists, its quality/granularity, and whether it is usable |
+| `docs/APP_PRODUCT_SPEC.md` | What product to build from approved data, including KPIs and wireframes |
+| `docs/TFM_CLOSEOUT.md` | When and in what dependency order work is performed |
+| `AGENTS.md` | Stable invariants, safety and Definition of Done |
 
-Cut scope in this order when schedule risk appears:
+Do not duplicate the future catalogue or product specification here.
 
-1. omit all CONDITIONAL fields;
-2. limit visual work to defects that impede comprehension;
-3. keep deployment minimal and read-only;
-4. preserve validation, reproducibility, documentation and the written TFM.
+## 3. Required deliverables
 
-## Documentation and operational deliverables
+Complete in dependency order:
 
-`docs/USER_GUIDE.md` is the committed source for architecture
-concepts, real CLI commands, adding BOE documents, extraction/review,
-corrections from VS Code, Silver/Gold regeneration, validation, publication,
-rollback, examples, troubleshooting and glossary. The practical correction
-procedure belongs there, not in `AGENTS.md` or this roadmap.
+1. **APP_DATA_CATALOG — Gate 1.** Create and review
+   `docs/APP_DATA_CATALOG.md`. Audit current Gold and potentially useful
+   extracted data for source, granularity, coverage, nullability, cardinality,
+   temporality, ambiguity, normalization, provenance and duplicate-count risk.
+   Record GO/NO-GO as `READY FOR GOLD`, `NEEDS MODELLING`,
+   `DO NOT USE FOR TFM`, or `POST-TFM`.
+2. **APP_PRODUCT_SPEC — Gate 2.** Create and review
+   `docs/APP_PRODUCT_SPEC.md` with business questions, approved KPIs,
+   dimensions, measures, filters, pages, charts, map, interactions, error
+   states, reporting behavior and Markdown/ASCII wireframes. Do not create
+   separate `APP_QUESTIONS.md` or `APP_WIREFRAMES.md`.
+3. **KPI definitions.** Freeze project and BOE-publication counts plus only the
+   additional measures approved by Gates 1 and 2. Power remains conditional.
+4. **Approved Gold extensions.** Implement only indispensable structures given
+   explicit GO. A documented NO-GO is a valid completion outcome.
+5. **Dashboard.** Implement the approved KPIs, territorial map, latest-situation
+   view and publication evolution without regressing existing exploration.
+6. **Project detail.** Add only fields approved by the data catalogue while
+   preserving full chronology, BOE evidence and the non-legal-status wording.
+7. **Minimum safe error reporting.** Gate 2 chooses the smallest secure
+   mechanism. It may collect project/entity, error category, bounded
+   description and optional suggested value, but cannot modify data or approve
+   corrections.
+8. **Security.** Preserve contractual Gold loading, expected downstream ID,
+   safe paths/errors, pinned dependencies, secrets outside Git and a disabled
+   public Gold explorer.
+9. **Deployment.** Publish a simple versioned artifact derived from validated
+   Gold, with reproducible configuration, rollback and smoke tests. Do not
+   deploy directly from an ignored `runs/` directory.
+10. **Final validation.** Run focused regressions, the full suite,
+    reproducibility and security checks, visual review and production smoke
+    tests after the functional freeze.
+11. **Final holdout.** Select it only after the extraction/review policy and
+    functional product are frozen. Exclude all documents in
+    `development_used_documents.csv`; the holdout remains outside the core
+    freeze.
+12. **Delivery evidence.** Prepare screenshots, limitations, data identities,
+    written-TFM evidence and synchronized documentation.
+13. **Git closeout.** Review, commit and push only approved files, record the
+    deployed version and preserve a clean final state.
 
-`docs/STREAMLIT_CODE_GUIDE.md` now documents module responsibilities, safe UI
-changes, adding columns or filters, view changes and the tests required for each
-kind of modification; it remains pending human review.
+Operational constraints that remain in force:
 
-The documentation Definition of Done is stated once in `AGENTS.md`. Before
-delivery, confirm that the user guide examples execute against the real CLI and
-that README, guides, screenshots and deployment instructions agree on the
-validated Gold snapshot.
+- Corrections use VS Code + Codex + versioned inputs + tests + regeneration.
+  The human decides evidence and approval; derivable IDs and hashes are
+  calculated by code. Streamlit does not correct data.
+- The CLI does not yet combine a historical document snapshot and a new cohort
+  automatically. Never replace the cumulative corpus with a partial cohort;
+  full accumulation automation is POST-TFM unless indispensable for delivery.
+- Every functional block closes with tests, documentation-impact review,
+  human review and an explicitly approved commit/push before the next gate.
 
-## Public web publication gate
+## 4. Conditional scope
 
-The minimum public deployment must:
+Only Gate 1 can approve these items:
 
-- use a pinned, validated four-table Gold snapshot and verify its expected
-  downstream identity;
-- remain read-only and expose no filesystem path, secret or pipeline control;
-- preserve the local MVP's contractual loading and methodology explanation;
-- document environment configuration and a reproducible deployment procedure;
-- pass local regression and `AppTest` checks before the deployed instance is
-  visually verified.
+- promoter and other participants;
+- power and generation assets;
+- hybridisation;
+- associated components and storage;
+- relationships between projects;
+- publication title;
+- secondary visual improvements.
 
-This gate does not authorise a write path, external model call, live BOE fetch,
-account system or administrative correction workflow.
+For every field, the audit must prove reliable granularity, bounded scope,
+lineage and product value. Do not force columns such as `projects.promoter` or
+`projects.power_mw`; the correct model may require another granularity. If an
+item requires broad re-extraction, unclear modelling or threatens a REQUIRED
+deadline, move it to POST-TFM.
 
-## Freeze and corrections
+## 5. Post-TFM
 
-The historical extraction-freeze tag and runs remain immutable references. The
-final core freeze may be reopened only for a concrete, evidenced material defect
-that affects project identity, grouping, administrative chronology, action
-attribution, final evaluation, reproducibility or provenance. Presentation
-changes, additional filters, documentation, additive location views and
-POST-TFM features do not reopen it.
+- administrative application;
+- authentication, authorisation and roles;
+- persistent full reporting/review backend;
+- correction approval or pipeline execution from a UI;
+- automatic document-snapshot accumulation and daily updates;
+- advanced monitoring and a complete publications dimension;
+- nonessential refactors and speculative architecture.
 
-Approved manual corrections remain versioned inputs applied before Silver. Do
-not edit generated Parquets. Distinguish isolated from systematic defects,
-review diffs and tests, calculate technical identifiers automatically, and
-regenerate validated Silver and Gold. The detailed operator workflow is
-implemented in `docs/USER_GUIDE.md`.
+The minimum August report channel does not authorise these capabilities. If a
+safe persistent solution requires a database, authentication or workflow
+backend that violates the stop conditions, stop and apply the scope-cut rule.
 
-## Final delivery checklist
+## 6. Human gates and freezes
 
-- [x] Documentation consolidation reviewed, committed and pushed (`f64e5d7`).
-- [x] `docs/USER_GUIDE.md` complete, reviewed, committed and pushed (`898df2b`).
-- [x] `docs/STREAMLIT_CODE_GUIDE.md` and selective comments complete,
-      reviewed, committed and pushed (`cb144e1`).
-- [x] Local Gold explorer and audit complete without writes (`c35136d`).
-- [ ] Published-situation and action filtering reviewed and committed.
-- [ ] Priority visual review complete on the local app.
-- [ ] CONDITIONAL fields explicitly included or cut after audit.
-- [ ] Minimal public read-only deployment reproducible and visually verified.
-- [ ] Relevant tests, Streamlit `AppTest` and final evaluation pass.
-- [ ] Freeze and additive Gold identities remain verified.
-- [ ] Screenshots, limitations, reproducibility evidence and final report ready.
-- [ ] Final changes reviewed, committed and pushed; delivery artifacts recorded.
+| Gate | Acceptance required before continuing |
+| --- | --- |
+| **1 — Data** | `APP_DATA_CATALOG` reviewed; explicit GO/NO-GO per field |
+| **2 — Product** | `APP_PRODUCT_SPEC`, KPI semantics and wireframes reviewed |
+| **3 — Gold** | Approved contracts/materialization validated, or explicit NO-GO confirms no extension |
+| **4 — UI** | Dashboard functionally and visually reviewed |
+| **5 — Deployment** | Public artifact deployed and smoke-tested with approved identity |
+| **6 — Final** | Holdout, tests, reproducibility, documentation and delivery evidence accepted |
 
-Do not require perfection to close the TFM. Do not start the next item
-automatically: finish its acceptance evidence and stop for human review.
+Codex must not skip or combine gates.
+
+| Freeze | Effective point | Consequence |
+| --- | --- | --- |
+| **Design freeze** | End of 22 August | No new product requirements except material defects |
+| **Data-model freeze** | End of 24 August | No Gold changes except material defects |
+| **Functional freeze** | End of 27 August | Only bug fixes, security, deployment, documentation and validation |
+
+The core freeze remains separate and can reopen only for an evidenced material
+defect in identity, grouping, chronology, action attribution, evaluation,
+reproducibility or provenance, with explicit human approval.
+
+## 7. Calendar 19–31 August
+
+| Window | Outcome |
+| --- | --- |
+| **19–20 Aug** | Planning committed; start `APP_DATA_CATALOG` |
+| **20–21 Aug** | Data catalogue closed; GO/NO-GO per field |
+| **21–22 Aug** | Product spec, KPI semantics and wireframes reviewed; design freeze |
+| **22–24 Aug** | Approved Gold extensions only; tests and validation; data-model freeze |
+| **24–27 Aug** | Dashboard, project detail and minimum reporting; functional freeze |
+| **27–28 Aug** | Publication artifact, security, deployment and smoke tests |
+| **28–29 Aug** | Priority visual review, bug fixes and screenshots |
+| **29–30 Aug** | Full suite, holdout, reproducibility, documentation and written TFM |
+| **31 Aug** | Incident buffer and submission; no planned feature work |
+
+## 8. Stop conditions and scope-cut rule
+
+Stop and report before acting if work requires:
+
+- reopening the core freeze or broad re-extraction;
+- a new database, heavy dependency or complex authentication;
+- a major architectural change;
+- changes to project IDs or membership;
+- Gold tables or fields not approved by Gate 1;
+- ambiguous KPI semantics or loss of reproducibility;
+- violation of the design, data-model or functional freeze.
+
+Report the problem, impact, minimum solution, complete solution and August
+recommendation. Human approval is required before continuing.
+
+If the deadline is at risk, cut scope in this order:
+
+1. remove all non-approved and CONDITIONAL data;
+2. omit the power KPI if it lacks a safe model;
+3. keep only the minimum isolated reporting channel;
+4. limit visual work to comprehension, accessibility and demonstration defects;
+5. keep deployment minimal, versioned and read-only;
+6. preserve tests, holdout, reproducibility, security and documentation.
+
+Across all cuts, prioritize correctness, reproducibility and security over
+visual refinement, additional data, automation and administration. Never
+sacrifice traceability for a visualization.
+
+## 9. Final delivery checklist
+
+Already closed; reopen only for a material bug:
+
+- [x] Core data freeze validated and tagged.
+- [x] Streamlit MVP committed and pushed (`479f513`).
+- [x] User and Streamlit code guides committed and pushed.
+- [x] Gold explorer and BOE URL fix committed and pushed (`c35136d`).
+- [x] Administrative situation filters committed and pushed (`523887a`).
+
+Remaining delivery checks:
+
+- [ ] Gates 1 and 2 reviewed; KPI and scope decisions recorded.
+- [ ] Approved Gold extension validated or explicit NO-GO recorded.
+- [ ] Design, data-model and functional freezes declared on schedule.
+- [ ] Focused tests and full suite pass after functional freeze.
+- [ ] Final holdout completed without changing frozen development policy.
+- [ ] Production publication artifact and identities verified.
+- [ ] Public deployment and rollback smoke-tested; Gold explorer disabled.
+- [ ] Security and priority visual reviews completed.
+- [ ] Screenshots, limitations, documentation and written TFM synchronized.
+- [ ] Final Git state reviewed, committed and pushed; submission recorded.
+
+## Next required action
+
+```text
+Create and review docs/APP_DATA_CATALOG.md
+→ Gate 1 — Data
+```
+
+Do not continue with new Gold fields, maps, charts or Streamlit redesign before
+Gate 1. After Gate 1, create and review `docs/APP_PRODUCT_SPEC.md` for
+**Gate 2 — Product**.
