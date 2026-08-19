@@ -28,15 +28,17 @@ work listed here may enter the product.
 | Gold data explorer | Validated, committed and pushed | `c35136d`; local and disabled by default |
 | Canonical BOE URL fix | Tested, committed and pushed | `c35136d` |
 | Administrative situation filters | Validated, committed and pushed | `523887a`: latest/historical, situation, action, OR/AND and `matching_action_types` |
+| `APP_DATA_CATALOG` — Gate 1 | PASSED — implemented, audited and human-reviewed on 2026-08-19 | `docs/APP_DATA_CATALOG.md` |
 
 The validated application reads only the four contractual Gold tables,
 verifies the expected downstream identity and never reads Silver or executes
 the pipeline. Project detail always uses the complete published chronology,
 independently of the filters used to locate the project.
 
-Current phase: **product completion**. Public deployment, minimum safe error
-reporting and the final holdout remain pending. No additional analytical Gold
-field has received GO.
+Current phase: **product completion**. Gate 1 is complete. Public deployment,
+minimum safe error reporting and the final holdout remain pending. Minimal
+`project_components` and explicit `project_relationships` are approved
+candidates, not implemented Gold contracts.
 
 ## 2. August delivery objective
 
@@ -68,10 +70,11 @@ libraries, empty states and wireframes belong to
   represent exact plant coordinates.
 - **Administration:** use **última decisión publicada por trámite**. Do not
   present the result as an inferred legal **estado actual**.
-- **Power:** **PROPOSED / CONDITIONAL KPI**. `APP_DATA_CATALOG` must establish
-  granularity, unit, additivity and absence of duplicate counting before any
-  formula is approved. If the audit fails, omit the KPI and document the
-  limitation; do not describe power as energy production.
+- **Power:** **REJECTED FOR AUGUST / POST-TFM — NEEDS MODELLING**. Do not show
+  a global KPI, a canonical project figure, energy production or a raw sum.
+  The two REQUIRED safe KPIs are distinct projects and distinct BOE
+  publications over the filtered product set; Gate 2 must define their exact
+  filter interaction.
 
 ### Read-only and error reporting boundary
 
@@ -97,7 +100,8 @@ Do not duplicate the future catalogue or product specification here.
 
 Complete in dependency order:
 
-1. **APP_DATA_CATALOG — Gate 1.** Create and review
+1. **APP_DATA_CATALOG — Gate 1. COMPLETE.** Created, audited and human-reviewed
+   on 19 August in
    `docs/APP_DATA_CATALOG.md`. Audit current Gold and potentially useful
    extracted data for source, granularity, coverage, nullability, cardinality,
    temporality, ambiguity, normalization, provenance and duplicate-count risk.
@@ -109,7 +113,8 @@ Complete in dependency order:
    states, reporting behavior and Markdown/ASCII wireframes. Do not create
    separate `APP_QUESTIONS.md` or `APP_WIREFRAMES.md`.
 3. **KPI definitions.** Freeze project and BOE-publication counts plus only the
-   additional measures approved by Gates 1 and 2. Power remains conditional.
+   additional measures approved by Gates 1 and 2. Power is excluded from the
+   August dashboard.
 4. **Approved Gold extensions.** Implement only indispensable structures given
    explicit GO. A documented NO-GO is a valid completion outcome.
 5. **Dashboard.** Implement the approved KPIs, territorial map, latest-situation
@@ -151,21 +156,22 @@ Operational constraints that remain in force:
 
 ## 4. Conditional scope
 
-Only Gate 1 can approve these items:
+Gate 1 decided:
 
-- promoter and other participants;
-- power and generation assets;
-- hybridisation;
-- associated components and storage;
-- relationships between projects;
-- publication title;
-- secondary visual improvements.
+- promoter, participants, power, a canonical project-power/assets model,
+  exhaustive multi-technology, an exhaustive hybridisation flag, publication
+  title and a complete publications dimension are **NO-GO FOR AUGUST / POST-TFM**;
+- `project_components`, with storage only as a component, and positive explicit
+  `project_relationships` are approved candidates for **minimal modelling**;
+- external administrative geometry at CCAA, province and municipality levels
+  is approved for August, subject to the Gate 2 source/licence/simplification
+  decision.
 
-For every field, the audit must prove reliable granularity, bounded scope,
-lineage and product value. Do not force columns such as `projects.promoter` or
-`projects.power_mw`; the correct model may require another granularity. If an
-item requires broad re-extraction, unclear modelling or threatens a REQUIRED
-deadline, move it to POST-TFM.
+The approved candidates are not implemented Gold contracts. They must retain
+lineage, use only existing Silver and require no re-extraction. Stop and drop
+them from August if they require a core-freeze reopen, project-ID changes,
+complex topology, unresolved ambiguity or more than one significant block
+outside the calendar. Implement components first and cut relationships first.
 
 ## 5. Post-TFM
 
@@ -185,7 +191,7 @@ backend that violates the stop conditions, stop and apply the scope-cut rule.
 
 | Gate | Acceptance required before continuing |
 | --- | --- |
-| **1 — Data** | `APP_DATA_CATALOG` reviewed; explicit GO/NO-GO per field |
+| **1 — Data** | **PASSED 2026-08-19**; `APP_DATA_CATALOG` reviewed and explicit GO/NO-GO recorded |
 | **2 — Product** | `APP_PRODUCT_SPEC`, KPI semantics and wireframes reviewed |
 | **3 — Gold** | Approved contracts/materialization validated, or explicit NO-GO confirms no extension |
 | **4 — UI** | Dashboard functionally and visually reviewed |
@@ -236,7 +242,7 @@ recommendation. Human approval is required before continuing.
 If the deadline is at risk, cut scope in this order:
 
 1. remove all non-approved and CONDITIONAL data;
-2. omit the power KPI if it lacks a safe model;
+2. keep the rejected power KPI out of the August dashboard;
 3. keep only the minimum isolated reporting channel;
 4. limit visual work to comprehension, accessibility and demonstration defects;
 5. keep deployment minimal, versioned and read-only;
@@ -258,7 +264,8 @@ Already closed; reopen only for a material bug:
 
 Remaining delivery checks:
 
-- [ ] Gates 1 and 2 reviewed; KPI and scope decisions recorded.
+- [x] Gate 1 reviewed on 2026-08-19; data, KPI and scope decisions recorded.
+- [ ] Gate 2 reviewed; product, KPI interaction and wireframes accepted.
 - [ ] Approved Gold extension validated or explicit NO-GO recorded.
 - [ ] Design, data-model and functional freezes declared on schedule.
 - [ ] Focused tests and full suite pass after functional freeze.
@@ -272,10 +279,10 @@ Remaining delivery checks:
 ## Next required action
 
 ```text
-Create and review docs/APP_DATA_CATALOG.md
-→ Gate 1 — Data
+Create and human-review docs/APP_PRODUCT_SPEC.md
+→ complete Gate 2 — Product
 ```
 
-Do not continue with new Gold fields, maps, charts or Streamlit redesign before
-Gate 1. After Gate 1, create and review `docs/APP_PRODUCT_SPEC.md` for
+Do not implement new Gold fields, the map, charts or a Streamlit redesign
+before `docs/APP_PRODUCT_SPEC.md` is created and human-reviewed for
 **Gate 2 — Product**.
