@@ -34,6 +34,10 @@ from renewables_permitting.app_data import (
     load_gold_dataset,
 )
 from renewables_permitting.app_queries import (
+    ACTION_MATCH_ALL,
+    ACTION_MATCH_ANY,
+    HISTORICAL_TEMPORAL_INTERPRETATION,
+    LATEST_TEMPORAL_INTERPRETATION,
     ProjectNotFoundError,
     build_boe_url,
     filter_projects,
@@ -73,6 +77,8 @@ _FILTER_KEYS = (
     "filter_dates",
     "filter_actions",
     "filter_decisions",
+    "filter_temporal_interpretation",
+    "filter_action_match",
 )
 _EXPLORER_TRUE_VALUES = frozenset({"1", "true", "yes", "on"})
 _AUDIT_VIEW_LABELS = {
@@ -82,6 +88,14 @@ _AUDIT_VIEW_LABELS = {
     "project_location_sources": "Fuentes territoriales",
     "project_summary": "Resumen por proyecto",
     "territorial_trace": "Trazabilidad territorial",
+}
+_TEMPORAL_INTERPRETATION_LABELS = {
+    LATEST_TEMPORAL_INTERPRETATION: "Última decisión publicada por trámite",
+    HISTORICAL_TEMPORAL_INTERPRETATION: "Cualquier publicación histórica",
+}
+_ACTION_MATCH_LABELS = {
+    ACTION_MATCH_ANY: "Al menos uno",
+    ACTION_MATCH_ALL: "Todos",
 }
 
 
@@ -224,6 +238,7 @@ def _render_filters(dataset: GoldDataset) -> dict[str, object]:
         on_click=_clear_filter_state,
         width="stretch",
     )
+    st.sidebar.markdown("### Proyecto")
     text = st.sidebar.text_input(
         "Buscar proyecto",
         key="filter_text",
@@ -236,6 +251,7 @@ def _render_filters(dataset: GoldDataset) -> dict[str, object]:
         format_func=label_technology,
         key="filter_technologies",
     )
+    st.sidebar.markdown("### Territorio")
     communities = st.sidebar.multiselect(
         "Comunidad autónoma",
         base_options["autonomous_communities"],
@@ -268,6 +284,45 @@ def _render_filters(dataset: GoldDataset) -> dict[str, object]:
         territorial_options["municipalities"],
         key="filter_municipalities",
     )
+    st.sidebar.markdown("### Seguimiento administrativo")
+    temporal_interpretation = st.sidebar.selectbox(
+        "Interpretación temporal",
+        tuple(_TEMPORAL_INTERPRETATION_LABELS),
+        index=0,
+        format_func=_TEMPORAL_INTERPRETATION_LABELS.get,
+        help=(
+            "La última decisión selecciona la publicación más reciente "
+            "disponible para cada tipo de trámite. La opción histórica busca "
+            "en cualquier publicación, aunque existan otras posteriores para "
+            "ese mismo trámite."
+        ),
+        key="filter_temporal_interpretation",
+    )
+    decisions = st.sidebar.multiselect(
+        "Situación publicada",
+        base_options["decisions"],
+        format_func=label_decision,
+        key="filter_decisions",
+    )
+    action_types = st.sidebar.multiselect(
+        "Trámite",
+        base_options["action_types"],
+        format_func=label_action_type,
+        key="filter_actions",
+    )
+    if len(action_types) >= 2:
+        action_match = st.sidebar.segmented_control(
+            "Coincidencia de trámites",
+            tuple(_ACTION_MATCH_LABELS),
+            default=ACTION_MATCH_ANY,
+            required=True,
+            format_func=_ACTION_MATCH_LABELS.get,
+            key="filter_action_match",
+            width="stretch",
+        )
+    else:
+        st.session_state.pop("filter_action_match", None)
+        action_match = ACTION_MATCH_ANY
     minimum, maximum = _date_bounds(dataset)
     date_range = st.sidebar.date_input(
         "Fecha de publicación",
@@ -276,22 +331,17 @@ def _render_filters(dataset: GoldDataset) -> dict[str, object]:
         max_value=maximum.date(),
         key="filter_dates",
     )
-    action_types = st.sidebar.multiselect(
-        "Actuación",
-        base_options["action_types"],
-        format_func=label_action_type,
-        key="filter_actions",
-    )
-    decisions = st.sidebar.multiselect(
-        "Decisión",
-        base_options["decisions"],
-        format_func=label_decision,
-        key="filter_decisions",
+    st.sidebar.caption(
+        "La aplicación muestra publicaciones administrativas del BOE. Esta "
+        "clasificación no constituye por sí sola una determinación jurídica "
+        "del estado actual del proyecto."
     )
     if isinstance(date_range, (tuple, list)) and len(date_range) == 2:
         start_date, end_date = date_range
     else:
         start_date = end_date = date_range
+    if start_date == minimum.date() and end_date == maximum.date():
+        start_date = end_date = None
     return {
         "text": text,
         "technologies": technologies,
@@ -302,6 +352,8 @@ def _render_filters(dataset: GoldDataset) -> dict[str, object]:
         "end_date": end_date,
         "action_types": action_types,
         "decisions": decisions,
+        "temporal_interpretation": temporal_interpretation,
+        "action_match": action_match,
     }
 
 
@@ -316,7 +368,7 @@ def _period_text(first: object, last: object) -> str:
 def _catalog_display(catalog: pd.DataFrame) -> pd.DataFrame:
     """Build the visual catalogue while retaining project IDs outside display."""
 
-    display = pd.DataFrame({
+    columns: dict[str, object] = {
         "Proyecto": catalog["project_name"],
         "Tecnología": catalog["technology"].map(label_technology),
         "Territorio": catalog["territorial_summary"],
@@ -329,8 +381,21 @@ def _catalog_display(catalog: pd.DataFrame) -> pd.DataFrame:
         ],
         "Publicaciones": catalog["n_publications"],
         "Actuaciones": catalog["n_administrative_actions"],
-    })
-    return display
+    }
+    if "matching_action_types" in catalog.columns:
+        columns["Trámites coincidentes"] = catalog[
+            "matching_action_types"
+        ].map(_matching_action_types_text)
+    return pd.DataFrame(columns)
+
+
+def _matching_action_types_text(values: object, *, limit: int = 3) -> str:
+    """Format matching canonical action types without hiding omitted values."""
+
+    labels = [label_action_type(value) for value in tuple(values)]
+    if len(labels) <= limit:
+        return " · ".join(labels)
+    return f"{' · '.join(labels[:limit])} · y {len(labels) - limit} más"
 
 
 def _render_catalog_metrics(

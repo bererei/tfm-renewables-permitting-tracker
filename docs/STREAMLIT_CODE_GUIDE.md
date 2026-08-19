@@ -65,10 +65,11 @@ ID y construye `GoldDataset`. Si algo falla, no entrega datos parciales.
 
 ### `src/renewables_permitting/app_queries.py`
 
-Contiene consultas pandas puras: catálogo, filtros, jerarquía territorial,
-detalle, cronología, localizaciones, linaje territorial y enlaces BOE. También
-centraliza las etiquetas de dominio mostradas a la usuaria. No conoce widgets,
-variables de entorno ni rutas.
+Contiene consultas pandas puras: catálogo, filtros, derivación de la última
+decisión publicada por trámite, resumen de trámites coincidentes, jerarquía
+territorial, detalle, cronología, localizaciones, linaje territorial y enlaces
+BOE. También centraliza las etiquetas de dominio mostradas a la usuaria. No
+conoce widgets, variables de entorno ni rutas.
 
 ### `src/renewables_permitting/app_audit.py`
 
@@ -165,13 +166,40 @@ asignaciones inplace sobre `dataset.*`.
 ### `filter_projects(dataset, ...)`
 
 - **Entrada:** dataset y filtros opcionales de texto, tecnología, territorio,
-  fechas, actuación y decisión.
+  fechas, trámite, situación, interpretación temporal y coincidencia de
+  trámites.
 - **Salida:** subconjunto copiado del catálogo, todavía con una fila por
-  proyecto.
+  proyecto. Añade `matching_action_types` solo cuando existe un filtro
+  administrativo activo.
 - **Responsabilidad:** aplicar OR dentro de cada categoría, AND entre
-  categorías y same-row para los filtros de evento.
+  categorías, same-row para los filtros administrativos y OR/AND entre varios
+  trámites según la selección explícita.
 - **Tests:** combinaciones, fechas inclusivas, jerarquía, same-row, ausencia de
   duplicados e inmutabilidad.
+
+### `build_latest_project_actions(project_events)`
+
+- **Entrada:** `project_events` con las columnas mínimas de identidad, fecha e
+  índices administrativos.
+- **Salida:** copia con una fila por `project_id × action_type`.
+- **Responsabilidad:** elegir la última publicación por fecha, `event_index`,
+  `administrative_action_index` y `administrative_action_id`, en ese orden.
+- **Límite:** representa la última publicación conocida por trámite; no deriva
+  un estado jurídico consolidado.
+- **Tests:** transición histórica/posterior, empates en los cuatro niveles,
+  columnas ausentes, orden e inmutabilidad.
+
+### `build_matching_action_summary(project_events, ...)`
+
+- **Entrada:** filas Gold, interpretación temporal y los mismos predicados
+  administrativos usados por `filter_projects()`.
+- **Salida:** una fila por proyecto elegible con `matching_action_types` como
+  tupla canónica ordenada determinísticamente.
+- **Responsabilidad:** compartir la selección latest/histórica y el filtrado
+  same-row, exigir todos los trámites cuando corresponde y preparar el resumen
+  que la UI etiqueta como **Trámites coincidentes**.
+- **Tests:** cero, uno o varios trámites; OR/AND; varias situaciones; fechas;
+  Coscojar II; ausencia de duplicados e inmutabilidad.
 
 ### `get_project_detail(dataset, project_id)`
 
@@ -232,14 +260,21 @@ como fallback para que la interfaz no falle silenciosamente.
 ## 7. Semántica de filtros
 
 Los valores seleccionados dentro de una misma categoría se combinan con OR.
-Por ejemplo, tecnología eólica o fotovoltaica incluye cualquiera de las dos.
-Las categorías activas se combinan con AND: tecnología, territorio y evento
-deben pertenecer al mismo proyecto candidato.
+Por ejemplo, tecnología eólica o fotovoltaica incluye cualquiera de las dos, y
+dos situaciones publicadas aceptan cualquiera de ellas. Las categorías activas
+se combinan con AND: tecnología, territorio y administración deben pertenecer
+al mismo proyecto candidato.
 
-Fecha, actuación y decisión se aplican primero a las mismas filas de
-`project_events`. Así, seleccionar `autorizado` y una autorización no acepta un
-proyecto donde una fila sea una autorización pendiente y otra actuación
-distinta sea la autorizada.
+La interpretación temporal elige primero la tabla administrativa de trabajo:
+
+- `latest`: `build_latest_project_actions()` conserva la última fila de cada
+  `project_id × action_type`;
+- `historical`: se usa una copia de todas las filas de `project_events`.
+
+Fecha, trámite y situación se aplican después sobre esa misma tabla. Así, una
+fila no puede satisfacer la fecha y otra distinta la situación. Con dos o más
+trámites, `any` exige al menos uno y `all` comprueba que cada código seleccionado
+permanezca entre las filas elegibles del proyecto. No se exige un BOE común.
 
 En territorio, cada selección dentro de comunidad, provincia o municipio es
 OR, mientras los niveles activos se intersectan. Una fila municipal conserva
@@ -253,9 +288,10 @@ Ejemplo:
 (Eólica OR Fotovoltaica)
 AND (Andalucía)
 AND (Sevilla OR Huelva)
-AND (una misma fila de evento con fecha >= 2024-01-01
-     AND actuación = autorización previa
-     AND decisión = autorizado)
+AND (interpretación temporal = latest)
+AND (una misma fila administrativa con fecha >= 2024-01-01
+     AND trámite = autorización previa
+     AND situación = autorizado)
 ```
 
 El resultado final se proyecta sobre el catálogo maestro, que ya contiene una
@@ -311,6 +347,15 @@ corresponde, pruébala en `test_app_queries.py` y solo entonces crea el widget e
 Si el filtro pertenece al explorador técnico, impleméntalo en `app_audit.py`,
 prueba OR, AND, fechas, orden e inmutabilidad en `test_app_audit.py`, y añade
 después el widget específico en `streamlit_app.py`.
+
+### Añadir una situación publicada
+
+La situación debe existir ya como valor canónico de `project_events.decision`.
+Añade o revisa su etiqueta en `DECISION_LABELS`, verifica que
+`get_filter_options()` la obtiene del Gold observado y crea un test sintético
+que demuestre su interacción con latest/histórico y same-row. No infieras un
+estado nuevo en la UI ni añadas un valor solo para presentar una conclusión
+jurídica no contenida en Gold.
 
 ### Añadir una vista
 
@@ -401,6 +446,8 @@ registra el detalle técnico y muestra mensajes breves que no filtran rutas.
 - [ ] Las consultas siguen siendo puras y devuelven copias.
 - [ ] No se han duplicado contratos ni mappings innecesariamente.
 - [ ] Navegación y widgets tienen estados vacíos e incompatibles cubiertos.
+- [ ] Los tests incluyen una transición donde histórico y latest divergen y
+      no fijan como equivalentes ambas interpretaciones.
 - [ ] Los tests focales pasan offline.
 - [ ] La suite completa pasa cuando corresponde.
 - [ ] AST, `git diff --check`, diff y Git status están revisados.

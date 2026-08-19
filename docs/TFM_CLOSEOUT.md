@@ -39,7 +39,7 @@ Delivery deadline: **31 August 2026**. Scope freeze: **19 August 2026**.
 - **Deployed**: a reproducible public instance exists; local execution alone is
   not deployment.
 
-## Current status — 14 August 2026
+## Current status — 15 August 2026
 
 | Area | Status | Evidence |
 | --- | --- | --- |
@@ -52,7 +52,8 @@ Delivery deadline: **31 August 2026**. Scope freeze: **19 August 2026**.
 | Closeout documentation consolidation | Committed and pushed | Commit `f64e5d7`, also at `origin/tfm-final` |
 | `docs/USER_GUIDE.md` | Implemented, reviewed, committed and pushed | Commit `898df2b`, also at `origin/tfm-final` |
 | `docs/STREAMLIT_CODE_GUIDE.md` and selective comments | Implemented, reviewed, committed and pushed | Commit `cb144e1`, also at `origin/tfm-final` |
-| Local read-only Gold explorer | Implemented — pending human review | Configuration-gated audit of four canonical tables and two safe derived views |
+| Local read-only Gold explorer | Implemented, validated, committed and pushed | Commit `c35136d`; configuration-gated audit of four canonical tables and two safe derived views |
+| Published situation and action filtering | Implemented — pending human review | Latest-per-action and historical interpretations, same-row dates/situations and OR/AND action matching |
 | Public read-only web application | REQUIRED pending | No deployment has been declared |
 
 The core freeze covers extraction and canonicalisation, versioned corrections,
@@ -76,10 +77,10 @@ The local MVP already provides:
 
 Current phase: **product completion**.
 
-Current gate: human review of the local read-only Gold explorer.
+Current gate: human review of published-situation and action filtering.
 
-Next: perform the visual review and priority improvements after the explorer
-has been reviewed.
+Next: perform the priority visual review of the public application after this
+filtering phase has been reviewed.
 
 ## REQUIRED before delivery
 
@@ -94,9 +95,10 @@ has been reviewed.
 4. **Add selective Spanish comments — COMMITTED AND PUSHED.** The comments
    cover only non-obvious loader, cache, filter and navigation decisions,
    without changing behavior; checkpoint `cb144e1`.
-5. **Add a local read-only Gold explorer — IMPLEMENTED, PENDING HUMAN REVIEW.**
+5. **Add a local read-only Gold explorer — COMMITTED AND PUSHED.**
    It covers the four Gold tables with rows, columns, dtypes, PK/FK, nulls,
-   domains, filters and a data dictionary without writing data.
+   domains, filters and a data dictionary without writing data; checkpoint
+   `c35136d`.
 6. **Perform the visual review and priority improvements — PLANNED.** Focus on
    clarity, navigation, filters, project detail, chronology, territorial scope,
    methodology, empty states and non-technical language.
@@ -228,7 +230,8 @@ implemented in `docs/USER_GUIDE.md`.
 - [x] `docs/USER_GUIDE.md` complete, reviewed, committed and pushed (`898df2b`).
 - [x] `docs/STREAMLIT_CODE_GUIDE.md` and selective comments complete,
       reviewed, committed and pushed (`cb144e1`).
-- [ ] Local Gold explorer and audit complete without writes.
+- [x] Local Gold explorer and audit complete without writes (`c35136d`).
+- [ ] Published-situation and action filtering reviewed and committed.
 - [ ] Priority visual review complete on the local app.
 - [ ] CONDITIONAL fields explicitly included or cut after audit.
 - [ ] Minimal public read-only deployment reproducible and visually verified.

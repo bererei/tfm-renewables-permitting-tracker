@@ -367,18 +367,50 @@ Los filtros disponibles son:
 - texto libre;
 - tecnología;
 - jerarquía territorial: comunidad autónoma, provincia y municipio;
-- intervalo inclusivo de fechas de publicación;
-- tipo de actuación;
-- decisión.
+- interpretación temporal;
+- situación publicada;
+- trámite;
+- coincidencia de trámites cuando se eligen dos o más;
+- intervalo inclusivo de fechas de publicación.
 
 Dentro de una categoría, varias opciones se combinan con **OR**: seleccionar
 dos tecnologías muestra una u otra. Entre categorías se usa **AND**: una
 tecnología y una provincia deben cumplirse simultáneamente.
 
-Los filtros de fecha, tipo de actuación y decisión tienen semántica
-**same-row**: la misma fila de `project_events` debe cumplir todos los filtros
-de evento. No basta que un proyecto tenga la fecha en una actuación y la
-decisión en otra distinta.
+**Situación publicada** es la decisión registrada en una publicación del BOE,
+por ejemplo, «Autorizado» o «Sometido a información pública». No equivale por
+sí sola al estado jurídico actual del proyecto.
+
+La **interpretación temporal** predeterminada es **Última decisión publicada
+por trámite**. Para cada proyecto y tipo de trámite, selecciona primero la fila
+más reciente disponible y aplica después fecha, situación y trámite. La opción
+**Cualquier publicación histórica** busca en todas las filas, aunque exista una
+publicación posterior para ese mismo trámite. Actualmente ambos modos devuelven
+22 proyectos al seleccionar «Sometido a información pública», pero esa cifra es
+solo una observación del snapshot validado y los resultados pueden divergir al
+incorporar publicaciones posteriores.
+
+Varias situaciones se combinan siempre con **OR**. Si se eligen dos o más
+trámites aparece **Coincidencia de trámites**:
+
+- **Al menos uno** conserva el proyecto cuando cualquier trámite seleccionado
+  cumple fecha y situación;
+- **Todos** exige una fila elegible para cada trámite seleccionado, sin exigir
+  que procedan del mismo BOE.
+
+Los filtros de fecha, trámite y situación mantienen semántica **same-row**: la
+misma fila administrativa debe cumplirlos. No basta que un proyecto tenga la
+fecha en una actuación y la situación en otra distinta. Tecnología, territorio
+y administración se intersectan con AND y el catálogo conserva una sola fila
+por proyecto.
+
+Cuando hay un filtro administrativo activo, la columna **Trámites
+coincidentes** indica respecto de qué tipos de trámite ha pasado el proyecto.
+Es un resumen de la búsqueda, no sustituye la cronología completa de la ficha.
+Por ejemplo, el snapshot actual permite localizar **FV El Coscojar II** bajo
+«Sometido a información pública» para evaluación de impacto ambiental,
+autorización administrativa previa y autorización administrativa de
+construcción.
 
 Selecciona una única fila del catálogo para abrir su ficha.
 
@@ -1173,13 +1205,14 @@ unset RENEWABLES_GOLD_DIR RENEWABLES_EXPECTED_DOWNSTREAM_ID
 ## 16. Estado de las funciones futuras
 
 **Disponible:** aplicación Streamlit local y read-only sobre las cuatro tablas
-Gold, con catálogo, ficha, cronología, territorio y metodología. La
+Gold, con catálogo, filtros por última publicación o histórico, situación y
+trámite, ficha, cronología, territorio, metodología y explorador Gold local. La
 [guía técnica de Streamlit](STREAMLIT_CODE_GUIDE.md) documenta su arquitectura,
-extensiones seguras y tests; sus comentarios selectivos están implementados y
-pendientes de revisión humana.
+extensiones seguras y tests. El seguimiento administrativo está implementado y
+pendiente de revisión humana.
 
-**REQUIRED pendiente:** explorador local read-only de Gold y despliegue web
-read-only reproducible.
+**REQUIRED pendiente:** revisión visual prioritaria y despliegue web read-only
+reproducible.
 Que la aplicación funcione localmente no significa que exista ya un despliegue
 público.
 

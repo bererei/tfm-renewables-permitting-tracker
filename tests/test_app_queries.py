@@ -13,6 +13,8 @@ from renewables_permitting.app_queries import (
     TECHNOLOGY_LABELS,
     ProjectNotFoundError,
     build_boe_url,
+    build_latest_project_actions,
+    build_matching_action_summary,
     build_project_catalog,
     filter_projects,
     get_filter_options,
@@ -25,6 +27,21 @@ from renewables_permitting.app_queries import (
     label_location_level,
     label_technology,
 )
+
+
+PROJECT_EVENT_DTYPES = {
+    "project_id": "string",
+    "event_id": "string",
+    "administrative_action_id": "string",
+    "boe_id": "string",
+    "publication_date": "datetime64[ns]",
+    "event_index": "Int64",
+    "administrative_action_index": "Int64",
+    "action_type": "string",
+    "decision": "string",
+    "is_modification": "boolean",
+    "evidence": "string",
+}
 
 
 def _frame(
@@ -274,19 +291,7 @@ def synthetic_dataset() -> GoldDataset:
                 "formulado",
             ),
         ],
-        {
-            "project_id": "string",
-            "event_id": "string",
-            "administrative_action_id": "string",
-            "boe_id": "string",
-            "publication_date": "datetime64[ns]",
-            "event_index": "Int64",
-            "administrative_action_index": "Int64",
-            "action_type": "string",
-            "decision": "string",
-            "is_modification": "boolean",
-            "evidence": "string",
-        },
+        PROJECT_EVENT_DTYPES,
     )
     location_rows: list[dict[str, object]] = []
     for index, municipality in enumerate(
@@ -432,6 +437,80 @@ def _ids(frame: pd.DataFrame) -> set[str]:
     return set(frame["project_id"].astype(str))
 
 
+def _with_project_events(
+    dataset: GoldDataset,
+    event_rows: list[dict[str, object]],
+) -> GoldDataset:
+    return GoldDataset(
+        projects=dataset.projects,
+        project_events=_frame(event_rows, PROJECT_EVENT_DTYPES),
+        project_locations=dataset.project_locations,
+        project_location_sources=dataset.project_location_sources,
+        manifest=dataset.manifest,
+        gold_dir=dataset.gold_dir,
+        downstream_id=dataset.downstream_id,
+    )
+
+
+def _coscojar_dataset() -> GoldDataset:
+    source = synthetic_dataset()
+    source_project_id = "project_andevalo"
+    project_id = "project_c9b8afc7704b5e1ab5ab8a76bde9aeda"
+    projects = source.projects[
+        source.projects["project_id"].eq(source_project_id)
+    ].copy()
+    projects.loc[:, "project_id"] = project_id
+    projects.loc[:, "project_name"] = "FV El Coscojar II"
+    projects.loc[:, "first_publication_date"] = pd.Timestamp("2026-06-18")
+    projects.loc[:, "last_publication_date"] = pd.Timestamp("2026-06-18")
+    projects.loc[:, "n_publications"] = 1
+    projects.loc[:, "n_administrative_actions"] = 3
+    events = _frame(
+        [
+            _event(
+                project_id,
+                "event_coscojar",
+                f"action_coscojar_{index}",
+                "BOE-B-2026-19389",
+                "2026-06-18",
+                action_type,
+                "sometido_informacion_publica",
+                action_index=index,
+            )
+            for index, action_type in enumerate(
+                (
+                    "evaluacion_impacto_ambiental",
+                    "autorizacion_administrativa_previa",
+                    "autorizacion_administrativa_construccion",
+                ),
+                start=1,
+            )
+        ],
+        PROJECT_EVENT_DTYPES,
+    )
+    locations = source.project_locations[
+        source.project_locations["project_id"].eq(source_project_id)
+    ].copy()
+    locations.loc[:, "project_id"] = project_id
+    sources = source.project_location_sources[
+        source.project_location_sources["project_location_id"].isin(
+            locations["project_location_id"]
+        )
+    ].copy()
+    sources.loc[:, "event_id"] = "event_coscojar"
+    sources.loc[:, "boe_id"] = "BOE-B-2026-19389"
+    sources.loc[:, "publication_date"] = pd.Timestamp("2026-06-18")
+    return GoldDataset(
+        projects=projects.reset_index(drop=True),
+        project_events=events,
+        project_locations=locations.reset_index(drop=True),
+        project_location_sources=sources.reset_index(drop=True),
+        manifest={},
+        gold_dir=Path("."),
+        downstream_id="synthetic-coscojar",
+    )
+
+
 def test_catalog_has_one_row_per_project_and_deterministic_territory() -> None:
     dataset = synthetic_dataset()
 
@@ -547,6 +626,324 @@ def test_date_action_and_decision_apply_to_same_event_rows() -> None:
 
     assert _ids(passing) == {"project_badulaque", "project_volateo"}
     assert impossible_cross_row.empty
+
+
+def test_latest_actions_use_the_complete_contractual_tiebreak_order() -> None:
+    events = _frame(
+        [
+            _event(
+                "project_badulaque",
+                "event_old_date",
+                "action_z_old_date",
+                "BOE-A-2024-1",
+                "2024-01-01",
+                "autorizacion_administrativa_previa",
+                "sometido_informacion_publica",
+                event_index=99,
+                action_index=99,
+            ),
+            _event(
+                "project_badulaque",
+                "event_low_event",
+                "action_z_low_event",
+                "BOE-A-2025-1",
+                "2025-01-01",
+                "autorizacion_administrativa_previa",
+                "sometido_informacion_publica",
+                event_index=1,
+                action_index=99,
+            ),
+            _event(
+                "project_badulaque",
+                "event_low_action",
+                "action_z_low_action",
+                "BOE-A-2025-2",
+                "2025-01-01",
+                "autorizacion_administrativa_previa",
+                "sometido_informacion_publica",
+                event_index=2,
+                action_index=1,
+            ),
+            _event(
+                "project_badulaque",
+                "event_final",
+                "action_a_final",
+                "BOE-A-2025-3",
+                "2025-01-01",
+                "autorizacion_administrativa_previa",
+                "autorizado",
+                event_index=2,
+                action_index=2,
+            ),
+            _event(
+                "project_badulaque",
+                "event_final",
+                "action_z_final",
+                "BOE-A-2025-3",
+                "2025-01-01",
+                "autorizacion_administrativa_previa",
+                "autorizado",
+                event_index=2,
+                action_index=2,
+            ),
+            _event(
+                "project_badulaque",
+                "event_dia",
+                "action_dia",
+                "BOE-A-2023-1",
+                "2023-01-01",
+                "declaracion_impacto_ambiental",
+                "desfavorable",
+            ),
+        ],
+        PROJECT_EVENT_DTYPES,
+    ).sample(frac=1, random_state=7).reset_index(drop=True)
+    original = events.copy(deep=True)
+
+    latest = build_latest_project_actions(events)
+
+    assert latest[["project_id", "action_type"]].duplicated().sum() == 0
+    assert latest["administrative_action_id"].tolist() == [
+        "action_z_final",
+        "action_dia",
+    ]
+    pd.testing.assert_frame_equal(events, original)
+
+
+def test_latest_actions_reject_missing_contractual_columns() -> None:
+    events = synthetic_dataset().project_events.drop(columns=["event_index"])
+
+    with pytest.raises(ValueError, match="event_index"):
+        build_latest_project_actions(events)
+
+
+def test_historical_and_latest_modes_diverge_after_a_later_decision() -> None:
+    dataset = _with_project_events(
+        synthetic_dataset(),
+        [
+            _event(
+                "project_badulaque",
+                "event_a_2025",
+                "action_a_2025",
+                "BOE-A-2025-1",
+                "2025-01-10",
+                "autorizacion_administrativa_previa",
+                "sometido_informacion_publica",
+            ),
+            _event(
+                "project_badulaque",
+                "event_a_2026",
+                "action_a_2026",
+                "BOE-A-2026-1",
+                "2026-01-10",
+                "autorizacion_administrativa_previa",
+                "autorizado",
+            ),
+        ],
+    )
+
+    historical = filter_projects(
+        dataset,
+        temporal_interpretation="historical",
+        decisions=("sometido_informacion_publica",),
+    )
+    latest_submitted = filter_projects(
+        dataset,
+        temporal_interpretation="latest",
+        decisions=("sometido_informacion_publica",),
+    )
+    latest_authorized = filter_projects(
+        dataset,
+        temporal_interpretation="latest",
+        decisions=("autorizado",),
+    )
+
+    assert _ids(historical) == {"project_badulaque"}
+    assert latest_submitted.empty
+    assert _ids(latest_authorized) == {"project_badulaque"}
+
+
+def test_action_type_matching_supports_any_all_and_same_row_filters() -> None:
+    dataset = _with_project_events(
+        synthetic_dataset(),
+        [
+            _event(
+                "project_badulaque",
+                "event_a",
+                "action_a_aap",
+                "BOE-A-2025-1",
+                "2025-06-01",
+                "autorizacion_administrativa_previa",
+                "sometido_informacion_publica",
+                action_index=1,
+            ),
+            _event(
+                "project_badulaque",
+                "event_a",
+                "action_a_aac",
+                "BOE-A-2025-1",
+                "2025-06-01",
+                "autorizacion_administrativa_construccion",
+                "sometido_informacion_publica",
+                action_index=2,
+            ),
+            _event(
+                "project_volateo",
+                "event_b",
+                "action_b_aap",
+                "BOE-A-2026-1",
+                "2026-06-01",
+                "autorizacion_administrativa_previa",
+                "sometido_informacion_publica",
+                action_index=1,
+            ),
+            _event(
+                "project_volateo",
+                "event_b",
+                "action_b_aac",
+                "BOE-A-2026-1",
+                "2026-06-01",
+                "autorizacion_administrativa_construccion",
+                "autorizado",
+                action_index=2,
+            ),
+        ],
+    )
+    action_types = (
+        "autorizacion_administrativa_previa",
+        "autorizacion_administrativa_construccion",
+    )
+
+    any_match = filter_projects(
+        dataset,
+        decisions=("sometido_informacion_publica",),
+        action_types=action_types,
+        action_match="any",
+    )
+    all_match = filter_projects(
+        dataset,
+        decisions=("sometido_informacion_publica",),
+        action_types=action_types,
+        action_match="all",
+    )
+    one_action = filter_projects(
+        dataset,
+        decisions=("sometido_informacion_publica",),
+        action_types=("autorizacion_administrativa_construccion",),
+        action_match="all",
+    )
+    no_action = filter_projects(
+        dataset,
+        decisions=("sometido_informacion_publica",),
+    )
+    several_decisions = filter_projects(
+        dataset,
+        decisions=("sometido_informacion_publica", "autorizado"),
+        action_types=action_types,
+        action_match="all",
+    )
+
+    assert _ids(any_match) == {"project_badulaque", "project_volateo"}
+    assert _ids(all_match) == {"project_badulaque"}
+    assert _ids(one_action) == {"project_badulaque"}
+    assert _ids(no_action) == {"project_badulaque", "project_volateo"}
+    assert _ids(several_decisions) == {
+        "project_badulaque",
+        "project_volateo",
+    }
+    assert all_match["matching_action_types"].iloc[0] == action_types
+    assert all_match["project_id"].is_unique
+
+
+def test_administrative_filters_intersect_date_technology_and_territory() -> None:
+    dataset = _with_project_events(
+        synthetic_dataset(),
+        [
+            _event(
+                "project_badulaque",
+                "event_a",
+                "action_a",
+                "BOE-A-2025-1",
+                "2025-06-01",
+                "autorizacion_administrativa_previa",
+                "sometido_informacion_publica",
+            ),
+            _event(
+                "project_volateo",
+                "event_b",
+                "action_b",
+                "BOE-A-2026-1",
+                "2026-06-01",
+                "autorizacion_administrativa_previa",
+                "sometido_informacion_publica",
+            ),
+        ],
+    )
+
+    result = filter_projects(
+        dataset,
+        technologies=("eolica",),
+        autonomous_communities=("Galicia",),
+        start_date=pd.Timestamp("2025-01-01"),
+        end_date=pd.Timestamp("2025-12-31"),
+        decisions=("sometido_informacion_publica",),
+    )
+
+    assert _ids(result) == {"project_badulaque"}
+    assert result["project_id"].is_unique
+
+
+def test_coscojar_matches_three_distinct_actions_in_both_modes() -> None:
+    dataset = _coscojar_dataset()
+    action_types = (
+        "evaluacion_impacto_ambiental",
+        "autorizacion_administrativa_previa",
+        "autorizacion_administrativa_construccion",
+    )
+
+    for interpretation in ("latest", "historical"):
+        result = filter_projects(
+            dataset,
+            temporal_interpretation=interpretation,
+            decisions=("sometido_informacion_publica",),
+            action_types=action_types,
+            action_match="all",
+        )
+        assert _ids(result) == {
+            "project_c9b8afc7704b5e1ab5ab8a76bde9aeda"
+        }
+        assert result["matching_action_types"].iloc[0] == action_types
+    assert dataset.project_events["administrative_action_id"].nunique() == 3
+    assert dataset.project_events["boe_id"].eq("BOE-B-2026-19389").all()
+    assert dataset.project_events["publication_date"].nunique() == 1
+
+
+def test_matching_summary_and_filters_do_not_mutate_gold_inputs() -> None:
+    dataset = _coscojar_dataset()
+    originals = {
+        name: getattr(dataset, name).copy(deep=True)
+        for name in (
+            "projects",
+            "project_events",
+            "project_locations",
+            "project_location_sources",
+        )
+    }
+
+    build_latest_project_actions(dataset.project_events)
+    build_matching_action_summary(
+        dataset.project_events,
+        temporal_interpretation="latest",
+        decisions=("sometido_informacion_publica",),
+    )
+    filter_projects(
+        dataset,
+        temporal_interpretation="latest",
+        decisions=("sometido_informacion_publica",),
+    )
+
+    for name, original in originals.items():
+        pd.testing.assert_frame_equal(getattr(dataset, name), original)
 
 
 def test_final_filter_is_intersection_of_catalog_territory_and_events() -> None:
