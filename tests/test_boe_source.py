@@ -1,4 +1,6 @@
 import json
+import logging
+import time
 from datetime import date, datetime, timezone
 from hashlib import sha256
 
@@ -134,16 +136,131 @@ def test_summary_fetch_success_range_and_no_publication_are_explicit() -> None:
     ]
 
 
+def test_summary_retries_transient_request_and_preserves_result(
+    monkeypatch,
+    caplog,
+) -> None:
+    retrieved_at = datetime(2026, 1, 3, tzinfo=timezone.utc)
+    outcomes = iter([
+        requests.ConnectionError("temporary connection reset"),
+        _Response(200, _summary_payload()),
+    ])
+    calls = 0
+    sleeps: list[float] = []
+
+    def get(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        outcome = next(outcomes)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    monkeypatch.setattr(time, "sleep", sleeps.append)
+    with caplog.at_level(logging.WARNING):
+        retried = fetch_boe_summary(
+            date(2026, 1, 2),
+            http_get=get,
+            retrieved_at=retrieved_at,
+        )
+    first_try = fetch_boe_summary(
+        date(2026, 1, 2),
+        http_get=lambda *args, **kwargs: _Response(200, _summary_payload()),
+        retrieved_at=retrieved_at,
+    )
+
+    assert retried == first_try
+    assert calls == 2
+    assert sleeps == [1.0]
+    assert "operation=summary" in caplog.text
+    assert "identifier=2026-01-02" in caplog.text
+    assert "attempt=1/4" in caplog.text
+    assert "delay_seconds=1" in caplog.text
+
+
+@pytest.mark.parametrize("transient_status", [408, 429, 500, 502, 503, 504])
+def test_summary_retries_transient_http_status(
+    transient_status: int,
+    monkeypatch,
+) -> None:
+    responses = iter([
+        _Response(transient_status),
+        _Response(200, _summary_payload()),
+    ])
+    calls = 0
+    sleeps: list[float] = []
+
+    def get(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return next(responses)
+
+    monkeypatch.setattr(time, "sleep", sleeps.append)
+    result = fetch_boe_summary(date(2026, 1, 2), http_get=get)
+
+    assert result.status == "success"
+    assert calls == 2
+    assert sleeps == [1.0]
+
+
+def test_summary_retry_exhaustion_uses_bounded_backoff(monkeypatch) -> None:
+    calls = 0
+    sleeps: list[float] = []
+
+    def get(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        raise requests.Timeout("temporary timeout")
+
+    monkeypatch.setattr(time, "sleep", sleeps.append)
+    result = fetch_boe_summary(date(2026, 1, 2), http_get=get)
+
+    assert result.status == "failed"
+    assert result.error_type == "REQUEST_ERROR"
+    assert calls == 4
+    assert sleeps == [1.0, 2.0, 4.0]
+
+
+def test_summary_404_is_not_retried(monkeypatch) -> None:
+    calls = 0
+    sleeps: list[float] = []
+
+    def get(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return _Response(404)
+
+    monkeypatch.setattr(time, "sleep", sleeps.append)
+    result = fetch_boe_summary(date(2026, 1, 2), http_get=get)
+
+    assert result.status == "no_publication"
+    assert result.error_type == "HTTP_404"
+    assert calls == 1
+    assert sleeps == []
+
+
+def test_non_transient_request_exception_is_not_retried(monkeypatch) -> None:
+    calls = 0
+    sleeps: list[float] = []
+
+    def get(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        raise requests.exceptions.InvalidURL("invalid source URL")
+
+    monkeypatch.setattr(time, "sleep", sleeps.append)
+    result = fetch_boe_summary(date(2026, 1, 2), http_get=get)
+
+    assert result.status == "failed"
+    assert result.error_type == "REQUEST_ERROR"
+    assert calls == 1
+    assert sleeps == []
+
+
 @pytest.mark.parametrize(
     ("get", "error_type"),
     [
-        (lambda *args, **kwargs: _Response(503), "HTTP_ERROR"),
-        (
-            lambda *args, **kwargs: (_ for _ in ()).throw(
-                requests.ConnectionError("offline")
-            ),
-            "REQUEST_ERROR",
-        ),
+        (lambda *args, **kwargs: _Response(400), "HTTP_ERROR"),
         (
             lambda *args, **kwargs: _Response(200, ValueError("bad json")),
             "INVALID_JSON",

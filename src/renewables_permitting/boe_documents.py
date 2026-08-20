@@ -19,6 +19,7 @@ from renewables_permitting.boe_candidates import (
     CANDIDATE_POLICY_VERSION,
     build_doc_file_stem,
 )
+from renewables_permitting.boe_http import request_with_transient_retries
 from renewables_permitting.utils import (
     clean_text,
     save_parquet,
@@ -153,7 +154,13 @@ def fetch_boe_document_xml(
         )
     get = http_get or requests.get
     try:
-        response = get(source_url, timeout=timeout_seconds)
+        response = request_with_transient_retries(
+            get,
+            source_url,
+            operation="xml",
+            identifier=boe_id,
+            request_kwargs={"timeout": timeout_seconds},
+        )
     except requests.RequestException as error:
         return _xml_result(
             boe_id=boe_id,

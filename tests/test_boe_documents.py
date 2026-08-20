@@ -1,4 +1,6 @@
 import json
+import logging
+import time
 from datetime import date, datetime, timezone
 from hashlib import sha256
 
@@ -91,15 +93,7 @@ def test_xml_fetch_success_hash_and_failures_are_explicit() -> None:
         boe_id="BOE-A-2026-1",
         publication_date=date(2026, 1, 2),
         source_url="https://example.invalid/document.xml",
-        http_get=lambda *args, **kwargs: _Response(500),
-    )
-    request_error = fetch_boe_document_xml(
-        boe_id="BOE-A-2026-1",
-        publication_date=date(2026, 1, 2),
-        source_url="https://example.invalid/document.xml",
-        http_get=lambda *args, **kwargs: (_ for _ in ()).throw(
-            requests.ConnectionError("offline")
-        ),
+        http_get=lambda *args, **kwargs: _Response(400),
     )
     empty = fetch_boe_document_xml(
         boe_id="BOE-A-2026-1",
@@ -115,15 +109,131 @@ def test_xml_fetch_success_hash_and_failures_are_explicit() -> None:
     )
     assert (
         http_error.status,
-        request_error.status,
         empty.status,
         invalid.status,
     ) == (
         "http_error",
-        "request_error",
         "empty_response",
         "invalid_response",
     )
+
+
+def test_xml_retries_transient_request_without_changing_content(
+    monkeypatch,
+    caplog,
+) -> None:
+    outcomes = iter([
+        requests.ConnectionError("temporary connection reset"),
+        _Response(200, XML),
+    ])
+    calls = 0
+    sleeps: list[float] = []
+
+    def get(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        outcome = next(outcomes)
+        if isinstance(outcome, Exception):
+            raise outcome
+        return outcome
+
+    monkeypatch.setattr(time, "sleep", sleeps.append)
+    with caplog.at_level(logging.WARNING):
+        result = fetch_boe_document_xml(
+            boe_id="BOE-B-2024-24843",
+            publication_date=date(2024, 12, 28),
+            source_url="https://example.invalid/document.xml",
+            http_get=get,
+        )
+
+    assert result.status == "downloaded"
+    assert result.content == XML
+    assert result.xml_sha256 == sha256(XML).hexdigest()
+    assert calls == 2
+    assert sleeps == [1.0]
+    assert "operation=xml" in caplog.text
+    assert "identifier=BOE-B-2024-24843" in caplog.text
+
+
+def test_xml_retry_exhaustion_is_explicit(monkeypatch) -> None:
+    calls = 0
+    sleeps: list[float] = []
+
+    def get(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        raise requests.ConnectionError("temporary network failure")
+
+    monkeypatch.setattr(time, "sleep", sleeps.append)
+    result = fetch_boe_document_xml(
+        boe_id="BOE-B-2024-24843",
+        publication_date=date(2024, 12, 28),
+        source_url="https://example.invalid/document.xml",
+        http_get=get,
+    )
+
+    assert result.status == "request_error"
+    assert result.error_type == "REQUEST_ERROR"
+    assert calls == 4
+    assert sleeps == [1.0, 2.0, 4.0]
+
+
+@pytest.mark.parametrize(
+    ("status_code", "expected_status"),
+    [
+        (400, "http_error"),
+        (401, "http_error"),
+        (403, "http_error"),
+        (404, "http_error"),
+    ],
+)
+def test_xml_non_retryable_http_status_is_requested_once(
+    status_code: int,
+    expected_status: str,
+    monkeypatch,
+) -> None:
+    calls = 0
+    sleeps: list[float] = []
+
+    def get(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return _Response(status_code)
+
+    monkeypatch.setattr(time, "sleep", sleeps.append)
+    result = fetch_boe_document_xml(
+        boe_id="BOE-A-2026-1",
+        publication_date=date(2026, 1, 2),
+        source_url="https://example.invalid/document.xml",
+        http_get=get,
+    )
+
+    assert result.status == expected_status
+    assert calls == 1
+    assert sleeps == []
+
+
+def test_invalid_xml_is_not_retried(monkeypatch) -> None:
+    calls = 0
+    sleeps: list[float] = []
+
+    def get(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return _Response(200, b"not XML")
+
+    monkeypatch.setattr(time, "sleep", sleeps.append)
+    result = fetch_boe_document_xml(
+        boe_id="BOE-A-2026-1",
+        publication_date=date(2026, 1, 2),
+        source_url="https://example.invalid/document.xml",
+        http_get=get,
+    )
+
+    assert result.status == "invalid_response"
+    assert result.error_type == "INVALID_XML"
+    assert calls == 1
+    assert sleeps == []
 
 
 def test_xml_materialization_records_provenance_and_rejects_incompatible_file(

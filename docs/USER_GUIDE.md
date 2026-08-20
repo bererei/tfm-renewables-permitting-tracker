@@ -760,9 +760,11 @@ la única fase que llama al BOE. Publica sumarios/XML, `boe_items.parquet`,
 `candidates.parquet`, `xml_download_log.parquet`, `documents.parquet` y un
 `manifest.json`.
 
-Detente si hay fallos de sumario/XML o si el destino existe. El source stage
-falla de forma cerrada; usa otro run o investiga la causa, no borres un snapshot
-validado para reutilizar el nombre.
+Ante fallos transitorios de red, `source` reintenta automáticamente con una
+espera acotada. Si agota los reintentos, detecta otro fallo de sumario/XML o el
+destino ya existe, falla de forma cerrada y no publica un snapshot incompleto;
+usa otro run o investiga la causa, no borres un snapshot validado para reutilizar
+el nombre.
 
 ### 10.2 Planificar y ejecutar extracción
 
@@ -1240,7 +1242,7 @@ automática de snapshots documentales tampoco está disponible actualmente.
 | Revisión humana bloqueante (salida 4) | Inspecciona `review_queue.parquet`, prepara decisiones trazables y reanuda con los mismos attempts; no continúes a Silver. |
 | Working tree con untracked | Inspecciona cada path con `git status --short --untracked-files=all` y añade solo archivos explícitos. |
 | `.agents/` aparece sin versionar | Es un recurso local ajeno al producto. Déjalo intacto y no lo incluyas en `git add`. |
-| Falla source/BOE | Conserva el diagnóstico de sumario/XML y detente. No publiques documentos parciales ni sustituyas el texto por datos manuales. |
+| Falla source/BOE | `source` reintenta automáticamente los fallos transitorios. Si aun así falla, conserva el diagnóstico de sumario/XML y detente. No publiques documentos parciales ni sustituyas el texto por datos manuales. |
 | La clave del modelo no está disponible | Configura `GOOGLE_API_KEY` fuera del repositorio. No pegues secretos en ficheros ni logs. |
 
 ## 18. Glosario

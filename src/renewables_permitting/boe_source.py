@@ -11,6 +11,7 @@ from typing import Any, Literal
 import pandas as pd
 import requests
 
+from renewables_permitting.boe_http import request_with_transient_retries
 from renewables_permitting.utils import normalize_text, save_parquet
 
 
@@ -141,10 +142,15 @@ def fetch_boe_summary(
     retrieved_at = retrieved_at or datetime.now(timezone.utc)
     get = http_get or requests.get
     try:
-        response = get(
+        response = request_with_transient_retries(
+            get,
             source_url,
-            headers={"Accept": "application/json"},
-            timeout=timeout_seconds,
+            operation="summary",
+            identifier=publication_date.isoformat(),
+            request_kwargs={
+                "headers": {"Accept": "application/json"},
+                "timeout": timeout_seconds,
+            },
         )
     except requests.RequestException as error:
         return _failed_summary_result(

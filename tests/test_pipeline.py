@@ -3,12 +3,14 @@ from __future__ import annotations
 import json
 import subprocess
 import sys
+import time
 from datetime import date, datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
 import pandas as pd
 import pytest
+import requests
 
 import renewables_permitting.pipeline as pipeline
 from renewables_permitting.boe_candidates import CANDIDATE_POLICY_ID
@@ -326,6 +328,60 @@ def test_source_subcommand_uses_existing_apis_without_network(
     assert manifest["counts"]["documents"] == 1
     assert manifest["summaries"][0]["source_url"] == summary.source_url
     assert manifest["xml_documents"][0]["xml_sha256"] == xml.xml_sha256
+
+
+def test_source_stage_xml_failure_does_not_publish_partial_snapshot(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    summary = BOESummaryFetchResult(
+        publication_date=date(2026, 1, 2),
+        source_url="https://example.test/summary",
+        retrieved_at=NOW,
+        status="success",
+        http_status=200,
+        boe_status_code="200",
+        payload=_summary_payload(),
+        item_count=1,
+        summary_sha256=None,
+        error_type=None,
+        error=None,
+    )
+    real_fetch_xml = pipeline.fetch_boe_document_xml
+    calls = 0
+    sleeps: list[float] = []
+
+    def exhausted_xml(**kwargs):
+        def get(*args, **request_kwargs):
+            nonlocal calls
+            calls += 1
+            raise requests.ConnectionError("temporary network failure")
+
+        return real_fetch_xml(**kwargs, http_get=get)
+
+    monkeypatch.setattr(
+        pipeline,
+        "fetch_boe_summaries",
+        lambda *args: [summary],
+    )
+    monkeypatch.setattr(
+        pipeline,
+        "fetch_boe_document_xml",
+        exhausted_xml,
+    )
+    monkeypatch.setattr(time, "sleep", sleeps.append)
+    output_dir = tmp_path / "source"
+
+    with pytest.raises(pipeline.PipelineError, match="request_error"):
+        pipeline.run_source_stage(
+            start_date=date(2026, 1, 2),
+            end_date=date(2026, 1, 2),
+            output_dir=output_dir,
+        )
+
+    assert not output_dir.exists()
+    assert calls == 4
+    assert sleeps == [1.0, 2.0, 4.0]
 
 
 def test_model_is_denied_by_default_before_writes_or_agent_construction(
