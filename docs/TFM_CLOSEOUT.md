@@ -31,6 +31,7 @@ work listed here may enter the product.
 | `APP_DATA_CATALOG` — Gate 1 | PASSED — implemented, audited and human-reviewed on 2026-08-19 | `docs/APP_DATA_CATALOG.md` |
 | `APP_PRODUCT_SPEC` — Gate 2 | **PASSED 2026-08-20**; human product decisions recorded | `docs/APP_PRODUCT_SPEC.md` |
 | Final Corpus Ingestion Audit | Implemented + audited — pending human review | `docs/FINAL_CORPUS_INGESTION_AUDIT.md` |
+| Final Corpus Preflight 2022 | **INCOMPLETE — source reliability mitigation required** | `BOE-B-2024-24843:request_error`; `docs/FINAL_CORPUS_PREFLIGHT_2022.md` |
 
 The validated application reads only the four contractual Gold tables,
 verifies the expected downstream identity and never reads Silver or executes
@@ -378,8 +379,8 @@ Remaining delivery checks:
 
 ```text
 FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW
-→ PERIOD DECISION / SOURCE-ONLY PREFLIGHT
-→ FINAL CORPUS BUILD
+→ FINAL CORPUS PREFLIGHT 2022 — INCOMPLETE
+→ SOURCE RELIABILITY MITIGATION / HUMAN DECISION
 ```
 
 Do not start Streamlit, the map or additional Gold work before the read-only
