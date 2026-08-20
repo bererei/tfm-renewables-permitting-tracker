@@ -31,8 +31,8 @@ work listed here may enter the product.
 | `APP_DATA_CATALOG` — Gate 1 | PASSED — implemented, audited and human-reviewed on 2026-08-19 | `docs/APP_DATA_CATALOG.md` |
 | `APP_PRODUCT_SPEC` — Gate 2 | **PASSED 2026-08-20**; human product decisions recorded | `docs/APP_PRODUCT_SPEC.md` |
 | Final Corpus Ingestion Audit | Implemented + audited — pending human review | `docs/FINAL_CORPUS_INGESTION_AUDIT.md` |
-| Final Corpus Preflight 2022 | **INCOMPLETE — source reliability mitigation required** | `BOE-B-2024-24843:request_error`; `docs/FINAL_CORPUS_PREFLIGHT_2022.md` |
-| Source reliability mitigation | Implemented + tested — pending human review/commit | Bounded retry/backoff for transient BOE summary/XML failures |
+| Final Corpus Preflight 2022 v2 | **INCOMPLETE — source identity conflict pending human decision** | Source completed; reliability ACCEPTABLE; 23,611 `MODEL_REQUIRED` after quarantining one conflict; deadline RED; recommendation `HUMAN DECISION REQUIRED`; `docs/FINAL_CORPUS_PREFLIGHT_2022_V2.md` |
+| Source reliability mitigation | Operationally validated in v2 | Three transient XML failures recovered after one retry; zero exhausted retries |
 
 The validated application reads only the four contractual Gold tables,
 verifies the expected downstream identity and never reads Silver or executes
@@ -380,10 +380,11 @@ Remaining delivery checks:
 
 ```text
 FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW
-→ FINAL CORPUS PREFLIGHT 2022 — INCOMPLETE
-→ SOURCE RELIABILITY MITIGATION — IMPLEMENTED + TESTED, PENDING HUMAN REVIEW/COMMIT
-→ REPEAT 2022 SOURCE-ONLY PREFLIGHT
+→ FINAL CORPUS PREFLIGHT 2022 V2 — INCOMPLETE
+→ SOURCE RELIABILITY — ACCEPTABLE
+→ SOURCE IDENTITY CONFLICT — HUMAN DECISION REQUIRED
+→ PERIOD DECISION — BLOCKED; DEADLINE RED
 ```
 
-Do not start Streamlit, the map or additional Gold work before the read-only
-ingestion audit and subsequent preflight are complete.
+Do not start the Final Corpus Build before the isolated source identity and
+period decisions are approved.
