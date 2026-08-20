@@ -30,6 +30,7 @@ work listed here may enter the product.
 | Administrative situation filters | Validated, committed and pushed | `523887a`: latest/historical, situation, action, OR/AND and `matching_action_types` |
 | `APP_DATA_CATALOG` — Gate 1 | PASSED — implemented, audited and human-reviewed on 2026-08-19 | `docs/APP_DATA_CATALOG.md` |
 | `APP_PRODUCT_SPEC` — Gate 2 | **PASSED 2026-08-20**; human product decisions recorded | `docs/APP_PRODUCT_SPEC.md` |
+| Final Corpus Ingestion Audit | Implemented + audited — pending human review | `docs/FINAL_CORPUS_INGESTION_AUDIT.md` |
 
 The validated application reads only the four contractual Gold tables,
 verifies the expected downstream identity and never reads Silver or executes
@@ -376,8 +377,8 @@ Remaining delivery checks:
 ## Next required action
 
 ```text
-FINAL CORPUS INGESTION AUDIT
-→ FINAL CORPUS PREFLIGHT
+FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW
+→ PERIOD DECISION / SOURCE-ONLY PREFLIGHT
 → FINAL CORPUS BUILD
 ```
 
