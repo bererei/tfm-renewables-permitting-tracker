@@ -514,6 +514,179 @@ def test_compatible_attempt_is_reused_without_model_call(
     assert result.blocking_review_count == 0
 
 
+def test_cumulative_scopes_reuse_completed_batch_without_duplicate_calls(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    documents = _documents(count=10)
+    documents_path = _write_documents(tmp_path / "input", count=10)
+    first_scope = tmp_path / "scope-01.csv"
+    second_scope = tmp_path / "scope-02.csv"
+    documents.iloc[:5][["identificador"]].rename(
+        columns={"identificador": "identificador_boe"}
+    ).to_csv(first_scope, index=False)
+    documents.iloc[5:][["identificador"]].rename(
+        columns={"identificador": "identificador_boe"}
+    ).to_csv(second_scope, index=False)
+    calls: list[list[str]] = []
+
+    monkeypatch.setattr(pipeline, "build_boe_extraction_agent", object)
+
+    async def fake_extract(run_df, *, agent, attempts_path, checkpoint_every):
+        calls.append(run_df["identificador"].astype(str).tolist())
+        append_ai_extraction_attempts(
+            _success_attempts(run_df), attempts_path
+        )
+        return []
+
+    monkeypatch.setattr(pipeline, "extract_documents", fake_extract)
+    first = pipeline.run_extraction_stage(
+        documents=documents_path,
+        scope_paths=[first_scope],
+        output_dir=tmp_path / "batch-01",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        execute_model=True,
+    )
+    second = pipeline.run_extraction_stage(
+        documents=documents_path,
+        attempts=first.output_dir,
+        scope_paths=[first_scope, second_scope],
+        output_dir=tmp_path / "batch-02",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        execute_model=True,
+    )
+
+    assert calls == [
+        documents.iloc[:5]["identificador"].tolist(),
+        documents.iloc[5:]["identificador"].tolist(),
+    ]
+    assert second.compatible_existing_count == 5
+    assert second.pending_document_count == 5
+    assert second.model_calls_planned == 5
+    assert second.blocking_review_count == 0
+
+
+def test_resume_rejects_old_config_before_constructing_agent(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    documents = _documents()
+    attempts = _success_attempts(documents)
+    attempts["extraction_config_id"] = "8158661f76a31c87"
+    attempts_path = _write_attempts(tmp_path, attempts)
+    monkeypatch.setattr(
+        pipeline,
+        "build_boe_extraction_agent",
+        lambda: (_ for _ in ()).throw(
+            AssertionError("incompatible attempts must fail before the agent")
+        ),
+    )
+
+    with pytest.raises(pipeline.PipelineError, match="configuration"):
+        pipeline.run_extraction_stage(
+            documents=_write_documents(tmp_path / "input"),
+            attempts=attempts_path,
+            output_dir=tmp_path / "output",
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+            execute_model=True,
+        )
+
+    assert not (tmp_path / "output").exists()
+
+
+def test_resume_rejects_source_drift_before_constructing_agent(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    documents = _documents()
+    attempts = _success_attempts(documents)
+    attempts["source_document_sha256"] = "0" * 64
+    attempts_path = _write_attempts(tmp_path, attempts)
+    monkeypatch.setattr(
+        pipeline,
+        "build_boe_extraction_agent",
+        lambda: (_ for _ in ()).throw(
+            AssertionError("stale attempts must fail before the agent")
+        ),
+    )
+
+    with pytest.raises(pipeline.PipelineError, match="source hash"):
+        pipeline.run_extraction_stage(
+            documents=_write_documents(tmp_path / "input"),
+            attempts=attempts_path,
+            output_dir=tmp_path / "output",
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+            execute_model=True,
+        )
+
+    assert not (tmp_path / "output").exists()
+
+
+def test_resume_rejects_duplicate_attempt_identity(tmp_path) -> None:
+    documents = _documents()
+    attempt = _success_attempts(documents)
+    attempts = pd.concat([attempt, attempt], ignore_index=True)
+    attempts_path = _write_attempts(tmp_path, attempts)
+
+    with pytest.raises(pipeline.PipelineError, match="duplicate attempt_id"):
+        pipeline.build_extraction_plan(
+            documents=_write_documents(tmp_path / "input"),
+            attempts=attempts_path,
+            execute_model=False,
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
+
+
+def test_resume_rejects_corrupt_success_attempt(tmp_path) -> None:
+    documents = _documents()
+    attempts = _success_attempts(documents)
+    attempts.loc[0, "extraction_json"] = "{not-valid-json"
+    attempts_path = _write_attempts(tmp_path, attempts)
+
+    with pytest.raises(pipeline.PipelineError, match="invalid extraction JSON"):
+        pipeline.build_extraction_plan(
+            documents=_write_documents(tmp_path / "input"),
+            attempts=attempts_path,
+            execute_model=False,
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
+
+
+def test_interrupted_unpublished_batch_is_not_automatically_discovered(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    documents_path = _write_documents(tmp_path / "input", count=10)
+    monkeypatch.setattr(pipeline, "build_boe_extraction_agent", object)
+
+    async def interrupt_after_three(
+        run_df, *, agent, attempts_path, checkpoint_every
+    ):
+        append_ai_extraction_attempts(
+            _success_attempts(run_df.iloc[:3]), attempts_path
+        )
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(pipeline, "extract_documents", interrupt_after_three)
+    with pytest.raises(KeyboardInterrupt):
+        pipeline.run_extraction_stage(
+            documents=documents_path,
+            output_dir=tmp_path / "interrupted",
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+            execute_model=True,
+        )
+
+    assert not (tmp_path / "interrupted").exists()
+    assert not list(tmp_path.glob(".interrupted.staging-*"))
+    plan = pipeline.build_extraction_plan(
+        documents=documents_path,
+        execute_model=False,
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+    assert plan.pending_document_count == 10
+    assert plan.model_required_count == 10
+
+
 def test_review_gate_blocks_silver_and_run_downstream(
     tmp_path,
     monkeypatch,

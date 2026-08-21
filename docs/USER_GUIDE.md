@@ -839,6 +839,33 @@ extracciones vigentes, cola de revisión y manifest. Los intentos compatibles se
 reutilizan. Los errores o inciertos existentes no se repiten automáticamente:
 se envían a revisión.
 
+### 10.2.1 Extracciones largas por scopes y continuación
+
+Una extracción larga debe dividir el trabajo de modelo en scopes pequeños,
+deterministas y sin solapamiento. Ejecuta el primer scope en un output nuevo;
+para el siguiente, repite también los scopes anteriores y pasa el snapshot
+completo previo mediante `--attempts`. De este modo el corpus de cada etapa es
+acumulativo, los intentos válidos anteriores se reutilizan y el agente recibe
+solo el lote nuevo.
+
+La continuación falla de forma cerrada si el snapshot o sus intentos mezclan
+configuración, instrucciones, contrato, modelo, versión de validación, BOE o
+hash de source. También rechaza IDs de attempt duplicados y éxitos corruptos.
+Un error individual válido permanece en la cola bloqueante: no se convierte en
+éxito ni se repite silenciosamente.
+
+Si una etapa se interrumpe, conserva el último snapshot **publicado** y repite
+el mismo lote usando ese snapshot como `--attempts`. No uses el Parquet de un
+directorio `.staging-*`, no unas Parquets manualmente y no borres intentos para
+forzar una nueva llamada. El tamaño del lote determina el máximo trabajo que
+puede repetirse.
+
+El procedimiento exacto, fingerprints, scopes y comandos controlados del
+corpus final P2 están en
+[`FINAL_EXTRACTION_EXECUTION_PLAN_P2.md`](FINAL_EXTRACTION_EXECUTION_PLAN_P2.md).
+Gemini requiere además autorización humana explícita; que un comando esté
+documentado no constituye esa autorización.
+
 ### 10.3 Revisar antes de Silver
 
 Examina `review_queue.parquet`. Si existe alguna fila bloqueante, la CLI sale

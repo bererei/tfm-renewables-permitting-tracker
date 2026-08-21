@@ -392,14 +392,15 @@ FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW
 → HOLDOUT EXPOSURE PROVENANCE — RESOLVED; 479 BOE VERSIONED
 → P2 EXPOSURE — 263; PROVISIONALLY ELIGIBLE — 19,226
 → P2 TARGET PERIOD — 2024-01-01 TO 2026-08-20 INCLUSIVE
-→ FINAL EXTRACTION PREFLIGHT P2 — COMPLETED; BLOCKED ON RESUME MITIGATION
-→ HOLDOUT — STRATEGY READY; VERSIONED SELECTION ARTIFACT REQUIRED
+→ FINAL EXTRACTION PREFLIGHT P2 — COMPLETED
+→ RESUME MITIGATION — IMPLEMENTED + TESTED; PENDING HUMAN REVIEW
+→ HOLDOUT — 48 BOE SELECTED + VERSIONED; NOT EXECUTED
 → GEMINI — NOT AUTHORIZED
 → COST — EXPECTED USD 60.74; CONSERVATIVE USD 121.87; OPERATOR CAP USD 157.00
-→ NEXT: VERSION HOLDOUT SELECTION AND VALIDATE BOUNDED CUMULATIVE RESUME PROCEDURE
+→ NEXT: HUMAN REVIEW + EXPLICIT MODEL AUTHORIZATION
 ```
 
 The source, configuration, funnel, corrections and cost evidence pass the P2
-preflight. Do not start the Final Corpus Build or authorize Gemini until the
-holdout selection is versioned, bounded cumulative scopes and continuation are
-validated, and the resulting execution package receives explicit human review.
+preflight. The holdout and bounded cumulative execution package are versioned
+and tested. Do not start the Final Corpus Build or authorize Gemini until this
+package receives explicit human review and model authorization.

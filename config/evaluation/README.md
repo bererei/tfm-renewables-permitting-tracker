@@ -20,7 +20,18 @@ development examples, as regression cases, or in the development challenge
 sample. Every document in this registry is excluded from the future final
 holdout.
 
-The final holdout does not yet exist. It must be selected only after the
-extraction contract, prompt, canonicalisation, validation, and relevant review
-policy have been frozen. Holdout documents must not appear in
-`development_used_documents.csv`.
+The final holdout was selected only after the extraction contract, prompt,
+canonicalisation, validation and relevant review policy were frozen. Holdout
+documents must not appear in `development_used_documents.csv`.
+
+`final_holdout_p2_v1.csv` is the frozen 48-document final holdout for P2. It
+was selected exclusively from development-unexposed `MODEL_REQUIRED`
+documents using the versioned source/config identities, six pre-model
+year-by-BOE-series strata and seed `20260821`. It contains selection lineage,
+not model outputs, and has not yet been executed.
+
+`final_p2_execution_scopes_v1/` contains the bounded, pairwise-disjoint main
+model scopes and the complete P2 scope used by the controlled execution plan.
+Its manifest declares counts, identities and fingerprints. These CSVs are
+versioned execution inputs; operational extraction snapshots remain under
+ignored `runs/` paths.

@@ -76,6 +76,7 @@ from renewables_permitting.extraction.flat_validation import (
 from renewables_permitting.extraction.flatten import (
     flatten_current_extractions,
 )
+from renewables_permitting.extraction.models import BOEProjectExtraction
 from renewables_permitting.extraction.persistence import save_parquet_atomic
 from renewables_permitting.extraction.recanonicalization import (
     build_recanonicalized_attempt_record,
@@ -700,7 +701,152 @@ def run_source_stage(
     )
 
 
-def _read_attempts_input(path: Path | None) -> tuple[pd.DataFrame, Path | None]:
+def _validate_resume_manifest(
+    manifest: Mapping[str, Any],
+    *,
+    expected_extraction_config_id: str,
+) -> None:
+    expected = {
+        "stage": "extraction",
+        "stage_version": PIPELINE_STAGE_VERSION,
+        "extraction_config_id": expected_extraction_config_id,
+        "model_provider": MODEL_PROVIDER,
+        "model_name": AI_MODEL_NAME,
+        "instructions_sha256": INSTRUCTIONS_SHA256,
+        "contract_schema_sha256": CONTRACT_SCHEMA_SHA256,
+        "document_validation_version": DOCUMENT_VALIDATION_VERSION,
+        "scope_classification_policy": EXTRACTION_CONFIG[
+            "scope_classification_policy"
+        ],
+    }
+    mismatches = [
+        key for key, expected_value in expected.items()
+        if manifest.get(key) != expected_value
+    ]
+    if mismatches:
+        raise PipelineError(
+            "Resume snapshot configuration is incompatible: "
+            f"{mismatches}."
+        )
+
+
+def _validate_resume_attempts(
+    attempts: pd.DataFrame,
+    documents: pd.DataFrame,
+    *,
+    expected_extraction_config_id: str,
+) -> pd.DataFrame:
+    """Fail closed before reusing paid work from a previous extraction."""
+
+    attempts = normalise_ai_extraction_attempts_log(attempts)
+    if attempts.empty:
+        return attempts
+    if attempts.columns.duplicated().any():
+        raise PipelineError("Resume attempts contain duplicate columns.")
+
+    required_text = {
+        "attempt_id",
+        "identificador_boe",
+        "source_document_sha256",
+        "extraction_config_id",
+        "contract_schema_sha256",
+        "instructions_sha256",
+        "model_provider",
+        "model_name",
+        "document_validation_version",
+        "extraction_status",
+        "extracted_at",
+    }
+    invalid_fields: list[str] = []
+    for column in sorted(required_text):
+        values = attempts[column].astype("string")
+        if values.isna().any() or values.str.strip().eq("").any():
+            invalid_fields.append(column)
+    if invalid_fields:
+        raise PipelineError(
+            f"Resume attempts contain incomplete fields: {invalid_fields}."
+        )
+
+    attempt_ids = attempts["attempt_id"].astype("string")
+    if attempt_ids.duplicated(keep=False).any():
+        raise PipelineError("Resume attempts contain duplicate attempt_id values.")
+
+    identity_columns = {
+        "extraction_config_id": expected_extraction_config_id,
+        "contract_schema_sha256": CONTRACT_SCHEMA_SHA256,
+        "instructions_sha256": INSTRUCTIONS_SHA256,
+        "model_provider": MODEL_PROVIDER,
+        "model_name": AI_MODEL_NAME,
+        "document_validation_version": DOCUMENT_VALIDATION_VERSION,
+    }
+    mismatches = [
+        column for column, expected_value in identity_columns.items()
+        if not attempts[column].astype("string").eq(expected_value).all()
+    ]
+    if mismatches:
+        raise PipelineError(
+            "Resume attempt configuration is incompatible: "
+            f"{mismatches}."
+        )
+
+    statuses = attempts["extraction_status"].astype("string")
+    if not statuses.isin(["ok", "error"]).all():
+        raise PipelineError("Resume attempts contain an invalid extraction status.")
+    extracted_at = pd.to_datetime(
+        attempts["extracted_at"], errors="coerce", utc=True
+    )
+    if extracted_at.isna().any():
+        raise PipelineError("Resume attempts contain an invalid extracted_at.")
+
+    sources = {
+        str(row.identificador): str(row.source_document_sha256)
+        for row in documents.itertuples(index=False)
+    }
+    attempt_boe_ids = attempts["identificador_boe"].astype("string")
+    outside = sorted(set(attempt_boe_ids.astype(str)) - set(sources))
+    if outside:
+        raise PipelineError(
+            "Resume attempts contain BOE IDs outside the cumulative scope: "
+            f"{outside[:20]}."
+        )
+    stale = attempts.loc[
+        [
+            str(source_hash) != sources[str(boe_id)]
+            for boe_id, source_hash in zip(
+                attempt_boe_ids,
+                attempts["source_document_sha256"].astype("string"),
+                strict=True,
+            )
+        ]
+    ]
+    if not stale.empty:
+        raise PipelineError(
+            "Resume attempt source hash is incompatible with the current "
+            "document scope."
+        )
+
+    successful = attempts.loc[statuses.eq("ok")]
+    for row in successful.itertuples(index=False):
+        try:
+            extraction = BOEProjectExtraction.model_validate_json(
+                str(row.extraction_json)
+            )
+        except (TypeError, ValueError) as error:
+            raise PipelineError(
+                f"Resume attempt {row.attempt_id!r} has invalid extraction JSON."
+            ) from error
+        if extraction.boe_id != str(row.identificador_boe):
+            raise PipelineError(
+                f"Resume attempt {row.attempt_id!r} has inconsistent BOE lineage."
+            )
+    return attempts
+
+
+def _read_attempts_input(
+    path: Path | None,
+    *,
+    expected_extraction_config_id: str,
+) -> tuple[pd.DataFrame, Path | None]:
     if path is None:
         return empty_ai_extraction_attempts_log(), None
     path = Path(path)
@@ -709,6 +855,10 @@ def _read_attempts_input(path: Path | None) -> tuple[pd.DataFrame, Path | None]:
     inherited_manual: Path | None = None
     if path.is_dir():
         manifest = _load_json_manifest(path, stage="Extraction")
+        _validate_resume_manifest(
+            manifest,
+            expected_extraction_config_id=expected_extraction_config_id,
+        )
         attempt_path = _verify_artifact(path, manifest, "attempts")
         manual_entry = manifest.get("artifacts", {}).get("manual_reviews")
         if isinstance(manual_entry, Mapping):
@@ -756,7 +906,15 @@ def build_extraction_plan(
     _validate_expected_config(expected_extraction_config_id)
     source = load_documents_input(documents)
     source, scope_summary = apply_document_scopes(source, scope_paths)
-    attempts_frame, inherited_manual = _read_attempts_input(attempts)
+    attempts_frame, inherited_manual = _read_attempts_input(
+        attempts,
+        expected_extraction_config_id=expected_extraction_config_id,
+    )
+    attempts_frame = _validate_resume_attempts(
+        attempts_frame,
+        source,
+        expected_extraction_config_id=expected_extraction_config_id,
+    )
     manual_frame = _read_manual_reviews(
         manual_reviews,
         inherited_path=inherited_manual,

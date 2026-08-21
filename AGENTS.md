@@ -220,6 +220,9 @@ same commit. Verify documented commands against the real CLI.
   the active contract requires it.
 - Do not make real provider or model calls unless the task explicitly requires
   them.
+- Before authorizing a long model run, require validated bounded scopes and a
+  cumulative continuation path from durable attempts; reject resume inputs
+  whose source or extraction identity is incompatible.
 - Prefer offline tests, fixtures, mocks, and previously stored outputs during
   development.
 - Record model, prompt, validation, and policy versions whenever extraction

@@ -1,0 +1,223 @@
+{
+  "artifact": "final_p2_execution_scopes",
+  "artifact_version": 1,
+  "batch_policy": "sha256_rank_fixed_max_250_v1",
+  "counts": {
+    "deterministic_no_model": 14452,
+    "holdout_model_documents": 48,
+    "main_model_documents": 4989,
+    "main_scopes": 20,
+    "model_required": 5037,
+    "p2_documents": 19489
+  },
+  "contract_schema_sha256": "7960b8718df138c75e92230a4b4b32c03872cdd7c6ac20a5f3521226e709c81c",
+  "extraction_config_id": "4b54b89dbfe8640e",
+  "fingerprints": {
+    "holdout_sha256": "617e3a9379cbe7b8f041330d4579fea6f34ea592956c19dc29ad65325bd0fb17",
+    "main_scope_collection_sha256": "ec619d4b3f160ee516b51ca801aec6e2931175e2ffae6d381d48d31a7597f4ca",
+    "model_required_universe_sha256": "1b14f5b07520a0c36e94368d59a6669737eea3a49b56be761b76cd44cba1e124",
+    "p2_scope_sha256": "86c2d9ad0abb4c82654b0ce68d2cf2e61b9a58b35ef85571031562697f67f3f7"
+  },
+  "holdout": {
+    "filename": "../final_holdout_p2_v1.csv",
+    "row_count": 48
+  },
+  "holdout_policy": "sha256_rank_year_boe_series_equal_quota_v1",
+  "instructions_sha256": "153b0a19c0f0709c78396acd8e0350e7d3b8d67044db14f76029cc9acbdf5580",
+  "main_scopes": [
+    {
+      "batch_id": "main-01",
+      "conservative_cost_usd": 6.05,
+      "expected_cost_usd": 3.01,
+      "filename": "main-01.csv",
+      "orientative_provider_hours": 1.1016,
+      "row_count": 250,
+      "scope_sha256": "a11871fd98156ce04d655e07ff6fa2acc7a83e2a67f874ed0ea5d2317c6c2cfa"
+    },
+    {
+      "batch_id": "main-02",
+      "conservative_cost_usd": 6.05,
+      "expected_cost_usd": 3.01,
+      "filename": "main-02.csv",
+      "orientative_provider_hours": 1.1016,
+      "row_count": 250,
+      "scope_sha256": "9202986f1cef012b5eeb8ff7e198b7938a742d6b1c16a9695b183e7f1e5b3731"
+    },
+    {
+      "batch_id": "main-03",
+      "conservative_cost_usd": 6.05,
+      "expected_cost_usd": 3.01,
+      "filename": "main-03.csv",
+      "orientative_provider_hours": 1.1016,
+      "row_count": 250,
+      "scope_sha256": "682f9320bc6d826fa84e41d6f7504f24d2f1d1578f9c978273c237970dbd0dd7"
+    },
+    {
+      "batch_id": "main-04",
+      "conservative_cost_usd": 6.05,
+      "expected_cost_usd": 3.01,
+      "filename": "main-04.csv",
+      "orientative_provider_hours": 1.1016,
+      "row_count": 250,
+      "scope_sha256": "b7b2484ce493cb97393f35e110c7f91af613e5766d82f8bc3993075cbf2ef5a5"
+    },
+    {
+      "batch_id": "main-05",
+      "conservative_cost_usd": 6.05,
+      "expected_cost_usd": 3.01,
+      "filename": "main-05.csv",
+      "orientative_provider_hours": 1.1016,
+      "row_count": 250,
+      "scope_sha256": "5170843dac3f3bc0ff8bb670813adce1639a67bef3abfda173055e47777d610a"
+    },
+    {
+      "batch_id": "main-06",
+      "conservative_cost_usd": 6.05,
+      "expected_cost_usd": 3.01,
+      "filename": "main-06.csv",
+      "orientative_provider_hours": 1.1016,
+      "row_count": 250,
+      "scope_sha256": "3ca47f24caa94b7bfdf5fda4855540559c54878d8ed0ff4e60b15504d68c4e24"
+    },
+    {
+      "batch_id": "main-07",
+      "conservative_cost_usd": 6.05,
+      "expected_cost_usd": 3.01,
+      "filename": "main-07.csv",
+      "orientative_provider_hours": 1.1016,
+      "row_count": 250,
+      "scope_sha256": "504cfc4da0619f08e12535e7f92f6a2064167f9653126a526842a5277efc9226"
+    },
+    {
+      "batch_id": "main-08",
+      "conservative_cost_usd": 6.05,
+      "expected_cost_usd": 3.01,
+      "filename": "main-08.csv",
+      "orientative_provider_hours": 1.1016,
+      "row_count": 250,
+      "scope_sha256": "3a68f0161f496b6b5ccf400431cb1093fad40f4446b3f16457c6df56a44f3191"
+    },
+    {
+      "batch_id": "main-09",
+      "conservative_cost_usd": 6.05,
+      "expected_cost_usd": 3.01,
+      "filename": "main-09.csv",
+      "orientative_provider_hours": 1.1016,
+      "row_count": 250,
+      "scope_sha256": "ca7dfbedc0caf8ae53c5a5140be54ac71a46d5a9ac66f8cef513b2420080059c"
+    },
+    {
+      "batch_id": "main-10",
+      "conservative_cost_usd": 6.05,
+      "expected_cost_usd": 3.01,
+      "filename": "main-10.csv",
+      "orientative_provider_hours": 1.1016,
+      "row_count": 250,
+      "scope_sha256": "cc50818691d530f3eee0f1ffd25cceed642fd3623e5af798e3f373e6ff1acd8b"
+    },
+    {
+      "batch_id": "main-11",
+      "conservative_cost_usd": 6.05,
+      "expected_cost_usd": 3.01,
+      "filename": "main-11.csv",
+      "orientative_provider_hours": 1.1016,
+      "row_count": 250,
+      "scope_sha256": "31127556a7d5394bbce1353962b65497994de3451894b385f1d1b9ed8b17fba2"
+    },
+    {
+      "batch_id": "main-12",
+      "conservative_cost_usd": 6.05,
+      "expected_cost_usd": 3.01,
+      "filename": "main-12.csv",
+      "orientative_provider_hours": 1.1016,
+      "row_count": 250,
+      "scope_sha256": "35b15ccb1cefb27d2eafa12fd5e84cd27f78a3458fe0269b1e2f6cac77a297ea"
+    },
+    {
+      "batch_id": "main-13",
+      "conservative_cost_usd": 6.05,
+      "expected_cost_usd": 3.01,
+      "filename": "main-13.csv",
+      "orientative_provider_hours": 1.1016,
+      "row_count": 250,
+      "scope_sha256": "fe18e5c02205289cc975b81db6566be2b361137c747ab538edcf5f5113f33012"
+    },
+    {
+      "batch_id": "main-14",
+      "conservative_cost_usd": 6.05,
+      "expected_cost_usd": 3.01,
+      "filename": "main-14.csv",
+      "orientative_provider_hours": 1.1016,
+      "row_count": 250,
+      "scope_sha256": "527cba48bf88d2f09ff65e9d9b1b7382a9307f4ae819b5e11ec24bf22a37febd"
+    },
+    {
+      "batch_id": "main-15",
+      "conservative_cost_usd": 6.05,
+      "expected_cost_usd": 3.01,
+      "filename": "main-15.csv",
+      "orientative_provider_hours": 1.1016,
+      "row_count": 250,
+      "scope_sha256": "78c371e4a3a17a557e2cf26bc5fd7c95fe70548ceccf2717e2f97de58a65e9df"
+    },
+    {
+      "batch_id": "main-16",
+      "conservative_cost_usd": 6.05,
+      "expected_cost_usd": 3.01,
+      "filename": "main-16.csv",
+      "orientative_provider_hours": 1.1016,
+      "row_count": 250,
+      "scope_sha256": "b6874ad9573d9d3744f3d6b802c01ba2248ad774dc9b3e4f89c2c7343584ba9f"
+    },
+    {
+      "batch_id": "main-17",
+      "conservative_cost_usd": 6.05,
+      "expected_cost_usd": 3.01,
+      "filename": "main-17.csv",
+      "orientative_provider_hours": 1.1016,
+      "row_count": 250,
+      "scope_sha256": "6fd6242a7f89acf7cd3f9d832ca23379c2e0246d7baa86ef4cd4cfcd5db1e7dc"
+    },
+    {
+      "batch_id": "main-18",
+      "conservative_cost_usd": 6.05,
+      "expected_cost_usd": 3.01,
+      "filename": "main-18.csv",
+      "orientative_provider_hours": 1.1016,
+      "row_count": 250,
+      "scope_sha256": "628bfc222ac35d61c74cbe1437240fd069ab4834bb422d1ffdcd873dcae2a777"
+    },
+    {
+      "batch_id": "main-19",
+      "conservative_cost_usd": 6.05,
+      "expected_cost_usd": 3.01,
+      "filename": "main-19.csv",
+      "orientative_provider_hours": 1.1016,
+      "row_count": 250,
+      "scope_sha256": "bb3dee2135d1555942a184ec0141ac5fb1403ed4ac7109146edd5c321a6081fa"
+    },
+    {
+      "batch_id": "main-20",
+      "conservative_cost_usd": 5.78,
+      "expected_cost_usd": 2.88,
+      "filename": "main-20.csv",
+      "orientative_provider_hours": 1.0531,
+      "row_count": 239,
+      "scope_sha256": "43570d93682feb58c29ab95568ebb10716f2e9fafa4a4ff46261878bd803cd57"
+    }
+  ],
+  "maximum_repeatable_model_calls": 250,
+  "model_name": "google:gemini-2.5-flash",
+  "model_provider": "gemini",
+  "p2_scope": {
+    "filename": "p2_all.csv",
+    "row_count": 19489
+  },
+  "period": {
+    "end": "2026-08-20",
+    "start": "2024-01-01"
+  },
+  "scope_policy": "binary_named_generation_pre_model_guard_v4",
+  "selection_seed": "20260821",
+  "source_snapshot_id": "1d3eec6ac15e293dbd83c80d8c8504b3d425e1fb07d8e84b8cfbb0ebbd659cbf"
+}
