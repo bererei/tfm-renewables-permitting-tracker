@@ -33,6 +33,7 @@ work listed here may enter the product.
 | Final Corpus Ingestion Audit | Implemented + audited — pending human review | `docs/FINAL_CORPUS_INGESTION_AUDIT.md` |
 | Final Corpus Preflight 2022 v2 | **INCOMPLETE — source identity conflict pending human decision** | Source completed; reliability ACCEPTABLE; 23,611 `MODEL_REQUIRED` after quarantining one conflict; deadline RED; recommendation `HUMAN DECISION REQUIRED`; `docs/FINAL_CORPUS_PREFLIGHT_2022_V2.md` |
 | Candidate funnel audit | Implemented — pending human review | Conservative pre-model simulation leaves 8,244 `MODEL_REQUIRED`; period reduction still required; `docs/FINAL_CORPUS_CANDIDATE_FUNNEL_AUDIT.md` |
+| Period/funnel decision audit | Implemented — pending human decision | Recommends P3, R1+R3 and strict config identity; no period or classifier change implemented; `docs/FINAL_CORPUS_PERIOD_AND_FUNNEL_DECISION.md` |
 | Source reliability mitigation | Operationally validated in v2 | Three transient XML failures recovered after one retry; zero exhausted retries |
 
 The validated application reads only the four contractual Gold tables,
@@ -383,10 +384,11 @@ Remaining delivery checks:
 FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW
 → FINAL CORPUS PREFLIGHT 2022 V2 — INCOMPLETE
 → CANDIDATE FUNNEL AUDIT — IMPLEMENTED, PENDING HUMAN REVIEW
+→ PERIOD/FUNNEL DECISION AUDIT — IMPLEMENTED, PENDING HUMAN DECISION
 → SOURCE RELIABILITY — ACCEPTABLE
 → SOURCE IDENTITY CONFLICT — HUMAN DECISION REQUIRED
 → PERIOD DECISION — BLOCKED; DEADLINE RED
-→ NEXT: HUMAN DECISION ON FUNNEL MITIGATION
+→ NEXT: HUMAN APPROVAL OF PERIOD + CLASSIFIER POLICY + REUSE POLICY
 ```
 
 Do not start the Final Corpus Build before the isolated source identity and
