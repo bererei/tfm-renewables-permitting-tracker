@@ -391,9 +391,15 @@ FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW
 → STRICT CONFIG IDENTITY — IMPLEMENTED; AUTOMATIC LEGACY REUSE = 0
 → HOLDOUT EXPOSURE PROVENANCE — RESOLVED; 479 BOE VERSIONED
 → P2 EXPOSURE — 263; PROVISIONALLY ELIGIBLE — 19,226
-→ NEXT: REPEAT FINAL EXTRACTION PREFLIGHT P2
+→ P2 TARGET PERIOD — 2024-01-01 TO 2026-08-20 INCLUSIVE
+→ FINAL EXTRACTION PREFLIGHT P2 — COMPLETED; BLOCKED ON RESUME MITIGATION
+→ HOLDOUT — STRATEGY READY; VERSIONED SELECTION ARTIFACT REQUIRED
+→ GEMINI — NOT AUTHORIZED
+→ COST — EXPECTED USD 60.74; CONSERVATIVE USD 121.87; OPERATOR CAP USD 157.00
+→ NEXT: VERSION HOLDOUT SELECTION AND VALIDATE BOUNDED CUMULATIVE RESUME PROCEDURE
 ```
 
-The provenance gate no longer blocks the P2 preflight. Do not select the
-holdout, start the Final Corpus Build or authorize Gemini until that preflight
-is completed and explicitly reviewed.
+The source, configuration, funnel, corrections and cost evidence pass the P2
+preflight. Do not start the Final Corpus Build or authorize Gemini until the
+holdout selection is versioned, bounded cumulative scopes and continuation are
+validated, and the resulting execution package receives explicit human review.
