@@ -1879,7 +1879,7 @@ def test_review_public_workflow_signatures_are_stable() -> None:
 
 def test_selection_lineage_values_match_validated_snapshots() -> None:
     assert DOCUMENT_VALIDATION_VERSION == "25"
-    assert EXTRACTION_CONFIG_ID == "8158661f76a31c87"
+    assert EXTRACTION_CONFIG_ID == "4b54b89dbfe8640e"
     assert CONTRACT_SCHEMA_SHA256 == (
         "7960b8718df138c75e92230a4b4b32c03872cdd7c6ac20a5f3521226e709c81c"
     )

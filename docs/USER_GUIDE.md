@@ -787,6 +787,13 @@ extracción o un `attempts.parquet`. Para limitar el corpus, `--scope` puede
 repetirse y acepta CSV/Parquet con una columna `identificador_boe` o
 `identificador`.
 
+Antes de cualquier llamada de IA, el pipeline aplica una clasificación
+determinista conservadora que descarta familias institucionales claramente
+fuera del alcance y conserva los documentos con lenguaje explícito de
+generación eléctrica o hidroeléctrica. La policy forma parte de
+`EXTRACTION_CONFIG_ID`: cuando cambia, los intentos de la identidad anterior
+no se reutilizan automáticamente.
+
 Solo después de revisar el número de llamadas nuevas y configurar la
 credencial fuera del repositorio, autoriza las llamadas externas.
 

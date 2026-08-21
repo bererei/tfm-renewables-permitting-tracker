@@ -2823,6 +2823,132 @@ def test_storage_linked_to_generation_is_not_preclassified() -> None:
     assert adjustments == []
 
 
+def test_water_authority_notice_is_preclassified_without_model() -> None:
+    title = (
+        "Anuncio de la Confederación Hidrográfica del Tajo sobre información "
+        "pública de una concesión de aguas para riego."
+    )
+    extraction, adjustments = preclassify_document_without_model(
+        _test_document("BOE-B-2026-99001", title)
+    )
+
+    assert extraction is not None
+    assert (
+        extraction.document_scope
+        == DocumentScope.NOT_RELEVANT_FOR_GENERATION_PROJECTS
+    )
+    assert extraction.classification_reason.startswith(
+        "non_generation_water_authority:"
+    )
+    assert any("antes de llamar al modelo" in item for item in adjustments)
+
+
+@pytest.mark.parametrize(
+    "generation_language",
+    [
+        "aprovechamiento hidroeléctrico Salto del Tajo",
+        "producción de energía eléctrica en el aprovechamiento Salto del Tajo",
+        "central hidráulica Salto del Tajo",
+        "generación hidráulica en el Salto del Tajo",
+    ],
+)
+def test_water_authority_preserves_approved_generation_language(
+    generation_language: str,
+) -> None:
+    title = (
+        "Anuncio de la Confederación Hidrográfica del Tajo sobre información "
+        f"pública del {generation_language}."
+    )
+
+    extraction, adjustments = preclassify_document_without_model(
+        _test_document("BOE-B-2026-99002", title)
+    )
+
+    assert extraction is None
+    assert adjustments == []
+
+
+@pytest.mark.parametrize(
+    "issuing_body",
+    [
+        "Demarcación de Carreteras del Estado en Aragón",
+        "Administrador de Infraestructuras Ferroviarias",
+        "ADIF",
+        "Demarcación de Costas en Canarias",
+        "Servicio Provincial de Costas de Tenerife",
+        "Autoridad Portuaria de Las Palmas",
+        "Puertos del Estado",
+    ],
+)
+def test_transport_or_coastal_notice_is_preclassified_without_model(
+    issuing_body: str,
+) -> None:
+    title = (
+        f"Anuncio de {issuing_body} sobre información pública del proyecto "
+        "de acondicionamiento del acceso."
+    )
+
+    extraction, _ = preclassify_document_without_model(
+        _test_document("BOE-B-2026-99003", title)
+    )
+
+    assert extraction is not None
+    assert extraction.classification_reason.startswith(
+        "non_generation_transport_or_coastal:"
+    )
+
+
+def test_transport_body_preserves_explicit_generation_project() -> None:
+    title = (
+        "Anuncio de ADIF sobre información pública de la planta fotovoltaica "
+        "Estación Solar y su línea de evacuación."
+    )
+
+    extraction, adjustments = preclassify_document_without_model(
+        _test_document("BOE-B-2026-99004", title)
+    )
+
+    assert extraction is None
+    assert adjustments == []
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        pytest.param(
+            "Anuncio de información pública de una concesión de aguas para "
+            "riego promovida por una comunidad particular.",
+            id="r2-water-object-remains-unimplemented",
+        ),
+        pytest.param(
+            "Anuncio de información pública de un procedimiento de "
+            "contratación para conservar un edificio administrativo.",
+            id="r4-procurement-variant-remains-unimplemented",
+        ),
+    ],
+)
+def test_unapproved_r2_and_r4_families_are_not_preclassified(title: str) -> None:
+    extraction, adjustments = preclassify_document_without_model(
+        _test_document("BOE-B-2026-99005", title)
+    )
+
+    assert extraction is None
+    assert adjustments == []
+
+
+def test_preclassification_preserves_source_document_identity() -> None:
+    document = _test_document(
+        "BOE-B-2026-99006",
+        "Anuncio de la Comisaría de Aguas sobre una concesión para riego.",
+    )
+    original_hash = document.source_document_sha256
+
+    extraction, _ = preclassify_document_without_model(document)
+
+    assert extraction is not None
+    assert document.source_document_sha256 == original_hash
+
+
 def test_canonicalization_public_signature_is_stable() -> None:
     parameters = signature(canonicalize_project_extraction).parameters
 

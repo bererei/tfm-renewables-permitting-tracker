@@ -432,6 +432,39 @@ _STORAGE_LINKED_TO_GENERATION_RE = re.compile(
 )
 
 
+_WATER_AUTHORITY_TITLE_RE = re.compile(
+    r"confederaci[oó]n\s+hidrogr[aá]fica|comisar[ií]a\s+de\s+aguas",
+    re.IGNORECASE,
+)
+
+
+_TRANSPORT_OR_COASTAL_AUTHORITY_TITLE_RE = re.compile(
+    r"demarcaci[oó]n\s+de\s+carreteras|"
+    r"administrador\s+de\s+infraestructuras\s+ferroviarias|\badif\b|"
+    r"demarcaci[oó]n\s+de\s+costas|servicio\s+provincial\s+de\s+costas|"
+    r"autoridad\s+portuaria|puertos\s+del\s+estado",
+    re.IGNORECASE,
+)
+
+
+_APPROVED_GENERATION_OR_HYDRO_SAFEGUARD_RE = re.compile(
+    r"hidroel[eé]ct|producci[oó]n\s+de\s+energ[ií]a\s+el[eé]ctrica|"
+    r"(?:central(?:es)?|generaci[oó]n)\s+hidr[aá]ulic",
+    re.IGNORECASE,
+)
+
+
+_NON_GENERATION_WATER_AUTHORITY_REASON = (
+    "non_generation_water_authority: organismo de cuenca o Comisaría de "
+    "Aguas sin lenguaje explícito de generación eléctrica o hidroeléctrica."
+)
+_NON_GENERATION_TRANSPORT_OR_COASTAL_REASON = (
+    "non_generation_transport_or_coastal: organismo de carreteras, "
+    "ferrocarril, costas o puertos sin lenguaje explícito de generación "
+    "eléctrica o hidroeléctrica."
+)
+
+
 def _scope_guard_from_document(
     *,
     document_title: str,
@@ -465,11 +498,9 @@ def _scope_guard_from_document(
         _STORAGE_LINKED_TO_GENERATION_RE.search(title)
     )
     auxiliary_renewable = bool(_AUXILIARY_RENEWABLE_RE.search(source))
-    explicit_hydroelectric_use = bool(re.search(
-        r"producci[oó]n\s+de\s+energ[ií]a\s+el[eé]ctrica|aprovechamiento\s+hidroel[eé]ctrico",
-        title,
-        re.IGNORECASE,
-    ))
+    explicit_hydroelectric_use = bool(
+        _APPROVED_GENERATION_OR_HYDRO_SAFEGUARD_RE.search(title)
+    )
 
     if non_electric_gas_infrastructure and not explicit_generation_in_title:
         return (
@@ -498,6 +529,27 @@ def _scope_guard_from_document(
             else "El objeto principal del título es un proyecto sectorial no perteneciente a la generación eléctrica."
         )
         return ScopeGuardDecision.FORCE_NOT_RELEVANT, detail
+
+    approved_generation_or_hydro = (
+        explicit_generation_in_title or explicit_hydroelectric_use
+    )
+    if (
+        _WATER_AUTHORITY_TITLE_RE.search(title)
+        and not approved_generation_or_hydro
+    ):
+        return (
+            ScopeGuardDecision.FORCE_NOT_RELEVANT,
+            _NON_GENERATION_WATER_AUTHORITY_REASON,
+        )
+
+    if (
+        _TRANSPORT_OR_COASTAL_AUTHORITY_TITLE_RE.search(title)
+        and not approved_generation_or_hydro
+    ):
+        return (
+            ScopeGuardDecision.FORCE_NOT_RELEVANT,
+            _NON_GENERATION_TRANSPORT_OR_COASTAL_REASON,
+        )
 
     title_actions = _action_types_from_title(document_title)
     if explicit_generation_in_title and title_actions:

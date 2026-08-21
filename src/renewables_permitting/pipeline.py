@@ -926,6 +926,9 @@ def run_extraction_stage(
             "canonicalization_policy": EXTRACTION_CONFIG[
                 "canonicalization_policy"
             ],
+            "scope_classification_policy": EXTRACTION_CONFIG[
+                "scope_classification_policy"
+            ],
             "document_validation_version": DOCUMENT_VALIDATION_VERSION,
             "document_identity_sha256": _documents_identity(plan.documents),
             "counts": {

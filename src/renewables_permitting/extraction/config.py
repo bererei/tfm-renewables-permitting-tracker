@@ -43,7 +43,7 @@ DOCUMENTARY_MATCH_POLICY = "generation_titles_and_exact_source_spans_v5"
 TARGET_SEMANTICS_POLICY = "contextual_entity_targets_v2"
 COMPONENT_LINK_POLICY = "contextual_links_not_same_quote_required_v1"
 QUALITY_WORKFLOW_POLICY = "auto_review_manual_precedence_v2"
-SCOPE_CLASSIFICATION_POLICY = "binary_named_generation_pre_model_guard_v3"
+SCOPE_CLASSIFICATION_POLICY = "binary_named_generation_pre_model_guard_v4"
 
 
 def _stable_json_hash(value: Any) -> str:

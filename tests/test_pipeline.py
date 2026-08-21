@@ -21,6 +21,7 @@ from renewables_permitting.extraction.config import (
     DOCUMENT_VALIDATION_VERSION,
     EXTRACTION_CONFIG_ID,
     INSTRUCTIONS_SHA256,
+    SCOPE_CLASSIFICATION_POLICY,
 )
 from renewables_permitting.extraction.corrections import (
     ADMINISTRATIVE_ACTION_CORRECTION_COLUMNS,
@@ -479,6 +480,10 @@ def test_execute_model_is_explicit_and_invokes_adapter_once(
     assert executed == 1
     assert result.model_calls_planned == 1
     assert result.blocking_review_count == 0
+    manifest = json.loads(result.manifest_path.read_text(encoding="utf-8"))
+    assert manifest["scope_classification_policy"] == (
+        SCOPE_CLASSIFICATION_POLICY
+    )
 
 
 def test_compatible_attempt_is_reused_without_model_call(

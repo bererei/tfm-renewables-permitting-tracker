@@ -46,7 +46,11 @@ EXPECTED_CONTRACT_SCHEMA_SHA256 = (
 EXPECTED_INSTRUCTIONS_SHA256 = (
     "153b0a19c0f0709c78396acd8e0350e7d3b8d67044db14f76029cc9acbdf5580"
 )
-EXPECTED_EXTRACTION_CONFIG_ID = "8158661f76a31c87"
+EXPECTED_EXTRACTION_CONFIG_ID = "4b54b89dbfe8640e"
+PRE_FUNNEL_SCOPE_CLASSIFICATION_POLICY = (
+    "binary_named_generation_pre_model_guard_v3"
+)
+PRE_FUNNEL_EXTRACTION_CONFIG_ID = "8158661f76a31c87"
 PRE_IDAA_INSTRUCTIONS_SHA256 = (
     "b48240832d1b274af0435cea42cc6d305d2aec83b5a3395a1d5ce1529eff0607"
 )
@@ -110,7 +114,7 @@ def test_model_provider_and_all_configuration_values_are_exact() -> None:
     )
     assert QUALITY_WORKFLOW_POLICY == "auto_review_manual_precedence_v2"
     assert SCOPE_CLASSIFICATION_POLICY == (
-        "binary_named_generation_pre_model_guard_v3"
+        "binary_named_generation_pre_model_guard_v4"
     )
 
 
@@ -198,6 +202,17 @@ def test_canonicalization_policy_change_produces_different_config_id() -> None:
         == config_module._CANONICALIZATION_POLICY
     )
     assert _stable_json_hash(changed)[:16] != EXTRACTION_CONFIG_ID
+
+
+def test_scope_policy_change_produces_new_extraction_config_id() -> None:
+    previous = {
+        **EXTRACTION_CONFIG,
+        "scope_classification_policy": PRE_FUNNEL_SCOPE_CLASSIFICATION_POLICY,
+    }
+
+    assert SCOPE_CLASSIFICATION_POLICY != PRE_FUNNEL_SCOPE_CLASSIFICATION_POLICY
+    assert _stable_json_hash(previous)[:16] == PRE_FUNNEL_EXTRACTION_CONFIG_ID
+    assert EXTRACTION_CONFIG_ID != PRE_FUNNEL_EXTRACTION_CONFIG_ID
 
 
 def test_limited_freeze_reopen_changes_contract_and_productive_identity() -> None:

@@ -31,9 +31,10 @@ work listed here may enter the product.
 | `APP_DATA_CATALOG` — Gate 1 | PASSED — implemented, audited and human-reviewed on 2026-08-19 | `docs/APP_DATA_CATALOG.md` |
 | `APP_PRODUCT_SPEC` — Gate 2 | **PASSED 2026-08-20**; human product decisions recorded | `docs/APP_PRODUCT_SPEC.md` |
 | Final Corpus Ingestion Audit | Implemented + audited — pending human review | `docs/FINAL_CORPUS_INGESTION_AUDIT.md` |
-| Final Corpus Preflight 2022 v2 | **INCOMPLETE — source identity conflict pending human decision** | Source completed; reliability ACCEPTABLE; 23,611 `MODEL_REQUIRED` after quarantining one conflict; deadline RED; recommendation `HUMAN DECISION REQUIRED`; `docs/FINAL_CORPUS_PREFLIGHT_2022_V2.md` |
-| Candidate funnel audit | Implemented — pending human review | Conservative pre-model simulation leaves 8,244 `MODEL_REQUIRED`; period reduction still required; `docs/FINAL_CORPUS_CANDIDATE_FUNNEL_AUDIT.md` |
-| Period/funnel decision audit | Implemented — pending human decision | Recommends P3, R1+R3 and strict config identity; no period or classifier change implemented; `docs/FINAL_CORPUS_PERIOD_AND_FUNNEL_DECISION.md` |
+| Final Corpus Preflight 2022 v2 | Source snapshot reusable; isolated source drift resolved by human decision | Current official source wins for the Final TFM corpus; changed source hash is not automatically reusable; `docs/FINAL_CORPUS_PREFLIGHT_2022_V2.md` preserves the pre-decision audit |
+| Candidate funnel audit | Human-reviewed; R1+R3 approved | R2/R4 remain unimplemented; historical evidence is preserved in `docs/FINAL_CORPUS_CANDIDATE_FUNNEL_AUDIT.md` |
+| Pre-model R1+R3 mitigation | Implemented + tested — pending human review | Policy `binary_named_generation_pre_model_guard_v4`; strict offline P1/P2/P3 model counts 7,223/5,037/2,881; no model or source calls |
+| Period/funnel decision | **PENDING HUMAN DECISION** | P1 remains methodologically preferred, P2 is the fallback and P3 only an emergency cut; no Final Corpus Build is authorized |
 | Source reliability mitigation | Operationally validated in v2 | Three transient XML failures recovered after one retry; zero exhausted retries |
 
 The validated application reads only the four contractual Gold tables,
@@ -382,14 +383,13 @@ Remaining delivery checks:
 
 ```text
 FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW
-→ FINAL CORPUS PREFLIGHT 2022 V2 — INCOMPLETE
-→ CANDIDATE FUNNEL AUDIT — IMPLEMENTED, PENDING HUMAN REVIEW
-→ PERIOD/FUNNEL DECISION AUDIT — IMPLEMENTED, PENDING HUMAN DECISION
+→ FINAL CORPUS PREFLIGHT 2022 V2 — SOURCE SNAPSHOT REUSABLE
+→ SOURCE IDENTITY DRIFT — RESOLVED; CURRENT OFFICIAL SOURCE WINS
+→ CANDIDATE FUNNEL R1+R3 — APPROVED AND IMPLEMENTED, PENDING PATCH REVIEW
 → SOURCE RELIABILITY — ACCEPTABLE
-→ SOURCE IDENTITY CONFLICT — HUMAN DECISION REQUIRED
-→ PERIOD DECISION — BLOCKED; DEADLINE RED
-→ NEXT: HUMAN APPROVAL OF PERIOD + CLASSIFIER POLICY + REUSE POLICY
+→ STRICT CONFIG IDENTITY — IMPLEMENTED; AUTOMATIC LEGACY REUSE = 0
+→ PERIOD DECISION — STILL PENDING HUMAN DECISION
+→ NEXT: HUMAN PERIOD DECISION BASED ON OFFLINE P1/P2/P3 FUNNEL
 ```
 
-Do not start the Final Corpus Build before the isolated source identity and
-period decisions are approved.
+Do not start the Final Corpus Build before the period decision is approved.
