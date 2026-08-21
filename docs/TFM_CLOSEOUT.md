@@ -34,9 +34,10 @@ work listed here may enter the product.
 | Final Corpus Preflight 2022 v2 | Source snapshot reusable; isolated source drift resolved by human decision | Current official source wins for the Final TFM corpus; changed source hash is not automatically reusable; `docs/FINAL_CORPUS_PREFLIGHT_2022_V2.md` preserves the pre-decision audit |
 | Candidate funnel audit | Human-reviewed; R1+R3 approved | R2/R4 remain unimplemented; historical evidence is preserved in `docs/FINAL_CORPUS_CANDIDATE_FUNNEL_AUDIT.md` |
 | Pre-model R1+R3 mitigation | Implemented + tested — pending human review | Policy `binary_named_generation_pre_model_guard_v4`; strict offline P1/P2/P3 model counts 7,223/5,037/2,881; no model or source calls |
-| Period/funnel decision | **P2 SELECTED FOR FINAL EXTRACTION PREFLIGHT** | Exposure provenance is now resolved; no Final Corpus Build is authorized until the repeated P2 preflight is reviewed |
+| Period/funnel decision | **P2 SELECTED; MAIN-01 EXECUTED** | Preflight approved and `main-01` completed; `main-02` remains blocked pending human disposition of the failure review |
 | Holdout exposure provenance | **RESOLVED — 479 development-exposed BOEs versioned** | `docs/HOLDOUT_EXPOSURE_PROVENANCE.md`; P2 exposed: 263; P2 provisionally eligible: 19,226 |
 | Source reliability mitigation | Operationally validated in v2 | Three transient XML failures recovered after one retry; zero exhausted retries |
+| Final P2 extraction `main-01` | **EXECUTED — BLOCKING REVIEW PENDING** | 250 accounted; 243 successful current extractions; 7 blocking review cases; real resume validated; persisted Gemini usage estimate USD 2.6577 |
 
 The validated application reads only the four contractual Gold tables,
 verifies the expected downstream identity and never reads Silver or executes
@@ -393,14 +394,15 @@ FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW
 → P2 EXPOSURE — 263; PROVISIONALLY ELIGIBLE — 19,226
 → P2 TARGET PERIOD — 2024-01-01 TO 2026-08-20 INCLUSIVE
 → FINAL EXTRACTION PREFLIGHT P2 — COMPLETED
-→ RESUME MITIGATION — IMPLEMENTED + TESTED; PENDING HUMAN REVIEW
+→ RESUME MITIGATION — VALIDATED IN REAL EXECUTION
 → HOLDOUT — 48 BOE SELECTED + VERSIONED; NOT EXECUTED
-→ GEMINI — NOT AUTHORIZED
-→ COST — EXPECTED USD 60.74; CONSERVATIVE USD 121.87; OPERATOR CAP USD 157.00
-→ NEXT: HUMAN REVIEW + EXPLICIT MODEL AUTHORIZATION
+→ FINAL P2 MAIN-01 — 250 ACCOUNTED; 243 SUCCESS; 7 BLOCKING REVIEW
+→ GEMINI MAIN-01 — EXECUTED; PERSISTED USAGE ESTIMATE USD 2.6577
+→ MAIN-02 — BLOCKED PENDING FAILURE REVIEW DECISION
+→ NEXT: HUMAN DISPOSITION OF MAIN-01 FAILURES
 ```
 
 The source, configuration, funnel, corrections and cost evidence pass the P2
 preflight. The holdout and bounded cumulative execution package are versioned
-and tested. Do not start the Final Corpus Build or authorize Gemini until this
-package receives explicit human review and model authorization.
+and tested. `main-01` has completed with seven unresolved blocking cases. Do
+not execute `main-02` until their failure review receives human disposition.
