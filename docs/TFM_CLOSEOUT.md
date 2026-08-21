@@ -32,6 +32,7 @@ work listed here may enter the product.
 | `APP_PRODUCT_SPEC` — Gate 2 | **PASSED 2026-08-20**; human product decisions recorded | `docs/APP_PRODUCT_SPEC.md` |
 | Final Corpus Ingestion Audit | Implemented + audited — pending human review | `docs/FINAL_CORPUS_INGESTION_AUDIT.md` |
 | Final Corpus Preflight 2022 v2 | **INCOMPLETE — source identity conflict pending human decision** | Source completed; reliability ACCEPTABLE; 23,611 `MODEL_REQUIRED` after quarantining one conflict; deadline RED; recommendation `HUMAN DECISION REQUIRED`; `docs/FINAL_CORPUS_PREFLIGHT_2022_V2.md` |
+| Candidate funnel audit | Implemented — pending human review | Conservative pre-model simulation leaves 8,244 `MODEL_REQUIRED`; period reduction still required; `docs/FINAL_CORPUS_CANDIDATE_FUNNEL_AUDIT.md` |
 | Source reliability mitigation | Operationally validated in v2 | Three transient XML failures recovered after one retry; zero exhausted retries |
 
 The validated application reads only the four contractual Gold tables,
@@ -381,9 +382,11 @@ Remaining delivery checks:
 ```text
 FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW
 → FINAL CORPUS PREFLIGHT 2022 V2 — INCOMPLETE
+→ CANDIDATE FUNNEL AUDIT — IMPLEMENTED, PENDING HUMAN REVIEW
 → SOURCE RELIABILITY — ACCEPTABLE
 → SOURCE IDENTITY CONFLICT — HUMAN DECISION REQUIRED
 → PERIOD DECISION — BLOCKED; DEADLINE RED
+→ NEXT: HUMAN DECISION ON FUNNEL MITIGATION
 ```
 
 Do not start the Final Corpus Build before the isolated source identity and
