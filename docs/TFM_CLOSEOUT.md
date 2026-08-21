@@ -34,7 +34,8 @@ work listed here may enter the product.
 | Final Corpus Preflight 2022 v2 | Source snapshot reusable; isolated source drift resolved by human decision | Current official source wins for the Final TFM corpus; changed source hash is not automatically reusable; `docs/FINAL_CORPUS_PREFLIGHT_2022_V2.md` preserves the pre-decision audit |
 | Candidate funnel audit | Human-reviewed; R1+R3 approved | R2/R4 remain unimplemented; historical evidence is preserved in `docs/FINAL_CORPUS_CANDIDATE_FUNNEL_AUDIT.md` |
 | Pre-model R1+R3 mitigation | Implemented + tested — pending human review | Policy `binary_named_generation_pre_model_guard_v4`; strict offline P1/P2/P3 model counts 7,223/5,037/2,881; no model or source calls |
-| Period/funnel decision | **PENDING HUMAN DECISION** | P1 remains methodologically preferred, P2 is the fallback and P3 only an emergency cut; no Final Corpus Build is authorized |
+| Period/funnel decision | **P2 SELECTED FOR FINAL EXTRACTION PREFLIGHT** | Exposure provenance is now resolved; no Final Corpus Build is authorized until the repeated P2 preflight is reviewed |
+| Holdout exposure provenance | **RESOLVED — 479 development-exposed BOEs versioned** | `docs/HOLDOUT_EXPOSURE_PROVENANCE.md`; P2 exposed: 263; P2 provisionally eligible: 19,226 |
 | Source reliability mitigation | Operationally validated in v2 | Three transient XML failures recovered after one retry; zero exhausted retries |
 
 The validated application reads only the four contractual Gold tables,
@@ -166,9 +167,9 @@ Complete in dependency order:
     reproducibility and security checks, visual review and production smoke
     tests after the functional freeze.
 13. **Final holdout.** Select it only after the extraction/review policy and
-    functional product are frozen. Exclude all documents in
+    functional product are frozen. Exclude all 479 documents versioned in
     `development_used_documents.csv`; the holdout remains outside the core
-    freeze.
+    freeze. Exposure provenance is resolved, but no holdout has been selected.
 14. **Delivery evidence.** Prepare screenshots, limitations, data identities,
     written-TFM evidence and synchronized documentation.
 15. **Git closeout.** Review, commit and push only approved files, record the
@@ -388,8 +389,11 @@ FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW
 → CANDIDATE FUNNEL R1+R3 — APPROVED AND IMPLEMENTED, PENDING PATCH REVIEW
 → SOURCE RELIABILITY — ACCEPTABLE
 → STRICT CONFIG IDENTITY — IMPLEMENTED; AUTOMATIC LEGACY REUSE = 0
-→ PERIOD DECISION — STILL PENDING HUMAN DECISION
-→ NEXT: HUMAN PERIOD DECISION BASED ON OFFLINE P1/P2/P3 FUNNEL
+→ HOLDOUT EXPOSURE PROVENANCE — RESOLVED; 479 BOE VERSIONED
+→ P2 EXPOSURE — 263; PROVISIONALLY ELIGIBLE — 19,226
+→ NEXT: REPEAT FINAL EXTRACTION PREFLIGHT P2
 ```
 
-Do not start the Final Corpus Build before the period decision is approved.
+The provenance gate no longer blocks the P2 preflight. Do not select the
+holdout, start the Final Corpus Build or authorize Gemini until that preflight
+is completed and explicitly reviewed.

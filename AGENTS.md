@@ -60,6 +60,8 @@ requested. Prefer a documented non-blocking limitation over unnecessary scope.
    documentation and validation work.
 9. Do not add speculative architecture or administrative functionality before
    the August submission.
+10. Before selecting a holdout, register every BOE manually inspected for
+    development or evaluation in `config/evaluation/development_used_documents.csv`.
 
 Once `docs/USER_GUIDE.md` exists, any change to CLI commands, paths,
 environment variables, contracts, pipeline behavior, corrections, Gold tables,

@@ -1,4 +1,5 @@
 import csv
+import hashlib
 import re
 from collections import Counter
 from pathlib import Path
@@ -8,6 +9,9 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 EVALUATION_CONFIG_DIR = REPOSITORY_ROOT / "config" / "evaluation"
 CHALLENGE_PATH = EVALUATION_CONFIG_DIR / "development_challenge_sample.csv"
 USED_DOCUMENTS_PATH = EVALUATION_CONFIG_DIR / "development_used_documents.csv"
+HOLDOUT_PROVENANCE_PATH = (
+    REPOSITORY_ROOT / "docs" / "HOLDOUT_EXPOSURE_PROVENANCE.md"
+)
 HUMAN_AUDIT_PATH = (
     EVALUATION_CONFIG_DIR / "development_challenge_human_audit.csv"
 )
@@ -77,13 +81,25 @@ ALLOWED_USAGE_TYPES = {
     "development_example",
     "regression_case",
     "challenge_sample",
+    "classifier_audit",
 }
+EXPECTED_USED_DOCUMENT_IDS_SHA256 = (
+    "2e9da51070304ac15d5d941cdc2f1f9861da0c71d34cb6fb64cac34905e90f80"
+)
+EXPECTED_HISTORICAL_USED_ROWS_SHA256 = (
+    "d1168bbeb9b4cc907c8dad9ba31fdc38f438bde6068b890c24ff7174867959a6"
+)
 
 
 def _read_csv(path: Path) -> tuple[list[str], list[dict[str, str]]]:
     with path.open(encoding="utf-8", newline="") as csv_file:
         reader = csv.DictReader(csv_file)
         return list(reader.fieldnames or []), list(reader)
+
+
+def _lines_sha256(lines: list[str]) -> str:
+    payload = "\n".join(lines) + "\n"
+    return hashlib.sha256(payload.encode()).hexdigest()
 
 
 def test_development_challenge_sample_contract() -> None:
@@ -119,8 +135,9 @@ def test_development_used_documents_contract_and_separation() -> None:
 
     assert challenge_columns == CHALLENGE_COLUMNS
     assert used_columns == USED_DOCUMENT_COLUMNS
-    assert len(used_rows) == 152
-    assert len({row["identificador_boe"] for row in used_rows}) == 152
+    used_ids = {row["identificador_boe"] for row in used_rows}
+    assert len(used_rows) == 479
+    assert len(used_ids) == 479
     assert all(
         value.strip()
         for row in used_rows
@@ -128,14 +145,46 @@ def test_development_used_documents_contract_and_separation() -> None:
     )
 
     usage_counts = Counter(row["usage_type"] for row in used_rows)
-    assert set(usage_counts) <= ALLOWED_USAGE_TYPES
+    assert set(usage_counts) == ALLOWED_USAGE_TYPES
     assert usage_counts["pilot"] == 100
     assert usage_counts["challenge_sample"] == 40
-    assert (
-        usage_counts["development_example"]
-        + usage_counts["regression_case"]
-        == 12
+    assert usage_counts["development_example"] == 9
+    assert usage_counts["regression_case"] == 3
+    assert usage_counts["classifier_audit"] == 327
+
+    assert _lines_sha256(sorted(used_ids)) == EXPECTED_USED_DOCUMENT_IDS_SHA256
+
+    historical_rows = [
+        row for row in used_rows if row["usage_type"] != "classifier_audit"
+    ]
+    assert len(historical_rows) == 152
+    assert _lines_sha256(
+        [
+            ",".join(row[column] for column in USED_DOCUMENT_COLUMNS)
+            for row in historical_rows
+        ]
+    ) == EXPECTED_HISTORICAL_USED_ROWS_SHA256
+
+    classifier_rows = [
+        row for row in used_rows if row["usage_type"] == "classifier_audit"
+    ]
+    classifier_ids = [row["identificador_boe"] for row in classifier_rows]
+    assert classifier_ids == sorted(classifier_ids)
+    assert all(
+        row["usage_reason"] == "classifier_development_exposure"
+        and row["source_reference"]
+        == "docs/HOLDOUT_EXPOSURE_PROVENANCE.md"
+        for row in classifier_rows
     )
+
+    provenance = HOLDOUT_PROVENANCE_PATH.read_text(encoding="utf-8")
+    provenance_rows = provenance.split(
+        "<!-- classifier-audit-provenance:start -->", 1
+    )[1].split("<!-- classifier-audit-provenance:end -->", 1)[0]
+    documented_classifier_ids = re.findall(
+        r"BOE-[AB]-\d{4}-\d+", provenance_rows
+    )
+    assert documented_classifier_ids == classifier_ids
 
     challenge_ids = {row["identificador_boe"] for row in challenge_rows}
     pilot_ids = {
