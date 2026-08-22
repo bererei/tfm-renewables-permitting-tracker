@@ -37,9 +37,10 @@ work listed here may enter the product.
 | Period/funnel decision | **P2 SELECTED; MAIN-01 EXECUTED** | Preflight approved and `main-01` completed; `main-02` remains blocked pending human disposition of the failure review |
 | Holdout exposure provenance | **RESOLVED — 479 development-exposed BOEs versioned** | `docs/HOLDOUT_EXPOSURE_PROVENANCE.md`; P2 exposed: 263; P2 provisionally eligible: 19,226 |
 | Source reliability mitigation | Operationally validated in v2 | Three transient XML failures recovered after one retry; zero exhausted retries |
-| Final P2 extraction `main-01` | **EXECUTED — BLOCKING REVIEW PENDING** | 250 accounted; 243 successful current extractions; 7 blocking review cases; real resume validated; persisted Gemini usage estimate USD 2.6577 |
-| Deterministic `main-01` blocker fix | **IMPLEMENTED + TESTED — BLOCKED PENDING HUMAN REVIEW** | Four confirmed families corrected without changing extraction identity; offline replay and P2 impact audit in `docs/FINAL_EXTRACTION_MAIN01_BLOCKER_FIX.md` |
+| Final P2 extraction `main-01` | **EXECUTED — FINAL MATERIALIZATION BLOCKED** | 250 accounted; 243 successful current extractions; seven persisted review rows; semantic dispositions are closed but no cumulative corrected snapshot exists |
+| Deterministic `main-01` blocker fix | **IMPLEMENTED + TESTED + COMMITTED** | Four confirmed families corrected without changing extraction identity; offline replay and P2 impact audit in `docs/FINAL_EXTRACTION_MAIN01_BLOCKER_FIX.md` |
 | Explicit error retry tooling | **IMPLEMENTED + TESTED — BLOCKED; NOT EXECUTED** | Retry is limited to explicitly selected compatible error attempts; no retry was authorized or run |
+| Final `main-01` disposition | **HUMAN CASES CLOSED — MATERIALIZATION BLOCKER** | `BOE-B-2024-46241` accepted as non-generation rejection; `BOE-B-2026-4032` approved as rectification-only; two retries prepared but not authorized; see `docs/FINAL_EXTRACTION_MAIN01_DISPOSITION.md` |
 
 The validated application reads only the four contractual Gold tables,
 verifies the expected downstream identity and never reads Silver or executes
@@ -400,17 +401,20 @@ FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW
 → HOLDOUT — 48 BOE SELECTED + VERSIONED; NOT EXECUTED
 → FINAL P2 MAIN-01 — 250 ACCOUNTED; 243 SUCCESS; 7 BLOCKING REVIEW
 → GEMINI MAIN-01 — EXECUTED; PERSISTED USAGE ESTIMATE USD 2.6577
-→ DETERMINISTIC BLOCKER FIX — IMPLEMENTED + TESTED, PENDING HUMAN REVIEW
-→ EXPLICIT ERROR RETRY — IMPLEMENTED + TESTED, NOT AUTHORIZED OR EXECUTED
-→ BOE-B-2026-4032 TEMPORAL SEMANTICS — HUMAN DECISION PENDING
+→ DETERMINISTIC BLOCKER FIX — IMPLEMENTED + TESTED + COMMITTED
+→ SEMANTIC DISPOSITION — CLOSED; 46241 REJECTED, 4032 RECTIFICATION-ONLY
+→ EXPLICIT ERROR RETRY — DRY-RUN VALIDATED FOR EXACTLY 2 BOE; NOT AUTHORIZED
+→ CUMULATIVE RECANONICALIZATION — BLOCKED FOR ACTIVE INCOMPLETE SNAPSHOT
 → MAIN-02 — NOT AUTHORIZED
-→ NEXT: PATCH REVIEW, HUMAN CASE DECISIONS AND SEPARATE RETRY AUTHORIZATION
+→ NEXT: MINIMAL CUMULATIVE MATERIALIZATION PATH BEFORE RETRY AUTHORIZATION
 ```
 
 The source, configuration, funnel, corrections and cost evidence pass the P2
 preflight. The holdout and bounded cumulative execution package are versioned
-and tested. The last operational `main-01` snapshot still has seven unresolved
-blocking cases: this patch did not publish a new cumulative snapshot or execute
-the two possible retries. Do not execute `main-02` until the deterministic
-patch, pending human decisions and any separately authorized retries have been
-reviewed.
+and tested. The two human semantic decisions are closed and the retry dry-run
+selects exactly the two operational failures, but the last operational
+`main-01` snapshot still has its seven persisted blocking rows. Current public
+tooling cannot recanonicalize the active incomplete snapshot while preserving
+deterministic provenance, so no cumulative corrected snapshot or retry was
+published. Resolve that materialization blocker before authorizing retries;
+do not execute `main-02`.
