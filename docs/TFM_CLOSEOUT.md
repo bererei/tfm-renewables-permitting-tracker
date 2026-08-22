@@ -38,6 +38,8 @@ work listed here may enter the product.
 | Holdout exposure provenance | **RESOLVED — 479 development-exposed BOEs versioned** | `docs/HOLDOUT_EXPOSURE_PROVENANCE.md`; P2 exposed: 263; P2 provisionally eligible: 19,226 |
 | Source reliability mitigation | Operationally validated in v2 | Three transient XML failures recovered after one retry; zero exhausted retries |
 | Final P2 extraction `main-01` | **EXECUTED — BLOCKING REVIEW PENDING** | 250 accounted; 243 successful current extractions; 7 blocking review cases; real resume validated; persisted Gemini usage estimate USD 2.6577 |
+| Deterministic `main-01` blocker fix | **IMPLEMENTED + TESTED — BLOCKED PENDING HUMAN REVIEW** | Four confirmed families corrected without changing extraction identity; offline replay and P2 impact audit in `docs/FINAL_EXTRACTION_MAIN01_BLOCKER_FIX.md` |
+| Explicit error retry tooling | **IMPLEMENTED + TESTED — BLOCKED; NOT EXECUTED** | Retry is limited to explicitly selected compatible error attempts; no retry was authorized or run |
 
 The validated application reads only the four contractual Gold tables,
 verifies the expected downstream identity and never reads Silver or executes
@@ -398,11 +400,17 @@ FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW
 → HOLDOUT — 48 BOE SELECTED + VERSIONED; NOT EXECUTED
 → FINAL P2 MAIN-01 — 250 ACCOUNTED; 243 SUCCESS; 7 BLOCKING REVIEW
 → GEMINI MAIN-01 — EXECUTED; PERSISTED USAGE ESTIMATE USD 2.6577
-→ MAIN-02 — BLOCKED PENDING FAILURE REVIEW DECISION
-→ NEXT: HUMAN DISPOSITION OF MAIN-01 FAILURES
+→ DETERMINISTIC BLOCKER FIX — IMPLEMENTED + TESTED, PENDING HUMAN REVIEW
+→ EXPLICIT ERROR RETRY — IMPLEMENTED + TESTED, NOT AUTHORIZED OR EXECUTED
+→ BOE-B-2026-4032 TEMPORAL SEMANTICS — HUMAN DECISION PENDING
+→ MAIN-02 — NOT AUTHORIZED
+→ NEXT: PATCH REVIEW, HUMAN CASE DECISIONS AND SEPARATE RETRY AUTHORIZATION
 ```
 
 The source, configuration, funnel, corrections and cost evidence pass the P2
 preflight. The holdout and bounded cumulative execution package are versioned
-and tested. `main-01` has completed with seven unresolved blocking cases. Do
-not execute `main-02` until their failure review receives human disposition.
+and tested. The last operational `main-01` snapshot still has seven unresolved
+blocking cases: this patch did not publish a new cumulative snapshot or execute
+the two possible retries. Do not execute `main-02` until the deterministic
+patch, pending human decisions and any separately authorized retries have been
+reviewed.

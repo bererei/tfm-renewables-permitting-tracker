@@ -223,6 +223,8 @@ same commit. Verify documented commands against the real CLI.
 - Before authorizing a long model run, require validated bounded scopes and a
   cumulative continuation path from durable attempts; reject resume inputs
   whose source or extraction identity is incompatible.
+- Retry failed model attempts only through explicit BOE selection. Append a
+  new attempt and preserve the failed historical attempt unchanged.
 - Prefer offline tests, fixtures, mocks, and previously stored outputs during
   development.
 - Record model, prompt, validation, and policy versions whenever extraction

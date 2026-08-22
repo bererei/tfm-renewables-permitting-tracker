@@ -174,6 +174,7 @@ class ExtractionPlan:
     model_required_count: int
     model_calls_planned: int
     execution_document_ids: tuple[str, ...]
+    retry_error_document_ids: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -825,8 +826,12 @@ def _validate_resume_attempts(
             "document scope."
         )
 
-    successful = attempts.loc[statuses.eq("ok")]
-    for row in successful.itertuples(index=False):
+    structured = attempts.loc[
+        attempts["extraction_json"].map(
+            lambda value: bool(pd.notna(value) and str(value).strip())
+        )
+    ]
+    for row in structured.itertuples(index=False):
         try:
             extraction = BOEProjectExtraction.model_validate_json(
                 str(row.extraction_json)
@@ -892,12 +897,103 @@ def _read_manual_reviews(
     return normalise_manual_reviews(pd.read_parquet(selected))
 
 
+def _normalise_retry_error_boe_ids(values: Sequence[str]) -> tuple[str, ...]:
+    retry_ids = tuple(str(value).strip() for value in values)
+    if any(not value for value in retry_ids):
+        raise PipelineError("Explicit error retry contains an empty BOE ID.")
+    if len(set(retry_ids)) != len(retry_ids):
+        raise PipelineError("Explicit error retry contains duplicate BOE IDs.")
+    return tuple(sorted(retry_ids))
+
+
+def _validate_retry_error_selection(
+    retry_ids: Sequence[str],
+    *,
+    source: pd.DataFrame,
+    review_queue: pd.DataFrame,
+) -> tuple[str, ...]:
+    selected = _normalise_retry_error_boe_ids(retry_ids)
+    if not selected:
+        return selected
+
+    source_ids = set(source["identificador"].astype(str))
+    outside = sorted(set(selected) - source_ids)
+    if outside:
+        raise PipelineError(
+            "Explicit error retry contains BOE IDs outside the extraction "
+            f"scope: {outside}."
+        )
+
+    retryable_reasons = {"extraction_error", "document_validation_failed"}
+    queue_by_id = {
+        str(row["identificador_boe"]): row
+        for _, row in review_queue.iterrows()
+    }
+    invalid = [
+        boe_id
+        for boe_id in selected
+        if boe_id not in queue_by_id
+        or str(queue_by_id[boe_id]["reason_code"]) not in retryable_reasons
+        or pd.isna(queue_by_id[boe_id]["source_attempt_id"])
+    ]
+    if invalid:
+        raise PipelineError(
+            "Explicit error retry requires a latest unresolved error attempt "
+            f"for every selected BOE: {invalid}."
+        )
+    return selected
+
+
+def _validate_new_execution_attempts(
+    records: Sequence[Mapping[str, Any]],
+    *,
+    plan: ExtractionPlan,
+    expected_extraction_config_id: str,
+) -> pd.DataFrame:
+    """Fail closed if an explicit retry did not append one fresh attempt."""
+
+    attempts = normalise_ai_extraction_attempts_log(pd.DataFrame(records))
+    expected_ids = plan.execution_document_ids
+    if len(attempts) != len(expected_ids):
+        raise PipelineError(
+            "Explicit error retry did not produce exactly one new attempt "
+            "per execution document."
+        )
+    attempt_ids = attempts["attempt_id"].astype("string")
+    historical_ids = set(plan.attempts["attempt_id"].astype(str))
+    if (
+        attempt_ids.isna().any()
+        or attempt_ids.str.strip().eq("").any()
+        or attempt_ids.duplicated(keep=False).any()
+        or bool(set(attempt_ids.astype(str)) & historical_ids)
+    ):
+        raise PipelineError("Explicit retry produced a duplicate new attempt_id.")
+    boe_ids = attempts["identificador_boe"].astype("string")
+    if (
+        boe_ids.isna().any()
+        or boe_ids.duplicated(keep=False).any()
+        or set(boe_ids.astype(str)) != set(expected_ids)
+    ):
+        raise PipelineError(
+            "Explicit error retry produced an inconsistent BOE attempt set."
+        )
+    execution_documents = plan.documents.loc[
+        plan.documents["identificador"].astype(str).isin(expected_ids)
+    ]
+    return _validate_resume_attempts(
+        attempts,
+        execution_documents,
+        expected_extraction_config_id=expected_extraction_config_id,
+    )
+
+
 def build_extraction_plan(
     *,
     documents: Path,
     attempts: Path | None = None,
     manual_reviews: Path | None = None,
     scope_paths: Sequence[Path] = (),
+    retry_error_boe_ids: Sequence[str] = (),
     execute_model: bool,
     expected_extraction_config_id: str,
 ) -> ExtractionPlan:
@@ -926,19 +1022,25 @@ def build_extraction_plan(
         source_df=source,
         manual_reviews=manual_frame,
     )
+    retry_ids = _validate_retry_error_selection(
+        retry_error_boe_ids,
+        source=source,
+        review_queue=queue,
+    )
     unattempted_ids = tuple(sorted(
         queue.loc[
             queue["reason_code"].eq("source_not_attempted"),
             "identificador_boe",
         ].astype(str)
     ))
+    execution_ids = tuple(sorted({*unattempted_ids, *retry_ids}))
     source_by_id = {
         str(row["identificador"]): row
         for _, row in source.iterrows()
     }
     model_ids: list[str] = []
     deterministic_ids: list[str] = []
-    for boe_id in unattempted_ids:
+    for boe_id in execution_ids:
         decision, _ = preclassify_document_without_model(
             build_source_document(source_by_id[boe_id])
         )
@@ -952,12 +1054,13 @@ def build_extraction_plan(
         manual_reviews=manual_frame,
         scope_summary=scope_summary,
         total_documents=len(source),
-        compatible_existing_count=len(source) - len(unattempted_ids),
-        pending_document_count=len(unattempted_ids),
+        compatible_existing_count=len(source) - len(execution_ids),
+        pending_document_count=len(execution_ids),
         deterministic_pending_count=len(deterministic_ids),
         model_required_count=len(model_ids),
         model_calls_planned=len(model_ids) if execute_model else 0,
-        execution_document_ids=unattempted_ids,
+        execution_document_ids=execution_ids,
+        retry_error_document_ids=retry_ids,
     )
 
 
@@ -975,6 +1078,7 @@ def _print_extraction_plan(plan: ExtractionPlan) -> None:
     print(f"documents total: {plan.total_documents}")
     print(f"compatible existing: {plan.compatible_existing_count}")
     print(f"pending: {plan.pending_document_count}")
+    print(f"explicit error retries: {len(plan.retry_error_document_ids)}")
     print(f"deterministic pending: {plan.deterministic_pending_count}")
     print(f"model calls required: {plan.model_required_count}")
     print(f"model calls planned: {plan.model_calls_planned}")
@@ -994,6 +1098,7 @@ def run_extraction_stage(
     attempts: Path | None = None,
     manual_reviews: Path | None = None,
     scope_paths: Sequence[Path] = (),
+    retry_error_boe_ids: Sequence[str] = (),
     execute_model: bool = False,
     dry_run: bool = False,
     checkpoint_every: int = CHECKPOINT_EVERY,
@@ -1001,7 +1106,8 @@ def run_extraction_stage(
     """Reuse compatible attempts and publish selection/review state.
 
     New AI calls are possible only when ``execute_model`` is true. Existing
-    failed or uncertain attempts are routed to review rather than repeated.
+    Failed attempts are repeated only through an explicit BOE selection;
+    uncertain and unselected failed attempts remain routed to review.
     """
 
     output_dir = _validate_new_output(output_dir)
@@ -1010,6 +1116,7 @@ def run_extraction_stage(
         attempts=attempts,
         manual_reviews=manual_reviews,
         scope_paths=scope_paths,
+        retry_error_boe_ids=retry_error_boe_ids,
         execute_model=execute_model,
         expected_extraction_config_id=expected_extraction_config_id,
     )
@@ -1048,14 +1155,34 @@ def run_extraction_stage(
                     raise PipelineError(
                         "The configured extraction agent could not be built."
                     )
-            asyncio.run(extract_documents(
+            new_records = asyncio.run(extract_documents(
                 execution,
                 agent=agent,
                 attempts_path=attempt_path,
                 checkpoint_every=checkpoint_every,
             ))
+            if plan.retry_error_document_ids:
+                _validate_new_execution_attempts(
+                    new_records,
+                    plan=plan,
+                    expected_extraction_config_id=(
+                        expected_extraction_config_id
+                    ),
+                )
 
         all_attempts = load_ai_extraction_attempts(attempt_path)
+        if plan.retry_error_document_ids:
+            historical_ids = set(plan.attempts["attempt_id"].astype(str))
+            persisted_ids = set(all_attempts["attempt_id"].astype(str))
+            if (
+                len(all_attempts)
+                != len(plan.attempts) + len(plan.execution_document_ids)
+                or not historical_ids.issubset(persisted_ids)
+            ):
+                raise PipelineError(
+                    "Explicit error retry did not preserve immutable attempt "
+                    "history."
+                )
         current = select_best_valid_extractions(
             attempts=all_attempts,
             source_df=plan.documents,
@@ -1089,6 +1216,7 @@ def run_extraction_stage(
             ],
             "document_validation_version": DOCUMENT_VALIDATION_VERSION,
             "document_identity_sha256": _documents_identity(plan.documents),
+            "retry_error_boe_ids": list(plan.retry_error_document_ids),
             "counts": {
                 "documents": len(plan.documents),
                 "compatible_existing_before_run": (
@@ -1096,6 +1224,9 @@ def run_extraction_stage(
                 ),
                 "pending_before_run": plan.pending_document_count,
                 "model_calls_planned": plan.model_calls_planned,
+                "explicit_error_retries": len(
+                    plan.retry_error_document_ids
+                ),
                 "attempts": len(all_attempts),
                 "current_extractions": len(current),
                 "blocking_review": blocking_count,
@@ -1754,6 +1885,15 @@ def _build_parser() -> argparse.ArgumentParser:
     extract.add_argument("--attempts", type=Path)
     extract.add_argument("--manual-reviews", type=Path)
     extract.add_argument("--scope", type=Path, action="append", default=[])
+    extract.add_argument(
+        "--retry-error-boe",
+        action="append",
+        default=[],
+        help=(
+            "explicit BOE ID whose latest unresolved attempt is an error; "
+            "repeat for multiple IDs"
+        ),
+    )
     extract.add_argument("--execute-model", action="store_true")
     _add_expected_config(extract)
     _add_dry_run(extract)
@@ -1872,6 +2012,7 @@ def _handle_extract(args: argparse.Namespace) -> int:
         attempts=args.attempts,
         manual_reviews=args.manual_reviews,
         scope_paths=args.scope,
+        retry_error_boe_ids=args.retry_error_boe,
         output_dir=args.output_dir,
         expected_extraction_config_id=args.expected_extraction_config_id,
         execute_model=args.execute_model,

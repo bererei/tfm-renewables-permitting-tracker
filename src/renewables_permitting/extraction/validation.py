@@ -33,6 +33,51 @@ class DocumentExtractionValidationError(ValueError):
         super().__init__(preview)
 
 
+_HYBRID_PHOTOVOLTAIC_GENERATION_PATTERN = (
+    r"\binfraestructura\s+h[ií]brida\s+fotovoltaica\b"
+)
+_GENERATION_TABLE_CONTEXT_RE = re.compile(
+    r"\binstalaciones?\s+de\s+generaci[oó]n\b[^.]{0,240}"
+    r"\b(?:objeto\s+de\s+proyecto|de\s+objeto)\s+y\s+"
+    r"tramitaci[oó]n\s+independiente\b",
+    re.IGNORECASE,
+)
+_GENERATION_TABLE_HEADER_RE = re.compile(
+    r"^denominaci[oó]n$",
+    re.IGNORECASE,
+)
+
+
+def _generation_table_names(source_text: str) -> set[str]:
+    """Extrae solo denominaciones de tablas con contexto local de generación."""
+
+    lines = [
+        _canonical_documentary_text(line).strip()
+        for line in str(source_text).splitlines()
+        if line.strip()
+    ]
+    names: set[str] = set()
+    for index in range(len(lines) - 2):
+        if not _GENERATION_TABLE_HEADER_RE.fullmatch(lines[index]):
+            continue
+        if "expediente" not in lines[index + 1].casefold():
+            continue
+        if lines[index + 2].casefold() != "promotor":
+            continue
+        local_context = " ".join(lines[max(0, index - 2):index])
+        if not _GENERATION_TABLE_CONTEXT_RE.search(local_context):
+            continue
+
+        row_index = index + 3
+        while row_index + 2 < len(lines):
+            expediente = lines[row_index + 1]
+            if not re.search(r"\d", expediente):
+                break
+            names.add(lines[row_index].casefold())
+            row_index += 3
+    return names
+
+
 def _generation_name_has_documentary_context(
     *,
     asset: GenerationAssetMention,
@@ -50,12 +95,24 @@ def _generation_name_has_documentary_context(
     ):
         return True
 
-    return _find_literal_span(
+    if _find_literal_span(
         source_text,
         anchors=[name],
         semantic_patterns=[_GENERATION_DESCRIPTOR_PATTERN],
         document_title=document_title,
-    ) is not None
+    ) is not None:
+        return True
+
+    if _find_literal_span(
+        source_text,
+        anchors=[name],
+        semantic_patterns=[_HYBRID_PHOTOVOLTAIC_GENERATION_PATTERN],
+        document_title=document_title,
+    ) is not None:
+        return True
+
+    name_key = _canonical_documentary_text(name).casefold()
+    return name_key in _generation_table_names(source_text)
 
 
 def validate_extraction_against_document(

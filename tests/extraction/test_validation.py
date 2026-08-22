@@ -550,6 +550,199 @@ def test_same_name_hybrid_relation_is_valid() -> None:
     assert len(canonical.publication_events[0].generation_relations) == 1
 
 
+def test_hybrid_photovoltaic_infrastructure_is_explicit_generation_context() -> None:
+    title = (
+        "Resolución relativa a la infraestructura híbrida fotovoltaica "
+        "«Rincón del Cabello», de 45,25 MWp."
+    )
+    document = _test_document("BOE-A-2026-14482", title)
+    extraction = _test_extraction(
+        document.boe_id,
+        [PublicationEvent(
+            generation_assets=[_asset(
+                "generation_asset_1",
+                "Rincón del Cabello",
+                GenerationType.PHOTOVOLTAIC,
+                "infraestructura híbrida fotovoltaica «Rincón del Cabello», "
+                "de 45,25 MWp",
+            )],
+            administrative_actions=[_action(
+                AdministrativeActionType.OTHER,
+                AdministrativeDecision.OTHER,
+                title,
+                ["event"],
+            )],
+            event_summary="Actuación relativa a Rincón del Cabello.",
+        )],
+    )
+
+    validate_extraction_against_document(
+        document=document,
+        extraction=extraction,
+    )
+
+
+@pytest.mark.parametrize(
+    "description",
+    [
+        "infraestructura de evacuación fotovoltaica «Nudo Norte»",
+        "infraestructura fotovoltaica «Nudo Norte»",
+    ],
+)
+def test_photovoltaic_infrastructure_without_hybrid_generation_context_is_rejected(
+    description: str,
+) -> None:
+    title = f"Resolución relativa a la {description}."
+    document = _test_document("BOE-A-2026-10071", title)
+    extraction = _test_extraction(
+        document.boe_id,
+        [PublicationEvent(
+            generation_assets=[_asset(
+                "generation_asset_1",
+                "Nudo Norte",
+                GenerationType.PHOTOVOLTAIC,
+                description,
+            )],
+            administrative_actions=[_action(
+                AdministrativeActionType.OTHER,
+                AdministrativeDecision.OTHER,
+                title,
+                ["event"],
+            )],
+            event_summary="Actuación relativa a Nudo Norte.",
+        )],
+    )
+
+    with pytest.raises(
+        DocumentExtractionValidationError,
+        match="no identifica la denominación como planta de generación",
+    ):
+        validate_extraction_against_document(
+            document=document,
+            extraction=extraction,
+        )
+
+
+def test_generation_table_header_applies_only_to_its_structured_rows() -> None:
+    title = "Resolución relativa a una evacuación compartida."
+    table_intro = (
+        "La infraestructura de evacuación es compartida por varias "
+        "instalaciones de generación, que son objeto de proyecto y "
+        "tramitación independiente. Se detalla en la tabla adjunta:"
+    )
+    names = [
+        "HSF SOL DEL HELIÓPOLIS",
+        "HSF SOL DE TARSIS",
+        "HSF ALCALÁ DE GUADAIRA 1",
+        "HSF ALCALÁ DE GUADAIRA 11",
+        "HSF ALCALÁ DE GUADAIRA 111",
+        "HSF ALCALÁ IV",
+        "HSFALCALÁV",
+        "HSF ENTRENUCLEOS TEN",
+        "HSF ENTRENUCLEOS 5",
+    ]
+    rows = "\n".join(
+        f"{name}\n{289_400 + index}\nPROMOTOR {index}, S.L."
+        for index, name in enumerate(names, start=1)
+    )
+    text = (
+        f"{table_intro}\nDENOMINACIÓN\nN.º EXPEDIENTE\nPROMOTOR\n"
+        f"{rows}\nTensión de evacuación: 15 kV\n"
+        "EDIFICIO NORTE"
+    )
+    document = _test_document("BOE-B-2024-29516", title, text)
+    extraction = _test_extraction(
+        document.boe_id,
+        [
+            PublicationEvent(
+                generation_assets=[_asset(
+                    "generation_asset_1",
+                    name,
+                    GenerationType.PHOTOVOLTAIC,
+                    name,
+                )],
+                administrative_actions=[_action(
+                    AdministrativeActionType.OTHER,
+                    AdministrativeDecision.OTHER,
+                    table_intro,
+                    ["event"],
+                )],
+                event_summary=f"Actuación relativa a {name}.",
+            )
+            for name in names
+        ],
+    )
+
+    validate_extraction_against_document(
+        document=document,
+        extraction=extraction,
+    )
+
+    outside_table = _test_extraction(
+        document.boe_id,
+        [PublicationEvent(
+            generation_assets=[_asset(
+                "generation_asset_1",
+                "EDIFICIO NORTE",
+                GenerationType.PHOTOVOLTAIC,
+                "EDIFICIO NORTE",
+            )],
+            administrative_actions=[_action(
+                AdministrativeActionType.OTHER,
+                AdministrativeDecision.OTHER,
+                table_intro,
+                ["event"],
+            )],
+            event_summary="Actuación relativa al edificio.",
+        )],
+    )
+    with pytest.raises(
+        DocumentExtractionValidationError,
+        match="no identifica la denominación como planta de generación",
+    ):
+        validate_extraction_against_document(
+            document=document,
+            extraction=outside_table,
+        )
+
+
+def test_generic_infrastructure_table_does_not_create_generation_context() -> None:
+    title = "Resolución relativa a infraestructuras eléctricas compartidas."
+    text = (
+        "Las infraestructuras eléctricas se detallan en la tabla adjunta:\n"
+        "DENOMINACIÓN\nN.º EXPEDIENTE\nPROMOTOR\n"
+        "SUBESTACIÓN NORTE\n289.401\nRED NORTE, S.L."
+    )
+    document = _test_document("BOE-B-2024-10072", title, text)
+    extraction = _test_extraction(
+        document.boe_id,
+        [PublicationEvent(
+            generation_assets=[_asset(
+                "generation_asset_1",
+                "SUBESTACIÓN NORTE",
+                GenerationType.PHOTOVOLTAIC,
+                "SUBESTACIÓN NORTE",
+            )],
+            administrative_actions=[_action(
+                AdministrativeActionType.OTHER,
+                AdministrativeDecision.OTHER,
+                title,
+                ["event"],
+            )],
+            event_summary="Actuación relativa a la subestación.",
+        )],
+    )
+
+    with pytest.raises(
+        DocumentExtractionValidationError,
+        match="no identifica la denominación como planta de generación",
+    ):
+        validate_extraction_against_document(
+            document=document,
+            extraction=extraction,
+        )
+
+
 def test_nonliteral_asset_and_action_evidence_are_repaired() -> None:
     title = "Resolución por la que se otorga autorización administrativa previa a la planta fotovoltaica Horizonte."
     document = _test_document("BOE-A-2026-10008", title)
@@ -762,6 +955,48 @@ def test_public_information_decisions_are_canonical() -> None:
         a.decision == AdministrativeDecision.SUBMITTED_TO_PUBLIC_INFORMATION
         for a in actions
     )
+
+
+@pytest.mark.parametrize(
+    "utility_wording",
+    [
+        "reconocimiento, en concreto, de utilidad pública",
+        "declaración, en concreto, de utilidad pública",
+    ],
+)
+def test_public_utility_title_wording_validates_as_specific_action(
+    utility_wording: str,
+) -> None:
+    title = (
+        "Anuncio por el que se somete a información pública la solicitud de "
+        f"{utility_wording} de la planta fotovoltaica Prueba."
+    )
+    document = _test_document("BOE-B-2025-39508", title)
+    extraction = _test_extraction(
+        document.boe_id,
+        [PublicationEvent(
+            generation_assets=[_asset(
+                "generation_asset_1",
+                "Prueba",
+                GenerationType.PHOTOVOLTAIC,
+                title,
+            )],
+            administrative_actions=[_action(
+                AdministrativeActionType.PUBLIC_UTILITY_DECLARATION,
+                AdministrativeDecision.SUBMITTED_TO_PUBLIC_INFORMATION,
+                title,
+                ["event"],
+            )],
+            event_summary="Información pública de la utilidad pública.",
+        )],
+    )
+
+    canonical = _canonicalize_test(document, extraction)
+
+    assert [
+        action.action_type
+        for action in canonical.publication_events[0].administrative_actions
+    ] == [AdministrativeActionType.PUBLIC_UTILITY_DECLARATION]
 
 
 def test_water_concession_is_not_prior_authorization() -> None:

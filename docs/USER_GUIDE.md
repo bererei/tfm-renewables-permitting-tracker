@@ -246,8 +246,10 @@ deben ser nuevos: el pipeline no sobrescribe una salida ya existente.
   inclusivas. `--dry-run` es la única opción adicional y evita red y escritura.
 - `extract` exige `--documents`, `--output-dir` y
   `--expected-extraction-config-id`. `--attempts`, `--manual-reviews` y uno o
-  varios `--scope` son opcionales. `--execute-model` está desactivado por
-  defecto; `--dry-run` no llama al modelo ni publica.
+  varios `--scope` son opcionales. `--retry-error-boe` también es opcional y
+  repetible, pero solo selecciona errores históricos compatibles de forma
+  explícita. `--execute-model` está desactivado por defecto; `--dry-run` no
+  llama al modelo ni publica.
 - `recanonicalize` exige `--source-extraction-snapshot`, `--documents`,
   `--output-dir`, `--source-expected-extraction-config-id` y
   `--target-expected-extraction-config-id`. Solo reevalúa determinísticamente
@@ -865,6 +867,35 @@ corpus final P2 están en
 [`FINAL_EXTRACTION_EXECUTION_PLAN_P2.md`](FINAL_EXTRACTION_EXECUTION_PLAN_P2.md).
 Gemini requiere además autorización humana explícita; que un comando esté
 documentado no constituye esa autorización.
+
+### 10.2.2 Reintentar errores de forma explícita
+
+Los intentos fallidos no se repiten por defecto. Tras investigar el error y
+recibir autorización humana para BOEs concretos, planifica cada retry mediante
+la opción repetible `--retry-error-boe`. No existe un modo `retry-all`.
+
+**Plantilla:** usa el snapshot documental y el snapshot acumulativo compatibles,
+un destino nuevo y los identificadores BOE expresamente autorizados.
+
+```bash
+uv run python -m renewables_permitting.pipeline extract \
+  --documents <SNAPSHOT_DOCUMENTAL_VALIDADO> \
+  --attempts <SNAPSHOT_EXTRACCION_ACUMULATIVO> \
+  --retry-error-boe <BOE_ERROR_AUTORIZADO> \
+  --output-dir runs/<NUEVO_RUN>/extraction-retry \
+  --expected-extraction-config-id "$EXTRACTION_CONFIG_ID" \
+  --execute-model \
+  --dry-run
+```
+
+El plan falla antes de construir el agente si el BOE no pertenece al scope, no
+tiene un último intento de error pendiente o su source e identidad de
+extracción son incompatibles. Tampoco permite reintentar un éxito ni un caso
+ya resuelto manualmente. El intento histórico permanece inmutable y una
+ejecución posterior autorizada debe publicar un snapshot acumulativo nuevo con
+un único intento adicional por BOE; los errores no seleccionados y los éxitos
+existentes no cambian. Revisa primero el dry-run y elimina `--dry-run` solo en
+una operación separada que tenga autorización explícita para llamar al modelo.
 
 ### 10.3 Revisar antes de Silver
 

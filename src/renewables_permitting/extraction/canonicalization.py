@@ -607,7 +607,9 @@ def preclassify_document_without_model(
 
 
 _ACTION_PATTERNS: dict[AdministrativeActionType, str] = {
-    AdministrativeActionType.ERROR_CORRECTION: r"correcci[oó]n\s+de\s+errores",
+    AdministrativeActionType.ERROR_CORRECTION: (
+        r"(?:correcci[oó]n|rectificaci[oó]n)(?:\s+de)?\s+errores?"
+    ),
     AdministrativeActionType.PRIOR_ADMINISTRATIVE_AUTHORIZATION: (
         r"autorizaci[oó]n\s+administrativa\s+previa|\baap\b"
     ),
@@ -622,7 +624,9 @@ _ACTION_PATTERNS: dict[AdministrativeActionType, str] = {
         r"concesi[oó]n\s+para\s+el\s+aprovechamiento"
     ),
     AdministrativeActionType.PUBLIC_UTILITY_DECLARATION: (
-        r"declaraci[oó]n(?:,\s*en\s+concreto,)?\s+de\s+utilidad\s+p[uú]blica|\bdup\b"
+        r"declaraci[oó]n(?:,\s*en\s+concreto,)?\s+de\s+utilidad\s+p[uú]blica|"
+        r"reconocimiento,\s*en\s+concreto,\s+de\s+utilidad\s+p[uú]blica|"
+        r"\bdup\b"
     ),
     AdministrativeActionType.ENVIRONMENTAL_IMPACT_STATEMENT: (
         r"declaraci[oó]n\s+de\s+impacto\s+ambiental|\bdia\b"
@@ -830,10 +834,10 @@ def _decision_from_title(
     action_type: AdministrativeActionType,
 ) -> AdministrativeDecision:
     key = _canonical_documentary_text(title).casefold()
-    if re.search(r"informaci[oó]n\s+p[uú]blica", key):
-        return AdministrativeDecision.SUBMITTED_TO_PUBLIC_INFORMATION
     if action_type == AdministrativeActionType.ERROR_CORRECTION:
         return AdministrativeDecision.RECTIFIED
+    if re.search(r"informaci[oó]n\s+p[uú]blica", key):
+        return AdministrativeDecision.SUBMITTED_TO_PUBLIC_INFORMATION
     if action_type in _ENVIRONMENTAL_TERMINAL_DECISIONS_BY_ACTION_TYPE:
         if re.search(r"desfavorable|no\s+favorable", key):
             return AdministrativeDecision.UNFAVORABLE

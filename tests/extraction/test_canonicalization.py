@@ -2654,6 +2654,120 @@ def test_effective_title_decision_change_is_recorded() -> None:
 
 
 @pytest.mark.parametrize(
+    "title",
+    [
+        (
+            "Corrección de errores del anuncio por el que se somete a "
+            "información pública la solicitud de la planta fotovoltaica Prueba."
+        ),
+        (
+            "Rectificación de errores del anuncio por el que se somete a "
+            "información pública la solicitud de la planta fotovoltaica Prueba."
+        ),
+    ],
+)
+def test_correction_decision_precedes_quoted_public_information(
+    title: str,
+) -> None:
+    actions, _ = _canonicalize_test_actions(
+        title=title,
+        actions=[_action(
+            AdministrativeActionType.ERROR_CORRECTION,
+            AdministrativeDecision.RECTIFIED,
+            title,
+            ["event"],
+        )],
+    )
+
+    assert [(action.action_type, action.decision) for action in actions] == [
+        (
+            AdministrativeActionType.ERROR_CORRECTION,
+            AdministrativeDecision.RECTIFIED,
+        )
+    ]
+
+
+def test_normal_public_information_decision_remains_unchanged() -> None:
+    title = (
+        "Anuncio por el que se somete a información pública la solicitud de "
+        "autorización administrativa previa de la planta fotovoltaica Prueba."
+    )
+    actions, _ = _canonicalize_test_actions(
+        title=title,
+        actions=[_action(
+            AdministrativeActionType.PRIOR_ADMINISTRATIVE_AUTHORIZATION,
+            AdministrativeDecision.REQUESTED,
+            title,
+            ["event"],
+        )],
+    )
+
+    assert actions[0].decision == (
+        AdministrativeDecision.SUBMITTED_TO_PUBLIC_INFORMATION
+    )
+
+
+@pytest.mark.parametrize(
+    "utility_wording",
+    [
+        "reconocimiento, en concreto, de utilidad pública",
+        "declaración, en concreto, de utilidad pública",
+    ],
+)
+def test_public_utility_wording_keeps_only_the_specific_publication_action(
+    utility_wording: str,
+) -> None:
+    title = (
+        "Anuncio por el que se somete a información pública la solicitud de "
+        f"{utility_wording} de la planta fotovoltaica Prueba."
+    )
+    actions, _ = _canonicalize_test_actions(
+        title=title,
+        actions=[
+            _action(
+                AdministrativeActionType.PUBLIC_UTILITY_DECLARATION,
+                AdministrativeDecision.SUBMITTED_TO_PUBLIC_INFORMATION,
+                title,
+                ["event"],
+            ),
+            _action(
+                AdministrativeActionType.PUBLIC_INFORMATION,
+                AdministrativeDecision.SUBMITTED_TO_PUBLIC_INFORMATION,
+                title,
+                ["event"],
+            ),
+        ],
+    )
+
+    assert [(action.action_type, action.decision) for action in actions] == [
+        (
+            AdministrativeActionType.PUBLIC_UTILITY_DECLARATION,
+            AdministrativeDecision.SUBMITTED_TO_PUBLIC_INFORMATION,
+        )
+    ]
+
+
+def test_non_utility_recognition_does_not_create_public_utility_action() -> None:
+    title = (
+        "Anuncio por el que se somete a información pública la solicitud de "
+        "reconocimiento de interés público de la planta fotovoltaica Prueba."
+    )
+    actions, _ = _canonicalize_test_actions(
+        title=title,
+        actions=[_action(
+            AdministrativeActionType.PUBLIC_INFORMATION,
+            AdministrativeDecision.SUBMITTED_TO_PUBLIC_INFORMATION,
+            title,
+            ["event"],
+        )],
+    )
+
+    assert [action.action_type for action in actions] == [
+        AdministrativeActionType.PUBLIC_INFORMATION
+    ]
+
+
+@pytest.mark.parametrize(
     "incompatible_decision",
     [
         AdministrativeDecision.AUTHORIZED,

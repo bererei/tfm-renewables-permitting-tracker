@@ -273,6 +273,51 @@ def test_silver_help_exposes_explicit_corrections_option() -> None:
     assert "--corrections" in completed.stdout
 
 
+def test_extract_help_exposes_only_explicit_error_retry_selection() -> None:
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "renewables_permitting.pipeline",
+            "extract",
+            "--help",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0
+    assert "--retry-error-boe" in completed.stdout
+    assert "--retry-all-errors" not in completed.stdout
+
+
+def test_extract_cli_dry_run_plans_only_the_selected_error_retry(
+    tmp_path,
+    capsys,
+) -> None:
+    documents = _documents()
+    output = tmp_path / "planned-retry"
+
+    code = pipeline.main([
+        "extract",
+        "--documents", str(_write_documents(tmp_path / "input")),
+        "--attempts", str(_write_attempts(
+            tmp_path,
+            _error_attempt(documents),
+        )),
+        "--output-dir", str(output),
+        "--retry-error-boe", "BOE-A-2026-101",
+        "--execute-model",
+        "--expected-extraction-config-id", EXTRACTION_CONFIG_ID,
+        "--dry-run",
+    ])
+
+    assert code == 0
+    assert "explicit error retries: 1" in capsys.readouterr().out
+    assert not output.exists()
+
+
 def test_source_subcommand_uses_existing_apis_without_network(
     tmp_path,
     monkeypatch,
@@ -564,6 +609,239 @@ def test_cumulative_scopes_reuse_completed_batch_without_duplicate_calls(
     assert second.pending_document_count == 5
     assert second.model_calls_planned == 5
     assert second.blocking_review_count == 0
+
+
+def test_explicit_error_retry_preserves_history_and_leaves_other_error_pending(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    documents = _documents(count=2)
+    first_error = _error_attempt(documents.iloc[[0]])
+    second_error = _error_attempt(documents.iloc[[1]])
+    attempts = pd.concat([first_error, second_error], ignore_index=True)
+    attempts_path = _write_attempts(tmp_path, attempts)
+    calls: list[list[str]] = []
+    fake_agent = object()
+
+    monkeypatch.setattr(
+        pipeline,
+        "build_boe_extraction_agent",
+        lambda: fake_agent,
+    )
+
+    async def fake_extract(run_df, *, agent, attempts_path, checkpoint_every):
+        assert agent is fake_agent
+        calls.append(run_df["identificador"].astype(str).tolist())
+        new_attempts = _success_attempts(run_df)
+        append_ai_extraction_attempts(new_attempts, attempts_path)
+        return new_attempts.to_dict(orient="records")
+
+    monkeypatch.setattr(pipeline, "extract_documents", fake_extract)
+    result = pipeline.run_extraction_stage(
+        documents=_write_documents(tmp_path / "input", count=2),
+        attempts=attempts_path,
+        retry_error_boe_ids=["BOE-A-2026-101"],
+        output_dir=tmp_path / "retried",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        execute_model=True,
+    )
+
+    persisted_attempts = pd.read_parquet(result.attempts_path)
+    current = pd.read_parquet(result.current_extractions_path)
+    queue = pd.read_parquet(result.review_queue_path)
+    assert calls == [["BOE-A-2026-101"]]
+    assert len(persisted_attempts) == 3
+    assert set(attempts["attempt_id"]).issubset(
+        set(persisted_attempts["attempt_id"])
+    )
+    assert persisted_attempts.loc[
+        persisted_attempts["identificador_boe"].eq("BOE-A-2026-101"),
+        "extraction_status",
+    ].tolist() == ["error", "ok"]
+    assert current["identificador_boe"].tolist() == ["BOE-A-2026-101"]
+    assert queue["identificador_boe"].tolist() == ["BOE-A-2026-102"]
+    assert queue["source_attempt_id"].tolist() == [
+        second_error.iloc[0]["attempt_id"]
+    ]
+    assert result.model_calls_planned == 1
+    assert result.blocking_review_count == 1
+
+
+def test_error_attempt_is_not_retried_without_explicit_selection(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    documents = _documents()
+    attempts = _error_attempt(documents)
+    monkeypatch.setattr(
+        pipeline,
+        "extract_documents",
+        lambda *args, **kwargs: (_ for _ in ()).throw(
+            AssertionError("an unselected error must not execute")
+        ),
+    )
+
+    result = pipeline.run_extraction_stage(
+        documents=_write_documents(tmp_path / "input"),
+        attempts=_write_attempts(tmp_path, attempts),
+        output_dir=tmp_path / "unchanged-error",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        execute_model=True,
+    )
+
+    persisted = pd.read_parquet(result.attempts_path)
+    assert persisted["attempt_id"].tolist() == attempts["attempt_id"].tolist()
+    assert result.model_calls_planned == 0
+    assert result.blocking_review_count == 1
+
+
+def test_success_attempt_cannot_be_selected_for_error_retry(tmp_path) -> None:
+    documents = _documents()
+
+    with pytest.raises(pipeline.PipelineError, match="latest unresolved error"):
+        pipeline.build_extraction_plan(
+            documents=_write_documents(tmp_path / "input"),
+            attempts=_write_attempts(tmp_path, _success_attempts(documents)),
+            retry_error_boe_ids=["BOE-A-2026-101"],
+            execute_model=False,
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
+
+
+def test_error_retry_rejects_boe_outside_the_extraction_scope(tmp_path) -> None:
+    documents = _documents()
+
+    with pytest.raises(pipeline.PipelineError, match="outside the extraction scope"):
+        pipeline.build_extraction_plan(
+            documents=_write_documents(tmp_path / "input"),
+            attempts=_write_attempts(tmp_path, _error_attempt(documents)),
+            retry_error_boe_ids=["BOE-A-2026-999"],
+            execute_model=False,
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
+
+
+@pytest.mark.parametrize(
+    ("identity_column", "replacement"),
+    [
+        ("extraction_config_id", "stale-config"),
+        ("contract_schema_sha256", "0" * 64),
+        ("instructions_sha256", "1" * 64),
+    ],
+)
+def test_error_retry_rejects_incompatible_identity_before_model(
+    tmp_path,
+    monkeypatch,
+    identity_column: str,
+    replacement: str,
+) -> None:
+    attempts = _error_attempt(_documents())
+    attempts[identity_column] = replacement
+    monkeypatch.setattr(
+        pipeline,
+        "build_boe_extraction_agent",
+        lambda: (_ for _ in ()).throw(
+            AssertionError("identity mismatch must fail before the agent")
+        ),
+    )
+
+    with pytest.raises(pipeline.PipelineError, match="configuration"):
+        pipeline.run_extraction_stage(
+            documents=_write_documents(tmp_path / "input"),
+            attempts=_write_attempts(tmp_path, attempts),
+            retry_error_boe_ids=["BOE-A-2026-101"],
+            output_dir=tmp_path / "output",
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+            execute_model=True,
+        )
+
+    assert not (tmp_path / "output").exists()
+
+
+def test_error_retry_rejects_source_mismatch_before_model(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    attempts = _error_attempt(_documents())
+    attempts["source_document_sha256"] = "0" * 64
+    monkeypatch.setattr(
+        pipeline,
+        "build_boe_extraction_agent",
+        lambda: (_ for _ in ()).throw(
+            AssertionError("source mismatch must fail before the agent")
+        ),
+    )
+
+    with pytest.raises(pipeline.PipelineError, match="source hash"):
+        pipeline.run_extraction_stage(
+            documents=_write_documents(tmp_path / "input"),
+            attempts=_write_attempts(tmp_path, attempts),
+            retry_error_boe_ids=["BOE-A-2026-101"],
+            output_dir=tmp_path / "output",
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+            execute_model=True,
+        )
+
+    assert not (tmp_path / "output").exists()
+
+
+def test_error_retry_rejects_corrupt_structured_attempt(tmp_path) -> None:
+    attempts = _error_attempt(_documents())
+    attempts.loc[0, "extraction_json"] = "{not-valid-json"
+
+    with pytest.raises(pipeline.PipelineError, match="invalid extraction JSON"):
+        pipeline.build_extraction_plan(
+            documents=_write_documents(tmp_path / "input"),
+            attempts=_write_attempts(tmp_path, attempts),
+            retry_error_boe_ids=["BOE-A-2026-101"],
+            execute_model=False,
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
+
+
+def test_error_retry_rejects_duplicate_historical_attempt_id(tmp_path) -> None:
+    attempt = _error_attempt(_documents())
+    attempts = pd.concat([attempt, attempt], ignore_index=True)
+
+    with pytest.raises(pipeline.PipelineError, match="duplicate attempt_id"):
+        pipeline.build_extraction_plan(
+            documents=_write_documents(tmp_path / "input"),
+            attempts=_write_attempts(tmp_path, attempts),
+            retry_error_boe_ids=["BOE-A-2026-101"],
+            execute_model=False,
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
+
+
+def test_error_retry_rejects_duplicate_new_attempt_id_without_publishing(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    documents = _documents()
+    historical = _error_attempt(documents)
+    historical_id = str(historical.iloc[0]["attempt_id"])
+    monkeypatch.setattr(pipeline, "build_boe_extraction_agent", object)
+
+    async def duplicate_extract(
+        run_df, *, agent, attempts_path, checkpoint_every
+    ):
+        new_attempts = _success_attempts(run_df)
+        new_attempts.loc[:, "attempt_id"] = historical_id
+        append_ai_extraction_attempts(new_attempts, attempts_path)
+        return new_attempts.to_dict(orient="records")
+
+    monkeypatch.setattr(pipeline, "extract_documents", duplicate_extract)
+    with pytest.raises(pipeline.PipelineError, match="duplicate new attempt_id"):
+        pipeline.run_extraction_stage(
+            documents=_write_documents(tmp_path / "input"),
+            attempts=_write_attempts(tmp_path, historical),
+            retry_error_boe_ids=["BOE-A-2026-101"],
+            output_dir=tmp_path / "output",
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+            execute_model=True,
+        )
+
+    assert not (tmp_path / "output").exists()
 
 
 def test_resume_rejects_old_config_before_constructing_agent(
