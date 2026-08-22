@@ -230,7 +230,7 @@ uv run python -m renewables_permitting.pipeline run --help
 | --- | --- | --- |
 | `source` | Descarga sumarios/XML y prepara documentos | BOE, salvo `--dry-run` |
 | `extract` | Planifica/reutiliza intentos y extrae documentos pendientes | Gemini solo con `--execute-model` |
-| `recanonicalize` | Reaplica reglas deterministas a un snapshot histórico compatible | No |
+| `recanonicalize` | Reaplica reglas deterministas a outputs persistidos compatibles | No |
 | `silver` | Verifica selección/revisión, aplica correcciones y crea 13 tablas | No |
 | `downstream` | Resuelve territorio, agrupa y construye Gold | No |
 | `build-reference-data` | Construye por primera vez la dimensión INE | No |
@@ -252,8 +252,12 @@ deben ser nuevos: el pipeline no sobrescribe una salida ya existente.
   llama al modelo ni publica.
 - `recanonicalize` exige `--source-extraction-snapshot`, `--documents`,
   `--output-dir`, `--source-expected-extraction-config-id` y
-  `--target-expected-extraction-config-id`. Solo reevalúa determinísticamente
-  un snapshot compatible; no llama al modelo.
+  `--target-expected-extraction-config-id`. `--scope` puede repetirse y
+  `--manual-reviews` aporta decisiones versionadas. Admite tanto la migración
+  histórica aprobada como un replay acumulativo de la identidad activa con
+  errores/revisiones: conserva los attempts originales, añade resultados
+  derivados con uso cero y publica siempre en un output nuevo. No llama al
+  modelo.
 - `silver` exige `--extraction-snapshot`, `--output-dir` y el config ID
   esperado. `--corrections` es opcional y `--dry-run` no materializa.
 - `downstream` exige `--silver-snapshot`, `--municipality-reference`,
@@ -282,10 +286,12 @@ Ejemplos de operaciones menos frecuentes:
 verificadas. Los comandos conservan `--dry-run` deliberadamente.
 
 ```bash
-# Replay determinista histórico; ambos config IDs deben conocerse y verificarse.
+# Replay determinista; ambos config IDs deben conocerse y verificarse.
 uv run python -m renewables_permitting.pipeline recanonicalize \
   --source-extraction-snapshot <SNAPSHOT_EXTRACCION_ORIGEN> \
   --documents <SNAPSHOT_DOCUMENTAL_VALIDADO> \
+  --scope <SCOPE_VERSIONADO> \
+  --manual-reviews <REVISIONES_VERSIONADAS> \
   --output-dir runs/<NUEVO_RUN>/extraction \
   --source-expected-extraction-config-id <ID_CONFIG_ORIGEN> \
   --target-expected-extraction-config-id <ID_CONFIG_DESTINO> \
@@ -1020,8 +1026,11 @@ autorizado o revisión humana. Consulta `run --help` antes de usarlo.
 > [!WARNING]
 > `run` no acepta `--corrections`. No lo uses como sustituto del flujo por fases
 > cuando deban aplicarse correcciones versionadas. `recanonicalize` tampoco es
-> una actualización ordinaria: sirve para el replay determinista y compatible
-> de snapshots históricos aprobados, sin llamadas al modelo.
+> una actualización ordinaria: sirve para el replay determinista homogéneo de
+> snapshots compatibles, sin llamadas al modelo. En modo acumulativo conserva
+> toda la historia, deriva todos los outputs estructurados elegibles, aplica
+> revisiones trazables y mantiene como pendientes los errores sin output; no
+> edites ni reemplaces el snapshot de origen.
 
 ## 11. Correcciones desde VS Code
 

@@ -42,9 +42,11 @@ from renewables_permitting.extraction.recanonicalization import (
     historical_recanonicalization_identity,
 )
 from renewables_permitting.extraction.runner import build_success_record
+from renewables_permitting.extraction.runner import build_error_record
 
 
 NOW = datetime(2026, 8, 13, 10, tzinfo=timezone.utc)
+ACTIVE_NOW = datetime(2026, 8, 23, 10, tzinfo=timezone.utc)
 SOURCE_CONFIG_ID = "67a0bd9d0759a322"
 SOURCE_CONTRACT_SHA256 = (
     "455028c7de0ada067264cd695b4e7dab9de377b31105e141321313d61c3ff283"
@@ -233,6 +235,446 @@ def _run_batch(tmp_path: Path):
         created_at=NOW,
     )
     return source, output, result
+
+
+def _write_active_snapshot(tmp_path: Path) -> tuple[Path, Path]:
+    snapshot = tmp_path / "active-run" / "extraction"
+    snapshot.mkdir(parents=True)
+    documents = pipeline.prepare_documents(_mixed_documents().iloc[:1])
+    attempts = _historical_attempts(documents)
+    attempts.loc[:, "extraction_config_id"] = EXTRACTION_CONFIG_ID
+    attempts.loc[:, "contract_schema_sha256"] = CONTRACT_SCHEMA_SHA256
+    attempts.loc[:, "instructions_sha256"] = pipeline.INSTRUCTIONS_SHA256
+    attempts.loc[:, "attempt_origin"] = "model"
+    current = attempts.copy()
+    current["selection_source"] = "auto_validated"
+    manual = empty_manual_reviews()
+    queue = empty_review_queue()
+    paths = {
+        "documents": snapshot / "documents.parquet",
+        "attempts": snapshot / "attempts.parquet",
+        "manual_reviews": snapshot / "manual_reviews.parquet",
+        "current_extractions": snapshot / "current_extractions.parquet",
+        "review_queue": snapshot / "review_queue.parquet",
+    }
+    frames = {
+        "documents": documents,
+        "attempts": attempts,
+        "manual_reviews": manual,
+        "current_extractions": current,
+        "review_queue": queue,
+    }
+    for name, path in paths.items():
+        frames[name].to_parquet(path, index=False)
+    manifest = {
+        "stage": "extraction",
+        "stage_version": pipeline.PIPELINE_STAGE_VERSION,
+        "created_at": "2026-08-21T12:00:00Z",
+        "extraction_config_id": EXTRACTION_CONFIG_ID,
+        "model_provider": pipeline.MODEL_PROVIDER,
+        "model_name": pipeline.AI_MODEL_NAME,
+        "instructions_sha256": pipeline.INSTRUCTIONS_SHA256,
+        "contract_schema_sha256": CONTRACT_SCHEMA_SHA256,
+        "canonicalization_policy": EXTRACTION_CONFIG[
+            "canonicalization_policy"
+        ],
+        "scope_classification_policy": EXTRACTION_CONFIG[
+            "scope_classification_policy"
+        ],
+        "document_validation_version": pipeline.DOCUMENT_VALIDATION_VERSION,
+        "document_identity_sha256": pipeline._documents_identity(documents),
+        "counts": {
+            "documents": 1,
+            "attempts": 1,
+            "current_extractions": 1,
+            "blocking_review": 0,
+        },
+        "artifacts": {
+            name: pipeline._artifact(path, frames[name])
+            for name, path in paths.items()
+        },
+    }
+    (snapshot / "manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    documents_path = tmp_path / "active-documents.parquet"
+    documents.to_parquet(documents_path, index=False)
+    return snapshot, documents_path
+
+
+def _active_incomplete_documents() -> pd.DataFrame:
+    rows = []
+    for index in range(1, 6):
+        evidence = (
+            "Resolución por la que se desestima la solicitud de autorización "
+            "administrativa previa de la planta fotovoltaica Aurora Solar."
+            if index == 1
+            else "Se autoriza la planta fotovoltaica Aurora Solar."
+        )
+        rows.append({
+            "identificador": f"BOE-A-2026-{200 + index}",
+            "fecha_publicacion": pd.Timestamp(2026, 2, index),
+            "titulo": evidence,
+            "texto_limpio": evidence,
+            "xml_status": "ok",
+        })
+    return pd.DataFrame(rows)
+
+
+def _write_active_incomplete_snapshot(
+    tmp_path: Path,
+) -> tuple[Path, Path, pd.DataFrame]:
+    prepared = pipeline.prepare_documents(_active_incomplete_documents())
+    records = []
+    for position, (_, row) in enumerate(prepared.iterrows(), start=1):
+        document = build_source_document(row)
+        extraction = _model_extraction(row)
+        if position == 1:
+            extraction.publication_events[0].administrative_actions[
+                0
+            ].decision = AdministrativeDecision.REQUESTED
+        if position == 3:
+            record = build_error_record(
+                document=document,
+                prepared=None,
+                error=RuntimeError("synthetic operational error"),
+                processing_stage="agent_run",
+                duration_seconds=0.2,
+                usage=RunUsage(requests=1, input_tokens=10, output_tokens=5),
+                extraction=None,
+                adjustments=[],
+            )
+            record["attempt_origin"] = "model"
+        else:
+            record = build_success_record(
+                document=document,
+                prepared=None,
+                extraction=extraction,
+                duration_seconds=0.2,
+                usage=RunUsage(requests=1, input_tokens=10, output_tokens=5),
+                adjustments=[],
+                precanonical_extraction=extraction,
+            )
+            record["attempt_origin"] = "model"
+            if position == 2:
+                record.update({
+                    "extraction_status": "error",
+                    "error_type": "DocumentExtractionValidationError",
+                    "error_message": "synthetic historical validation error",
+                    "processing_stage": "document_validation",
+                    "document_validation_status": "failed",
+                    "document_validation_issue_count": 1,
+                    "validation_issues_json": json.dumps(["historical"]),
+                })
+        record["attempt_id"] = f"active-source-{position}"
+        records.append(record)
+    attempts = normalise_ai_extraction_attempts_log(pd.DataFrame(records))
+    attempts_path = tmp_path / "active-attempts.parquet"
+    attempts.to_parquet(attempts_path, index=False)
+    documents_path = tmp_path / "active-incomplete-documents.parquet"
+    prepared.to_parquet(documents_path, index=False)
+    result = pipeline.run_extraction_stage(
+        documents=documents_path,
+        attempts=attempts_path,
+        output_dir=tmp_path / "active-incomplete" / "extraction",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+    return result.output_dir, documents_path, attempts
+
+
+def _write_active_reviews(
+    tmp_path: Path,
+    documents_path: Path,
+    attempts: pd.DataFrame,
+) -> Path:
+    documents = pipeline.load_documents_input(documents_path)
+    documents_by_id = documents.set_index("identificador")
+    attempts_by_id = attempts.set_index("identificador_boe")
+    review_dir = tmp_path / "reviews"
+    review_dir.mkdir()
+    rejected_boe = "BOE-A-2026-204"
+    manual_boe = "BOE-A-2026-205"
+    payloads = {
+        rejected_boe: {
+            "identificador_boe": rejected_boe,
+            "source_document_sha256": str(
+                documents_by_id.loc[rejected_boe, "source_document_sha256"]
+            ),
+            "source_attempt_id": str(
+                attempts_by_id.loc[rejected_boe, "attempt_id"]
+            ),
+            "extraction_config_id": EXTRACTION_CONFIG_ID,
+            "document_validation_version": pipeline.DOCUMENT_VALIDATION_VERSION,
+            "review_status": "rejected",
+            "reviewer": "human_tfm_review",
+            "review_notes": "Documento rechazado por decisión humana.",
+            "reviewed_at_utc": "2026-08-22T12:00:00Z",
+            "corrected_extraction": None,
+        },
+        manual_boe: {
+            "identificador_boe": manual_boe,
+            "source_document_sha256": str(
+                documents_by_id.loc[manual_boe, "source_document_sha256"]
+            ),
+            "source_attempt_id": str(
+                attempts_by_id.loc[manual_boe, "attempt_id"]
+            ),
+            "extraction_config_id": EXTRACTION_CONFIG_ID,
+            "document_validation_version": pipeline.DOCUMENT_VALIDATION_VERSION,
+            "review_status": "manually_validated",
+            "reviewer": "human_tfm_review",
+            "review_notes": "Extracción validada manualmente.",
+            "reviewed_at_utc": "2026-08-22T12:01:00Z",
+            "corrected_extraction": json.loads(
+                str(attempts_by_id.loc[manual_boe, "extraction_json"])
+            ),
+        },
+    }
+    for boe_id, payload in payloads.items():
+        (review_dir / f"{boe_id}.json").write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2) + "\n",
+            encoding="utf-8",
+        )
+    return review_dir
+
+
+def test_active_config_snapshot_is_accepted_for_cumulative_recanonicalization(
+    tmp_path,
+) -> None:
+    source, documents = _write_active_snapshot(tmp_path)
+
+    plan = pipeline.plan_recanonicalization_snapshot(
+        source_snapshot=source,
+        documents=documents,
+        output_dir=tmp_path / "active-target",
+        source_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        target_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+
+    assert plan.target_record_count == 1
+    assert plan.model_calls == 0
+
+
+def test_active_cumulative_replay_preserves_history_reviews_and_usage(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    source, documents, original_attempts = _write_active_incomplete_snapshot(
+        tmp_path
+    )
+    reviews = _write_active_reviews(tmp_path, documents, original_attempts)
+    original_attempt_hash = pipeline._sha256_file(source / "attempts.parquet")
+    output = tmp_path / "active-cumulative-target"
+    monkeypatch.setattr(
+        pipeline,
+        "build_boe_extraction_agent",
+        lambda: (_ for _ in ()).throw(AssertionError("model must not run")),
+    )
+
+    result = pipeline.recanonicalize_extraction_snapshot(
+        source_snapshot=source,
+        documents=documents,
+        output_dir=output,
+        source_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        target_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        manual_reviews=reviews,
+        created_at=ACTIVE_NOW,
+    )
+    loaded = pipeline.load_extraction_snapshot(
+        output,
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+
+    assert result.source_attempt_count == 5
+    assert result.precanonical_record_count == 4
+    assert result.changed_record_count == 1
+    assert result.unchanged_record_count == 3
+    assert result.operational_error_count == 1
+    assert result.model_calls == 0
+    assert len(loaded.attempts) == 9
+    assert set(original_attempts["attempt_id"]).issubset(
+        set(loaded.attempts["attempt_id"])
+    )
+    original_rows = loaded.attempts.loc[
+        loaded.attempts["attempt_id"].isin(original_attempts["attempt_id"]),
+        original_attempts.columns,
+    ].reset_index(drop=True)
+    assert pipeline._frame_equal(
+        original_rows,
+        original_attempts.reset_index(drop=True),
+        sort_by=("attempt_id",),
+    )
+    derived = loaded.attempts.loc[
+        loaded.attempts["attempt_origin"].eq("recanonicalized")
+    ]
+    assert len(derived) == 4
+    assert derived["usage_requests"].fillna(0).eq(0).all()
+    assert derived["usage_input_tokens"].fillna(0).eq(0).all()
+    assert derived["usage_output_tokens"].fillna(0).eq(0).all()
+    assert derived["usage_total_tokens"].fillna(0).eq(0).all()
+    assert set(loaded.current_extractions["identificador_boe"]) == {
+        "BOE-A-2026-201",
+        "BOE-A-2026-202",
+        "BOE-A-2026-205",
+    }
+    manual = loaded.current_extractions.set_index("identificador_boe").loc[
+        "BOE-A-2026-205"
+    ]
+    assert manual["selection_source"] == "manually_validated"
+    assert manual["source_attempt_id"] == "active-source-5"
+    assert "BOE-A-2026-204" not in set(
+        loaded.current_extractions["identificador_boe"]
+    )
+    assert loaded.review_queue["identificador_boe"].tolist() == [
+        "BOE-A-2026-203"
+    ]
+    assert pipeline._sha256_file(source / "attempts.parquet") == (
+        original_attempt_hash
+    )
+    manifest = loaded.manifest
+    assert manifest["snapshot_type"] == "recanonicalized_extraction"
+    assert manifest["recanonicalization"]["mode"] == "active_cumulative"
+    assert manifest["recanonicalization"]["model_requests_added"] == 0
+    assert len(manifest["target"]["deterministic_code_sha256"]) == 64
+    assert manifest["counts"]["human_rejected"] == 1
+    assert manifest["counts"]["manually_validated"] == 1
+    assert manifest["counts"]["operational_errors_preserved"] == 1
+
+
+def test_active_cumulative_snapshot_is_a_valid_explicit_retry_input(
+    tmp_path,
+) -> None:
+    source, documents, attempts = _write_active_incomplete_snapshot(tmp_path)
+    reviews = _write_active_reviews(tmp_path, documents, attempts)
+    output = tmp_path / "active-cumulative-target"
+    pipeline.recanonicalize_extraction_snapshot(
+        source_snapshot=source,
+        documents=documents,
+        output_dir=output,
+        source_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        target_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        manual_reviews=reviews,
+        created_at=ACTIVE_NOW,
+    )
+
+    plan = pipeline.build_extraction_plan(
+        documents=documents,
+        attempts=output,
+        retry_error_boe_ids=["BOE-A-2026-203"],
+        execute_model=False,
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+
+    assert plan.retry_error_document_ids == ("BOE-A-2026-203",)
+    assert plan.model_required_count == 1
+    assert plan.model_calls_planned == 0
+    assert plan.compatible_existing_count == 4
+
+
+def test_active_cumulative_replay_rejects_corrupt_persisted_output(
+    tmp_path,
+) -> None:
+    source, documents, _ = _write_active_incomplete_snapshot(tmp_path)
+    attempts_path = source / "attempts.parquet"
+    attempts = pd.read_parquet(attempts_path)
+    attempts.loc[
+        attempts["identificador_boe"].eq("BOE-A-2026-202"),
+        "precanonical_extraction_json",
+    ] = "{"
+    attempts.to_parquet(attempts_path, index=False)
+    manifest_path = source / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["artifacts"]["attempts"] = pipeline._artifact(
+        attempts_path, attempts
+    )
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(pipeline.PipelineError, match="corrupt"):
+        pipeline.plan_recanonicalization_snapshot(
+            source_snapshot=source,
+            documents=documents,
+            output_dir=tmp_path / "corrupt-target",
+            source_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+            target_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
+
+
+def test_active_cumulative_replay_rejects_conflicting_reviews(
+    tmp_path,
+) -> None:
+    source, documents, attempts = _write_active_incomplete_snapshot(tmp_path)
+    reviews = _write_active_reviews(tmp_path, documents, attempts)
+    original = json.loads(
+        (reviews / "BOE-A-2026-204.json").read_text(encoding="utf-8")
+    )
+    original["review_notes"] = "Conflicting human disposition."
+    (reviews / "conflict.json").write_text(
+        json.dumps(original, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(pipeline.PipelineError, match="conflicting"):
+        pipeline.plan_recanonicalization_snapshot(
+            source_snapshot=source,
+            documents=documents,
+            output_dir=tmp_path / "conflict-target",
+            source_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+            target_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+            manual_reviews=reviews,
+        )
+
+
+def test_active_cumulative_replay_rejects_source_mismatch(tmp_path) -> None:
+    source, documents, attempts = _write_active_incomplete_snapshot(tmp_path)
+    reviews = _write_active_reviews(tmp_path, documents, attempts)
+    mismatched = pipeline.load_documents_input(documents)
+    mismatched.loc[0, "texto_limpio"] += " Alteración no contractual."
+
+    with pytest.raises(pipeline.PipelineError, match="do not match"):
+        pipeline.plan_recanonicalization_snapshot(
+            source_snapshot=source,
+            documents=mismatched,
+            output_dir=tmp_path / "mismatched-target",
+            source_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+            target_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+            manual_reviews=reviews,
+        )
+
+
+def test_main01_versioned_human_reviews_encode_closed_dispositions() -> None:
+    review_dir = Path("config/manual_reviews/boe_ai")
+    rejected = json.loads(
+        (review_dir / "BOE-B-2024-46241.json").read_text(encoding="utf-8")
+    )
+    rectification = json.loads(
+        (review_dir / "BOE-B-2026-4032.json").read_text(encoding="utf-8")
+    )
+
+    assert rejected["source_attempt_id"] == (
+        "cde570883d314230af0ff882e4eb070b"
+    )
+    assert rejected["review_status"] == "rejected"
+    assert rejected["corrected_extraction"] is None
+    assert "out_of_scope_non_generation" in rejected["review_notes"]
+    assert rectification["source_attempt_id"] == (
+        "ae5811ffa7ce49c9bf454d7c49f31f34"
+    )
+    assert rectification["review_status"] == "manually_validated"
+    extraction = BOEProjectExtraction.model_validate(
+        rectification["corrected_extraction"]
+    )
+    actions = extraction.publication_events[0].administrative_actions
+    assert len(actions) == 1
+    assert actions[0].action_type.value == "correccion_errores"
+    assert actions[0].decision.value == "rectificado"
+    assert actions[0].targets == ["event"]
+    for payload in (rejected, rectification):
+        assert payload["reviewer"] == "human_tfm_review"
+        assert pd.Timestamp(payload["reviewed_at_utc"]).tzinfo is not None
 
 
 def test_historical_snapshot_requires_the_explicit_matching_identity(

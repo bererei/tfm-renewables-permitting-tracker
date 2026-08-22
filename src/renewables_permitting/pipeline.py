@@ -8,7 +8,7 @@ import shutil
 import sys
 import tempfile
 from dataclasses import dataclass
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from hashlib import sha256
 from pathlib import Path
 from typing import Any, Mapping, Sequence
@@ -79,11 +79,15 @@ from renewables_permitting.extraction.flatten import (
 from renewables_permitting.extraction.models import BOEProjectExtraction
 from renewables_permitting.extraction.persistence import save_parquet_atomic
 from renewables_permitting.extraction.recanonicalization import (
+    RECANONICALIZATION_MATERIALIZATION_VERSION,
+    active_recanonicalization_identity,
     build_recanonicalized_attempt_record,
+    deterministic_recanonicalization_code_sha256,
     historical_recanonicalization_identity,
 )
 from renewables_permitting.extraction.review import (
     build_review_queue,
+    combine_ai_extraction_attempt_frames,
     empty_ai_extraction_attempts_log,
     empty_manual_reviews,
     load_ai_extraction_attempts,
@@ -91,6 +95,9 @@ from renewables_permitting.extraction.review import (
     normalise_ai_extraction_attempts_log,
     normalise_manual_reviews,
     select_best_valid_extractions,
+)
+from renewables_permitting.extraction.validation import (
+    DocumentExtractionValidationError,
 )
 from renewables_permitting.extraction.runner import extract_documents
 from renewables_permitting.ine_reference import (
@@ -217,10 +224,21 @@ class RecanonicalizationPlan:
     documents: pd.DataFrame
     source: LoadedExtractionSnapshot
     source_run_id: str
+    mode: str
+    manual_reviews: pd.DataFrame
+    derived_attempts: pd.DataFrame
     source_attempt_count: int
     precanonical_record_count: int
     deterministic_record_count: int
     target_record_count: int
+    unchanged_record_count: int
+    changed_boe_ids: tuple[str, ...]
+    failed_replay_boe_ids: tuple[str, ...]
+    recovered_semantic_boe_ids: tuple[str, ...]
+    human_rejected_boe_ids: tuple[str, ...]
+    manually_validated_boe_ids: tuple[str, ...]
+    operational_error_boe_ids: tuple[str, ...]
+    deterministic_code_sha256: str
     model_calls: int = 0
 
 
@@ -231,6 +249,9 @@ class RecanonicalizationStageResult(ExtractionStageResult):
     source_attempt_count: int
     precanonical_record_count: int
     deterministic_record_count: int
+    unchanged_record_count: int
+    changed_record_count: int
+    operational_error_count: int
     model_calls: int
 
 
@@ -1460,6 +1481,243 @@ def _extraction_snapshot_identity(
     })).hexdigest()
 
 
+def _has_structured_text(series: pd.Series) -> pd.Series:
+    return series.notna() & series.astype("string").str.strip().ne("")
+
+
+def _merge_recanonicalization_reviews(
+    source: LoadedExtractionSnapshot,
+    manual_reviews: Path | None,
+) -> pd.DataFrame:
+    inherited = normalise_manual_reviews(source.manual_reviews)
+    if manual_reviews is None:
+        merged = inherited.copy(deep=True)
+    else:
+        supplied = _read_manual_reviews(
+            Path(manual_reviews),
+            inherited_path=None,
+            documents=source.documents,
+            attempts=source.attempts,
+        )
+        columns = list(dict.fromkeys([
+            *inherited.columns.tolist(),
+            *supplied.columns.tolist(),
+        ]))
+        merged = normalise_manual_reviews(pd.DataFrame.from_records(
+            [
+                *inherited.to_dict(orient="records"),
+                *supplied.to_dict(orient="records"),
+            ],
+            columns=columns,
+        ))
+
+    if merged.empty:
+        return empty_manual_reviews()
+    review_ids = merged["manual_review_id"].astype("string")
+    if review_ids.isna().any() or review_ids.str.strip().eq("").any():
+        raise PipelineError("Recanonicalization review identity is missing.")
+    if review_ids.duplicated(keep=False).any():
+        raise PipelineError("Recanonicalization contains duplicate reviews.")
+    decisive = merged.loc[
+        merged["review_status"].isin(["manually_validated", "rejected"])
+    ].copy()
+    if not decisive.empty:
+        decisive["reviewed_at_utc"] = pd.to_datetime(
+            decisive["reviewed_at_utc"], errors="raise", utc=True
+        )
+        tied = decisive.duplicated(
+            subset=["identificador_boe", "reviewed_at_utc"],
+            keep=False,
+        )
+        if tied.any():
+            raise PipelineError(
+                "Recanonicalization contains conflicting review decisions."
+            )
+
+    # This call applies the public review contract, including source attempt,
+    # corrected extraction and documentary validation checks.
+    build_review_queue(
+        attempts=source.attempts,
+        source_df=source.documents,
+        manual_reviews=merged,
+    )
+    return normalise_manual_reviews(merged).reset_index(drop=True)
+
+
+def _latest_decisive_reviews(
+    manual_reviews: pd.DataFrame,
+) -> pd.DataFrame:
+    decisive = manual_reviews.loc[
+        manual_reviews["review_status"].isin(["manually_validated", "rejected"])
+    ].copy()
+    if decisive.empty:
+        return decisive
+    decisive["reviewed_at_utc"] = pd.to_datetime(
+        decisive["reviewed_at_utc"], errors="raise", utc=True
+    )
+    return (
+        decisive.sort_values(
+            ["reviewed_at_utc", "manual_review_id"], kind="stable"
+        )
+        .drop_duplicates("identificador_boe", keep="last")
+        .reset_index(drop=True)
+    )
+
+
+def _active_recanonicalization_candidates(
+    attempts: pd.DataFrame,
+) -> pd.DataFrame:
+    origins = attempts["attempt_origin"].astype("string")
+    root = ~origins.isin(["recanonicalized", "deterministic_reissued"])
+    has_precanonical = _has_structured_text(
+        attempts["precanonical_extraction_json"]
+    )
+    has_extraction = _has_structured_text(attempts["extraction_json"])
+    if (root & has_precanonical & ~has_extraction).any():
+        raise PipelineError(
+            "A persisted precanonical output has no canonical extraction."
+        )
+    model_without_precanonical = (
+        root & origins.eq("model").fillna(False)
+        & has_extraction & ~has_precanonical
+    )
+    if model_without_precanonical.any():
+        raise PipelineError(
+            "A persisted model output has no precanonical lineage."
+        )
+    candidates = attempts.loc[
+        root
+        & (
+            has_precanonical
+            | (origins.eq("deterministic").fillna(False) & has_extraction)
+        )
+    ].copy()
+    candidates["_source_extracted_at"] = pd.to_datetime(
+        candidates["extracted_at"], errors="raise", utc=True
+    )
+    return candidates.sort_values(
+        ["identificador_boe", "_source_extracted_at", "attempt_id"],
+        kind="stable",
+    ).drop(columns="_source_extracted_at").reset_index(drop=True)
+
+
+def _build_active_recanonicalized_attempts(
+    *,
+    source: LoadedExtractionSnapshot,
+    documents: pd.DataFrame,
+    manual_reviews: pd.DataFrame,
+    source_run_id: str,
+    recanonicalized_at: datetime,
+    deterministic_code_sha256: str,
+) -> tuple[
+    pd.DataFrame,
+    int,
+    tuple[str, ...],
+    tuple[str, ...],
+    tuple[str, ...],
+]:
+    candidates = _active_recanonicalization_candidates(source.attempts)
+    documents_by_id = {
+        str(row["identificador"]): row
+        for _, row in documents.iterrows()
+    }
+    latest_reviews = _latest_decisive_reviews(manual_reviews)
+    reviews_by_boe = {
+        str(row["identificador_boe"]): row
+        for _, row in latest_reviews.iterrows()
+    }
+    source_identity = active_recanonicalization_identity()
+    records: list[dict[str, Any]] = []
+    changed: list[str] = []
+    failed: list[str] = []
+    recovered: list[str] = []
+    unchanged = 0
+    base_instant = _normalise_created_at(recanonicalized_at)
+
+    for position, (_, source_attempt) in enumerate(
+        candidates.iterrows(), start=1
+    ):
+        boe_id = str(source_attempt["identificador_boe"])
+        document_row = documents_by_id.get(boe_id)
+        if document_row is None:
+            raise PipelineError(
+                f"Persisted output has no matching document: {boe_id}."
+            )
+        document = build_source_document(document_row)
+        precanonical_json = source_attempt["precanonical_extraction_json"]
+        if pd.notna(precanonical_json) and str(precanonical_json).strip():
+            try:
+                precanonical = BOEProjectExtraction.model_validate_json(
+                    str(precanonical_json)
+                )
+            except (TypeError, ValueError) as error:
+                raise PipelineError(
+                    f"Persisted output is corrupt: {boe_id}."
+                ) from error
+            if (
+                precanonical.boe_id != document.boe_id
+                or precanonical.publication_date != document.publication_date
+            ):
+                raise PipelineError(
+                    f"Persisted output lineage is inconsistent: {boe_id}."
+                )
+        try:
+            record = build_recanonicalized_attempt_record(
+                source_attempt,
+                document=document,
+                source_identity=source_identity,
+                source_run_id=source_run_id,
+                recanonicalized_at=(
+                    base_instant + timedelta(microseconds=position)
+                ),
+                preserve_source_usage=False,
+                deterministic_code_sha256=deterministic_code_sha256,
+            )
+        except DocumentExtractionValidationError as error:
+            review = reviews_by_boe.get(boe_id)
+            resolved = (
+                review is not None
+                and str(review["source_attempt_id"])
+                == str(source_attempt["attempt_id"])
+                and str(review["review_status"])
+                in {"manually_validated", "rejected"}
+            )
+            if not resolved:
+                raise PipelineError(
+                    f"Recanonicalized output still requires review: {boe_id}."
+                ) from error
+            failed.append(boe_id)
+            continue
+        except (TypeError, ValueError) as error:
+            raise PipelineError(
+                f"Recanonicalization lineage or payload is invalid: {boe_id}."
+            ) from error
+
+        records.append(record)
+        old_semantic = json.loads(str(source_attempt["extraction_json"]))
+        new_semantic = json.loads(str(record["extraction_json"]))
+        if old_semantic == new_semantic:
+            unchanged += 1
+        else:
+            changed.append(boe_id)
+        if str(source_attempt["extraction_status"]) != "ok":
+            recovered.append(boe_id)
+
+    derived = normalise_ai_extraction_attempts_log(pd.DataFrame(records))
+    if not derived.empty:
+        derived = derived.sort_values(
+            ["identificador_boe", "extracted_at", "attempt_id"],
+            kind="stable",
+        ).reset_index(drop=True)
+    return (
+        derived,
+        unchanged,
+        tuple(changed),
+        tuple(failed),
+        tuple(recovered),
+    )
+
+
 def plan_recanonicalization_snapshot(
     *,
     source_snapshot: Path,
@@ -1467,19 +1725,160 @@ def plan_recanonicalization_snapshot(
     output_dir: Path,
     source_expected_extraction_config_id: str,
     target_expected_extraction_config_id: str,
+    manual_reviews: Path | None = None,
+    scope_paths: Sequence[Path] = (),
+    created_at: datetime | None = None,
 ) -> RecanonicalizationPlan:
     """Validate one frozen source and classify its replayable records."""
 
     output_dir = _validate_new_output(output_dir)
     _validate_expected_config(target_expected_extraction_config_id)
     source_snapshot = Path(source_snapshot).absolute()
+    active_mode = (
+        source_expected_extraction_config_id == EXTRACTION_CONFIG_ID
+        and target_expected_extraction_config_id == EXTRACTION_CONFIG_ID
+    )
     source = load_extraction_snapshot(
         source_snapshot,
-        expected_extraction_config_id=(
-            source_expected_extraction_config_id
-        ),
-        allow_historical=True,
+        expected_extraction_config_id=source_expected_extraction_config_id,
+        allow_historical=not active_mode,
     )
+
+    prepared_documents = (
+        prepare_documents(documents)
+        if isinstance(documents, pd.DataFrame)
+        else load_documents_input(Path(documents))
+    )
+    prepared_documents, _ = apply_document_scopes(
+        prepared_documents, scope_paths
+    )
+    if _documents_identity(prepared_documents) != _documents_identity(
+        source.documents
+    ):
+        raise PipelineError(
+            "Recanonicalization documents do not match the source snapshot."
+        )
+    source_run_id = source_snapshot.parent.name
+    if not source_run_id:
+        raise PipelineError("The source snapshot has no stable run name.")
+    code_sha256 = deterministic_recanonicalization_code_sha256()
+
+    if active_mode:
+        if (
+            source.manifest.get("canonicalization_policy")
+            != EXTRACTION_CONFIG["canonicalization_policy"]
+            or source.manifest.get("scope_classification_policy")
+            != EXTRACTION_CONFIG["scope_classification_policy"]
+        ):
+            raise PipelineError(
+                "Active extraction policy provenance is incompatible."
+            )
+        _validate_resume_attempts(
+            source.attempts,
+            prepared_documents,
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
+        merged_reviews = _merge_recanonicalization_reviews(
+            source, manual_reviews
+        )
+        instant = _normalise_created_at(created_at)
+        (
+            derived_attempts,
+            unchanged_count,
+            changed_boe_ids,
+            failed_boe_ids,
+            recovered_boe_ids,
+        ) = _build_active_recanonicalized_attempts(
+            source=source,
+            documents=prepared_documents,
+            manual_reviews=merged_reviews,
+            source_run_id=source_run_id,
+            recanonicalized_at=instant,
+            deterministic_code_sha256=code_sha256,
+        )
+        all_attempts = combine_ai_extraction_attempt_frames(
+            source.attempts, derived_attempts
+        )
+        current = select_best_valid_extractions(
+            attempts=all_attempts,
+            source_df=prepared_documents,
+            manual_reviews=merged_reviews,
+        )
+        queue = build_review_queue(
+            attempts=all_attempts,
+            source_df=prepared_documents,
+            manual_reviews=merged_reviews,
+        )
+        attempt_by_id = {
+            str(row["attempt_id"]): row
+            for _, row in all_attempts.iterrows()
+        }
+        operational: list[str] = []
+        unresolved: list[str] = []
+        for _, queue_row in queue.iterrows():
+            attempt = attempt_by_id.get(str(queue_row["source_attempt_id"]))
+            no_output = (
+                attempt is not None
+                and not bool(_has_structured_text(pd.Series([
+                    attempt["precanonical_extraction_json"]
+                ])).iloc[0])
+                and not bool(_has_structured_text(pd.Series([
+                    attempt["extraction_json"]
+                ])).iloc[0])
+            )
+            if no_output:
+                operational.append(str(queue_row["identificador_boe"]))
+            else:
+                unresolved.append(str(queue_row["identificador_boe"]))
+        if unresolved:
+            raise PipelineError(
+                "Recanonicalization has unresolved semantic blockers: "
+                f"{sorted(unresolved)}."
+            )
+        latest_decisions = _latest_decisive_reviews(merged_reviews)
+        rejected = tuple(sorted(
+            latest_decisions.loc[
+                latest_decisions["review_status"].eq("rejected"),
+                "identificador_boe",
+            ].astype(str)
+        ))
+        manually_validated = tuple(sorted(
+            latest_decisions.loc[
+                latest_decisions["review_status"].eq("manually_validated"),
+                "identificador_boe",
+            ].astype(str)
+        ))
+        candidates = _active_recanonicalization_candidates(source.attempts)
+        has_precanonical = _has_structured_text(
+            candidates["precanonical_extraction_json"]
+        )
+        return RecanonicalizationPlan(
+            source_snapshot=source_snapshot,
+            output_dir=output_dir,
+            documents=prepared_documents,
+            source=source,
+            source_run_id=source_run_id,
+            mode="active_cumulative",
+            manual_reviews=merged_reviews,
+            derived_attempts=derived_attempts,
+            source_attempt_count=len(source.attempts),
+            precanonical_record_count=int(has_precanonical.sum()),
+            deterministic_record_count=int((~has_precanonical).sum()),
+            target_record_count=len(candidates),
+            unchanged_record_count=unchanged_count,
+            changed_boe_ids=changed_boe_ids,
+            failed_replay_boe_ids=failed_boe_ids,
+            recovered_semantic_boe_ids=recovered_boe_ids,
+            human_rejected_boe_ids=rejected,
+            manually_validated_boe_ids=manually_validated,
+            operational_error_boe_ids=tuple(sorted(operational)),
+            deterministic_code_sha256=code_sha256,
+        )
+
+    if manual_reviews is not None:
+        raise PipelineError(
+            "Historical recanonicalization does not accept manual reviews."
+        )
     if not source.manual_reviews.empty:
         raise PipelineError(
             "Manual review decisions are not transferred by recanonicalization."
@@ -1493,18 +1892,6 @@ def plan_recanonicalization_snapshot(
     if source_blocking:
         raise PipelineError(
             "The source extraction snapshot has blocking review records."
-        )
-
-    prepared_documents = (
-        prepare_documents(documents)
-        if isinstance(documents, pd.DataFrame)
-        else load_documents_input(Path(documents))
-    )
-    if _documents_identity(prepared_documents) != _documents_identity(
-        source.documents
-    ):
-        raise PipelineError(
-            "Recanonicalization documents do not match the source snapshot."
         )
     if len(source.current_extractions) != len(prepared_documents):
         raise PipelineError(
@@ -1541,28 +1928,45 @@ def plan_recanonicalization_snapshot(
     ].notna() & selected_attempts["precanonical_extraction_json"].astype(
         "string"
     ).str.strip().ne("")
-    source_run_id = source_snapshot.parent.name
-    if not source_run_id:
-        raise PipelineError("The source snapshot has no stable run name.")
     return RecanonicalizationPlan(
         source_snapshot=source_snapshot,
         output_dir=output_dir,
         documents=prepared_documents,
         source=source,
         source_run_id=source_run_id,
+        mode="historical_replacement",
+        manual_reviews=empty_manual_reviews(),
+        derived_attempts=empty_ai_extraction_attempts_log(),
         source_attempt_count=len(source.attempts),
         precanonical_record_count=int(has_precanonical.sum()),
         deterministic_record_count=int((~has_precanonical).sum()),
         target_record_count=len(selected_attempts),
+        unchanged_record_count=0,
+        changed_boe_ids=(),
+        failed_replay_boe_ids=(),
+        recovered_semantic_boe_ids=(),
+        human_rejected_boe_ids=(),
+        manually_validated_boe_ids=(),
+        operational_error_boe_ids=(),
+        deterministic_code_sha256=code_sha256,
     )
 
 
 def _print_recanonicalization_plan(plan: RecanonicalizationPlan) -> None:
+    print(f"mode: {plan.mode}")
     print(f"source records: {plan.source_attempt_count}")
     print(f"precanonical records: {plan.precanonical_record_count}")
     print(f"deterministic records: {plan.deterministic_record_count}")
     print(f"target records: {plan.target_record_count}")
+    print(f"unchanged outputs: {plan.unchanged_record_count}")
+    print(f"changed outputs: {len(plan.changed_boe_ids)}")
+    print(f"replay failures resolved by review: {len(plan.failed_replay_boe_ids)}")
+    print(f"semantic failures recovered: {len(plan.recovered_semantic_boe_ids)}")
+    print(f"human rejected: {len(plan.human_rejected_boe_ids)}")
+    print(f"manually validated: {len(plan.manually_validated_boe_ids)}")
+    print(f"operational errors preserved: {len(plan.operational_error_boe_ids)}")
     print(f"model calls: {plan.model_calls}")
+    print(f"deterministic code sha256: {plan.deterministic_code_sha256}")
     print(f"target extraction config: {EXTRACTION_CONFIG_ID}")
     print(f"output: {plan.output_dir}")
 
@@ -1573,6 +1977,9 @@ def build_recanonicalized_attempts(
     recanonicalized_at: datetime,
 ) -> pd.DataFrame:
     """Apply the batch transformation in memory without any stage writes."""
+
+    if plan.mode == "active_cumulative":
+        return plan.derived_attempts.copy(deep=True)
 
     source_identity = historical_recanonicalization_identity(
         str(plan.source.manifest["extraction_config_id"])
@@ -1603,6 +2010,7 @@ def build_recanonicalized_attempts(
             source_identity=source_identity,
             source_run_id=plan.source_run_id,
             recanonicalized_at=instant,
+            deterministic_code_sha256=plan.deterministic_code_sha256,
         ))
     return normalise_ai_extraction_attempts_log(
         pd.DataFrame(records)
@@ -1616,10 +2024,13 @@ def recanonicalize_extraction_snapshot(
     output_dir: Path,
     source_expected_extraction_config_id: str,
     target_expected_extraction_config_id: str,
+    manual_reviews: Path | None = None,
+    scope_paths: Sequence[Path] = (),
     created_at: datetime | None = None,
 ) -> RecanonicalizationStageResult:
     """Publish a target snapshot by replaying only deterministic policy code."""
 
+    instant = _normalise_created_at(created_at)
     plan = plan_recanonicalization_snapshot(
         source_snapshot=source_snapshot,
         documents=documents,
@@ -1630,26 +2041,39 @@ def recanonicalize_extraction_snapshot(
         target_expected_extraction_config_id=(
             target_expected_extraction_config_id
         ),
+        manual_reviews=manual_reviews,
+        scope_paths=scope_paths,
+        created_at=instant,
     )
     _print_recanonicalization_plan(plan)
-    instant = _normalise_created_at(created_at)
-    source_identity = historical_recanonicalization_identity(
-        source_expected_extraction_config_id
+    source_identity = (
+        active_recanonicalization_identity()
+        if plan.mode == "active_cumulative"
+        else historical_recanonicalization_identity(
+            source_expected_extraction_config_id
+        )
     )
-    attempts = build_recanonicalized_attempts(
+    derived_attempts = build_recanonicalized_attempts(
         plan,
         recanonicalized_at=instant,
     )
-    manual_reviews = empty_manual_reviews()
+    attempts = (
+        combine_ai_extraction_attempt_frames(
+            plan.source.attempts, derived_attempts
+        )
+        if plan.mode == "active_cumulative"
+        else derived_attempts
+    )
+    manual_reviews_frame = plan.manual_reviews.copy(deep=True)
     current = select_best_valid_extractions(
         attempts=attempts,
         source_df=plan.documents,
-        manual_reviews=manual_reviews,
+        manual_reviews=manual_reviews_frame,
     )
     review_queue = build_review_queue(
         attempts=attempts,
         source_df=plan.documents,
-        manual_reviews=manual_reviews,
+        manual_reviews=manual_reviews_frame,
     )
     blocking_count = int(
         review_queue["reason_severity"].eq("blocking").fillna(False).sum()
@@ -1665,7 +2089,7 @@ def recanonicalize_extraction_snapshot(
         queue_path = staging_dir / _EXTRACTION_REVIEW_QUEUE
         plan.documents.to_parquet(document_path, index=False)
         save_parquet_atomic(attempts, attempt_path)
-        save_parquet_atomic(manual_reviews, manual_path)
+        save_parquet_atomic(manual_reviews_frame, manual_path)
         save_parquet_atomic(current, current_path)
         save_parquet_atomic(review_queue, queue_path)
 
@@ -1680,6 +2104,14 @@ def recanonicalize_extraction_snapshot(
         source_manifest_hash = _sha256_file(
             plan.source_snapshot / _EXTRACTION_MANIFEST
         )
+        manual_review_identity = sha256(_canonical_json_bytes(
+            manual_reviews_frame.sort_values(
+                ["identificador_boe", "reviewed_at_utc", "manual_review_id"],
+                kind="stable",
+            ).to_dict(orient="records")
+            if not manual_reviews_frame.empty
+            else []
+        )).hexdigest()
         snapshot_identity = sha256(_canonical_json_bytes({
             "document_identity_sha256": _documents_identity(plan.documents),
             "source_manifest_sha256": source_manifest_hash,
@@ -1688,6 +2120,11 @@ def recanonicalize_extraction_snapshot(
                 source_identity.extraction_config_id
             ),
             "target_extraction_config_id": EXTRACTION_CONFIG_ID,
+            "manual_review_identity_sha256": manual_review_identity,
+            "recanonicalization_materialization_version": (
+                RECANONICALIZATION_MATERIALIZATION_VERSION
+            ),
+            "deterministic_code_sha256": plan.deterministic_code_sha256,
         })).hexdigest()
         manifest = {
             "stage": "extraction",
@@ -1703,8 +2140,24 @@ def recanonicalize_extraction_snapshot(
             "canonicalization_policy": EXTRACTION_CONFIG[
                 "canonicalization_policy"
             ],
+            "scope_classification_policy": EXTRACTION_CONFIG[
+                "scope_classification_policy"
+            ],
             "document_validation_version": DOCUMENT_VALIDATION_VERSION,
             "document_identity_sha256": _documents_identity(plan.documents),
+            "recanonicalization": {
+                "mode": plan.mode,
+                "materialization_version": (
+                    RECANONICALIZATION_MATERIALIZATION_VERSION
+                ),
+                "deterministic_code_sha256": (
+                    plan.deterministic_code_sha256
+                ),
+                "manual_review_identity_sha256": manual_review_identity,
+                "model_requests_added": 0,
+                "input_tokens_added": 0,
+                "output_tokens_added": 0,
+            },
             "source": {
                 "run_id": plan.source_run_id,
                 "snapshot_name": plan.source_snapshot.name,
@@ -1728,6 +2181,12 @@ def recanonicalize_extraction_snapshot(
                 "canonicalization_policy": EXTRACTION_CONFIG[
                     "canonicalization_policy"
                 ],
+                "recanonicalization_materialization_version": (
+                    RECANONICALIZATION_MATERIALIZATION_VERSION
+                ),
+                "deterministic_code_sha256": (
+                    plan.deterministic_code_sha256
+                ),
             },
             "counts": {
                 "documents": len(plan.documents),
@@ -1736,6 +2195,22 @@ def recanonicalize_extraction_snapshot(
                     plan.precanonical_record_count
                 ),
                 "deterministic_preserved": plan.deterministic_record_count,
+                "outputs_replayed_successfully": len(derived_attempts),
+                "outputs_unchanged": plan.unchanged_record_count,
+                "outputs_changed": len(plan.changed_boe_ids),
+                "replay_failures_resolved_by_review": len(
+                    plan.failed_replay_boe_ids
+                ),
+                "semantic_failures_recovered": len(
+                    plan.recovered_semantic_boe_ids
+                ),
+                "human_rejected": len(plan.human_rejected_boe_ids),
+                "manually_validated": len(
+                    plan.manually_validated_boe_ids
+                ),
+                "operational_errors_preserved": len(
+                    plan.operational_error_boe_ids
+                ),
                 "model_calls": 0,
                 "attempts": len(attempts),
                 "current_extractions": len(current),
@@ -1745,7 +2220,7 @@ def recanonicalize_extraction_snapshot(
                 "documents": _artifact(document_path, plan.documents),
                 "attempts": _artifact(attempt_path, attempts),
                 "manual_reviews": _artifact(
-                    manual_path, manual_reviews
+                    manual_path, manual_reviews_frame
                 ),
                 "current_extractions": _artifact(current_path, current),
                 "review_queue": _artifact(queue_path, review_queue),
@@ -1773,13 +2248,18 @@ def recanonicalize_extraction_snapshot(
         review_queue_path=plan.output_dir / _EXTRACTION_REVIEW_QUEUE,
         manifest_path=plan.output_dir / _EXTRACTION_MANIFEST,
         total_documents=len(plan.documents),
-        compatible_existing_count=0,
-        pending_document_count=0,
+        compatible_existing_count=(
+            len(current) + len(plan.human_rejected_boe_ids)
+        ),
+        pending_document_count=len(plan.operational_error_boe_ids),
         model_calls_planned=0,
         blocking_review_count=blocking_count,
         source_attempt_count=plan.source_attempt_count,
         precanonical_record_count=plan.precanonical_record_count,
         deterministic_record_count=plan.deterministic_record_count,
+        unchanged_record_count=plan.unchanged_record_count,
+        changed_record_count=len(plan.changed_boe_ids),
+        operational_error_count=len(plan.operational_error_boe_ids),
         model_calls=0,
     )
 
@@ -1907,6 +2387,10 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     recanonicalize.add_argument("--documents", type=Path, required=True)
     recanonicalize.add_argument("--output-dir", type=Path, required=True)
+    recanonicalize.add_argument("--manual-reviews", type=Path)
+    recanonicalize.add_argument(
+        "--scope", type=Path, action="append", default=[]
+    )
     recanonicalize.add_argument(
         "--source-expected-extraction-config-id", required=True
     )
@@ -2039,6 +2523,8 @@ def _handle_recanonicalize(args: argparse.Namespace) -> int:
         "target_expected_extraction_config_id": (
             args.target_expected_extraction_config_id
         ),
+        "manual_reviews": args.manual_reviews,
+        "scope_paths": args.scope,
     }
     if args.dry_run:
         plan = plan_recanonicalization_snapshot(**arguments)

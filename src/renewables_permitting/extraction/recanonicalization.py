@@ -4,6 +4,7 @@ import json
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from hashlib import sha256
+from pathlib import Path
 from types import MappingProxyType
 from typing import Any, Mapping
 
@@ -14,11 +15,13 @@ from renewables_permitting.extraction.canonicalization import (
     preclassify_document_without_model,
 )
 from renewables_permitting.extraction.config import (
+    AI_MODEL_NAME,
     CONTRACT_SCHEMA_SHA256,
     DOCUMENT_VALIDATION_VERSION,
     EXTRACTION_CONFIG,
     EXTRACTION_CONFIG_ID,
     INSTRUCTIONS_SHA256,
+    MODEL_PROVIDER,
 )
 from renewables_permitting.extraction.models import (
     BOEProjectExtraction,
@@ -65,6 +68,13 @@ _FREEZE_SOURCE_IDENTITY = HistoricalExtractionIdentity(
 SUPPORTED_RECANONICALIZATION_SOURCE_IDENTITIES = MappingProxyType({
     _FREEZE_SOURCE_IDENTITY.extraction_config_id: _FREEZE_SOURCE_IDENTITY,
 })
+
+RECANONICALIZATION_MATERIALIZATION_VERSION = "2"
+_DETERMINISTIC_CODE_FILENAMES = (
+    "canonicalization.py",
+    "recanonicalization.py",
+    "validation.py",
+)
 
 
 @dataclass(frozen=True)
@@ -209,6 +219,39 @@ def historical_recanonicalization_identity(
         ) from error
 
 
+def active_recanonicalization_identity() -> HistoricalExtractionIdentity:
+    """Return the installed identity for an active cumulative replay."""
+
+    return HistoricalExtractionIdentity(
+        extraction_config_id=EXTRACTION_CONFIG_ID,
+        contract_schema_sha256=CONTRACT_SCHEMA_SHA256,
+        instructions_sha256=INSTRUCTIONS_SHA256,
+        canonicalization_policy=str(
+            EXTRACTION_CONFIG["canonicalization_policy"]
+        ),
+        model_provider=MODEL_PROVIDER,
+        model_name=AI_MODEL_NAME,
+    )
+
+
+def deterministic_recanonicalization_code_sha256() -> str:
+    """Fingerprint the exact deterministic implementation used for replay."""
+
+    module_dir = Path(__file__).resolve().parent
+    digest = sha256()
+    for filename in _DETERMINISTIC_CODE_FILENAMES:
+        path = module_dir / filename
+        if not path.is_file() or path.is_symlink():
+            raise RuntimeError(
+                f"No se puede identificar el código determinista: {path}."
+            )
+        digest.update(filename.encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(path.read_bytes())
+        digest.update(b"\0")
+    return digest.hexdigest()
+
+
 def _is_missing(value: Any) -> bool:
     if value is None or value is pd.NA:
         return True
@@ -222,10 +265,12 @@ def _recanonicalized_attempt_id(
     *,
     source_attempt_id: str,
     source_document_sha256: str,
+    deterministic_code_sha256: str,
 ) -> str:
     identity = (
-        "recanonicalized-attempt-v1|"
-        f"{source_attempt_id}|{source_document_sha256}|{EXTRACTION_CONFIG_ID}"
+        f"recanonicalized-attempt-v{RECANONICALIZATION_MATERIALIZATION_VERSION}|"
+        f"{source_attempt_id}|{source_document_sha256}|{EXTRACTION_CONFIG_ID}|"
+        f"{deterministic_code_sha256}"
     )
     return sha256(identity.encode("utf-8")).hexdigest()[:32]
 
@@ -237,6 +282,8 @@ def build_recanonicalized_attempt_record(
     source_identity: HistoricalExtractionIdentity,
     source_run_id: str,
     recanonicalized_at: datetime,
+    preserve_source_usage: bool = True,
+    deterministic_code_sha256: str | None = None,
 ) -> dict[str, Any]:
     """Build one target attempt without issuing or impersonating an AI call."""
 
@@ -294,6 +341,18 @@ def build_recanonicalized_attempt_record(
         model_name: Any = pd.NA
         processing_stage = "deterministic_scope_guard"
     else:
+        if _required_attempt_text(
+            source_attempt, "model_provider"
+        ) != source_identity.model_provider:
+            raise ValueError(
+                "El proveedor del intento no coincide con la identidad fuente."
+            )
+        if _required_attempt_text(
+            source_attempt, "model_name"
+        ) != source_identity.model_name:
+            raise ValueError(
+                "El modelo del intento no coincide con la identidad fuente."
+            )
         result = recanonicalize_attempt_with_provenance(
             source_attempt,
             document=document,
@@ -312,11 +371,19 @@ def build_recanonicalized_attempt_record(
         raise ValueError("recanonicalized_at debe incluir zona horaria.")
     instant = instant.astimezone(timezone.utc)
     counts = _count_extracted_nodes(extraction)
+    code_sha256 = (
+        deterministic_recanonicalization_code_sha256()
+        if deterministic_code_sha256 is None
+        else deterministic_code_sha256
+    )
+    if not isinstance(code_sha256, str) or len(code_sha256) != 64:
+        raise ValueError("deterministic_code_sha256 no es una huella SHA-256.")
     record = dict(source_attempt)
     record.update({
         "attempt_id": _recanonicalized_attempt_id(
             source_attempt_id=source_attempt_id,
             source_document_sha256=document.source_document_sha256,
+            deterministic_code_sha256=code_sha256,
         ),
         "attempt_origin": attempt_origin,
         "source_attempt_id": source_attempt_id,
@@ -351,6 +418,31 @@ def build_recanonicalized_attempt_record(
         **counts,
         "extraction_json": extraction.model_dump_json(),
         "extracted_at": instant,
+        "duration_seconds": (
+            source_attempt.get("duration_seconds")
+            if preserve_source_usage
+            else 0.0
+        ),
+        "usage_requests": (
+            source_attempt.get("usage_requests")
+            if preserve_source_usage
+            else 0
+        ),
+        "usage_input_tokens": (
+            source_attempt.get("usage_input_tokens")
+            if preserve_source_usage
+            else 0
+        ),
+        "usage_output_tokens": (
+            source_attempt.get("usage_output_tokens")
+            if preserve_source_usage
+            else 0
+        ),
+        "usage_total_tokens": (
+            source_attempt.get("usage_total_tokens")
+            if preserve_source_usage
+            else 0
+        ),
         "extraction_status": "ok",
         "error_type": None,
         "error_message": None,
