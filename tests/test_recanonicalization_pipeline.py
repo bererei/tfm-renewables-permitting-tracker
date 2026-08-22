@@ -542,6 +542,302 @@ def test_active_cumulative_replay_preserves_history_reviews_and_usage(
     assert manifest["counts"]["operational_errors_preserved"] == 1
 
 
+def test_active_recanonicalization_is_idempotent_across_two_snapshots(
+    tmp_path,
+) -> None:
+    source, documents, original_attempts = _write_active_incomplete_snapshot(
+        tmp_path
+    )
+    reviews = _write_active_reviews(tmp_path, documents, original_attempts)
+    first_output = tmp_path / "active-cumulative-first"
+    second_output = tmp_path / "active-cumulative-second"
+    second_instant = ACTIVE_NOW.replace(hour=11)
+
+    pipeline.recanonicalize_extraction_snapshot(
+        source_snapshot=source,
+        documents=documents,
+        output_dir=first_output,
+        source_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        target_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        manual_reviews=reviews,
+        created_at=ACTIVE_NOW,
+    )
+    first = pipeline.load_extraction_snapshot(
+        first_output,
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+    plan = pipeline.plan_recanonicalization_snapshot(
+        source_snapshot=first_output,
+        documents=documents,
+        output_dir=second_output,
+        source_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        target_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        created_at=second_instant,
+    )
+
+    assert plan.reused_derived_attempt_count == 4
+    assert plan.derived_attempts.empty
+    assert plan.changed_boe_ids == ()
+    assert plan.unchanged_record_count == 0
+    result = pipeline.recanonicalize_extraction_snapshot(
+        source_snapshot=first_output,
+        documents=documents,
+        output_dir=second_output,
+        source_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        target_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        created_at=second_instant,
+    )
+    second = pipeline.load_extraction_snapshot(
+        second_output,
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+
+    assert len(second.attempts) == len(first.attempts) == 9
+    assert second.attempts["attempt_id"].is_unique
+    assert set(second.attempts["attempt_id"]) == set(first.attempts["attempt_id"])
+    assert pipeline._frame_equal(
+        second.attempts,
+        first.attempts,
+        sort_by=("attempt_id",),
+    )
+    assert pipeline._frame_equal(
+        second.current_extractions,
+        first.current_extractions,
+        sort_by=("identificador_boe", "attempt_id"),
+    )
+    assert pipeline._frame_equal(
+        second.manual_reviews,
+        first.manual_reviews,
+        sort_by=("manual_review_id",),
+    )
+    assert result.model_calls == 0
+    assert result.changed_record_count == 0
+    assert second.manifest["recanonicalization"]["model_requests_added"] == 0
+    assert second.manifest["recanonicalization"]["input_tokens_added"] == 0
+    assert second.manifest["recanonicalization"]["output_tokens_added"] == 0
+
+
+def test_active_recanonicalization_preserves_one_retry_attempt_once(
+    tmp_path,
+) -> None:
+    source, documents, original_attempts = _write_active_incomplete_snapshot(
+        tmp_path
+    )
+    reviews = _write_active_reviews(tmp_path, documents, original_attempts)
+    first_output = tmp_path / "active-cumulative-first"
+    pipeline.recanonicalize_extraction_snapshot(
+        source_snapshot=source,
+        documents=documents,
+        output_dir=first_output,
+        source_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        target_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        manual_reviews=reviews,
+        created_at=ACTIVE_NOW,
+    )
+    first = pipeline.load_extraction_snapshot(
+        first_output,
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+    retry_boe = "BOE-A-2026-203"
+    retry_row = first.documents.loc[
+        first.documents["identificador"].astype(str).eq(retry_boe)
+    ].iloc[0]
+    retry_document = build_source_document(retry_row)
+    retry_extraction = _model_extraction(retry_row)
+    retry_record = build_success_record(
+        document=retry_document,
+        prepared=None,
+        extraction=retry_extraction,
+        duration_seconds=0.3,
+        usage=RunUsage(requests=1, input_tokens=20, output_tokens=8),
+        adjustments=[],
+        precanonical_extraction=retry_extraction,
+    )
+    retry_record["attempt_id"] = "active-retry-success"
+    retry_record["attempt_origin"] = "model"
+    retry_attempt = normalise_ai_extraction_attempts_log(
+        pd.DataFrame([retry_record])
+    )
+    retry_attempts = pipeline.combine_ai_extraction_attempt_frames(
+        first.attempts,
+        retry_attempt,
+    )
+    retry_attempts_path = tmp_path / "retry-attempts.parquet"
+    retry_attempts.to_parquet(retry_attempts_path, index=False)
+    retry_snapshot = tmp_path / "active-retry-snapshot"
+    pipeline.run_extraction_stage(
+        documents=documents,
+        attempts=retry_attempts_path,
+        manual_reviews=first_output / "manual_reviews.parquet",
+        output_dir=retry_snapshot,
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+    final_output = tmp_path / "active-final"
+    pipeline.recanonicalize_extraction_snapshot(
+        source_snapshot=retry_snapshot,
+        documents=documents,
+        output_dir=final_output,
+        source_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        target_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        created_at=ACTIVE_NOW.replace(hour=11),
+    )
+    final = pipeline.load_extraction_snapshot(
+        final_output,
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+
+    assert final.attempts["attempt_id"].is_unique
+    assert final.attempts["attempt_id"].eq("active-retry-success").sum() == 1
+    retry_derived = final.attempts.loc[
+        final.attempts["identificador_boe"].astype(str).eq(retry_boe)
+        & final.attempts["attempt_origin"].astype(str).eq("recanonicalized")
+    ]
+    assert len(retry_derived) == 1
+    assert retry_derived.iloc[0]["source_attempt_id"] == "active-retry-success"
+    second_plan = pipeline.plan_recanonicalization_snapshot(
+        source_snapshot=final_output,
+        documents=documents,
+        output_dir=tmp_path / "active-second-pass",
+        source_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        target_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        created_at=ACTIVE_NOW.replace(hour=12),
+    )
+    assert second_plan.reused_derived_attempt_count == 5
+    assert second_plan.derived_attempts.empty
+
+
+def test_active_recanonicalization_rejects_conflicting_derived_collision(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    source, documents, original_attempts = _write_active_incomplete_snapshot(
+        tmp_path
+    )
+    reviews = _write_active_reviews(tmp_path, documents, original_attempts)
+    first_output = tmp_path / "active-cumulative-first"
+    pipeline.recanonicalize_extraction_snapshot(
+        source_snapshot=source,
+        documents=documents,
+        output_dir=first_output,
+        source_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        target_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        manual_reviews=reviews,
+        created_at=ACTIVE_NOW,
+    )
+    real_builder = pipeline.build_recanonicalized_attempt_record
+
+    def conflicting_builder(*args, **kwargs):
+        record = real_builder(*args, **kwargs)
+        payload = json.loads(str(record["extraction_json"]))
+        payload["classification_reason"] += " Conflicto sintético."
+        record["classification_reason"] = payload["classification_reason"]
+        record["extraction_json"] = json.dumps(
+            payload,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+        return record
+
+    monkeypatch.setattr(
+        pipeline,
+        "build_recanonicalized_attempt_record",
+        conflicting_builder,
+    )
+
+    with pytest.raises(
+        pipeline.PipelineError,
+        match="attempt_id collision.*inconsistent",
+    ):
+        pipeline.plan_recanonicalization_snapshot(
+            source_snapshot=first_output,
+            documents=documents,
+            output_dir=tmp_path / "conflicting-target",
+            source_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+            target_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+            created_at=ACTIVE_NOW.replace(hour=11),
+        )
+
+
+def test_extraction_loader_rejects_duplicate_attempt_ids(tmp_path) -> None:
+    source, documents, original_attempts = _write_active_incomplete_snapshot(
+        tmp_path
+    )
+    reviews = _write_active_reviews(tmp_path, documents, original_attempts)
+    output = tmp_path / "active-cumulative-target"
+    pipeline.recanonicalize_extraction_snapshot(
+        source_snapshot=source,
+        documents=documents,
+        output_dir=output,
+        source_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        target_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        manual_reviews=reviews,
+        created_at=ACTIVE_NOW,
+    )
+    attempts_path = output / "attempts.parquet"
+    attempts = pd.read_parquet(attempts_path)
+    duplicate_id = str(attempts.iloc[0]["attempt_id"])
+    attempts = pd.concat([attempts, attempts.iloc[[0]]], ignore_index=True)
+    attempts.to_parquet(attempts_path, index=False)
+    manifest_path = output / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["counts"]["attempts"] = len(attempts)
+    manifest["artifacts"]["attempts"] = pipeline._artifact(
+        attempts_path,
+        attempts,
+    )
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        pipeline.PipelineError,
+        match=rf"duplicate attempt_id.*{duplicate_id}",
+    ):
+        pipeline.load_extraction_snapshot(
+            output,
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
+
+
+def test_recanonicalization_rejects_duplicate_attempts_before_publication(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    source, documents, original_attempts = _write_active_incomplete_snapshot(
+        tmp_path
+    )
+    reviews = _write_active_reviews(tmp_path, documents, original_attempts)
+    output = tmp_path / "duplicate-publication-target"
+    real_build = pipeline.build_recanonicalized_attempts
+
+    def duplicate_build(plan, *, recanonicalized_at):
+        derived = real_build(plan, recanonicalized_at=recanonicalized_at)
+        return pd.concat([derived, derived.iloc[[0]]], ignore_index=True)
+
+    monkeypatch.setattr(
+        pipeline,
+        "build_recanonicalized_attempts",
+        duplicate_build,
+    )
+
+    with pytest.raises(
+        pipeline.PipelineError,
+        match="duplicate attempt_id",
+    ):
+        pipeline.recanonicalize_extraction_snapshot(
+            source_snapshot=source,
+            documents=documents,
+            output_dir=output,
+            source_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+            target_expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+            manual_reviews=reviews,
+            created_at=ACTIVE_NOW,
+        )
+
+    assert not output.exists()
+
+
 def test_active_cumulative_snapshot_is_a_valid_explicit_retry_input(
     tmp_path,
 ) -> None:

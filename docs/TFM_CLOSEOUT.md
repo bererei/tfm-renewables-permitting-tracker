@@ -34,13 +34,14 @@ work listed here may enter the product.
 | Final Corpus Preflight 2022 v2 | Source snapshot reusable; isolated source drift resolved by human decision | Current official source wins for the Final TFM corpus; changed source hash is not automatically reusable; `docs/FINAL_CORPUS_PREFLIGHT_2022_V2.md` preserves the pre-decision audit |
 | Candidate funnel audit | Human-reviewed; R1+R3 approved | R2/R4 remain unimplemented; historical evidence is preserved in `docs/FINAL_CORPUS_CANDIDATE_FUNNEL_AUDIT.md` |
 | Pre-model R1+R3 mitigation | Implemented + tested — pending human review | Policy `binary_named_generation_pre_model_guard_v4`; strict offline P1/P2/P3 model counts 7,223/5,037/2,881; no model or source calls |
-| Period/funnel decision | **P2 SELECTED; MAIN-01 EXECUTED** | Preflight approved and `main-01` completed; `main-02` remains blocked pending human disposition of the failure review |
+| Period/funnel decision | **P2 SELECTED; MAIN-01 CONTRACTUALLY CLOSED** | Preflight, bounded execution, human dispositions, two authorized operational retries and offline idempotent rematerialization completed; `main-02` is not authorized |
 | Holdout exposure provenance | **RESOLVED — 479 development-exposed BOEs versioned** | `docs/HOLDOUT_EXPOSURE_PROVENANCE.md`; P2 exposed: 263; P2 provisionally eligible: 19,226 |
 | Source reliability mitigation | Operationally validated in v2 | Three transient XML failures recovered after one retry; zero exhausted retries |
-| Final P2 extraction `main-01` | **RECANONICALIZED OFFLINE — 2 RETRIES PENDING** | New cumulative snapshot has 497 attempts, 247 current extractions, one rejection, one manual validation and only the two operational review rows |
+| Final P2 extraction `main-01` | **CLOSED — 250 ACCOUNTED; 249 CURRENT; 1 REJECTED; 0 BLOCKERS** | Loader-validated `extraction-main-01-final-v2` has 501 unique attempts; see `docs/FINAL_EXTRACTION_MAIN01_IDEMPOTENCY_FIX.md` |
 | Deterministic `main-01` blocker fix | **IMPLEMENTED + TESTED + COMMITTED** | Four confirmed families corrected without changing extraction identity; offline replay and P2 impact audit in `docs/FINAL_EXTRACTION_MAIN01_BLOCKER_FIX.md` |
-| Explicit error retry tooling | **IMPLEMENTED + TESTED — 2 PENDING; NOT AUTHORIZED** | Dry-run against the cumulative snapshot selects only `BOE-A-2025-19878` and `BOE-B-2024-30150`; zero retries executed |
-| Final `main-01` disposition | **RECORDED + MATERIALIZED** | `BOE-B-2024-46241` is a traceable non-generation rejection; `BOE-B-2026-4032` is rectification-only; see `docs/FINAL_EXTRACTION_MAIN01_RECANONICALIZATION.md` |
+| Explicit error retry tooling | **IMPLEMENTED + TESTED; 2 AUTHORIZED RETRIES COMPLETED** | Only `BOE-A-2025-19878` and `BOE-B-2024-30150` were retried; both succeeded with 3 requests, and no other BOE was executed |
+| Recanonicalization idempotence and attempt uniqueness | **IMPLEMENTED + TESTED; ENFORCED** | Equivalent derivations are reused, conflicting collisions fail closed, loaders/publication reject duplicate `attempt_id`; the invalid historical snapshot is retained and rejected |
+| Final `main-01` disposition | **CLOSED + MATERIALIZED** | One rejection, one rectification-only manual selection, zero operational or semantic blockers; final evidence in `docs/FINAL_EXTRACTION_MAIN01_IDEMPOTENCY_FIX.md` |
 
 The validated application reads only the four contractual Gold tables,
 verifies the expected downstream identity and never reads Silver or executes
@@ -399,24 +400,23 @@ FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW
 → FINAL EXTRACTION PREFLIGHT P2 — COMPLETED
 → RESUME MITIGATION — VALIDATED IN REAL EXECUTION
 → HOLDOUT — 48 BOE SELECTED + VERSIONED; NOT EXECUTED
-→ FINAL P2 MAIN-01 — 250 ACCOUNTED; 247 CURRENT; 2 BLOCKING REVIEW
-→ GEMINI MAIN-01 — EXECUTED; PERSISTED USAGE ESTIMATE USD 2.6577
+→ FINAL P2 MAIN-01 — CONTRACTUALLY CLOSED; 250 ACCOUNTED; 249 CURRENT; 1 REJECTED; 0 BLOCKERS
+→ GEMINI MAIN-01 — EXECUTED; 2 AUTHORIZED OPERATIONAL RETRIES COMPLETED
 → DETERMINISTIC BLOCKER FIX — IMPLEMENTED + TESTED + COMMITTED
 → SEMANTIC DISPOSITION — CLOSED; 46241 REJECTED, 4032 RECTIFICATION-ONLY
-→ EXPLICIT ERROR RETRY — DRY-RUN VALIDATED FOR EXACTLY 2 BOE; NOT AUTHORIZED
-→ CUMULATIVE RECANONICALIZATION — IMPLEMENTED + TESTED + MATERIALIZED OFFLINE
-→ GEMINI RETRIES — 2 PENDING; NOT AUTHORIZED
+→ EXPLICIT ERROR RETRY — EXACTLY 2 BOE COMPLETED; BOTH SUCCESSFUL
+→ CUMULATIVE RECANONICALIZATION — IDEMPOTENT + TESTED + MATERIALIZED OFFLINE
+→ ATTEMPT UNIQUENESS — ENFORCED IN LOADERS AND PUBLICATION
+→ GEMINI RETRIES — CLOSED; NO ADDITIONAL CALLS AUTHORIZED
 → MAIN-02 — NOT AUTHORIZED
-→ NEXT: HUMAN REVIEW + EXPLICIT AUTHORIZATION OF THE 2 OPERATIONAL RETRIES
+→ NEXT: HUMAN REVIEW OF MAIN-01 CLOSURE BEFORE ANY MAIN-02 AUTHORIZATION
 ```
 
 The source, configuration, funnel, corrections and cost evidence pass the P2
 preflight. The holdout and bounded cumulative execution package are versioned
-and tested. The two human decisions are versioned and the active incomplete
-snapshot was recanonicalized homogeneously without model calls at
-`runs/final-tfm-p2-20240101-20260820-v1/extraction-main-01-recanonicalized`.
-The contractual loader verifies its cumulative history, deterministic code
-fingerprint and two remaining operational errors. The retry dry-run selects
-exactly those two BOEs, but Gemini remains unauthorized. Obtain human review
-and explicit retry authorization before executing them; do not execute
-`main-02`.
+and tested. The two human decisions remain versioned. The only two authorized
+operational retries succeeded, and the idempotent offline rematerialization at
+`runs/final-tfm-p2-20240101-20260820-v1/extraction-main-01-final-v2` preserves
+501 unique attempts, 249 current extractions, one rejection and zero blockers.
+The loader and publication gate now enforce attempt uniqueness. The holdout
+remains unexecuted and `main-02` remains unauthorized pending human review.

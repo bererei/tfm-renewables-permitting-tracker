@@ -227,6 +227,9 @@ same commit. Verify documented commands against the real CLI.
   structured output homogeneously into a new cumulative snapshot before
   combining it with new attempts; preserve the original attempts and add zero
   model usage.
+- Require a unique `attempt_id` in every extraction snapshot. Deterministic
+  recanonicalization must be idempotent and fail closed on an inconsistent
+  derived-identity collision.
 - Retry failed model attempts only through explicit BOE selection. Append a
   new attempt and preserve the failed historical attempt unchanged.
 - Prefer offline tests, fixtures, mocks, and previously stored outputs during

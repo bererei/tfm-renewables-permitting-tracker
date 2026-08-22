@@ -1032,6 +1032,13 @@ autorizado o revisión humana. Consulta `run --help` antes de usarlo.
 > revisiones trazables y mantiene como pendientes los errores sin output; no
 > edites ni reemplaces el snapshot de origen.
 
+La recanonicalización acumulativa es idempotente: si una derivación estable ya
+existe y coincide en linaje, configuración, procedencia y contenido semántico,
+reutiliza íntegramente esa fila y conserva sus timestamps. Una colisión del
+mismo `attempt_id` con cualquier campo estable distinto aborta la operación;
+nunca se deduplica silenciosamente. El loader y el gate de publicación exigen
+IDs únicos, y el destino debe seguir siendo una ruta nueva inexistente.
+
 ## 11. Correcciones desde VS Code
 
 El registro vigente es

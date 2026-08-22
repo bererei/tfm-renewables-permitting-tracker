@@ -239,6 +239,7 @@ class RecanonicalizationPlan:
     manually_validated_boe_ids: tuple[str, ...]
     operational_error_boe_ids: tuple[str, ...]
     deterministic_code_sha256: str
+    reused_derived_attempt_count: int
     model_calls: int = 0
 
 
@@ -252,6 +253,8 @@ class RecanonicalizationStageResult(ExtractionStageResult):
     unchanged_record_count: int
     changed_record_count: int
     operational_error_count: int
+    reused_derived_attempt_count: int
+    new_derived_attempt_count: int
     model_calls: int
 
 
@@ -752,6 +755,25 @@ def _validate_resume_manifest(
         )
 
 
+def _validate_unique_attempt_ids(
+    attempts: pd.DataFrame,
+    *,
+    context: str,
+) -> None:
+    """Reject ambiguous attempt history with a bounded diagnostic sample."""
+
+    if "attempt_id" not in attempts.columns or attempts.empty:
+        return
+    attempt_ids = attempts["attempt_id"].astype("string")
+    duplicated = attempt_ids.duplicated(keep=False)
+    if not duplicated.any():
+        return
+    samples = sorted(set(attempt_ids.loc[duplicated].dropna().astype(str)))[:5]
+    raise PipelineError(
+        f"{context} contains duplicate attempt_id values; sample={samples}."
+    )
+
+
 def _validate_resume_attempts(
     attempts: pd.DataFrame,
     documents: pd.DataFrame,
@@ -765,6 +787,7 @@ def _validate_resume_attempts(
         return attempts
     if attempts.columns.duplicated().any():
         raise PipelineError("Resume attempts contain duplicate columns.")
+    _validate_unique_attempt_ids(attempts, context="Resume attempts")
 
     required_text = {
         "attempt_id",
@@ -788,10 +811,6 @@ def _validate_resume_attempts(
         raise PipelineError(
             f"Resume attempts contain incomplete fields: {invalid_fields}."
         )
-
-    attempt_ids = attempts["attempt_id"].astype("string")
-    if attempt_ids.duplicated(keep=False).any():
-        raise PipelineError("Resume attempts contain duplicate attempt_id values.")
 
     identity_columns = {
         "extraction_config_id": expected_extraction_config_id,
@@ -1192,6 +1211,10 @@ def run_extraction_stage(
                 )
 
         all_attempts = load_ai_extraction_attempts(attempt_path)
+        _validate_unique_attempt_ids(
+            all_attempts,
+            context="Extraction publication attempts",
+        )
         if plan.retry_error_document_ids:
             historical_ids = set(plan.attempts["attempt_id"].astype(str))
             persisted_ids = set(all_attempts["attempt_id"].astype(str))
@@ -1356,6 +1379,10 @@ def load_extraction_snapshot(
     queue_path = _verify_artifact(snapshot_dir, manifest, "review_queue")
     documents = prepare_documents(pd.read_parquet(document_path))
     attempts = load_ai_extraction_attempts(attempt_path)
+    _validate_unique_attempt_ids(
+        attempts,
+        context="Extraction snapshot attempts",
+    )
     manual = normalise_manual_reviews(pd.read_parquet(manual_path))
     persisted_current = normalise_ai_extraction_attempts_log(
         pd.read_parquet(current_path)
@@ -1718,6 +1745,97 @@ def _build_active_recanonicalized_attempts(
     )
 
 
+_RECANONICALIZATION_EXECUTION_METADATA = {
+    "extracted_at",
+    "recanonicalized_at",
+    "recanonicalization_source_run",
+}
+
+
+def _scalar_values_equal(left: Any, right: Any) -> bool:
+    try:
+        left_missing = bool(pd.isna(left))
+    except (TypeError, ValueError):
+        left_missing = False
+    try:
+        right_missing = bool(pd.isna(right))
+    except (TypeError, ValueError):
+        right_missing = False
+    if left_missing or right_missing:
+        return left_missing and right_missing
+    try:
+        return bool(left == right)
+    except (TypeError, ValueError):
+        return False
+
+
+def _reuse_equivalent_derived_attempts(
+    existing: pd.DataFrame,
+    candidates: pd.DataFrame,
+) -> tuple[pd.DataFrame, tuple[str, ...]]:
+    """Reuse stable derivations and fail closed on an ID collision."""
+
+    existing = normalise_ai_extraction_attempts_log(existing)
+    candidates = normalise_ai_extraction_attempts_log(candidates)
+    _validate_unique_attempt_ids(
+        existing,
+        context="Recanonicalization source attempts",
+    )
+    _validate_unique_attempt_ids(
+        candidates,
+        context="Recanonicalization derived candidates",
+    )
+    if candidates.empty:
+        return candidates.copy(deep=True), ()
+
+    existing_by_id = {
+        str(row["attempt_id"]): row
+        for _, row in existing.iterrows()
+    }
+    stable_columns = [
+        column
+        for column in dict.fromkeys([
+            *existing.columns.tolist(),
+            *candidates.columns.tolist(),
+        ])
+        if column not in _RECANONICALIZATION_EXECUTION_METADATA
+    ]
+    new_records: list[dict[str, Any]] = []
+    reused_ids: list[str] = []
+    for _, candidate in candidates.iterrows():
+        attempt_id = str(candidate["attempt_id"])
+        persisted = existing_by_id.get(attempt_id)
+        if persisted is None:
+            new_records.append(candidate.to_dict())
+            continue
+        differing = [
+            column
+            for column in stable_columns
+            if not _scalar_values_equal(
+                persisted.get(column, pd.NA),
+                candidate.get(column, pd.NA),
+            )
+        ]
+        if differing:
+            raise PipelineError(
+                "Recanonicalized attempt_id collision is inconsistent: "
+                f"{attempt_id!r} differs in {differing[:5]}."
+            )
+        reused_ids.append(attempt_id)
+
+    if not new_records:
+        return candidates.iloc[0:0].copy(deep=True), tuple(reused_ids)
+    return (
+        normalise_ai_extraction_attempts_log(
+            pd.DataFrame.from_records(
+                new_records,
+                columns=candidates.columns,
+            )
+        ).reset_index(drop=True),
+        tuple(reused_ids),
+    )
+
+
 def plan_recanonicalization_snapshot(
     *,
     source_snapshot: Path,
@@ -1783,11 +1901,11 @@ def plan_recanonicalization_snapshot(
         )
         instant = _normalise_created_at(created_at)
         (
-            derived_attempts,
-            unchanged_count,
-            changed_boe_ids,
+            prospective_derived_attempts,
+            _unchanged_count,
+            prospective_changed_boe_ids,
             failed_boe_ids,
-            recovered_boe_ids,
+            prospective_recovered_boe_ids,
         ) = _build_active_recanonicalized_attempts(
             source=source,
             documents=prepared_documents,
@@ -1796,8 +1914,32 @@ def plan_recanonicalization_snapshot(
             recanonicalized_at=instant,
             deterministic_code_sha256=code_sha256,
         )
+        derived_attempts, reused_attempt_ids = (
+            _reuse_equivalent_derived_attempts(
+                source.attempts,
+                prospective_derived_attempts,
+            )
+        )
+        new_boe_ids = set(
+            derived_attempts["identificador_boe"].astype(str)
+        )
+        changed_boe_ids = tuple(
+            boe_id
+            for boe_id in prospective_changed_boe_ids
+            if boe_id in new_boe_ids
+        )
+        unchanged_count = len(derived_attempts) - len(changed_boe_ids)
+        recovered_boe_ids = tuple(
+            boe_id
+            for boe_id in prospective_recovered_boe_ids
+            if boe_id in new_boe_ids
+        )
         all_attempts = combine_ai_extraction_attempt_frames(
             source.attempts, derived_attempts
+        )
+        _validate_unique_attempt_ids(
+            all_attempts,
+            context="Recanonicalization plan attempts",
         )
         current = select_best_valid_extractions(
             attempts=all_attempts,
@@ -1873,6 +2015,7 @@ def plan_recanonicalization_snapshot(
             manually_validated_boe_ids=manually_validated,
             operational_error_boe_ids=tuple(sorted(operational)),
             deterministic_code_sha256=code_sha256,
+            reused_derived_attempt_count=len(reused_attempt_ids),
         )
 
     if manual_reviews is not None:
@@ -1949,10 +2092,21 @@ def plan_recanonicalization_snapshot(
         manually_validated_boe_ids=(),
         operational_error_boe_ids=(),
         deterministic_code_sha256=code_sha256,
+        reused_derived_attempt_count=0,
     )
 
 
 def _print_recanonicalization_plan(plan: RecanonicalizationPlan) -> None:
+    new_derived_count = (
+        len(plan.derived_attempts)
+        if plan.mode == "active_cumulative"
+        else plan.target_record_count
+    )
+    output_attempt_count = (
+        plan.source_attempt_count + new_derived_count
+        if plan.mode == "active_cumulative"
+        else new_derived_count
+    )
     print(f"mode: {plan.mode}")
     print(f"source records: {plan.source_attempt_count}")
     print(f"precanonical records: {plan.precanonical_record_count}")
@@ -1965,6 +2119,14 @@ def _print_recanonicalization_plan(plan: RecanonicalizationPlan) -> None:
     print(f"human rejected: {len(plan.human_rejected_boe_ids)}")
     print(f"manually validated: {len(plan.manually_validated_boe_ids)}")
     print(f"operational errors preserved: {len(plan.operational_error_boe_ids)}")
+    print(
+        "existing derived attempts reused: "
+        f"{plan.reused_derived_attempt_count}"
+    )
+    print(f"new derived attempts required: {new_derived_count}")
+    print(f"output attempt rows: {output_attempt_count}")
+    print(f"output unique attempt IDs: {output_attempt_count}")
+    print("duplicate attempt IDs: 0")
     print(f"model calls: {plan.model_calls}")
     print(f"deterministic code sha256: {plan.deterministic_code_sha256}")
     print(f"target extraction config: {EXTRACTION_CONFIG_ID}")
@@ -2063,6 +2225,10 @@ def recanonicalize_extraction_snapshot(
         )
         if plan.mode == "active_cumulative"
         else derived_attempts
+    )
+    _validate_unique_attempt_ids(
+        attempts,
+        context="Recanonicalization publication attempts",
     )
     manual_reviews_frame = plan.manual_reviews.copy(deep=True)
     current = select_best_valid_extractions(
@@ -2195,7 +2361,14 @@ def recanonicalize_extraction_snapshot(
                     plan.precanonical_record_count
                 ),
                 "deterministic_preserved": plan.deterministic_record_count,
-                "outputs_replayed_successfully": len(derived_attempts),
+                "outputs_replayed_successfully": (
+                    len(derived_attempts)
+                    + plan.reused_derived_attempt_count
+                ),
+                "derived_attempts_reused": (
+                    plan.reused_derived_attempt_count
+                ),
+                "new_derived_attempts": len(derived_attempts),
                 "outputs_unchanged": plan.unchanged_record_count,
                 "outputs_changed": len(plan.changed_boe_ids),
                 "replay_failures_resolved_by_review": len(
@@ -2260,6 +2433,8 @@ def recanonicalize_extraction_snapshot(
         unchanged_record_count=plan.unchanged_record_count,
         changed_record_count=len(plan.changed_boe_ids),
         operational_error_count=len(plan.operational_error_boe_ids),
+        reused_derived_attempt_count=plan.reused_derived_attempt_count,
+        new_derived_attempt_count=len(derived_attempts),
         model_calls=0,
     )
 
