@@ -80,6 +80,18 @@ def _test_extraction(
     )
 
 
+def _not_relevant_extraction(document: BOESourceDocument) -> BOEProjectExtraction:
+    return BOEProjectExtraction(
+        classification_status=ClassificationStatus.CLASSIFIED,
+        document_scope=DocumentScope.NOT_RELEVANT_FOR_GENERATION_PROJECTS,
+        classification_reason="La fuente no identifica una planta de generación.",
+        publication_events=[],
+        extraction_notes=None,
+        boe_id=document.boe_id,
+        publication_date=document.publication_date,
+    )
+
+
 def _asset(
     ref: str,
     name: str,
@@ -706,6 +718,71 @@ def test_generation_table_header_applies_only_to_its_structured_rows() -> None:
         )
 
 
+def test_shared_generation_list_prefix_is_bounded_to_its_items() -> None:
+    title = (
+        "Anuncio por el que se somete a información pública la solicitud de "
+        "autorización administrativa previa de la línea de evacuación a la "
+        "Subestación Arguineguín."
+    )
+    generation_list = (
+        "varias instalaciones de generación de energía renovable "
+        "(PSF Agueda I, Agueda II, Agueda III, Agueda IV)"
+    )
+    text = (
+        f"La línea permitirá la evacuación de {generation_list}. "
+        "El centro de seccionamiento de las PSF Agueda II y Agueda IV "
+        "conecta con la subestación."
+    )
+    document = _test_document("BOE-B-2024-9915", title, text)
+    extraction = _test_extraction(
+        document.boe_id,
+        [PublicationEvent(
+            generation_assets=[
+                _asset(
+                    f"generation_asset_{index}",
+                    name,
+                    GenerationType.PHOTOVOLTAIC,
+                    name,
+                )
+                for index, name in enumerate(
+                    (
+                        "PSF Agueda I",
+                        "PSF Agueda II",
+                        "PSF Agueda III",
+                        "PSF Agueda IV",
+                    ),
+                    start=1,
+                )
+            ],
+            associated_components=[AssociatedComponent(
+                local_component_ref="component_1",
+                component_type=AssociatedComponentType.POWER_LINE,
+                names_raw=[],
+                description_raw="línea de evacuación a la Subestación Arguineguín",
+                related_generation_asset_refs=[
+                    f"generation_asset_{index}" for index in range(1, 5)
+                ],
+                technical_mentions=[],
+                evidence=title,
+            )],
+            administrative_actions=[_action(
+                AdministrativeActionType.PRIOR_ADMINISTRATIVE_AUTHORIZATION,
+                AdministrativeDecision.SUBMITTED_TO_PUBLIC_INFORMATION,
+                title,
+                ["component_1"],
+            )],
+            event_summary="Información pública de la evacuación de Agueda I-IV.",
+        )],
+    )
+
+    canonical = _canonicalize_test(document, extraction)
+
+    assert [
+        event.generation_assets[0].names_raw[0]
+        for event in canonical.publication_events
+    ] == ["PSF Agueda I", "Agueda II", "Agueda III", "Agueda IV"]
+
+
 def test_generic_infrastructure_table_does_not_create_generation_context() -> None:
     title = "Resolución relativa a infraestructuras eléctricas compartidas."
     text = (
@@ -997,6 +1074,120 @@ def test_public_utility_title_wording_validates_as_specific_action(
         action.action_type
         for action in canonical.publication_events[0].administrative_actions
     ] == [AdministrativeActionType.PUBLIC_UTILITY_DECLARATION]
+
+
+@pytest.mark.parametrize(
+    ("boe_id", "utility_wording"),
+    [
+        ("BOE-B-2024-22754", "reconocimiento de utilidad pública"),
+        ("BOE-B-2024-3263", "declaración en concreto de utilidad pública"),
+        ("BOE-B-2024-41261", "declaración en concreto de utilidad pública"),
+        ("BOE-B-2026-18178", "declaración, en concreto de utilidad pública"),
+    ],
+)
+def test_main02_public_utility_variants_validate_as_specific_action(
+    boe_id: str,
+    utility_wording: str,
+) -> None:
+    title = (
+        "Anuncio por el que se somete a información pública la solicitud de "
+        f"{utility_wording} de la planta fotovoltaica Prueba."
+    )
+    document = _test_document(boe_id, title)
+    extraction = _test_extraction(
+        document.boe_id,
+        [PublicationEvent(
+            generation_assets=[_asset(
+                "generation_asset_1",
+                "Prueba",
+                GenerationType.PHOTOVOLTAIC,
+                title,
+            )],
+            administrative_actions=[_action(
+                AdministrativeActionType.PUBLIC_UTILITY_DECLARATION,
+                AdministrativeDecision.SUBMITTED_TO_PUBLIC_INFORMATION,
+                title,
+                ["event"],
+            )],
+            event_summary="Información pública de la utilidad pública.",
+        )],
+    )
+
+    canonical = _canonicalize_test(document, extraction)
+
+    assert [
+        action.action_type
+        for action in canonical.publication_events[0].administrative_actions
+    ] == [AdministrativeActionType.PUBLIC_UTILITY_DECLARATION]
+
+
+@pytest.mark.parametrize(
+    ("boe_id", "title", "text", "generation_contrast"),
+    [
+        pytest.param(
+            "BOE-B-2024-43565",
+            "Anuncio de corrección de errores. Objeto: implantación de un "
+            "sistema de generación fotovoltaico para suministro "
+            "complementario en la IDAM de Alicante I.",
+            "Corrección de un contrato de obras para el suministro "
+            "complementario de la instalación desaladora.",
+            "Anuncio de corrección de errores de la autorización de la planta "
+            "fotovoltaica Alicante Solar.",
+            id="auxiliary-generation-procurement",
+        ),
+        pytest.param(
+            "BOE-B-2025-7992",
+            "Anuncio por el que se convoca para el levantamiento de actas "
+            "previas a la ocupación por la construcción de infraestructuras "
+            "de evacuación asociadas "
+            "a la instalación de generación de energía eléctrica denominada "
+            "sustitución de tramo de LAMT 15 kV Castillo.",
+            "El objeto es sustituir el tramo de línea entre dos centros de "
+            "distribución.",
+            "Anuncio por el que se convoca para el levantamiento de actas "
+            "previas a la ocupación de la evacuación asociada a la planta "
+            "fotovoltaica FV Castillo.",
+            id="grid-line-replacement",
+        ),
+        pytest.param(
+            "BOE-B-2026-441",
+            "Corrección de errores de la segunda convocatoria de los "
+            "programas para la concesión de ayudas a la repotenciación de "
+            "instalaciones eólicas y minicentrales hidroeléctricas.",
+            "Extracto general de la convocatoria, sin proyecto ni planta "
+            "identificados.",
+            "Corrección de errores de la Resolución por la que se concede una "
+            "ayuda al parque eólico Sierra Norte.",
+            id="generic-grant-call",
+        ),
+    ],
+)
+def test_post_model_non_project_context_preserves_scope_v4_preclassification(
+    boe_id: str,
+    title: str,
+    text: str,
+    generation_contrast: str,
+) -> None:
+    document = _test_document(boe_id, title, text)
+
+    preclassified, adjustments = preclassify_document_without_model(document)
+
+    assert preclassified is None
+    assert adjustments == []
+    validate_extraction_against_document(
+        document=document,
+        extraction=_not_relevant_extraction(document),
+    )
+
+    contrast = _test_document("BOE-B-2026-99999", generation_contrast)
+    with pytest.raises(
+        DocumentExtractionValidationError,
+        match="Posible falso negativo de alcance",
+    ):
+        validate_extraction_against_document(
+            document=contrast,
+            extraction=_not_relevant_extraction(contrast),
+        )
 
 
 def test_water_concession_is_not_prior_authorization() -> None:

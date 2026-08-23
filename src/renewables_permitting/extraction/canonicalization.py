@@ -210,6 +210,81 @@ _GENERATION_DESCRIPTOR_PATTERN = (
 )
 
 
+_BOUNDED_SHARED_GENERATION_LIST_RE = re.compile(
+    r"\b(?:varias\s+)?instalaciones\s+de\s+generaci[oó]n\s+de\s+"
+    r"energ[ií]a\s+renovable\s*\((?P<items>[^()\n]{1,300})\)",
+    re.IGNORECASE,
+)
+_SHARED_GENERATION_PREFIX_RE = re.compile(
+    r"^(?P<prefix>PSF)\s+(?P<name>\S.*)$",
+    re.IGNORECASE,
+)
+
+
+def _bounded_shared_generation_items(source_text: str) -> list[tuple[str, ...]]:
+    """Devuelve listas literales que declaran instalaciones de generación.
+
+    El reconocimiento queda limitado a una gramática local y acotada. No
+    interpreta como plantas listas genéricas de infraestructuras ni propaga el
+    prefijo fuera de los paréntesis que lo comparten.
+    """
+
+    source = _canonical_documentary_text(source_text)
+    lists: list[tuple[str, ...]] = []
+    for match in _BOUNDED_SHARED_GENERATION_LIST_RE.finditer(source):
+        items = tuple(
+            item.strip(" \t\"'«»")
+            for item in re.split(r"\s*[,;]\s*", match.group("items"))
+            if item.strip(" \t\"'«»")
+        )
+        if len(items) >= 2 and _SHARED_GENERATION_PREFIX_RE.fullmatch(items[0]):
+            lists.append(items)
+    return lists
+
+
+def _bounded_shared_generation_name(
+    name: str,
+    *,
+    source_text: str,
+) -> str | None:
+    """Recupera la forma literal de un nombre con prefijo compartido."""
+
+    requested_key = _canonical_documentary_text(name).casefold()
+    matches: set[str] = set()
+    for items in _bounded_shared_generation_items(source_text):
+        prefix_match = _SHARED_GENERATION_PREFIX_RE.fullmatch(items[0])
+        if prefix_match is None:
+            continue
+        prefix = prefix_match.group("prefix")
+        for position, literal_name in enumerate(items):
+            expanded_name = (
+                literal_name if position == 0 else f"{prefix} {literal_name}"
+            )
+            if (
+                _canonical_documentary_text(expanded_name).casefold()
+                == requested_key
+            ):
+                matches.add(literal_name)
+
+    if len(matches) != 1:
+        return None
+    literal_name = next(iter(matches))
+    if _canonical_documentary_text(literal_name).casefold() == requested_key:
+        return None
+    return literal_name
+
+
+def _bounded_generation_list_contains_name(name: str, source_text: str) -> bool:
+    """Comprueba pertenencia literal a una lista acotada de generación."""
+
+    name_key = _canonical_documentary_text(name).casefold()
+    return any(
+        name_key == _canonical_documentary_text(item).casefold()
+        for items in _bounded_shared_generation_items(source_text)
+        for item in items
+    )
+
+
 _COMPONENT_PATTERNS: dict[AssociatedComponentType, str] = {
     AssociatedComponentType.ENERGY_STORAGE: (
         r"(?:m[oó]dulo|sistema|instalaci[oó]n)?\s*(?:de\s+)?"
@@ -624,8 +699,9 @@ _ACTION_PATTERNS: dict[AdministrativeActionType, str] = {
         r"concesi[oó]n\s+para\s+el\s+aprovechamiento"
     ),
     AdministrativeActionType.PUBLIC_UTILITY_DECLARATION: (
-        r"declaraci[oó]n(?:,\s*en\s+concreto,)?\s+de\s+utilidad\s+p[uú]blica|"
-        r"reconocimiento,\s*en\s+concreto,\s+de\s+utilidad\s+p[uú]blica|"
+        r"(?:declaraci[oó]n|reconocimiento)(?:\s*,\s*|\s+)"
+        r"(?:en\s+concreto(?:\s*,\s*|\s+))?"
+        r"de\s+utilidad\s+p[uú]blica|"
         r"\bdup\b"
     ),
     AdministrativeActionType.ENVIRONMENTAL_IMPACT_STATEMENT: (
@@ -1056,6 +1132,17 @@ def _salvage_generation_names(
     names: list[str] = []
     adjustments: list[str] = []
     for name in _deduplicate_strings(asset.names_raw):
+        bounded_name = _bounded_shared_generation_name(
+            name,
+            source_text=source_text,
+        )
+        if bounded_name is not None:
+            names.append(bounded_name)
+            adjustments.append(
+                "Nombre de planta reparado desde una lista acotada con "
+                f"prefijo compartido: {name!r} -> {bounded_name!r}."
+            )
+            continue
         if _documentary_contains(name, source_text):
             names.append(name)
             continue

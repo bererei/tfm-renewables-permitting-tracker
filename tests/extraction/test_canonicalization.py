@@ -2767,6 +2767,80 @@ def test_non_utility_recognition_does_not_create_public_utility_action() -> None
     ]
 
 
+def test_historical_public_utility_request_is_not_republished() -> None:
+    title = (
+        "Corrección de errores de la Resolución por la que se sometió a "
+        "información pública la solicitud de declaración en concreto de "
+        "utilidad pública de la planta fotovoltaica Prueba."
+    )
+    actions, _ = _canonicalize_test_actions(
+        title=title,
+        actions=[_action(
+            AdministrativeActionType.ERROR_CORRECTION,
+            AdministrativeDecision.RECTIFIED,
+            title,
+            ["event"],
+        )],
+    )
+
+    assert [action.action_type for action in actions] == [
+        AdministrativeActionType.ERROR_CORRECTION
+    ]
+
+
+@pytest.mark.parametrize(
+    ("source_text", "unsupported_name"),
+    [
+        pytest.param(
+            "La línea evacúa varias instalaciones de generación de energía "
+            "renovable (PSF Agueda I, Agueda II). El edificio Agueda III "
+            "queda fuera de esa lista.",
+            "PSF Agueda III",
+            id="item-outside-bounded-list",
+        ),
+        pytest.param(
+            "Las infraestructuras de evacuación son (PSF Agueda I, Agueda "
+            "II, Agueda III).",
+            "PSF Agueda III",
+            id="non-generation-infrastructure-list",
+        ),
+        pytest.param(
+            "La línea evacúa varias instalaciones de generación de energía "
+            "renovable (PSF Agueda I, Agueda II).",
+            "PSF Agueda IV",
+            id="name-absent-from-list",
+        ),
+    ],
+)
+def test_shared_generation_prefix_is_not_propagated_outside_bounded_list(
+    source_text: str,
+    unsupported_name: str,
+) -> None:
+    title = "Resolución de autorización administrativa previa de una línea."
+    extraction = _test_extraction(
+        "BOE-B-2024-9916",
+        [PublicationEvent(
+            generation_assets=[_asset(
+                "generation_asset_1",
+                unsupported_name,
+                GenerationType.PHOTOVOLTAIC,
+                unsupported_name,
+            )],
+            administrative_actions=[_authorization_action(title)],
+            event_summary="Actuación relativa a una línea.",
+        )],
+    )
+
+    canonical, adjustments = canonicalize_project_extraction(
+        extraction,
+        source_text=f"{title}\n{source_text}",
+        document_title=title,
+    )
+
+    assert canonical.publication_events == []
+    assert any("Nombre de planta no documental descartado" in item for item in adjustments)
+
+
 @pytest.mark.parametrize(
     "incompatible_decision",
     [

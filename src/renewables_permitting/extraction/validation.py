@@ -6,6 +6,7 @@ from renewables_permitting.extraction.canonicalization import (
     ScopeGuardDecision,
     _GENERATION_DESCRIPTOR_PATTERN,
     _action_types_from_title,
+    _bounded_generation_list_contains_name,
     _canonical_documentary_text,
     _documentary_contains,
     _event_is_integrated,
@@ -46,6 +47,41 @@ _GENERATION_TABLE_HEADER_RE = re.compile(
     r"^denominaci[oó]n$",
     re.IGNORECASE,
 )
+_POST_MODEL_NON_PROJECT_TITLE_PATTERNS = (
+    re.compile(
+        r"\bsistema\s+de\s+generaci[oó]n\s+fotovoltaic[oa]\b"
+        r"[^.;]{0,180}\bsuministro\s+complementario\b"
+        r"[^.;]{0,180}\b(?:idam|desaladora?|desalaci[oó]n)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\binstalaci[oó]n\s+de\s+generaci[oó]n\s+de\s+energ[ií]a\s+"
+        r"el[eé]ctrica\s+denominada\s+sustituci[oó]n\s+de\s+tramo\s+de\s+"
+        r"(?:lamt|lmt|l[ií]nea)\b",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\b(?:segunda\s+)?convocatoria\b[^.;]{0,500}"
+        r"\bprogramas?\b[^.;]{0,500}"
+        r"\brepotenciaci[oó]n\s+de\s+instalaciones\s+e[oó]licas\b"
+        r"[^.;]{0,300}\bminicentrales\s+hidroel[eé]ctricas\b",
+        re.IGNORECASE,
+    ),
+)
+
+
+def _supports_post_model_non_project_scope(document_title: str) -> bool:
+    """Reconoce tres contextos auditados que no constituyen una planta raíz.
+
+    Esta excepción actúa solo al validar un resultado no relevante ya producido
+    por el modelo. No altera la elegibilidad histórica ni el guard pre-modelo.
+    """
+
+    title = _canonical_documentary_text(document_title)
+    return any(
+        pattern.search(title)
+        for pattern in _POST_MODEL_NON_PROJECT_TITLE_PATTERNS
+    )
 
 
 def _generation_table_names(source_text: str) -> set[str]:
@@ -103,6 +139,9 @@ def _generation_name_has_documentary_context(
     ) is not None:
         return True
 
+    if _bounded_generation_list_contains_name(name, source_text):
+        return True
+
     if _find_literal_span(
         source_text,
         anchors=[name],
@@ -138,6 +177,7 @@ def validate_extraction_against_document(
     if (
         scope_decision == ScopeGuardDecision.REQUIRE_PROJECT_REVIEW
         and extraction.document_scope != DocumentScope.GENERATION_PROJECT_SPECIFIC
+        and not _supports_post_model_non_project_scope(document.title)
     ):
         issues.append(
             "Posible falso negativo de alcance: "

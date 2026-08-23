@@ -368,6 +368,9 @@ def _write_active_incomplete_snapshot(
                     "validation_issues_json": json.dumps(["historical"]),
                 })
         record["attempt_id"] = f"active-source-{position}"
+        # El replay debe ser posterior a su intento fuente con independencia
+        # de la fecha real en la que se ejecute la suite.
+        record["extracted_at"] = ACTIVE_NOW.replace(hour=9)
         records.append(record)
     attempts = normalise_ai_extraction_attempts_log(pd.DataFrame(records))
     attempts_path = tmp_path / "active-attempts.parquet"
