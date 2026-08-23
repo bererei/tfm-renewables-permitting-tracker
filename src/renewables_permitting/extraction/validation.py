@@ -47,6 +47,35 @@ _GENERATION_TABLE_HEADER_RE = re.compile(
     r"^denominaci[oó]n$",
     re.IGNORECASE,
 )
+_GENERATION_TABLE_CASE_FILE_RE = re.compile(
+    r"^(?:[A-ZÁÉÍÓÚÜÑ]{1,12}[-/])?\d[\w./-]*"
+    r"(?:\s+\([^)]+\))?$",
+    re.IGNORECASE,
+)
+_NON_GENERATION_TABLE_ROW_RE = re.compile(
+    r"^(?:set\b|subestaci[oó]n\b|laat\b|lat\b|l[ií]nea\b)",
+    re.IGNORECASE,
+)
+_STANDALONE_GRID_PROJECT_RE = re.compile(
+    r"\b(?:proyecto\s+de\s+)?instalaci[oó]n\s+el[eé]ctrica\b"
+    r"[^.]{0,300}\b(?:laat|lat|set|subestaci[oó]n)\b",
+    re.IGNORECASE,
+)
+_BOUNDED_GENERATION_ROOT_RE = re.compile(
+    r"\b(?:planta|parque|central|psfv|pfv|fv|fotovoltaic[ao]s?|solar|"
+    r"e[oó]lic[ao]s?|hidroel[eé]ctric[ao]s?|termosolar|biomasa|biog[aá]s|"
+    r"generaci[oó]n\s+de\s+energ[ií]a\s+el[eé]ctrica)\b",
+    re.IGNORECASE,
+)
+_AUXILIARY_IRRIGATION_PROJECT_RE = re.compile(
+    r"\bproyecto\s+(?:de\s+(?:optimizaci[oó]n\s+energ[eé]tica|"
+    r"modernizaci[oó]n\s+de\s+regad[ií]os?)|para\s+la\s+mejora\s+de\s+"
+    r"la\s+eficiencia\s+energ[eé]tica)\b"
+    r"(?=[^.]{0,500}\binstalaci[oó]n\s+fotovoltaica\b)"
+    r"(?=[^.]{0,500}\b(?:equipos?\s+electromec[aá]nicos?\s+en\s+"
+    r"bombeos?|comunidad\s+de\s+regantes|regad[ií]os?)\b)",
+    re.IGNORECASE,
+)
 _POST_MODEL_NON_PROJECT_TITLE_PATTERNS = (
     re.compile(
         r"\bsistema\s+de\s+generaci[oó]n\s+fotovoltaic[oa]\b"
@@ -71,16 +100,26 @@ _POST_MODEL_NON_PROJECT_TITLE_PATTERNS = (
 
 
 def _supports_post_model_non_project_scope(document_title: str) -> bool:
-    """Reconoce tres contextos auditados que no constituyen una planta raíz.
+    """Reconoce contextos auditados que no constituyen una planta raíz.
 
     Esta excepción actúa solo al validar un resultado no relevante ya producido
     por el modelo. No altera la elegibilidad histórica ni el guard pre-modelo.
     """
 
     title = _canonical_documentary_text(document_title)
-    return any(
+    known_non_project = any(
         pattern.search(title)
         for pattern in _POST_MODEL_NON_PROJECT_TITLE_PATTERNS
+    )
+    embedded_generation_substring = (
+        _STANDALONE_GRID_PROJECT_RE.search(title) is not None
+        and _BOUNDED_GENERATION_ROOT_RE.search(title) is None
+    )
+    auxiliary_irrigation = _AUXILIARY_IRRIGATION_PROJECT_RE.search(title)
+    return bool(
+        known_non_project
+        or embedded_generation_substring
+        or auxiliary_irrigation
     )
 
 
@@ -98,19 +137,34 @@ def _generation_table_names(source_text: str) -> set[str]:
             continue
         if "expediente" not in lines[index + 1].casefold():
             continue
-        if lines[index + 2].casefold() != "promotor":
-            continue
         local_context = " ".join(lines[max(0, index - 2):index])
         if not _GENERATION_TABLE_CONTEXT_RE.search(local_context):
             continue
 
-        row_index = index + 3
-        while row_index + 2 < len(lines):
+        has_promoter = (
+            index + 2 < len(lines)
+            and lines[index + 2].casefold() == "promotor"
+        )
+        row_width = 3 if has_promoter else 2
+        row_index = index + row_width
+        while row_index + 1 < len(lines):
             expediente = lines[row_index + 1]
-            if not re.search(r"\d", expediente):
+            valid_expediente = (
+                re.search(r"\d", expediente) is not None
+                if has_promoter
+                else (
+                    _GENERATION_TABLE_CASE_FILE_RE.fullmatch(expediente)
+                    is not None
+                )
+            )
+            if not valid_expediente:
                 break
-            names.add(lines[row_index].casefold())
-            row_index += 3
+            if has_promoter and row_index + 2 >= len(lines):
+                break
+            name = lines[row_index]
+            if not _NON_GENERATION_TABLE_ROW_RE.search(name):
+                names.add(name.casefold())
+            row_index += row_width
     return names
 
 

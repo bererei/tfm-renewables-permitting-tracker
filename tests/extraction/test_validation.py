@@ -718,6 +718,137 @@ def test_generation_table_header_applies_only_to_its_structured_rows() -> None:
         )
 
 
+def test_two_column_generation_table_recovers_only_its_eight_plant_rows() -> None:
+    title = "Resolución relativa a una evacuación compartida."
+    table_intro = (
+        "La infraestructura de evacuación es compartida con varias "
+        "instalaciones de generación, que son objeto de proyecto y "
+        "tramitación independiente. Se detalla en la tabla adjunta:"
+    )
+    names_and_types = (
+        ("HSF Sol Morón", GenerationType.PHOTOVOLTAIC),
+        ("HSF Las Encarnaciones", GenerationType.PHOTOVOLTAIC),
+        ("PE Las Hazas", GenerationType.WIND),
+        ("PE Josmanil", GenerationType.WIND),
+        ("PE Las Cabreras", GenerationType.WIND),
+        ("PE Villanueva 2", GenerationType.WIND),
+        ("PE Villanueva 1", GenerationType.WIND),
+        ("PE Cortijo Nuevo", GenerationType.WIND),
+    )
+    rows = "\n".join(
+        f"{name}\n{280_440 + index}"
+        + (
+            " (Delegación Territorial de Energía en Sevilla)"
+            if index == 1
+            else ""
+        )
+        for index, (name, _) in enumerate(names_and_types, start=1)
+    )
+    text = (
+        f"{table_intro}\nDENOMINACIÓN\nN.º DE EXPEDIENTE\n{rows}\n"
+        "Las características de la SET Torreluenga se describen después."
+    )
+    document = _test_document("BOE-B-2024-3861", title, text)
+    extraction = _test_extraction(
+        document.boe_id,
+        [
+            PublicationEvent(
+                generation_assets=[_asset(
+                    "generation_asset_1",
+                    name,
+                    generation_type,
+                    name,
+                )],
+                associated_components=[AssociatedComponent(
+                    local_component_ref="component_1",
+                    component_type=AssociatedComponentType.EVACUATION_SYSTEM,
+                    names_raw=["SET Torreluenga"],
+                    description_raw=None,
+                    related_generation_asset_refs=["generation_asset_1"],
+                    technical_mentions=[],
+                    evidence="SET Torreluenga",
+                )],
+                administrative_actions=[_action(
+                    AdministrativeActionType.OTHER,
+                    AdministrativeDecision.OTHER,
+                    table_intro,
+                    ["component_1"],
+                )],
+                event_summary=f"Actuación compartida relativa a {name}.",
+            )
+            for name, generation_type in names_and_types
+        ],
+    )
+
+    validate_extraction_against_document(
+        document=document,
+        extraction=extraction,
+    )
+
+    infrastructure_as_root = _test_extraction(
+        document.boe_id,
+        [PublicationEvent(
+            generation_assets=[_asset(
+                "generation_asset_1",
+                "SET Torreluenga",
+                GenerationType.PHOTOVOLTAIC,
+                "SET Torreluenga",
+            )],
+            administrative_actions=[_action(
+                AdministrativeActionType.OTHER,
+                AdministrativeDecision.OTHER,
+                title,
+                ["event"],
+            )],
+            event_summary="Actuación relativa a la subestación.",
+        )],
+    )
+    with pytest.raises(
+        DocumentExtractionValidationError,
+        match="no identifica la denominación como planta de generación",
+    ):
+        validate_extraction_against_document(
+            document=document,
+            extraction=infrastructure_as_root,
+        )
+
+
+def test_generic_two_column_table_does_not_create_generation_context() -> None:
+    title = "Resolución relativa a infraestructuras eléctricas compartidas."
+    text = (
+        "Las infraestructuras eléctricas se detallan en la tabla adjunta:\n"
+        "DENOMINACIÓN\nN.º DE EXPEDIENTE\nSUBESTACIÓN NORTE\n289.401"
+    )
+    document = _test_document("BOE-B-2024-10073", title, text)
+    extraction = _test_extraction(
+        document.boe_id,
+        [PublicationEvent(
+            generation_assets=[_asset(
+                "generation_asset_1",
+                "SUBESTACIÓN NORTE",
+                GenerationType.PHOTOVOLTAIC,
+                "SUBESTACIÓN NORTE",
+            )],
+            administrative_actions=[_action(
+                AdministrativeActionType.OTHER,
+                AdministrativeDecision.OTHER,
+                title,
+                ["event"],
+            )],
+            event_summary="Actuación relativa a la subestación.",
+        )],
+    )
+
+    with pytest.raises(
+        DocumentExtractionValidationError,
+        match="no identifica la denominación como planta de generación",
+    ):
+        validate_extraction_against_document(
+            document=document,
+            extraction=extraction,
+        )
+
+
 def test_shared_generation_list_prefix_is_bounded_to_its_items() -> None:
     title = (
         "Anuncio por el que se somete a información pública la solicitud de "
@@ -1160,6 +1291,39 @@ def test_main02_public_utility_variants_validate_as_specific_action(
             "ayuda al parque eólico Sierra Norte.",
             id="generic-grant-call",
         ),
+        pytest.param(
+            "BOE-B-2024-45427",
+            "Resolución por la que se declara el desistimiento y archivo de "
+            "la declaración de utilidad pública del proyecto de instalación "
+            "eléctrica LAAT 220 kV SET Guadalsolar - SET Mirabal 220 kV.",
+            "Guadalsolar Uno, S.L. promovió la línea entre ambas "
+            "subestaciones.",
+            "Resolución por la que se archiva la declaración de utilidad "
+            "pública de la LAAT de evacuación de la planta solar Guadalsolar.",
+            id="grid-proper-name-generation-substring",
+        ),
+        pytest.param(
+            "BOE-B-2025-26539",
+            "Resolución por la que se somete a información pública el Proyecto "
+            "de Optimización Energética mediante Instalación Fotovoltaica y "
+            "Sustitución de Equipos Electromecánicos en Bombeos de una "
+            "comunidad de regantes.",
+            "La instalación es auxiliar a los bombeos del proyecto de regadío.",
+            "Resolución por la que se somete a información pública la planta "
+            "fotovoltaica Rincón del Moro para autoconsumo industrial.",
+            id="auxiliary-irrigation-photovoltaic",
+        ),
+        pytest.param(
+            "BOE-B-2025-16990",
+            "Resolución por la que se somete a información pública el Proyecto "
+            "para la mejora de la eficiencia energética mediante balsa de "
+            "acumulación e instalación fotovoltaica en una comunidad de "
+            "regantes.",
+            "La instalación sirve al proyecto de regadío.",
+            "Resolución por la que se somete a información pública la planta "
+            "fotovoltaica Trasvase Solar.",
+            id="auxiliary-irrigation-energy-efficiency",
+        ),
     ],
 )
 def test_post_model_non_project_context_preserves_scope_v4_preclassification(
@@ -1187,6 +1351,34 @@ def test_post_model_non_project_context_preserves_scope_v4_preclassification(
         validate_extraction_against_document(
             document=contrast,
             extraction=_not_relevant_extraction(contrast),
+        )
+
+
+@pytest.mark.parametrize(
+    "title",
+    [
+        "Resolución por la que se otorga autorización administrativa previa "
+        "a la planta solar fotovoltaica Solar Uno.",
+        "Resolución por la que se otorga autorización administrativa previa "
+        "al parque solar Solar Dos.",
+        "Resolución por la que se otorga autorización administrativa previa "
+        "al parque eólico Viento Norte.",
+        "Resolución por la que se otorga autorización administrativa previa "
+        "a la hibridación fotovoltaica de la planta Río.",
+    ],
+)
+def test_post_model_exceptions_do_not_hide_named_generation_projects(
+    title: str,
+) -> None:
+    document = _test_document("BOE-B-2026-99998", title)
+
+    with pytest.raises(
+        DocumentExtractionValidationError,
+        match="Posible falso negativo de alcance",
+    ):
+        validate_extraction_against_document(
+            document=document,
+            extraction=_not_relevant_extraction(document),
         )
 
 
