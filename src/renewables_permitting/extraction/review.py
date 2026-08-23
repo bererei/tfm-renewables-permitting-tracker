@@ -10,7 +10,7 @@ from uuid import uuid4
 import pandas as pd
 
 from renewables_permitting.extraction.canonicalization import (
-    canonicalize_project_extraction,
+    canonicalize_reviewed_project_extraction,
 )
 from renewables_permitting.extraction.config import (
     AI_MODEL_NAME,
@@ -809,7 +809,7 @@ def _validate_manual_reviews(
                 str(corrected_json)
             )
             document = build_source_document(source_row)
-            extraction, _ = canonicalize_project_extraction(
+            extraction, _ = canonicalize_reviewed_project_extraction(
                 extraction,
                 source_text=f"{document.title}\n{document.text}",
                 document_title=document.title,

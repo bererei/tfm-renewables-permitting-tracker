@@ -24,6 +24,7 @@ from renewables_permitting.extraction.models import (
     AdministrativeAction,
     AdministrativeActionType,
     AdministrativeDecision,
+    AssociatedComponent,
     BOEProjectExtraction,
     BOESourceDocument,
     ClassificationStatus,
@@ -409,6 +410,86 @@ def _linked_manual_case(
     return source_df, attempts, reviews, extraction
 
 
+def _reviewed_component_case(
+    *,
+    targets: list[str] | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, BOEProjectExtraction]:
+    boe_id = "BOE-B-2026-19999"
+    title = (
+        "Anuncio por el que se somete a información pública la solicitud de "
+        "autorización administrativa previa de la infraestructura de "
+        "evacuación de la planta fotovoltaica Aurora."
+    )
+    line_evidence = (
+        "La línea eléctrica Norte es infraestructura de evacuación de Aurora."
+    )
+    substation_evidence = (
+        "La subestación Aurora es infraestructura de evacuación de Aurora."
+    )
+    text = "\n".join([title, line_evidence, substation_evidence])
+    document = _test_document(boe_id, title, text)
+    extraction = _test_extraction(
+        boe_id,
+        [PublicationEvent(
+            generation_assets=[_asset(
+                "generation_asset_1",
+                "Aurora",
+                GenerationType.PHOTOVOLTAIC,
+                title,
+            )],
+            associated_components=[
+                AssociatedComponent(
+                    local_component_ref="component_1",
+                    component_type="sistema_evacuacion",
+                    names_raw=["Línea eléctrica Norte"],
+                    description_raw="infraestructura de evacuación",
+                    related_generation_asset_refs=["generation_asset_1"],
+                    technical_mentions=[],
+                    evidence=line_evidence,
+                ),
+                AssociatedComponent(
+                    local_component_ref="component_2",
+                    component_type="sistema_evacuacion",
+                    names_raw=["Subestación Aurora"],
+                    description_raw="infraestructura de evacuación",
+                    related_generation_asset_refs=["generation_asset_1"],
+                    technical_mentions=[],
+                    evidence=substation_evidence,
+                ),
+            ],
+            administrative_actions=[_action(
+                AdministrativeActionType.PRIOR_ADMINISTRATIVE_AUTHORIZATION,
+                AdministrativeDecision.SUBMITTED_TO_PUBLIC_INFORMATION,
+                title,
+                ["component_1", "component_2"] if targets is None else targets,
+            )],
+            event_summary="Información pública de Aurora y su evacuación.",
+        )],
+    )
+    source_df = pd.DataFrame([{
+        "identificador": document.boe_id,
+        "fecha_publicacion": pd.Timestamp(document.publication_date),
+        "titulo": document.title,
+        "texto_limpio": document.text,
+        "source_document_sha256": document.source_document_sha256,
+    }])
+    attempts = pd.DataFrame([_attempt(
+        attempt_id="automatic-components",
+        extraction=extraction,
+        source_hash=document.source_document_sha256,
+        extracted_at="2026-01-01T00:00:00Z",
+    )])
+    reviews = pd.DataFrame([_manual_review(
+        review_id="manual-components",
+        extraction=extraction,
+        source_hash=document.source_document_sha256,
+        reviewed_at="2026-01-02T00:00:00Z",
+        review_status="manually_validated",
+        source_attempt_id="automatic-components",
+    )])
+    return source_df, attempts, reviews, extraction
+
+
 def test_column_contracts_are_exact() -> None:
     assert AI_EXTRACTION_LOG_COLUMNS == EXPECTED_AI_EXTRACTION_LOG_COLUMNS
     assert REVIEW_QUEUE_COLUMNS == EXPECTED_REVIEW_QUEUE_COLUMNS
@@ -763,6 +844,134 @@ def test_manual_validation_precedes_automatic_and_outputs_valid_contract() -> No
     pd.testing.assert_frame_equal(attempts, attempts_snapshot)
     pd.testing.assert_frame_equal(source_df, sources_snapshot)
     pd.testing.assert_frame_equal(manual_reviews, reviews_snapshot)
+
+
+def test_manual_review_preserves_explicit_component_target() -> None:
+    source_df, attempts, reviews, _ = _reviewed_component_case()
+
+    selected = select_best_valid_extractions(
+        attempts=attempts,
+        source_df=source_df,
+        manual_reviews=reviews,
+    )
+
+    extraction = BOEProjectExtraction.model_validate_json(
+        str(selected.iloc[0]["extraction_json"])
+    )
+    assert extraction.publication_events[0].administrative_actions[0].targets == [
+        "component_1",
+        "component_2",
+    ]
+
+
+def test_manual_review_preserves_explicit_component_separation() -> None:
+    source_df, attempts, reviews, _ = _reviewed_component_case()
+
+    selected = select_best_valid_extractions(
+        attempts=attempts,
+        source_df=source_df,
+        manual_reviews=reviews,
+    )
+
+    extraction = BOEProjectExtraction.model_validate_json(
+        str(selected.iloc[0]["extraction_json"])
+    )
+    components = extraction.publication_events[0].associated_components
+    assert [component.local_component_ref for component in components] == [
+        "component_1",
+        "component_2",
+    ]
+    assert [component.names_raw for component in components] == [
+        ["Línea eléctrica Norte"],
+        ["Subestación Aurora"],
+    ]
+
+
+def test_automatic_canonicalization_still_infers_missing_target() -> None:
+    source_df, _, _, extraction = _reviewed_component_case(targets=[])
+    source = source_df.iloc[0]
+
+    canonical, _ = canonicalize_project_extraction(
+        extraction,
+        source_text=f"{source['titulo']}\n{source['texto_limpio']}",
+        document_title=str(source["titulo"]),
+    )
+
+    targets = canonical.publication_events[0].administrative_actions[0].targets
+    assert targets
+    assert targets == ["component_1"]
+
+
+def test_automatic_canonicalization_still_merges_auxiliary_components() -> None:
+    source_df, _, _, extraction = _reviewed_component_case()
+    source = source_df.iloc[0]
+
+    canonical, _ = canonicalize_project_extraction(
+        extraction,
+        source_text=f"{source['titulo']}\n{source['texto_limpio']}",
+        document_title=str(source["titulo"]),
+    )
+
+    components = canonical.publication_events[0].associated_components
+    assert len(components) == 1
+    assert components[0].local_component_ref == "component_1"
+    assert components[0].names_raw == [
+        "Línea eléctrica Norte",
+        "Subestación Aurora",
+    ]
+
+
+def test_manual_review_rejects_invalid_explicit_target() -> None:
+    source_df, attempts, reviews, extraction = _reviewed_component_case()
+    invalid = extraction.model_copy(deep=True)
+    invalid.publication_events[0].administrative_actions[0].targets = [
+        "component_99"
+    ]
+    reviews.loc[0, "corrected_extraction_json"] = invalid.model_dump_json()
+
+    with pytest.raises(ValidationError, match="targets inexistentes"):
+        select_best_valid_extractions(
+            attempts=attempts,
+            source_df=source_df,
+            manual_reviews=reviews,
+        )
+
+
+def test_manual_review_rejects_component_without_generation_lineage() -> None:
+    source_df, attempts, reviews, extraction = _reviewed_component_case()
+    incomplete = extraction.model_copy(deep=True)
+    incomplete.publication_events[0].associated_components[
+        1
+    ].related_generation_asset_refs = []
+    reviews.loc[0, "corrected_extraction_json"] = incomplete.model_dump_json()
+
+    with pytest.raises(ValueError, match="vinculado a ninguna planta"):
+        select_best_valid_extractions(
+            attempts=attempts,
+            source_df=source_df,
+            manual_reviews=reviews,
+        )
+
+
+def test_manual_review_semantics_are_idempotent() -> None:
+    source_df, attempts, reviews, _ = _reviewed_component_case()
+
+    first = _validate_manual_reviews(reviews, attempts, source_df)
+    second = _validate_manual_reviews(first, attempts, source_df)
+
+    assert first.loc[0, "corrected_extraction_json"] == second.loc[
+        0, "corrected_extraction_json"
+    ]
+    assert first.loc[0, "manual_review_id"] == second.loc[0, "manual_review_id"]
+    extraction = BOEProjectExtraction.model_validate_json(
+        str(second.loc[0, "corrected_extraction_json"])
+    )
+    event = extraction.publication_events[0]
+    assert len(event.associated_components) == 2
+    assert event.administrative_actions[0].targets == [
+        "component_1",
+        "component_2",
+    ]
 
 
 def test_manual_selection_preserves_dtypes_without_concat_future_warning() -> None:

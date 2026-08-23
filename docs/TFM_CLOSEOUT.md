@@ -34,13 +34,13 @@ work listed here may enter the product.
 | Final Corpus Preflight 2022 v2 | Source snapshot reusable; isolated source drift resolved by human decision | Current official source wins for the Final TFM corpus; changed source hash is not automatically reusable; `docs/FINAL_CORPUS_PREFLIGHT_2022_V2.md` preserves the pre-decision audit |
 | Candidate funnel audit | Human-reviewed; R1+R3 approved | R2/R4 remain unimplemented; historical evidence is preserved in `docs/FINAL_CORPUS_CANDIDATE_FUNNEL_AUDIT.md` |
 | Pre-model R1+R3 mitigation | Implemented + tested — pending human review | Policy `binary_named_generation_pre_model_guard_v4`; strict offline P1/P2/P3 model counts 7,223/5,037/2,881; no model or source calls |
-| Period/funnel decision | **P2 SELECTED — CONTINUE CURRENT P2 EXTRACTION** | The anchor/backfill pivot is closed for this TFM; `main-04` remains unauthorized pending `main-03` closure |
+| Period/funnel decision | **P2 SELECTED — CONTINUE CURRENT P2 EXTRACTION** | The anchor/backfill pivot is closed for this TFM; `main-04` remains unauthorized |
 | Anchor + historical backfill audit | **COMPLETED — CONTINUE P2** | No anchor/history implementation enters this TFM; see `docs/FINAL_CORPUS_ANCHOR_BACKFILL_AUDIT.md` |
 | Holdout exposure provenance | **RESOLVED — 479 development-exposed BOEs versioned** | `docs/HOLDOUT_EXPOSURE_PROVENANCE.md`; P2 exposed: 263; P2 provisionally eligible: 19,226 |
 | Source reliability mitigation | Operationally validated in v2 | Three transient XML failures recovered after one retry; zero exhausted retries |
 | Final P2 extraction `main-01` | **CLOSED — 250 ACCOUNTED; 249 CURRENT; 1 REJECTED; 0 BLOCKERS** | Loader-validated `extraction-main-01-final-v2` has 501 unique attempts; see `docs/FINAL_EXTRACTION_MAIN01_IDEMPOTENCY_FIX.md` |
 | Final P2 extraction `main-02` | **CLOSED — 500 ACCOUNTED; 499 CURRENT; 1 REJECTED; 0 BLOCKERS** | Loader-validated `extraction-main-02-final`; eight deterministic blockers were resolved offline and the one isolated operational retry completed; cumulative `main-01` + `main-02` model cost USD 5.9837646; see `docs/FINAL_EXTRACTION_MAIN02_BLOCKER_FIX.md` |
-| Final P2 extraction `main-03` | **HUMAN DECISION RECORDED — PIPELINE PRESERVATION BLOCKER** | The offline snapshot is loader-valid, but current canonicalization merges the two approved infrastructure scopes and restores `event` targets for the first two events; it is not an accepted candidate. Two operational retries remain unauthorized; see `docs/FINAL_EXTRACTION_MAIN03_DISPOSITION.md` |
+| Final P2 extraction `main-03` | **SEMANTICALLY CLOSED — 750 ACCOUNTED; 747 CURRENT; 1 REJECTED; 2 OPERATIONAL BLOCKERS** | The approved `BOE-B-2024-3861` semantics are preserved in loader-valid `extraction-main-03-recanonicalized-v2`; semantic blockers are zero and the two operational retries remain unauthorized; see `docs/FINAL_EXTRACTION_MAIN03_REVIEW_PRECEDENCE_FIX.md` |
 | Deterministic `main-02` blocker fix | **CLOSED** | Eight semantic blockers resolved offline with unchanged extraction identity; the separate operational retry also completed |
 | Deterministic `main-01` blocker fix | **IMPLEMENTED + TESTED + COMMITTED** | Four confirmed families corrected without changing extraction identity; offline replay and P2 impact audit in `docs/FINAL_EXTRACTION_MAIN01_BLOCKER_FIX.md` |
 | Explicit error retry tooling | **IMPLEMENTED + TESTED; NO FURTHER GEMINI CALLS AUTHORIZED** | The two `main-01` retries and the separate `main-02` retry completed; the two `main-03` candidates remain unauthorized |
@@ -419,15 +419,17 @@ FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW
 → FINAL P2 MAIN-03 — EXECUTED; 245 SUCCESS; 5 BLOCKERS
 → MAIN-03 COST — USD 3.2474835; CUMULATIVE MODEL COST — USD 9.2312481
 → MAIN-03 FAILURE REVIEW — SYSTEMIC VALIDATION BUG AND HUMAN DISPOSITION REQUIRED
-→ MAIN-03 DETERMINISTIC FIX — IMPLEMENTED + 1,144 TESTS PASS
-→ MAIN-03 TARGET DECISION — BOE-B-2024-3861 PENDING; SNAPSHOT NOT PUBLISHED
+→ MAIN-03 DETERMINISTIC + REVIEW PRECEDENCE FIXES — IMPLEMENTED + 1,151 TESTS PASS
+→ MAIN-03 TARGET DECISION — BOE-B-2024-3861 PRESERVED + VALIDATED
+→ MAIN-03 REVIEW PRECEDENCE FIX — IMPLEMENTED + TESTED
+→ MAIN-03 OFFLINE SNAPSHOT V2 — 750 ACCOUNTED; 747 CURRENT; 1 REJECTED; 2 OPERATIONAL BLOCKERS
 → MAIN-03 OPERATIONAL RETRIES — 2 CANDIDATES; NOT AUTHORIZED
 → ANCHOR + HISTORICAL BACKFILL AUDIT — COMPLETED; CONTINUE P2
 → CORPUS PIVOT — CLOSED FOR THIS TFM
 → GEMINI — NO FURTHER CALLS AUTHORIZED
 → MAIN-04 — NOT AUTHORIZED
 → HOLDOUT — NOT EXECUTED
-→ NEXT: HUMAN BOE-B-2024-3861 TARGET DISPOSITION
+→ NEXT: HUMAN REVIEW OF MAIN-03 PRECEDENCE FIX AND V2 SNAPSHOT
 ```
 
 The source, configuration, funnel, corrections and cost evidence pass the P2
@@ -440,13 +442,14 @@ idempotent offline rematerialization at
 The loader and publication gate now enforce attempt uniqueness. The cumulative
 offline `main-02` result is closed with 500 documents accounted, 499 current
 extractions, one inherited rejection and zero blockers. `main-03` executed 250
-new documents: 245 succeeded and five entered blocking review. The directed
-failure review identifies two safe operational retries, two deterministic
-false blockers and one structured timeout that requires a bounded parser fix
-and human target disposition. The holdout remains unexecuted and `main-04`
-remains unauthorized. The offline anchor/backfill decision is to continue P2
-and not implement the project-centric pivot in this TFM. The three deterministic
-`main-03` outputs now replay successfully, but no new snapshot was published:
-`BOE-B-2024-3861` still requires a human decision on the representation of its
-shared infrastructure and targets. The two operational retries remain separate
-and unauthorized.
+new documents: 245 succeeded and five entered blocking review. Two
+deterministic false blockers replay as non-relevant and the approved
+`BOE-B-2024-3861` review now survives canonicalization without changing its
+component scopes or targets. The loader-valid cumulative snapshot
+`extraction-main-03-recanonicalized-v2` accounts for 750 documents, with 747
+current extractions, one inherited rejection, zero semantic blockers and two
+operational blockers. The operational retries for `BOE-B-2025-41490` and
+`BOE-B-2025-45035` remain separate and unauthorized. The holdout remains
+unexecuted and `main-04` remains unauthorized. The offline anchor/backfill
+decision is to continue P2 and not implement the project-centric pivot in this
+TFM.

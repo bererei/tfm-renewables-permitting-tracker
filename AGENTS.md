@@ -156,6 +156,9 @@ same commit. Verify documented commands against the real CLI.
 
 - Manual corrections must be stored as versioned, traceable inputs or
   overrides.
+- Explicit manually reviewed semantic decisions must not be overwritten by
+  later deterministic inference; reviews remain subject to schema,
+  documentary and domain validation.
 - Never edit generated Parquet files manually.
 - Preserve the original extraction when applying a correction.
 - Distinguish an isolated data defect from a systematic defect before choosing

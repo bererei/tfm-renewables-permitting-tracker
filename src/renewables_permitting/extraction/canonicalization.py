@@ -1403,8 +1403,21 @@ def _repair_component(
 
 def _merge_auxiliary_components(
     components: list[AssociatedComponent],
+    *,
+    preserve_distinct: bool = False,
 ) -> tuple[list[AssociatedComponent], dict[str, str], list[str]]:
     """Agrega línea/subestación/conexión en un único sistema de evacuación."""
+
+    if preserve_distinct:
+        preserved: list[AssociatedComponent] = []
+        mapping: dict[str, str] = {}
+        for index, component in enumerate(components, start=1):
+            new_ref = f"component_{index}"
+            mapping[component.local_component_ref] = new_ref
+            preserved.append(component.model_copy(update={
+                "local_component_ref": new_ref,
+            }))
+        return preserved, mapping, []
 
     storage: list[AssociatedComponent] = []
     auxiliary: list[AssociatedComponent] = []
@@ -1471,10 +1484,27 @@ def _infer_component_links(
     event: PublicationEvent,
     *,
     source_text: str,
+    preserve_existing: bool = False,
 ) -> tuple[PublicationEvent, list[str]]:
     event = event.model_copy(deep=True)
     all_refs = [asset.local_generation_asset_ref for asset in event.generation_assets]
     adjustments: list[str] = []
+    if preserve_existing:
+        valid_refs = set(all_refs)
+        for component in event.associated_components:
+            if not component.related_generation_asset_refs:
+                raise ValueError(
+                    f"{component.local_component_ref}: no está vinculado a "
+                    "ninguna planta en la revisión manual."
+                )
+            missing = set(component.related_generation_asset_refs) - valid_refs
+            if missing:
+                raise ValueError(
+                    f"{component.local_component_ref}: referencias de planta "
+                    f"inexistentes en la revisión manual: {sorted(missing)}."
+                )
+        return event, adjustments
+
     hybrid_context = bool(re.search(
         r"h[ií]brid|incorporaci[oó]n\s+de\s+almacenamiento",
         _canonical_documentary_text(source_text).casefold(),
@@ -1571,6 +1601,7 @@ def _infer_action_targets(
     *,
     action: AdministrativeAction,
     context: str,
+    preserve_existing: bool = False,
 ) -> list[str]:
     generation_refs = _generation_refs_mentioned(event, context, direct_only=True)
     component_refs = _component_refs_mentioned(event, context)
@@ -1579,6 +1610,15 @@ def _infer_action_targets(
         [asset.local_generation_asset_ref for asset in event.generation_assets]
         + [component.local_component_ref for component in event.associated_components]
     )
+
+    if preserve_existing and action.targets:
+        missing = set(action.targets) - {"event"} - set(all_entities)
+        if missing:
+            raise ValueError(
+                "La revisión manual contiene targets inexistentes: "
+                f"{sorted(missing)}."
+            )
+        return _canonicalize_refs(action.targets)
 
     # Si la cita enumera todos los elementos del proyecto, «event» expresa la
     # semántica con menor ambigüedad y evita duplicar la lista.
@@ -1604,6 +1644,7 @@ def _canonicalize_actions(
     *,
     source_text: str,
     document_title: str,
+    preserve_explicit_targets: bool = False,
 ) -> tuple[PublicationEvent, list[str]]:
     event = event.model_copy(deep=True)
     title_types = _action_types_from_title(document_title)
@@ -1704,6 +1745,7 @@ def _canonicalize_actions(
             event,
             action=action,
             context=evidence,
+            preserve_existing=preserve_explicit_targets,
         )
         actions.append(action)
 
@@ -2764,6 +2806,37 @@ def canonicalize_project_extraction(
     source_text: str,
     document_title: str,
 ) -> tuple[BOEProjectExtraction, list[str]]:
+    return _canonicalize_project_extraction(
+        extraction,
+        source_text=source_text,
+        document_title=document_title,
+        preserve_explicit_semantics=False,
+    )
+
+
+def canonicalize_reviewed_project_extraction(
+    extraction: BOEProjectExtraction,
+    *,
+    source_text: str,
+    document_title: str,
+) -> tuple[BOEProjectExtraction, list[str]]:
+    """Canonicaliza una revisión sin sobrescribir sus relaciones explícitas."""
+
+    return _canonicalize_project_extraction(
+        extraction,
+        source_text=source_text,
+        document_title=document_title,
+        preserve_explicit_semantics=True,
+    )
+
+
+def _canonicalize_project_extraction(
+    extraction: BOEProjectExtraction,
+    *,
+    source_text: str,
+    document_title: str,
+    preserve_explicit_semantics: bool,
+) -> tuple[BOEProjectExtraction, list[str]]:
     extraction = extraction.model_copy(deep=True)
     adjustments: list[str] = []
 
@@ -2827,6 +2900,11 @@ def canonicalize_project_extraction(
                 if target.startswith("generation_asset_"):
                     if target in old_to_new:
                         remapped.append(old_to_new[target])
+                    elif preserve_explicit_semantics:
+                        raise ValueError(
+                            "La revisión manual referencia una planta que no "
+                            "pudo conservarse durante la canonicalización."
+                        )
                 else:
                     remapped.append(target)
             action.targets = _canonicalize_refs(remapped) if remapped else []
@@ -2869,6 +2947,11 @@ def canonicalize_project_extraction(
             adjustments.extend(current)
             if repaired is not None:
                 repaired_components.append(repaired)
+            elif preserve_explicit_semantics:
+                raise ValueError(
+                    f"{component.local_component_ref}: el componente revisado "
+                    "no pudo validarse contra el documento."
+                )
         event.associated_components = repaired_components
 
         # Si el título menciona evacuación y no existe componente, se crea una
@@ -2900,7 +2983,8 @@ def canonicalize_project_extraction(
             adjustments.append("Sistema de evacuación materializado desde el título literal.")
 
         merged_components, component_mapping, current = _merge_auxiliary_components(
-            event.associated_components
+            event.associated_components,
+            preserve_distinct=preserve_explicit_semantics,
         )
         adjustments.extend(current)
         event.associated_components = merged_components
@@ -2909,12 +2993,17 @@ def canonicalize_project_extraction(
             component_mapping,
         )
 
-        event, current = _infer_component_links(event, source_text=source_text)
+        event, current = _infer_component_links(
+            event,
+            source_text=source_text,
+            preserve_existing=preserve_explicit_semantics,
+        )
         adjustments.extend(current)
         event, current = _canonicalize_actions(
             event,
             source_text=source_text,
             document_title=document_title,
+            preserve_explicit_targets=preserve_explicit_semantics,
         )
         adjustments.extend(current)
         event, current = _canonicalize_generation_relations(

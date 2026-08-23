@@ -127,6 +127,12 @@ Una revisión manual y una corrección no son lo mismo. La revisión resuelve qu
 extracción queda vigente para un documento; una corrección aprobada actúa
 después sobre una entidad exacta durante la materialización Silver.
 
+Cuando una revisión `manually_validated` define explícitamente componentes,
+sus asociaciones con plantas o los targets de una actuación, la
+canonicalización posterior conserva esas decisiones válidas. Solo infiere las
+relaciones ausentes; una referencia inexistente o un componente sin linaje de
+generación se rechaza en lugar de aceptarse como excepción a la validación.
+
 > [!NOTE]
 > Un hash físico verifica bytes concretos de un archivo. Un hash semántico
 > verifica el contenido contractual. El manifest puede registrar ambos porque
