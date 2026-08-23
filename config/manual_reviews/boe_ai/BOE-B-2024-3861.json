@@ -1,0 +1,1135 @@
+{
+  "identificador_boe": "BOE-B-2024-3861",
+  "source_document_sha256": "c1bdc293cb128f443213f8b9fdf52a2342bc9aad4a9a20805383c5eec2a81da8",
+  "source_attempt_id": "167a4329f74740588a8ad3f6ea0b1350",
+  "extraction_config_id": "4b54b89dbfe8640e",
+  "document_validation_version": "25",
+  "review_status": "manually_validated",
+  "reviewer": "human_tfm_review",
+  "review_notes": "Decisión humana: se conservan diez eventos con plantas de generación independientes y ninguna infraestructura como raíz. La línea de 30 kV se representa como componente compartido únicamente por HSF La Romera y HSF Los Mangos; SET Torreluenga 30/220 kV y la LAT 220 kV se representan como componente compartido por las diez plantas. Las tres actuaciones publicadas mantienen targets de componente, sin targets de planta ni duplicados dentro de cada evento.",
+  "reviewed_at_utc": "2026-08-23T19:47:11Z",
+  "corrected_extraction": {
+    "classification_status": "classified",
+    "document_scope": "generation_project_specific",
+    "classification_reason": "El anuncio somete a información pública la modificación de autorizaciones y la solicitud de declaración de utilidad pública para una infraestructura de evacuación que sirve a múltiples plantas de generación fotovoltaica y eólica identificadas.",
+    "publication_events": [
+      {
+        "generation_assets": [
+          {
+            "local_generation_asset_ref": "generation_asset_1",
+            "names_raw": [
+              "HSF La Romera"
+            ],
+            "generation_type": "fotovoltaica",
+            "technical_mentions": [],
+            "evidence": "HSF La Romera"
+          }
+        ],
+        "associated_components": [
+          {
+            "local_component_ref": "component_1",
+            "component_type": "sistema_evacuacion",
+            "names_raw": [
+              "Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)"
+            ],
+            "description_raw": "infraestructura de evacuación",
+            "related_generation_asset_refs": [
+              "generation_asset_1"
+            ],
+            "technical_mentions": [
+              {
+                "attribute_type": "tension",
+                "value_raw": "30 kV",
+                "evidence": "Set Torreluenga 30/220 kV"
+              },
+              {
+                "attribute_type": "tension",
+                "value_raw": "220 kV",
+                "evidence": "Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)"
+              },
+              {
+                "attribute_type": "otra",
+                "value_raw": "Parque 220 kV (2 posición de línea)",
+                "evidence": "Parque 220 kV (2 posición de línea)"
+              },
+              {
+                "attribute_type": "otra",
+                "value_raw": "Parque 30 kV (4 posiciones de línea)",
+                "evidence": "Parque 30 kV (4 posiciones de línea)"
+              }
+            ],
+            "evidence": "La infraestructura de evacuación denominada \"Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos hermanas 220 kV (REE)\" es compartida con varias instalaciones de generación, que son objeto de proyecto y tramitación independiente."
+          },
+          {
+            "local_component_ref": "component_2",
+            "component_type": "sistema_evacuacion",
+            "names_raw": [
+              "LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV"
+            ],
+            "description_raw": "infraestructura de evacuación",
+            "related_generation_asset_refs": [
+              "generation_asset_1"
+            ],
+            "technical_mentions": [
+              {
+                "attribute_type": "tension",
+                "value_raw": "30 kV",
+                "evidence": "LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV"
+              }
+            ],
+            "evidence": "La infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV\" es compartida con varias instalaciones de generación, que son objeto de proyecto y tramitación independiente."
+          }
+        ],
+        "administrative_actions": [
+          {
+            "action_type": "autorizacion_administrativa_previa",
+            "decision": "sometido_informacion_publica",
+            "is_modification": true,
+            "targets": [
+              "component_1",
+              "component_2"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          },
+          {
+            "action_type": "autorizacion_administrativa_construccion",
+            "decision": "sometido_informacion_publica",
+            "is_modification": true,
+            "targets": [
+              "component_1",
+              "component_2"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          },
+          {
+            "action_type": "declaracion_utilidad_publica",
+            "decision": "sometido_informacion_publica",
+            "is_modification": false,
+            "targets": [
+              "component_1",
+              "component_2"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          }
+        ],
+        "participants": [
+          {
+            "participant_name_raw": "Sun&Wind Sierra Sur A.I.E.",
+            "participant_role": "solicitante",
+            "evidence": "realizada por la mercantil Sun&Wind Sierra Sur A.I.E."
+          }
+        ],
+        "administrative_locations": [
+          {
+            "location_name_raw": "Carmona",
+            "location_level": "municipio",
+            "province_hint_raw": "Sevilla",
+            "autonomous_community_hint_raw": null,
+            "evidence": "términos municipales de Carmona y Alcalá de Guadaíra (Sevilla)"
+          },
+          {
+            "location_name_raw": "Alcalá de Guadaíra",
+            "location_level": "municipio",
+            "province_hint_raw": "Sevilla",
+            "autonomous_community_hint_raw": null,
+            "evidence": "términos municipales de Carmona y Alcalá de Guadaíra (Sevilla)"
+          }
+        ],
+        "generation_relations": [],
+        "case_file_references": [
+          "286.061",
+          "4.364"
+        ],
+        "event_summary": "Se somete a información pública la solicitud de modificación de la Autorización Administrativa Previa y de la Autorización Administrativa de Construcción, así como la solicitud de Declaración en Concreto de Utilidad Pública, para la infraestructura de evacuación compartida de la planta HSF La Romera, ubicada en Carmona y Alcalá de Guadaíra (Sevilla), promovida por Sun&Wind Sierra Sur A.I.E."
+      },
+      {
+        "generation_assets": [
+          {
+            "local_generation_asset_ref": "generation_asset_1",
+            "names_raw": [
+              "HSF Los Mangos"
+            ],
+            "generation_type": "fotovoltaica",
+            "technical_mentions": [],
+            "evidence": "HSF Los Mangos"
+          }
+        ],
+        "associated_components": [
+          {
+            "local_component_ref": "component_1",
+            "component_type": "sistema_evacuacion",
+            "names_raw": [
+              "Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)"
+            ],
+            "description_raw": "infraestructura de evacuación",
+            "related_generation_asset_refs": [
+              "generation_asset_1"
+            ],
+            "technical_mentions": [
+              {
+                "attribute_type": "tension",
+                "value_raw": "30 kV",
+                "evidence": "Set Torreluenga 30/220 kV"
+              },
+              {
+                "attribute_type": "tension",
+                "value_raw": "220 kV",
+                "evidence": "Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)"
+              },
+              {
+                "attribute_type": "otra",
+                "value_raw": "Parque 220 kV (2 posición de línea)",
+                "evidence": "Parque 220 kV (2 posición de línea)"
+              },
+              {
+                "attribute_type": "otra",
+                "value_raw": "Parque 30 kV (4 posiciones de línea)",
+                "evidence": "Parque 30 kV (4 posiciones de línea)"
+              }
+            ],
+            "evidence": "La infraestructura de evacuación denominada \"Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos hermanas 220 kV (REE)\" es compartida con varias instalaciones de generación, que son objeto de proyecto y tramitación independiente."
+          },
+          {
+            "local_component_ref": "component_2",
+            "component_type": "sistema_evacuacion",
+            "names_raw": [
+              "LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV"
+            ],
+            "description_raw": "infraestructura de evacuación",
+            "related_generation_asset_refs": [
+              "generation_asset_1"
+            ],
+            "technical_mentions": [
+              {
+                "attribute_type": "tension",
+                "value_raw": "30 kV",
+                "evidence": "LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV"
+              }
+            ],
+            "evidence": "La infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV\" es compartida con varias instalaciones de generación, que son objeto de proyecto y tramitación independiente."
+          }
+        ],
+        "administrative_actions": [
+          {
+            "action_type": "autorizacion_administrativa_previa",
+            "decision": "sometido_informacion_publica",
+            "is_modification": true,
+            "targets": [
+              "component_1",
+              "component_2"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          },
+          {
+            "action_type": "autorizacion_administrativa_construccion",
+            "decision": "sometido_informacion_publica",
+            "is_modification": true,
+            "targets": [
+              "component_1",
+              "component_2"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          },
+          {
+            "action_type": "declaracion_utilidad_publica",
+            "decision": "sometido_informacion_publica",
+            "is_modification": false,
+            "targets": [
+              "component_1",
+              "component_2"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          }
+        ],
+        "participants": [
+          {
+            "participant_name_raw": "Sun&Wind Sierra Sur A.I.E.",
+            "participant_role": "solicitante",
+            "evidence": "realizada por la mercantil Sun&Wind Sierra Sur A.I.E."
+          }
+        ],
+        "administrative_locations": [
+          {
+            "location_name_raw": "Carmona",
+            "location_level": "municipio",
+            "province_hint_raw": "Sevilla",
+            "autonomous_community_hint_raw": null,
+            "evidence": "términos municipales de Carmona y Alcalá de Guadaíra (Sevilla)"
+          },
+          {
+            "location_name_raw": "Alcalá de Guadaíra",
+            "location_level": "municipio",
+            "province_hint_raw": "Sevilla",
+            "autonomous_community_hint_raw": null,
+            "evidence": "términos municipales de Carmona y Alcalá de Guadaíra (Sevilla)"
+          }
+        ],
+        "generation_relations": [],
+        "case_file_references": [
+          "286.061",
+          "4.364"
+        ],
+        "event_summary": "Se somete a información pública la solicitud de modificación de la Autorización Administrativa Previa y de la Autorización Administrativa de Construcción, así como la solicitud de Declaración en Concreto de Utilidad Pública, para la infraestructura de evacuación compartida de la planta HSF Los Mangos, ubicada en Carmona y Alcalá de Guadaíra (Sevilla), promovida por Sun&Wind Sierra Sur A.I.E."
+      },
+      {
+        "generation_assets": [
+          {
+            "local_generation_asset_ref": "generation_asset_1",
+            "names_raw": [
+              "HSF Sol Morón"
+            ],
+            "generation_type": "fotovoltaica",
+            "technical_mentions": [],
+            "evidence": "HSF Sol Morón"
+          }
+        ],
+        "associated_components": [
+          {
+            "local_component_ref": "component_1",
+            "component_type": "sistema_evacuacion",
+            "names_raw": [
+              "Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)"
+            ],
+            "description_raw": "infraestructura de evacuación",
+            "related_generation_asset_refs": [
+              "generation_asset_1"
+            ],
+            "technical_mentions": [
+              {
+                "attribute_type": "tension",
+                "value_raw": "30 kV",
+                "evidence": "Set Torreluenga 30/220 kV"
+              },
+              {
+                "attribute_type": "tension",
+                "value_raw": "220 kV",
+                "evidence": "Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)"
+              },
+              {
+                "attribute_type": "otra",
+                "value_raw": "Parque 220 kV (2 posición de línea)",
+                "evidence": "Parque 220 kV (2 posición de línea)"
+              },
+              {
+                "attribute_type": "otra",
+                "value_raw": "Parque 30 kV (4 posiciones de línea)",
+                "evidence": "Parque 30 kV (4 posiciones de línea)"
+              }
+            ],
+            "evidence": "La infraestructura de evacuación denominada \"Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos hermanas 220 kV (REE)\" es compartida con varias instalaciones de generación, que son objeto de proyecto y tramitación independiente."
+          }
+        ],
+        "administrative_actions": [
+          {
+            "action_type": "autorizacion_administrativa_previa",
+            "decision": "sometido_informacion_publica",
+            "is_modification": true,
+            "targets": [
+              "component_1"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          },
+          {
+            "action_type": "autorizacion_administrativa_construccion",
+            "decision": "sometido_informacion_publica",
+            "is_modification": true,
+            "targets": [
+              "component_1"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          },
+          {
+            "action_type": "declaracion_utilidad_publica",
+            "decision": "sometido_informacion_publica",
+            "is_modification": false,
+            "targets": [
+              "component_1"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          }
+        ],
+        "participants": [
+          {
+            "participant_name_raw": "Sun&Wind Sierra Sur A.I.E.",
+            "participant_role": "solicitante",
+            "evidence": "realizada por la mercantil Sun&Wind Sierra Sur A.I.E."
+          }
+        ],
+        "administrative_locations": [
+          {
+            "location_name_raw": "Carmona",
+            "location_level": "municipio",
+            "province_hint_raw": "Sevilla",
+            "autonomous_community_hint_raw": null,
+            "evidence": "términos municipales de Carmona y Alcalá de Guadaíra (Sevilla)"
+          },
+          {
+            "location_name_raw": "Alcalá de Guadaíra",
+            "location_level": "municipio",
+            "province_hint_raw": "Sevilla",
+            "autonomous_community_hint_raw": null,
+            "evidence": "términos municipales de Carmona y Alcalá de Guadaíra (Sevilla)"
+          }
+        ],
+        "generation_relations": [],
+        "case_file_references": [
+          "286.061",
+          "4.364"
+        ],
+        "event_summary": "Se somete a información pública la solicitud de modificación de la Autorización Administrativa Previa y de la Autorización Administrativa de Construcción, así como la solicitud de Declaración en Concreto de Utilidad Pública, para la infraestructura de evacuación compartida de la planta HSF Sol Morón, ubicada en Carmona y Alcalá de Guadaíra (Sevilla), promovida por Sun&Wind Sierra Sur A.I.E."
+      },
+      {
+        "generation_assets": [
+          {
+            "local_generation_asset_ref": "generation_asset_1",
+            "names_raw": [
+              "HSF Las Encarnaciones"
+            ],
+            "generation_type": "fotovoltaica",
+            "technical_mentions": [],
+            "evidence": "HSF Las Encarnaciones"
+          }
+        ],
+        "associated_components": [
+          {
+            "local_component_ref": "component_1",
+            "component_type": "sistema_evacuacion",
+            "names_raw": [
+              "Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)"
+            ],
+            "description_raw": "infraestructura de evacuación",
+            "related_generation_asset_refs": [
+              "generation_asset_1"
+            ],
+            "technical_mentions": [
+              {
+                "attribute_type": "tension",
+                "value_raw": "30 kV",
+                "evidence": "Set Torreluenga 30/220 kV"
+              },
+              {
+                "attribute_type": "tension",
+                "value_raw": "220 kV",
+                "evidence": "Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)"
+              },
+              {
+                "attribute_type": "otra",
+                "value_raw": "Parque 220 kV (2 posición de línea)",
+                "evidence": "Parque 220 kV (2 posición de línea)"
+              },
+              {
+                "attribute_type": "otra",
+                "value_raw": "Parque 30 kV (4 posiciones de línea)",
+                "evidence": "Parque 30 kV (4 posiciones de línea)"
+              }
+            ],
+            "evidence": "La infraestructura de evacuación denominada \"Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos hermanas 220 kV (REE)\" es compartida con varias instalaciones de generación, que son objeto de proyecto y tramitación independiente."
+          }
+        ],
+        "administrative_actions": [
+          {
+            "action_type": "autorizacion_administrativa_previa",
+            "decision": "sometido_informacion_publica",
+            "is_modification": true,
+            "targets": [
+              "component_1"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          },
+          {
+            "action_type": "autorizacion_administrativa_construccion",
+            "decision": "sometido_informacion_publica",
+            "is_modification": true,
+            "targets": [
+              "component_1"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          },
+          {
+            "action_type": "declaracion_utilidad_publica",
+            "decision": "sometido_informacion_publica",
+            "is_modification": false,
+            "targets": [
+              "component_1"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          }
+        ],
+        "participants": [
+          {
+            "participant_name_raw": "Sun&Wind Sierra Sur A.I.E.",
+            "participant_role": "solicitante",
+            "evidence": "realizada por la mercantil Sun&Wind Sierra Sur A.I.E."
+          }
+        ],
+        "administrative_locations": [
+          {
+            "location_name_raw": "Carmona",
+            "location_level": "municipio",
+            "province_hint_raw": "Sevilla",
+            "autonomous_community_hint_raw": null,
+            "evidence": "términos municipales de Carmona y Alcalá de Guadaíra (Sevilla)"
+          },
+          {
+            "location_name_raw": "Alcalá de Guadaíra",
+            "location_level": "municipio",
+            "province_hint_raw": "Sevilla",
+            "autonomous_community_hint_raw": null,
+            "evidence": "términos municipales de Carmona y Alcalá de Guadaíra (Sevilla)"
+          }
+        ],
+        "generation_relations": [],
+        "case_file_references": [
+          "286.061",
+          "4.364"
+        ],
+        "event_summary": "Se somete a información pública la solicitud de modificación de la Autorización Administrativa Previa y de la Autorización Administrativa de Construcción, así como la solicitud de Declaración en Concreto de Utilidad Pública, para la infraestructura de evacuación compartida de la planta HSF Las Encarnaciones, ubicada en Carmona y Alcalá de Guadaíra (Sevilla), promovida por Sun&Wind Sierra Sur A.I.E."
+      },
+      {
+        "generation_assets": [
+          {
+            "local_generation_asset_ref": "generation_asset_1",
+            "names_raw": [
+              "PE Las Hazas"
+            ],
+            "generation_type": "eolica",
+            "technical_mentions": [],
+            "evidence": "PE Las Hazas"
+          }
+        ],
+        "associated_components": [
+          {
+            "local_component_ref": "component_1",
+            "component_type": "sistema_evacuacion",
+            "names_raw": [
+              "Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)"
+            ],
+            "description_raw": "infraestructura de evacuación",
+            "related_generation_asset_refs": [
+              "generation_asset_1"
+            ],
+            "technical_mentions": [
+              {
+                "attribute_type": "tension",
+                "value_raw": "30 kV",
+                "evidence": "Set Torreluenga 30/220 kV"
+              },
+              {
+                "attribute_type": "tension",
+                "value_raw": "220 kV",
+                "evidence": "Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)"
+              },
+              {
+                "attribute_type": "otra",
+                "value_raw": "Parque 220 kV (2 posición de línea)",
+                "evidence": "Parque 220 kV (2 posición de línea)"
+              },
+              {
+                "attribute_type": "otra",
+                "value_raw": "Parque 30 kV (4 posiciones de línea)",
+                "evidence": "Parque 30 kV (4 posiciones de línea)"
+              }
+            ],
+            "evidence": "La infraestructura de evacuación denominada \"Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos hermanas 220 kV (REE)\" es compartida con varias instalaciones de generación, que son objeto de proyecto y tramitación independiente."
+          }
+        ],
+        "administrative_actions": [
+          {
+            "action_type": "autorizacion_administrativa_previa",
+            "decision": "sometido_informacion_publica",
+            "is_modification": true,
+            "targets": [
+              "component_1"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          },
+          {
+            "action_type": "autorizacion_administrativa_construccion",
+            "decision": "sometido_informacion_publica",
+            "is_modification": true,
+            "targets": [
+              "component_1"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          },
+          {
+            "action_type": "declaracion_utilidad_publica",
+            "decision": "sometido_informacion_publica",
+            "is_modification": false,
+            "targets": [
+              "component_1"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          }
+        ],
+        "participants": [
+          {
+            "participant_name_raw": "Sun&Wind Sierra Sur A.I.E.",
+            "participant_role": "solicitante",
+            "evidence": "realizada por la mercantil Sun&Wind Sierra Sur A.I.E."
+          }
+        ],
+        "administrative_locations": [
+          {
+            "location_name_raw": "Carmona",
+            "location_level": "municipio",
+            "province_hint_raw": "Sevilla",
+            "autonomous_community_hint_raw": null,
+            "evidence": "términos municipales de Carmona y Alcalá de Guadaíra (Sevilla)"
+          },
+          {
+            "location_name_raw": "Alcalá de Guadaíra",
+            "location_level": "municipio",
+            "province_hint_raw": "Sevilla",
+            "autonomous_community_hint_raw": null,
+            "evidence": "términos municipales de Carmona y Alcalá de Guadaíra (Sevilla)"
+          }
+        ],
+        "generation_relations": [],
+        "case_file_references": [
+          "286.061",
+          "4.364"
+        ],
+        "event_summary": "Se somete a información pública la solicitud de modificación de la Autorización Administrativa Previa y de la Autorización Administrativa de Construcción, así como la solicitud de Declaración en Concreto de Utilidad Pública, para la infraestructura de evacuación compartida del parque eólico PE Las Hazas, ubicada en Carmona y Alcalá de Guadaíra (Sevilla), promovida por Sun&Wind Sierra Sur A.I.E."
+      },
+      {
+        "generation_assets": [
+          {
+            "local_generation_asset_ref": "generation_asset_1",
+            "names_raw": [
+              "PE Josmanil"
+            ],
+            "generation_type": "eolica",
+            "technical_mentions": [],
+            "evidence": "PE Josmanil"
+          }
+        ],
+        "associated_components": [
+          {
+            "local_component_ref": "component_1",
+            "component_type": "sistema_evacuacion",
+            "names_raw": [
+              "Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)"
+            ],
+            "description_raw": "infraestructura de evacuación",
+            "related_generation_asset_refs": [
+              "generation_asset_1"
+            ],
+            "technical_mentions": [
+              {
+                "attribute_type": "tension",
+                "value_raw": "30 kV",
+                "evidence": "Set Torreluenga 30/220 kV"
+              },
+              {
+                "attribute_type": "tension",
+                "value_raw": "220 kV",
+                "evidence": "Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)"
+              },
+              {
+                "attribute_type": "otra",
+                "value_raw": "Parque 220 kV (2 posición de línea)",
+                "evidence": "Parque 220 kV (2 posición de línea)"
+              },
+              {
+                "attribute_type": "otra",
+                "value_raw": "Parque 30 kV (4 posiciones de línea)",
+                "evidence": "Parque 30 kV (4 posiciones de línea)"
+              }
+            ],
+            "evidence": "La infraestructura de evacuación denominada \"Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos hermanas 220 kV (REE)\" es compartida con varias instalaciones de generación, que son objeto de proyecto y tramitación independiente."
+          }
+        ],
+        "administrative_actions": [
+          {
+            "action_type": "autorizacion_administrativa_previa",
+            "decision": "sometido_informacion_publica",
+            "is_modification": true,
+            "targets": [
+              "component_1"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          },
+          {
+            "action_type": "autorizacion_administrativa_construccion",
+            "decision": "sometido_informacion_publica",
+            "is_modification": true,
+            "targets": [
+              "component_1"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          },
+          {
+            "action_type": "declaracion_utilidad_publica",
+            "decision": "sometido_informacion_publica",
+            "is_modification": false,
+            "targets": [
+              "component_1"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          }
+        ],
+        "participants": [
+          {
+            "participant_name_raw": "Sun&Wind Sierra Sur A.I.E.",
+            "participant_role": "solicitante",
+            "evidence": "realizada por la mercantil Sun&Wind Sierra Sur A.I.E."
+          }
+        ],
+        "administrative_locations": [
+          {
+            "location_name_raw": "Carmona",
+            "location_level": "municipio",
+            "province_hint_raw": "Sevilla",
+            "autonomous_community_hint_raw": null,
+            "evidence": "términos municipales de Carmona y Alcalá de Guadaíra (Sevilla)"
+          },
+          {
+            "location_name_raw": "Alcalá de Guadaíra",
+            "location_level": "municipio",
+            "province_hint_raw": "Sevilla",
+            "autonomous_community_hint_raw": null,
+            "evidence": "términos municipales de Carmona y Alcalá de Guadaíra (Sevilla)"
+          }
+        ],
+        "generation_relations": [],
+        "case_file_references": [
+          "286.061",
+          "4.364"
+        ],
+        "event_summary": "Se somete a información pública la solicitud de modificación de la Autorización Administrativa Previa y de la Autorización Administrativa de Construcción, así como la solicitud de Declaración en Concreto de Utilidad Pública, para la infraestructura de evacuación compartida del parque eólico PE Josmanil, ubicada en Carmona y Alcalá de Guadaíra (Sevilla), promovida por Sun&Wind Sierra Sur A.I.E."
+      },
+      {
+        "generation_assets": [
+          {
+            "local_generation_asset_ref": "generation_asset_1",
+            "names_raw": [
+              "PE Las Cabreras"
+            ],
+            "generation_type": "eolica",
+            "technical_mentions": [],
+            "evidence": "PE Las Cabreras"
+          }
+        ],
+        "associated_components": [
+          {
+            "local_component_ref": "component_1",
+            "component_type": "sistema_evacuacion",
+            "names_raw": [
+              "Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)"
+            ],
+            "description_raw": "infraestructura de evacuación",
+            "related_generation_asset_refs": [
+              "generation_asset_1"
+            ],
+            "technical_mentions": [
+              {
+                "attribute_type": "tension",
+                "value_raw": "30 kV",
+                "evidence": "Set Torreluenga 30/220 kV"
+              },
+              {
+                "attribute_type": "tension",
+                "value_raw": "220 kV",
+                "evidence": "Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)"
+              },
+              {
+                "attribute_type": "otra",
+                "value_raw": "Parque 220 kV (2 posición de línea)",
+                "evidence": "Parque 220 kV (2 posición de línea)"
+              },
+              {
+                "attribute_type": "otra",
+                "value_raw": "Parque 30 kV (4 posiciones de línea)",
+                "evidence": "Parque 30 kV (4 posiciones de línea)"
+              }
+            ],
+            "evidence": "La infraestructura de evacuación denominada \"Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos hermanas 220 kV (REE)\" es compartida con varias instalaciones de generación, que son objeto de proyecto y tramitación independiente."
+          }
+        ],
+        "administrative_actions": [
+          {
+            "action_type": "autorizacion_administrativa_previa",
+            "decision": "sometido_informacion_publica",
+            "is_modification": true,
+            "targets": [
+              "component_1"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          },
+          {
+            "action_type": "autorizacion_administrativa_construccion",
+            "decision": "sometido_informacion_publica",
+            "is_modification": true,
+            "targets": [
+              "component_1"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          },
+          {
+            "action_type": "declaracion_utilidad_publica",
+            "decision": "sometido_informacion_publica",
+            "is_modification": false,
+            "targets": [
+              "component_1"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          }
+        ],
+        "participants": [
+          {
+            "participant_name_raw": "Sun&Wind Sierra Sur A.I.E.",
+            "participant_role": "solicitante",
+            "evidence": "realizada por la mercantil Sun&Wind Sierra Sur A.I.E."
+          }
+        ],
+        "administrative_locations": [
+          {
+            "location_name_raw": "Carmona",
+            "location_level": "municipio",
+            "province_hint_raw": "Sevilla",
+            "autonomous_community_hint_raw": null,
+            "evidence": "términos municipales de Carmona y Alcalá de Guadaíra (Sevilla)"
+          },
+          {
+            "location_name_raw": "Alcalá de Guadaíra",
+            "location_level": "municipio",
+            "province_hint_raw": "Sevilla",
+            "autonomous_community_hint_raw": null,
+            "evidence": "términos municipales de Carmona y Alcalá de Guadaíra (Sevilla)"
+          }
+        ],
+        "generation_relations": [],
+        "case_file_references": [
+          "286.061",
+          "4.364"
+        ],
+        "event_summary": "Se somete a información pública la solicitud de modificación de la Autorización Administrativa Previa y de la Autorización Administrativa de Construcción, así como la solicitud de Declaración en Concreto de Utilidad Pública, para la infraestructura de evacuación compartida del parque eólico PE Las Cabreras, ubicada en Carmona y Alcalá de Guadaíra (Sevilla), promovida por Sun&Wind Sierra Sur A.I.E."
+      },
+      {
+        "generation_assets": [
+          {
+            "local_generation_asset_ref": "generation_asset_1",
+            "names_raw": [
+              "PE Villanueva 2"
+            ],
+            "generation_type": "eolica",
+            "technical_mentions": [],
+            "evidence": "PE Villanueva 2"
+          }
+        ],
+        "associated_components": [
+          {
+            "local_component_ref": "component_1",
+            "component_type": "sistema_evacuacion",
+            "names_raw": [
+              "Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)"
+            ],
+            "description_raw": "infraestructura de evacuación",
+            "related_generation_asset_refs": [
+              "generation_asset_1"
+            ],
+            "technical_mentions": [
+              {
+                "attribute_type": "tension",
+                "value_raw": "30 kV",
+                "evidence": "Set Torreluenga 30/220 kV"
+              },
+              {
+                "attribute_type": "tension",
+                "value_raw": "220 kV",
+                "evidence": "Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)"
+              },
+              {
+                "attribute_type": "otra",
+                "value_raw": "Parque 220 kV (2 posición de línea)",
+                "evidence": "Parque 220 kV (2 posición de línea)"
+              },
+              {
+                "attribute_type": "otra",
+                "value_raw": "Parque 30 kV (4 posiciones de línea)",
+                "evidence": "Parque 30 kV (4 posiciones de línea)"
+              }
+            ],
+            "evidence": "La infraestructura de evacuación denominada \"Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos hermanas 220 kV (REE)\" es compartida con varias instalaciones de generación, que son objeto de proyecto y tramitación independiente."
+          }
+        ],
+        "administrative_actions": [
+          {
+            "action_type": "autorizacion_administrativa_previa",
+            "decision": "sometido_informacion_publica",
+            "is_modification": true,
+            "targets": [
+              "component_1"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          },
+          {
+            "action_type": "autorizacion_administrativa_construccion",
+            "decision": "sometido_informacion_publica",
+            "is_modification": true,
+            "targets": [
+              "component_1"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          },
+          {
+            "action_type": "declaracion_utilidad_publica",
+            "decision": "sometido_informacion_publica",
+            "is_modification": false,
+            "targets": [
+              "component_1"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          }
+        ],
+        "participants": [
+          {
+            "participant_name_raw": "Sun&Wind Sierra Sur A.I.E.",
+            "participant_role": "solicitante",
+            "evidence": "realizada por la mercantil Sun&Wind Sierra Sur A.I.E."
+          }
+        ],
+        "administrative_locations": [
+          {
+            "location_name_raw": "Carmona",
+            "location_level": "municipio",
+            "province_hint_raw": "Sevilla",
+            "autonomous_community_hint_raw": null,
+            "evidence": "términos municipales de Carmona y Alcalá de Guadaíra (Sevilla)"
+          },
+          {
+            "location_name_raw": "Alcalá de Guadaíra",
+            "location_level": "municipio",
+            "province_hint_raw": "Sevilla",
+            "autonomous_community_hint_raw": null,
+            "evidence": "términos municipales de Carmona y Alcalá de Guadaíra (Sevilla)"
+          }
+        ],
+        "generation_relations": [],
+        "case_file_references": [
+          "286.061",
+          "4.364"
+        ],
+        "event_summary": "Se somete a información pública la solicitud de modificación de la Autorización Administrativa Previa y de la Autorización Administrativa de Construcción, así como la solicitud de Declaración en Concreto de Utilidad Pública, para la infraestructura de evacuación compartida del parque eólico PE Villanueva 2, ubicada en Carmona y Alcalá de Guadaíra (Sevilla), promovida por Sun&Wind Sierra Sur A.I.E."
+      },
+      {
+        "generation_assets": [
+          {
+            "local_generation_asset_ref": "generation_asset_1",
+            "names_raw": [
+              "PE Villanueva 1"
+            ],
+            "generation_type": "eolica",
+            "technical_mentions": [],
+            "evidence": "PE Villanueva 1"
+          }
+        ],
+        "associated_components": [
+          {
+            "local_component_ref": "component_1",
+            "component_type": "sistema_evacuacion",
+            "names_raw": [
+              "Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)"
+            ],
+            "description_raw": "infraestructura de evacuación",
+            "related_generation_asset_refs": [
+              "generation_asset_1"
+            ],
+            "technical_mentions": [
+              {
+                "attribute_type": "tension",
+                "value_raw": "30 kV",
+                "evidence": "Set Torreluenga 30/220 kV"
+              },
+              {
+                "attribute_type": "tension",
+                "value_raw": "220 kV",
+                "evidence": "Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)"
+              },
+              {
+                "attribute_type": "otra",
+                "value_raw": "Parque 220 kV (2 posición de línea)",
+                "evidence": "Parque 220 kV (2 posición de línea)"
+              },
+              {
+                "attribute_type": "otra",
+                "value_raw": "Parque 30 kV (4 posiciones de línea)",
+                "evidence": "Parque 30 kV (4 posiciones de línea)"
+              }
+            ],
+            "evidence": "La infraestructura de evacuación denominada \"Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos hermanas 220 kV (REE)\" es compartida con varias instalaciones de generación, que son objeto de proyecto y tramitación independiente."
+          }
+        ],
+        "administrative_actions": [
+          {
+            "action_type": "autorizacion_administrativa_previa",
+            "decision": "sometido_informacion_publica",
+            "is_modification": true,
+            "targets": [
+              "component_1"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          },
+          {
+            "action_type": "autorizacion_administrativa_construccion",
+            "decision": "sometido_informacion_publica",
+            "is_modification": true,
+            "targets": [
+              "component_1"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          },
+          {
+            "action_type": "declaracion_utilidad_publica",
+            "decision": "sometido_informacion_publica",
+            "is_modification": false,
+            "targets": [
+              "component_1"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          }
+        ],
+        "participants": [
+          {
+            "participant_name_raw": "Sun&Wind Sierra Sur A.I.E.",
+            "participant_role": "solicitante",
+            "evidence": "realizada por la mercantil Sun&Wind Sierra Sur A.I.E."
+          }
+        ],
+        "administrative_locations": [
+          {
+            "location_name_raw": "Carmona",
+            "location_level": "municipio",
+            "province_hint_raw": "Sevilla",
+            "autonomous_community_hint_raw": null,
+            "evidence": "términos municipales de Carmona y Alcalá de Guadaíra (Sevilla)"
+          },
+          {
+            "location_name_raw": "Alcalá de Guadaíra",
+            "location_level": "municipio",
+            "province_hint_raw": "Sevilla",
+            "autonomous_community_hint_raw": null,
+            "evidence": "términos municipales de Carmona y Alcalá de Guadaíra (Sevilla)"
+          }
+        ],
+        "generation_relations": [],
+        "case_file_references": [
+          "286.061",
+          "4.364"
+        ],
+        "event_summary": "Se somete a información pública la solicitud de modificación de la Autorización Administrativa Previa y de la Autorización Administrativa de Construcción, así como la solicitud de Declaración en Concreto de Utilidad Pública, para la infraestructura de evacuación compartida de la planta PE Villanueva 1, ubicada en Carmona y Alcalá de Guadaíra (Sevilla), promovida por Sun&Wind Sierra Sur A.I.E."
+      },
+      {
+        "generation_assets": [
+          {
+            "local_generation_asset_ref": "generation_asset_1",
+            "names_raw": [
+              "PE Cortijo Nuevo"
+            ],
+            "generation_type": "eolica",
+            "technical_mentions": [],
+            "evidence": "PE Cortijo Nuevo"
+          }
+        ],
+        "associated_components": [
+          {
+            "local_component_ref": "component_1",
+            "component_type": "sistema_evacuacion",
+            "names_raw": [
+              "Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)"
+            ],
+            "description_raw": "infraestructura de evacuación",
+            "related_generation_asset_refs": [
+              "generation_asset_1"
+            ],
+            "technical_mentions": [
+              {
+                "attribute_type": "tension",
+                "value_raw": "30 kV",
+                "evidence": "Set Torreluenga 30/220 kV"
+              },
+              {
+                "attribute_type": "tension",
+                "value_raw": "220 kV",
+                "evidence": "Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)"
+              },
+              {
+                "attribute_type": "otra",
+                "value_raw": "Parque 220 kV (2 posición de línea)",
+                "evidence": "Parque 220 kV (2 posición de línea)"
+              },
+              {
+                "attribute_type": "otra",
+                "value_raw": "Parque 30 kV (4 posiciones de línea)",
+                "evidence": "Parque 30 kV (4 posiciones de línea)"
+              }
+            ],
+            "evidence": "La infraestructura de evacuación denominada \"Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos hermanas 220 kV (REE)\" es compartida con varias instalaciones de generación, que son objeto de proyecto y tramitación independiente."
+          }
+        ],
+        "administrative_actions": [
+          {
+            "action_type": "autorizacion_administrativa_previa",
+            "decision": "sometido_informacion_publica",
+            "is_modification": true,
+            "targets": [
+              "component_1"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          },
+          {
+            "action_type": "autorizacion_administrativa_construccion",
+            "decision": "sometido_informacion_publica",
+            "is_modification": true,
+            "targets": [
+              "component_1"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          },
+          {
+            "action_type": "declaracion_utilidad_publica",
+            "decision": "sometido_informacion_publica",
+            "is_modification": false,
+            "targets": [
+              "component_1"
+            ],
+            "evidence": "Anuncio de la Delegación Territorial de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas en Sevilla, por el que se somete a información pública la solicitud de modificación de Autorización Administrativa Previa y de Autorización Administrativa de Construcción, realizada por la mercantil Sun&Wind Sierra Sur A.I.E., relativa a la infraestructura de evacuación denominada \"LAT 30 kV HSF Los Mangos-HSF La Romera-Set Torreluenga 30/220 kV, Set Torreluenga 30/220 kV y LAT 220 kV Set Torreluenga 30/220 kV-SE Dos Hermanas 220 kV (REE)\", ubicada en los términos municipales de Carmona y Alcalá de Guadaíra (Sevilla), y a efectos de la solicitud de Declaración en Concreto de Utilidad Pública."
+          }
+        ],
+        "participants": [
+          {
+            "participant_name_raw": "Sun&Wind Sierra Sur A.I.E.",
+            "participant_role": "solicitante",
+            "evidence": "realizada por la mercantil Sun&Wind Sierra Sur A.I.E."
+          }
+        ],
+        "administrative_locations": [
+          {
+            "location_name_raw": "Carmona",
+            "location_level": "municipio",
+            "province_hint_raw": "Sevilla",
+            "autonomous_community_hint_raw": null,
+            "evidence": "términos municipales de Carmona y Alcalá de Guadaíra (Sevilla)"
+          },
+          {
+            "location_name_raw": "Alcalá de Guadaíra",
+            "location_level": "municipio",
+            "province_hint_raw": "Sevilla",
+            "autonomous_community_hint_raw": null,
+            "evidence": "términos municipales de Carmona y Alcalá de Guadaíra (Sevilla)"
+          }
+        ],
+        "generation_relations": [],
+        "case_file_references": [
+          "286.061",
+          "4.364"
+        ],
+        "event_summary": "Se somete a información pública la solicitud de modificación de la Autorización Administrativa Previa y de la Autorización Administrativa de Construcción, así como la solicitud de Declaración en Concreto de Utilidad Pública, para la infraestructura de evacuación compartida del parque eólico PE Cortijo Nuevo, ubicada en Carmona y Alcalá de Guadaíra (Sevilla), promovida por Sun&Wind Sierra Sur A.I.E."
+      }
+    ],
+    "extraction_notes": null,
+    "boe_id": "BOE-B-2024-3861",
+    "publication_date": "2024-02-05"
+  }
+}
