@@ -34,15 +34,16 @@ work listed here may enter the product.
 | Final Corpus Preflight 2022 v2 | Source snapshot reusable; isolated source drift resolved by human decision | Current official source wins for the Final TFM corpus; changed source hash is not automatically reusable; `docs/FINAL_CORPUS_PREFLIGHT_2022_V2.md` preserves the pre-decision audit |
 | Candidate funnel audit | Human-reviewed; R1+R3 approved | R2/R4 remain unimplemented; historical evidence is preserved in `docs/FINAL_CORPUS_CANDIDATE_FUNNEL_AUDIT.md` |
 | Pre-model R1+R3 mitigation | Implemented + tested — pending human review | Policy `binary_named_generation_pre_model_guard_v4`; strict offline P1/P2/P3 model counts 7,223/5,037/2,881; no model or source calls |
-| Period/funnel decision | **P2 SELECTED; MAIN-01 AND MAIN-02 CLOSED; MAIN-03 EXECUTED WITH 5 BLOCKERS** | `main-04` is not authorized pending the `main-03` failure disposition |
+| Period/funnel decision | **P2 SELECTED; MAIN-03 FAILURE DISPOSITION AND CORPUS STRATEGY HUMAN DECISION PENDING** | `main-04` is paused; no pivot or further model call is approved |
+| Anchor + historical backfill audit | **COMPLETED — PENDING HUMAN DECISION** | Offline evidence recommends continuing P2; the pivot is not approved; see `docs/FINAL_CORPUS_ANCHOR_BACKFILL_AUDIT.md` |
 | Holdout exposure provenance | **RESOLVED — 479 development-exposed BOEs versioned** | `docs/HOLDOUT_EXPOSURE_PROVENANCE.md`; P2 exposed: 263; P2 provisionally eligible: 19,226 |
 | Source reliability mitigation | Operationally validated in v2 | Three transient XML failures recovered after one retry; zero exhausted retries |
 | Final P2 extraction `main-01` | **CLOSED — 250 ACCOUNTED; 249 CURRENT; 1 REJECTED; 0 BLOCKERS** | Loader-validated `extraction-main-01-final-v2` has 501 unique attempts; see `docs/FINAL_EXTRACTION_MAIN01_IDEMPOTENCY_FIX.md` |
 | Final P2 extraction `main-02` | **CLOSED — 500 ACCOUNTED; 499 CURRENT; 1 REJECTED; 0 BLOCKERS** | Loader-validated `extraction-main-02-final`; eight deterministic blockers were resolved offline and the one isolated operational retry completed; cumulative `main-01` + `main-02` model cost USD 5.9837646; see `docs/FINAL_EXTRACTION_MAIN02_BLOCKER_FIX.md` |
-| Final P2 extraction `main-03` | **EXECUTED — 245 SUCCESS; 5 BLOCKERS** | Cumulative snapshot has 750 accounted, 744 current, 1 rejected and 5 blocking reviews; `main-03` cost USD 3.2474835 and cumulative model cost USD 9.2312481; see `docs/FINAL_EXTRACTION_MAIN03_FAILURE_REVIEW.md` |
+| Final P2 extraction `main-03` | **EXECUTED — FAILURE REVIEW COMPLETE; HUMAN DISPOSITION PENDING** | 245 success and 5 blockers; cumulative snapshot has 750 accounted, 744 current and 1 rejected; see `docs/FINAL_EXTRACTION_MAIN03_FAILURE_REVIEW.md` |
 | Deterministic `main-02` blocker fix | **CLOSED** | Eight semantic blockers resolved offline with unchanged extraction identity; the separate operational retry also completed |
 | Deterministic `main-01` blocker fix | **IMPLEMENTED + TESTED + COMMITTED** | Four confirmed families corrected without changing extraction identity; offline replay and P2 impact audit in `docs/FINAL_EXTRACTION_MAIN01_BLOCKER_FIX.md` |
-| Explicit error retry tooling | **IMPLEMENTED + TESTED; AUTHORIZED RETRIES REMAIN ISOLATED** | The two `main-01` retries and the separate `main-02` retry completed; the two `main-03` candidates remain unauthorized |
+| Explicit error retry tooling | **IMPLEMENTED + TESTED; NO FURTHER GEMINI CALLS AUTHORIZED** | The two `main-01` retries and the separate `main-02` retry completed; the two `main-03` candidates remain unauthorized |
 | Recanonicalization idempotence and attempt uniqueness | **IMPLEMENTED + TESTED; ENFORCED** | Equivalent derivations are reused, conflicting collisions fail closed, loaders/publication reject duplicate `attempt_id`; the invalid historical snapshot is retained and rejected |
 | Final `main-01` disposition | **CLOSED + MATERIALIZED** | One rejection, one rectification-only manual selection, zero operational or semantic blockers; final evidence in `docs/FINAL_EXTRACTION_MAIN01_IDEMPOTENCY_FIX.md` |
 
@@ -419,9 +420,12 @@ FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW
 → MAIN-03 COST — USD 3.2474835; CUMULATIVE MODEL COST — USD 9.2312481
 → MAIN-03 FAILURE REVIEW — SYSTEMIC VALIDATION BUG AND HUMAN DISPOSITION REQUIRED
 → MAIN-03 OPERATIONAL RETRIES — 2 CANDIDATES; NOT AUTHORIZED
-→ MAIN-04 — NOT AUTHORIZED
+→ ANCHOR + HISTORICAL BACKFILL AUDIT — COMPLETED; PENDING HUMAN DECISION
+→ CORPUS PIVOT — NOT APPROVED; OFFLINE RECOMMENDATION IS CONTINUE P2
+→ GEMINI — NO FURTHER CALLS AUTHORIZED
+→ MAIN-04 — PAUSED; CORPUS STRATEGY DECISION
 → HOLDOUT — NOT EXECUTED
-→ NEXT: MAIN-03 FAILURE DISPOSITION
+→ NEXT: HUMAN MAIN-03 AND CORPUS STRATEGY DISPOSITION
 ```
 
 The source, configuration, funnel, corrections and cost evidence pass the P2
@@ -438,4 +442,7 @@ new documents: 245 succeeded and five entered blocking review. The directed
 failure review identifies two safe operational retries, two deterministic
 false blockers and one structured timeout that requires a bounded parser fix
 and human target disposition. The holdout remains unexecuted and `main-04`
-remains unauthorized pending that disposition.
+remains paused. The offline anchor/backfill audit finds longitudinal potential
+but insufficient precision and recall evidence for an August pivot; its
+recommendation to continue P2 is pending human decision and authorizes no
+additional model call.
