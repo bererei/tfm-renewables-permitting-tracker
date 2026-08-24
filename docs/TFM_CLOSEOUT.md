@@ -34,8 +34,9 @@ work listed here may enter the product.
 | Final Corpus Preflight 2022 v2 | Source snapshot reusable; isolated source drift resolved by human decision | Current official source wins for the Final TFM corpus; changed source hash is not automatically reusable; `docs/FINAL_CORPUS_PREFLIGHT_2022_V2.md` preserves the pre-decision audit |
 | Candidate funnel audit | Human-reviewed; R1+R3 approved | R2/R4 remain unimplemented; historical evidence is preserved in `docs/FINAL_CORPUS_CANDIDATE_FUNNEL_AUDIT.md` |
 | Pre-model R1+R3 mitigation | Implemented + tested — pending human review | Policy `binary_named_generation_pre_model_guard_v4`; strict offline P1/P2/P3 model counts 7,223/5,037/2,881; no model or source calls |
-| Period/funnel decision | **P2 SELECTED — CONTINUE CURRENT P2 EXTRACTION** | The anchor/backfill pivot is closed for this TFM; `main-04` remains unauthorized |
+| Period/funnel decision | **P2 REMAINS CURRENT — SHORT-WINDOW ALTERNATIVE PENDING HUMAN DECISION** | No corpus pivot is approved; `main-04` is paused and remains unauthorized |
 | Anchor + historical backfill audit | **COMPLETED — CONTINUE P2** | No anchor/history implementation enters this TFM; see `docs/FINAL_CORPUS_ANCHOR_BACKFILL_AUDIT.md` |
+| Short-window + conservative backfill audit | **COMPLETED — PENDING HUMAN DECISION** | W14 is the only plausible demo candidate; recommendation is a bounded 42-call anchor pilot before any pivot; see `docs/FINAL_CORPUS_SHORT_WINDOW_BACKFILL_AUDIT.md` |
 | Holdout exposure provenance | **RESOLVED — 479 development-exposed BOEs versioned** | `docs/HOLDOUT_EXPOSURE_PROVENANCE.md`; P2 exposed: 263; P2 provisionally eligible: 19,226 |
 | Source reliability mitigation | Operationally validated in v2 | Three transient XML failures recovered after one retry; zero exhausted retries |
 | Final P2 extraction `main-01` | **CLOSED — 250 ACCOUNTED; 249 CURRENT; 1 REJECTED; 0 BLOCKERS** | Loader-validated `extraction-main-01-final-v2` has 501 unique attempts; see `docs/FINAL_EXTRACTION_MAIN01_IDEMPOTENCY_FIX.md` |
@@ -425,11 +426,13 @@ FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW
 → MAIN-03 OFFLINE SNAPSHOT V2 — 750 ACCOUNTED; 747 CURRENT; 1 REJECTED; 2 OPERATIONAL BLOCKERS
 → MAIN-03 OPERATIONAL RETRIES — 2 CANDIDATES; NOT AUTHORIZED
 → ANCHOR + HISTORICAL BACKFILL AUDIT — COMPLETED; CONTINUE P2
-→ CORPUS PIVOT — CLOSED FOR THIS TFM
+→ SHORT-WINDOW BACKFILL AUDIT — COMPLETED; HUMAN DECISION PENDING
+→ W14 PILOT — 48 NON-HOLDOUT MODEL DOCS; 6 REUSABLE; 42 NEW CALLS; NOT AUTHORIZED
+→ CORPUS PIVOT — NOT APPROVED; P2 REMAINS CURRENT
 → GEMINI — NO FURTHER CALLS AUTHORIZED
-→ MAIN-04 — NOT AUTHORIZED
+→ MAIN-04 — PAUSED; NOT AUTHORIZED
 → HOLDOUT — NOT EXECUTED
-→ NEXT: HUMAN REVIEW OF MAIN-03 PRECEDENCE FIX AND V2 SNAPSHOT
+→ NEXT: HUMAN DECISION ON BOUNDED W14 ANCHOR PILOT
 ```
 
 The source, configuration, funnel, corrections and cost evidence pass the P2
@@ -450,6 +453,7 @@ component scopes or targets. The loader-valid cumulative snapshot
 current extractions, one inherited rejection, zero semantic blockers and two
 operational blockers. The operational retries for `BOE-B-2025-41490` and
 `BOE-B-2025-45035` remain separate and unauthorized. The holdout remains
-unexecuted and `main-04` remains unauthorized. The offline anchor/backfill
-decision is to continue P2 and not implement the project-centric pivot in this
-TFM.
+unexecuted and `main-04` remains paused and unauthorized. The prior annual
+anchor/backfill decision remains historical evidence. The short-window audit
+does not change the corpus: W14 is only a candidate for a bounded anchor pilot,
+pending human decision, and P2 remains current until that gate is resolved.
