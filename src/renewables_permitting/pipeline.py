@@ -216,6 +216,21 @@ class LoadedExtractionSnapshot:
 
 
 @dataclass(frozen=True)
+class ExtractionSubsetResult:
+    """Published scope-safe projection of an extraction snapshot."""
+
+    output_dir: Path
+    manifest_path: Path
+    parent_snapshot_identity_sha256: str
+    snapshot_identity_sha256: str
+    scope_boe_count: int
+    selected_document_count: int
+    selected_attempt_count: int
+    selected_manual_review_count: int
+    blocking_review_count: int
+
+
+@dataclass(frozen=True)
 class RecanonicalizationPlan:
     """Validated, write-free plan for a frozen extraction snapshot."""
 
@@ -382,6 +397,27 @@ def _frame_equal(
     return True
 
 
+def _frame_semantically_equal_with_null_extras(
+    left: pd.DataFrame,
+    right: pd.DataFrame,
+    *,
+    sort_by: Sequence[str],
+) -> bool:
+    """Compare values while tolerating non-contractual all-null extras."""
+
+    left_only = list(set(left.columns) - set(right.columns))
+    right_only = list(set(right.columns) - set(left.columns))
+    if any(left[column].notna().any() for column in left_only):
+        return False
+    if any(right[column].notna().any() for column in right_only):
+        return False
+    return _frame_equal(
+        left.drop(columns=left_only),
+        right.drop(columns=right_only),
+        sort_by=sort_by,
+    )
+
+
 def prepare_documents(documents: pd.DataFrame) -> pd.DataFrame:
     """Validate canonical document rows and derive their extraction hashes."""
 
@@ -418,10 +454,16 @@ def prepare_documents(documents: pd.DataFrame) -> pd.DataFrame:
     if identifiers.duplicated().any():
         raise ValueError("Canonical documents contain duplicate BOE identifiers.")
     prepared["identificador"] = identifiers
-    prepared["source_document_sha256"] = prepared.apply(
-        lambda row: build_source_document(row).source_document_sha256,
-        axis=1,
-    ).astype("string")
+    if prepared.empty:
+        prepared["source_document_sha256"] = pd.Series(
+            index=prepared.index,
+            dtype="string",
+        )
+    else:
+        prepared["source_document_sha256"] = prepared.apply(
+            lambda row: build_source_document(row).source_document_sha256,
+            axis=1,
+        ).astype("string")
     return prepared.sort_values("identificador", kind="stable").reset_index(
         drop=True
     )
@@ -477,14 +519,18 @@ def load_documents_input(path: Path) -> pd.DataFrame:
     return prepare_documents(pd.read_parquet(document_path))
 
 
-def _scope_ids(path: Path) -> tuple[str, ...]:
+def _load_scope_table(path: Path) -> tuple[pd.DataFrame, str]:
     path = Path(path)
+    if not path.is_file() or path.is_symlink():
+        raise FileNotFoundError(f"Scope input not found: {path}")
     if path.suffix.casefold() == ".csv":
         frame = pd.read_csv(path, dtype="string")
     elif path.suffix.casefold() in {".parquet", ".pq"}:
         frame = pd.read_parquet(path)
     else:
         raise ValueError(f"Unsupported scope format: {path}")
+    if frame.columns.duplicated().any():
+        raise ValueError(f"Scope {path} contains duplicate columns.")
     id_column = next(
         (column for column in ("identificador_boe", "identificador")
          if column in frame.columns),
@@ -497,6 +543,14 @@ def _scope_ids(path: Path) -> tuple[str, ...]:
         raise ValueError(f"Scope {path} contains empty BOE identifiers.")
     if identifiers.duplicated().any():
         raise ValueError(f"Scope {path} contains duplicate BOE identifiers.")
+    frame = frame.copy(deep=True)
+    frame[id_column] = identifiers
+    return frame, id_column
+
+
+def _scope_ids(path: Path) -> tuple[str, ...]:
+    frame, id_column = _load_scope_table(path)
+    identifiers = frame[id_column]
     return tuple(sorted(identifiers.astype(str)))
 
 
@@ -1506,6 +1560,294 @@ def _extraction_snapshot_identity(
         ),
         "artifact_sha256": artifact_hashes,
     })).hexdigest()
+
+
+def _scope_table_fingerprint(frame: pd.DataFrame, id_column: str) -> str:
+    """Return the established semantic fingerprint for one scope table."""
+
+    ordered = frame.sort_values(id_column, kind="stable")
+    lines = [
+        "|".join(
+            "" if pd.isna(value) else str(value)
+            for value in row
+        )
+        for row in ordered.itertuples(index=False, name=None)
+    ]
+    payload = "".join(f"{line}\n" for line in lines)
+    return sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _load_extraction_subset_scope(
+    scope_paths: Sequence[Path],
+) -> tuple[tuple[str, ...], str, tuple[dict[str, Any], ...], dict[str, str]]:
+    if not scope_paths:
+        raise PipelineError("Extraction subset requires at least one scope.")
+
+    identifiers: set[str] = set()
+    source_hashes: dict[str, str] = {}
+    entries: list[dict[str, Any]] = []
+    for value in scope_paths:
+        path = Path(value)
+        frame, id_column = _load_scope_table(path)
+        scope_ids = tuple(frame[id_column].astype(str))
+        identifiers.update(scope_ids)
+        fingerprint = _scope_table_fingerprint(frame, id_column)
+        entries.append({
+            "path": str(path),
+            "row_count": len(frame),
+            "columns": frame.columns.astype(str).tolist(),
+            "scope_sha256": fingerprint,
+            "file_sha256": _sha256_file(path),
+        })
+        if "source_document_sha256" not in frame.columns:
+            continue
+        for boe_id, source_hash in zip(
+            scope_ids,
+            frame["source_document_sha256"],
+            strict=True,
+        ):
+            if pd.isna(source_hash) or not str(source_hash).strip():
+                continue
+            normalised = str(source_hash).strip()
+            existing = source_hashes.get(boe_id)
+            if existing is not None and existing != normalised:
+                raise PipelineError(
+                    "Extraction subset scopes disagree on source hash for "
+                    f"{boe_id}."
+                )
+            source_hashes[boe_id] = normalised
+
+    if len(entries) == 1:
+        scope_fingerprint = str(entries[0]["scope_sha256"])
+    else:
+        scope_fingerprint = sha256(_canonical_json_bytes([
+            {
+                "columns": entry["columns"],
+                "row_count": entry["row_count"],
+                "scope_sha256": entry["scope_sha256"],
+            }
+            for entry in entries
+        ])).hexdigest()
+    return (
+        tuple(sorted(identifiers)),
+        scope_fingerprint,
+        tuple(entries),
+        source_hashes,
+    )
+
+
+def materialize_extraction_subset(
+    *,
+    input_extraction: Path,
+    scope_paths: Sequence[Path],
+    output_dir: Path,
+    expected_extraction_config_id: str,
+) -> ExtractionSubsetResult:
+    """Project complete selected-document history into a new snapshot.
+
+    BOEs requested by the scope but absent from the parent are intentionally
+    omitted. They remain pending when the derived snapshot is later supplied
+    to ``extract`` together with the full document source and the same scope.
+    """
+
+    _validate_expected_config(expected_extraction_config_id)
+    output_dir = _validate_new_output(output_dir)
+    parent = load_extraction_snapshot(
+        input_extraction,
+        expected_extraction_config_id=expected_extraction_config_id,
+    )
+    (
+        requested_ids,
+        scope_fingerprint,
+        scope_entries,
+        scope_source_hashes,
+    ) = _load_extraction_subset_scope(scope_paths)
+    requested = set(requested_ids)
+    parent_sources = {
+        str(row.identificador): str(row.source_document_sha256)
+        for row in parent.documents.itertuples(index=False)
+    }
+    mismatched_sources = sorted(
+        boe_id
+        for boe_id, source_hash in scope_source_hashes.items()
+        if boe_id in parent_sources
+        and parent_sources[boe_id] != source_hash
+    )
+    if mismatched_sources:
+        raise PipelineError(
+            "Extraction subset scope source hash is incompatible with the "
+            f"parent snapshot: {mismatched_sources[:20]}."
+        )
+
+    documents = parent.documents.loc[
+        parent.documents["identificador"].astype(str).isin(requested)
+    ].copy(deep=True).reset_index(drop=True)
+    selected_ids = set(documents["identificador"].astype(str))
+    attempts = parent.attempts.loc[
+        parent.attempts["identificador_boe"].astype(str).isin(selected_ids)
+    ].copy(deep=True).reset_index(drop=True)
+    manual_reviews = parent.manual_reviews.loc[
+        parent.manual_reviews["identificador_boe"].astype(str).isin(
+            selected_ids
+        )
+    ].copy(deep=True).reset_index(drop=True)
+    _validate_unique_attempt_ids(
+        attempts,
+        context="Extraction subset attempts",
+    )
+    current = select_best_valid_extractions(
+        attempts=attempts,
+        source_df=documents,
+        manual_reviews=manual_reviews,
+    )
+    review_queue = build_review_queue(
+        attempts=attempts,
+        source_df=documents,
+        manual_reviews=manual_reviews,
+    )
+
+    expected_current = parent.current_extractions.loc[
+        parent.current_extractions["identificador_boe"].astype(str).isin(
+            selected_ids
+        )
+    ].copy(deep=True).reset_index(drop=True)
+    expected_queue = parent.review_queue.loc[
+        parent.review_queue["identificador_boe"].astype(str).isin(
+            selected_ids
+        )
+    ].copy(deep=True).reset_index(drop=True)
+    if not (
+        current.empty and expected_current.empty
+    ) and not _frame_semantically_equal_with_null_extras(
+        current,
+        expected_current,
+        sort_by=("identificador_boe", "attempt_id"),
+    ):
+        raise PipelineError(
+            "Extraction subset changed the current extraction selection."
+        )
+    if not _frame_equal(
+        review_queue,
+        expected_queue,
+        sort_by=("identificador_boe", "review_queue_id"),
+        ignore_columns=("queued_at",),
+    ):
+        raise PipelineError("Extraction subset changed the review queue.")
+
+    parent_identity = _extraction_snapshot_identity(parent)
+    root_identity = parent.manifest.get(
+        "root_snapshot_identity_sha256", parent_identity
+    )
+    subset_identity = sha256(_canonical_json_bytes({
+        "operation": "extraction_subset_v1",
+        "root_snapshot_identity_sha256": root_identity,
+        "scope_sha256": scope_fingerprint,
+        "document_identity_sha256": _documents_identity(documents),
+        "attempt_ids": sorted(attempts["attempt_id"].astype(str)),
+        "manual_review_ids": sorted(
+            manual_reviews["manual_review_id"].astype(str)
+        ),
+        "extraction_config_id": EXTRACTION_CONFIG_ID,
+    })).hexdigest()
+    blocking_count = int(
+        review_queue["reason_severity"].eq("blocking").fillna(False).sum()
+    )
+
+    staging_dir, prefix = _staging_directory(output_dir)
+    published = False
+    try:
+        document_path = staging_dir / _EXTRACTION_DOCUMENTS
+        attempt_path = staging_dir / _EXTRACTION_ATTEMPTS
+        manual_path = staging_dir / _EXTRACTION_MANUAL_REVIEWS
+        current_path = staging_dir / _EXTRACTION_CURRENT
+        queue_path = staging_dir / _EXTRACTION_REVIEW_QUEUE
+        save_parquet_atomic(documents, document_path)
+        save_parquet_atomic(attempts, attempt_path)
+        save_parquet_atomic(manual_reviews, manual_path)
+        save_parquet_atomic(current, current_path)
+        save_parquet_atomic(review_queue, queue_path)
+        manifest = {
+            "stage": "extraction",
+            "stage_version": PIPELINE_STAGE_VERSION,
+            "snapshot_type": "extraction_subset",
+            "snapshot_identity_sha256": subset_identity,
+            "root_snapshot_identity_sha256": root_identity,
+            "created_at": _created_at(),
+            "extraction_config_id": EXTRACTION_CONFIG_ID,
+            "model_provider": MODEL_PROVIDER,
+            "model_name": AI_MODEL_NAME,
+            "instructions_sha256": INSTRUCTIONS_SHA256,
+            "contract_schema_sha256": CONTRACT_SCHEMA_SHA256,
+            "canonicalization_policy": EXTRACTION_CONFIG[
+                "canonicalization_policy"
+            ],
+            "scope_classification_policy": EXTRACTION_CONFIG[
+                "scope_classification_policy"
+            ],
+            "document_validation_version": DOCUMENT_VALIDATION_VERSION,
+            "document_identity_sha256": _documents_identity(documents),
+            "retry_error_boe_ids": [],
+            "deterministic_code_sha256": _sha256_file(Path(__file__)),
+            "parent": {
+                "input_extraction": str(Path(input_extraction).absolute()),
+                "snapshot_identity_sha256": parent_identity,
+            },
+            "subset": {
+                "scope_sha256": scope_fingerprint,
+                "scope_boe_count": len(requested_ids),
+                "selected_document_count": len(documents),
+                "absent_from_parent_count": (
+                    len(requested_ids) - len(documents)
+                ),
+                "scopes": list(scope_entries),
+            },
+            "counts": {
+                "documents": len(documents),
+                "compatible_existing_before_run": len(current),
+                "pending_before_run": int(
+                    review_queue["reason_code"]
+                    .eq("source_not_attempted")
+                    .fillna(False)
+                    .sum()
+                ),
+                "model_calls_planned": 0,
+                "explicit_error_retries": 0,
+                "attempts": len(attempts),
+                "current_extractions": len(current),
+                "blocking_review": blocking_count,
+            },
+            "artifacts": {
+                "documents": _artifact(document_path, documents),
+                "attempts": _artifact(attempt_path, attempts),
+                "manual_reviews": _artifact(manual_path, manual_reviews),
+                "current_extractions": _artifact(current_path, current),
+                "review_queue": _artifact(queue_path, review_queue),
+            },
+        }
+        manifest_path = staging_dir / _EXTRACTION_MANIFEST
+        _write_json(manifest_path, manifest)
+        load_extraction_snapshot(
+            staging_dir,
+            expected_extraction_config_id=expected_extraction_config_id,
+        )
+        _validate_new_output(output_dir)
+        staging_dir.rename(output_dir)
+        published = True
+    finally:
+        if not published:
+            _cleanup_staging(staging_dir, output_dir, prefix)
+
+    return ExtractionSubsetResult(
+        output_dir=output_dir,
+        manifest_path=output_dir / _EXTRACTION_MANIFEST,
+        parent_snapshot_identity_sha256=parent_identity,
+        snapshot_identity_sha256=subset_identity,
+        scope_boe_count=len(requested_ids),
+        selected_document_count=len(documents),
+        selected_attempt_count=len(attempts),
+        selected_manual_review_count=len(manual_reviews),
+        blocking_review_count=blocking_count,
+    )
 
 
 def _has_structured_text(series: pd.Series) -> pd.Series:
@@ -2553,6 +2895,19 @@ def _build_parser() -> argparse.ArgumentParser:
     _add_expected_config(extract)
     _add_dry_run(extract)
 
+    extraction_subset = subparsers.add_parser(
+        "extraction-subset",
+        help="project reusable extraction history to an explicit scope",
+    )
+    extraction_subset.add_argument(
+        "--input-extraction", type=Path, required=True
+    )
+    extraction_subset.add_argument(
+        "--scope", type=Path, action="append", required=True
+    )
+    extraction_subset.add_argument("--output-dir", type=Path, required=True)
+    _add_expected_config(extraction_subset)
+
     recanonicalize = subparsers.add_parser(
         "recanonicalize",
         help="replay a frozen extraction snapshot without model calls",
@@ -2684,6 +3039,22 @@ def _handle_extract(args: argparse.Namespace) -> int:
         )
         if result.blocking_review_count:
             return EXIT_REVIEW_REQUIRED
+    return EXIT_SUCCESS
+
+
+def _handle_extraction_subset(args: argparse.Namespace) -> int:
+    result = materialize_extraction_subset(
+        input_extraction=args.input_extraction,
+        scope_paths=args.scope,
+        output_dir=args.output_dir,
+        expected_extraction_config_id=args.expected_extraction_config_id,
+    )
+    print(f"scope BOEs: {result.scope_boe_count}")
+    print(f"reusable documents: {result.selected_document_count}")
+    print(f"preserved attempts: {result.selected_attempt_count}")
+    print(f"preserved manual reviews: {result.selected_manual_review_count}")
+    print(f"subset identity: {result.snapshot_identity_sha256}")
+    print(f"extraction subset complete: output={result.output_dir}")
     return EXIT_SUCCESS
 
 
@@ -3005,6 +3376,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     handlers = {
         "source": _handle_source,
         "extract": _handle_extract,
+        "extraction-subset": _handle_extraction_subset,
         "recanonicalize": _handle_recanonicalize,
         "silver": _handle_silver,
         "downstream": _handle_downstream,

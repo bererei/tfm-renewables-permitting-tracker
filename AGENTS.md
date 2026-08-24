@@ -233,6 +233,9 @@ same commit. Verify documented commands against the real CLI.
 - Require a unique `attempt_id` in every extraction snapshot. Deterministic
   recanonicalization must be idempotent and fail closed on an inconsistent
   derived-identity collision.
+- Derived extraction subsets must preserve complete selected-document
+  attempt/review history and must never relax the rule that attempts outside
+  an extraction scope are invalid.
 - Retry failed model attempts only through explicit BOE selection. Append a
   new attempt and preserve the failed historical attempt unchanged.
 - Prefer offline tests, fixtures, mocks, and previously stored outputs during

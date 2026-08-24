@@ -222,6 +222,7 @@ Para conocer la interfaz exacta de una fase, usa siempre su ayuda:
 ```bash
 uv run python -m renewables_permitting.pipeline source --help
 uv run python -m renewables_permitting.pipeline extract --help
+uv run python -m renewables_permitting.pipeline extraction-subset --help
 uv run python -m renewables_permitting.pipeline recanonicalize --help
 uv run python -m renewables_permitting.pipeline silver --help
 uv run python -m renewables_permitting.pipeline downstream --help
@@ -236,6 +237,7 @@ uv run python -m renewables_permitting.pipeline run --help
 | --- | --- | --- |
 | `source` | Descarga sumarios/XML y prepara documentos | BOE, salvo `--dry-run` |
 | `extract` | Planifica/reutiliza intentos y extrae documentos pendientes | Gemini solo con `--execute-model` |
+| `extraction-subset` | Proyecta el historial reutilizable de un snapshot a un scope menor | No |
 | `recanonicalize` | Reaplica reglas deterministas a outputs persistidos compatibles | No |
 | `silver` | Verifica selección/revisión, aplica correcciones y crea 13 tablas | No |
 | `downstream` | Resuelve territorio, agrupa y construye Gold | No |
@@ -256,6 +258,10 @@ deben ser nuevos: el pipeline no sobrescribe una salida ya existente.
   repetible, pero solo selecciona errores históricos compatibles de forma
   explícita. `--execute-model` está desactivado por defecto; `--dry-run` no
   llama al modelo ni publica.
+- `extraction-subset` exige `--input-extraction`, al menos un `--scope`, un
+  `--output-dir` nuevo y el config ID esperado. Verifica el snapshot parent y
+  publica sin red ni modelo un snapshot nuevo con la historia completa de
+  attempts y revisiones de los BOE del scope que ya existan en el parent.
 - `recanonicalize` exige `--source-extraction-snapshot`, `--documents`,
   `--output-dir`, `--source-expected-extraction-config-id` y
   `--target-expected-extraction-config-id`. `--scope` puede repetirse y
@@ -852,6 +858,31 @@ La salida contiene documentos, attempts, revisiones manuales consolidadas,
 extracciones vigentes, cola de revisión y manifest. Los intentos compatibles se
 reutilizan. Los errores o inciertos existentes no se repiten automáticamente:
 se envían a revisión.
+
+#### Reutilizar un snapshot acumulativo en un scope menor
+
+`extract` rechaza correctamente un input que contenga attempts ajenos al scope
+solicitado. Para preparar una actualización menor desde un snapshot acumulativo,
+crea primero una proyección contractual con `extraction-subset`. La operación
+preserva todo el historial de attempts y revisiones de los BOE seleccionados,
+no llama al modelo y publica un snapshot nuevo; los BOE del scope todavía no
+presentes en el parent quedan pendientes cuando ese snapshot se pasa después a
+`extract`.
+
+**Plantilla offline:** sustituye las rutas y usa siempre un destino nuevo.
+
+```bash
+uv run python -m renewables_permitting.pipeline extraction-subset \
+  --input-extraction <SNAPSHOT_EXTRACCION_ACUMULATIVO> \
+  --scope <SCOPE_VERSIONADO> \
+  --output-dir runs/<NUEVO_RUN>/reuse-input \
+  --expected-extraction-config-id "$EXTRACTION_CONFIG_ID"
+```
+
+Usa después `runs/<NUEVO_RUN>/reuse-input` como `--attempts` del `extract`
+limitado por el mismo scope. No copies Parquets ni elimines historial para
+hacer compatible el input: una review huérfana, un hash de source distinto o
+una identidad incompatible hacen fallar la proyección antes de publicarla.
 
 ### 10.2.1 Extracciones largas por scopes y continuación
 

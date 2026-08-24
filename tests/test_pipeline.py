@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import re
 import subprocess
 import sys
 import time
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -245,6 +247,7 @@ def test_cli_help_lists_the_minimal_command_surface() -> None:
     for command in (
         "source",
         "extract",
+        "extraction-subset",
         "recanonicalize",
         "silver",
         "downstream",
@@ -1728,3 +1731,450 @@ def test_real_contracts_flow_documents_to_silver_to_downstream(
     assert result.project_locations_path.exists()
     assert result.project_location_sources_path.exists()
     assert pd.read_parquet(result.projects_path)["project_id"].nunique() == 1
+
+
+def _write_scope(
+    path: Path,
+    boe_ids: list[str],
+    *,
+    documents: pd.DataFrame | None = None,
+) -> Path:
+    frame = pd.DataFrame({"identificador_boe": boe_ids})
+    if documents is not None:
+        prepared = pipeline.prepare_documents(documents).set_index(
+            "identificador"
+        )
+        frame["source_document_sha256"] = [
+            prepared.loc[boe_id, "source_document_sha256"]
+            for boe_id in boe_ids
+        ]
+    frame.to_csv(path, index=False)
+    return path
+
+
+def _publish_parent_snapshot(
+    tmp_path: Path,
+    *,
+    documents: pd.DataFrame,
+    attempts: pd.DataFrame,
+    manual_reviews: pd.DataFrame | None = None,
+) -> Path:
+    documents_path = tmp_path / "documents.parquet"
+    attempts_path = tmp_path / "attempts.parquet"
+    documents.to_parquet(documents_path, index=False)
+    attempts.to_parquet(attempts_path, index=False)
+    manual_path = None
+    if manual_reviews is not None:
+        manual_path = tmp_path / "manual-reviews.parquet"
+        manual_reviews.to_parquet(manual_path, index=False)
+    result = pipeline.run_extraction_stage(
+        documents=documents_path,
+        attempts=attempts_path,
+        manual_reviews=manual_path,
+        output_dir=tmp_path / "parent",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        execute_model=False,
+    )
+    return result.output_dir
+
+
+def _manual_review(
+    document: pd.Series,
+    attempt: pd.Series,
+    *,
+    status: str,
+    reviewed_at: datetime,
+) -> dict[str, object]:
+    return {
+        "manual_review_id": pd.NA,
+        "identificador_boe": str(document["identificador"]),
+        "source_document_sha256": str(document["source_document_sha256"]),
+        "source_attempt_id": str(attempt["attempt_id"]),
+        "extraction_config_id": EXTRACTION_CONFIG_ID,
+        "review_status": status,
+        "corrected_extraction_json": (
+            _project_extraction(document).model_dump_json()
+            if status == "manually_validated"
+            else pd.NA
+        ),
+        "reviewer": "human_reviewer_1",
+        "review_notes": f"Contract test decision: {status}.",
+        "reviewed_at_utc": reviewed_at,
+        "contract_schema_sha256": CONTRACT_SCHEMA_SHA256,
+        "document_validation_version": DOCUMENT_VALIDATION_VERSION,
+    }
+
+
+def _rewrite_manifest_artifact(
+    snapshot: Path,
+    artifact: str,
+    *,
+    row_count: int,
+) -> None:
+    manifest_path = snapshot / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    artifact_path = snapshot / manifest["artifacts"][artifact]["filename"]
+    manifest["artifacts"][artifact]["row_count"] = row_count
+    manifest["artifacts"][artifact]["sha256"] = hashlib.sha256(
+        artifact_path.read_bytes()
+    ).hexdigest()
+    if artifact == "attempts":
+        manifest["counts"]["attempts"] = row_count
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True)
+        + "\n",
+        encoding="utf-8",
+    )
+
+
+def test_extraction_subset_preserves_selected_history_and_parent(
+    tmp_path: Path,
+) -> None:
+    documents = pipeline.prepare_documents(_documents(count=3))
+    attempts = _success_attempts(documents)
+    parent = _publish_parent_snapshot(
+        tmp_path,
+        documents=documents,
+        attempts=attempts,
+        manual_reviews=pd.DataFrame([_manual_review(
+            documents.iloc[1],
+            attempts.iloc[1],
+            status="manually_validated",
+            reviewed_at=NOW,
+        )]),
+    )
+    scope = _write_scope(
+        tmp_path / "scope.csv",
+        ["BOE-A-2026-101", "BOE-A-2026-103"],
+        documents=documents,
+    )
+    parent_hashes = {
+        path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in parent.iterdir()
+    }
+
+    result = pipeline.materialize_extraction_subset(
+        input_extraction=parent,
+        scope_paths=[scope],
+        output_dir=tmp_path / "subset",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+
+    loaded_parent = pipeline.load_extraction_snapshot(
+        parent,
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+    loaded_subset = pipeline.load_extraction_snapshot(
+        result.output_dir,
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+    expected_ids = {"BOE-A-2026-101", "BOE-A-2026-103"}
+    assert set(loaded_subset.documents["identificador"].astype(str)) == expected_ids
+    assert set(loaded_subset.attempts["identificador_boe"].astype(str)) == expected_ids
+    assert loaded_subset.manual_reviews.empty
+    expected_current = loaded_parent.current_extractions.loc[
+        loaded_parent.current_extractions["identificador_boe"]
+        .astype(str)
+        .isin(expected_ids)
+    ].reset_index(drop=True)
+    parent_only_columns = [
+        column
+        for column in expected_current.columns
+        if column not in loaded_subset.current_extractions.columns
+    ]
+    assert expected_current[parent_only_columns].isna().all().all()
+    assert pipeline._frame_equal(
+        loaded_subset.current_extractions,
+        expected_current.loc[
+            :, loaded_subset.current_extractions.columns
+        ],
+        sort_by=("identificador_boe", "attempt_id"),
+    )
+    assert parent_hashes == {
+        path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in parent.iterdir()
+    }
+    assert result.scope_boe_count == 2
+    assert result.selected_document_count == 2
+    assert loaded_subset.manifest["snapshot_type"] == "extraction_subset"
+    assert loaded_subset.manifest["stage_version"] == "1"
+    assert loaded_subset.manifest["parent"]["snapshot_identity_sha256"] == (
+        pipeline._extraction_snapshot_identity(loaded_parent)
+    )
+    assert loaded_subset.manifest["subset"]["scope_boe_count"] == 2
+    assert loaded_subset.manifest["snapshot_identity_sha256"] != (
+        pipeline._extraction_snapshot_identity(loaded_parent)
+    )
+    assert re.fullmatch(
+        r"[0-9a-f]{64}",
+        loaded_subset.manifest["deterministic_code_sha256"],
+    )
+
+
+def test_extraction_subset_preserves_multiple_attempts_and_is_idempotent(
+    tmp_path: Path,
+) -> None:
+    documents = _documents(count=2)
+    first = documents.iloc[[0]]
+    failed = _error_attempt(first)
+    failed.loc[:, "attempt_id"] = "attempt-failed"
+    failed.loc[:, "extracted_at"] = NOW - timedelta(minutes=2)
+    succeeded = _success_attempts(first)
+    succeeded.loc[:, "attempt_id"] = "attempt-success"
+    succeeded.loc[:, "extracted_at"] = NOW - timedelta(minutes=1)
+    derived = succeeded.copy(deep=True)
+    derived.loc[:, "attempt_id"] = "attempt-derived"
+    derived.loc[:, "attempt_origin"] = "recanonicalized"
+    derived.loc[:, "source_attempt_id"] = "attempt-success"
+    derived.loc[:, "extracted_at"] = NOW
+    attempts = normalise_ai_extraction_attempts_log(pd.concat(
+        [failed, succeeded, derived, _success_attempts(documents.iloc[[1]])],
+        ignore_index=True,
+    ))
+    parent = _publish_parent_snapshot(
+        tmp_path,
+        documents=documents,
+        attempts=attempts,
+    )
+    scope = _write_scope(
+        tmp_path / "scope.csv",
+        ["BOE-A-2026-101"],
+        documents=documents,
+    )
+
+    first_subset = pipeline.materialize_extraction_subset(
+        input_extraction=parent,
+        scope_paths=[scope],
+        output_dir=tmp_path / "subset-1",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+    second_subset = pipeline.materialize_extraction_subset(
+        input_extraction=first_subset.output_dir,
+        scope_paths=[scope],
+        output_dir=tmp_path / "subset-2",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+    first_loaded = pipeline.load_extraction_snapshot(
+        first_subset.output_dir,
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+    second_loaded = pipeline.load_extraction_snapshot(
+        second_subset.output_dir,
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+    assert first_loaded.attempts["attempt_id"].tolist() == [
+        "attempt-failed", "attempt-success", "attempt-derived"
+    ]
+    pd.testing.assert_frame_equal(first_loaded.attempts, second_loaded.attempts)
+    pd.testing.assert_frame_equal(
+        first_loaded.current_extractions,
+        second_loaded.current_extractions,
+    )
+    assert first_loaded.attempts["attempt_id"].is_unique
+    assert first_loaded.manifest["snapshot_identity_sha256"] == (
+        second_loaded.manifest["snapshot_identity_sha256"]
+    )
+
+
+def test_extraction_subset_preserves_manual_decisions_and_excludes_other_reviews(
+    tmp_path: Path,
+) -> None:
+    documents = pipeline.prepare_documents(_documents(count=3))
+    attempts = _success_attempts(documents)
+    attempts_by_boe = {
+        str(row["identificador_boe"]): row
+        for _, row in attempts.iterrows()
+    }
+    reviews = pd.DataFrame([
+        _manual_review(
+            row,
+            attempts_by_boe[str(row["identificador"])],
+            status=status,
+            reviewed_at=NOW + timedelta(seconds=index),
+        )
+        for index, (row, status) in enumerate(zip(
+            (documents.iloc[0], documents.iloc[1], documents.iloc[2]),
+            ("rejected", "manually_validated", "rejected"),
+            strict=True,
+        ))
+    ])
+    parent = _publish_parent_snapshot(
+        tmp_path,
+        documents=documents,
+        attempts=attempts,
+        manual_reviews=reviews,
+    )
+    scope = _write_scope(
+        tmp_path / "scope.csv",
+        ["BOE-A-2026-101", "BOE-A-2026-102"],
+        documents=documents,
+    )
+
+    result = pipeline.materialize_extraction_subset(
+        input_extraction=parent,
+        scope_paths=[scope],
+        output_dir=tmp_path / "subset",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+    subset = pipeline.load_extraction_snapshot(
+        result.output_dir,
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+
+    assert set(subset.manual_reviews["identificador_boe"].astype(str)) == {
+        "BOE-A-2026-101", "BOE-A-2026-102"
+    }
+    assert set(subset.manual_reviews["review_status"].astype(str)) == {
+        "rejected", "manually_validated"
+    }
+    assert subset.current_extractions["identificador_boe"].tolist() == [
+        "BOE-A-2026-102"
+    ]
+    assert subset.current_extractions["selection_source"].tolist() == [
+        "manually_validated"
+    ]
+    assert subset.review_queue.empty
+
+
+def test_extraction_subset_rejects_dangling_review_before_publication(
+    tmp_path: Path,
+) -> None:
+    documents = pipeline.prepare_documents(_documents())
+    attempts = _success_attempts(documents)
+    parent = _publish_parent_snapshot(
+        tmp_path,
+        documents=documents,
+        attempts=attempts,
+        manual_reviews=pd.DataFrame([_manual_review(
+            documents.iloc[0],
+            attempts.iloc[0],
+            status="rejected",
+            reviewed_at=NOW,
+        )]),
+    )
+    manual_path = parent / "manual_reviews.parquet"
+    manual = pd.read_parquet(manual_path)
+    manual.loc[:, "source_attempt_id"] = "missing-attempt"
+    manual.to_parquet(manual_path, index=False)
+    _rewrite_manifest_artifact(parent, "manual_reviews", row_count=1)
+    scope = _write_scope(tmp_path / "scope.csv", ["BOE-A-2026-101"])
+
+    with pytest.raises(ValueError, match="source_attempt_id.*no existe"):
+        pipeline.materialize_extraction_subset(
+            input_extraction=parent,
+            scope_paths=[scope],
+            output_dir=tmp_path / "subset",
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
+    assert not (tmp_path / "subset").exists()
+
+
+def test_extraction_subset_rejects_duplicate_parent_attempt_id(
+    tmp_path: Path,
+) -> None:
+    documents = _documents()
+    parent = _publish_parent_snapshot(
+        tmp_path,
+        documents=documents,
+        attempts=_success_attempts(documents),
+    )
+    attempt_path = parent / "attempts.parquet"
+    attempts = pd.read_parquet(attempt_path)
+    pd.concat([attempts, attempts], ignore_index=True).to_parquet(
+        attempt_path,
+        index=False,
+    )
+    _rewrite_manifest_artifact(parent, "attempts", row_count=2)
+    scope = _write_scope(tmp_path / "scope.csv", ["BOE-A-2026-101"])
+
+    with pytest.raises(pipeline.PipelineError, match="duplicate attempt_id"):
+        pipeline.materialize_extraction_subset(
+            input_extraction=parent,
+            scope_paths=[scope],
+            output_dir=tmp_path / "subset",
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
+    assert not (tmp_path / "subset").exists()
+
+
+def test_extraction_subset_rejects_config_or_scope_source_mismatch(
+    tmp_path: Path,
+) -> None:
+    documents = _documents()
+    parent = _publish_parent_snapshot(
+        tmp_path,
+        documents=documents,
+        attempts=_success_attempts(documents),
+    )
+    bad_scope = tmp_path / "bad-scope.csv"
+    pd.DataFrame([{
+        "identificador_boe": "BOE-A-2026-101",
+        "source_document_sha256": "0" * 64,
+    }]).to_csv(bad_scope, index=False)
+
+    with pytest.raises(pipeline.PipelineError, match="scope source hash"):
+        pipeline.materialize_extraction_subset(
+            input_extraction=parent,
+            scope_paths=[bad_scope],
+            output_dir=tmp_path / "bad-source",
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
+    with pytest.raises(pipeline.PipelineError, match="configuration mismatch"):
+        pipeline.materialize_extraction_subset(
+            input_extraction=parent,
+            scope_paths=[bad_scope],
+            output_dir=tmp_path / "bad-config",
+            expected_extraction_config_id="stale-config",
+        )
+    assert not (tmp_path / "bad-source").exists()
+    assert not (tmp_path / "bad-config").exists()
+
+
+def test_extraction_subset_supports_empty_reuse_and_cli(
+    tmp_path: Path,
+) -> None:
+    documents = _documents()
+    parent = _publish_parent_snapshot(
+        tmp_path,
+        documents=documents,
+        attempts=_success_attempts(documents),
+    )
+    scope = _write_scope(tmp_path / "scope.csv", ["BOE-A-2026-999"])
+    output = tmp_path / "empty-subset"
+
+    code = pipeline.main([
+        "extraction-subset",
+        "--input-extraction", str(parent),
+        "--scope", str(scope),
+        "--output-dir", str(output),
+        "--expected-extraction-config-id", EXTRACTION_CONFIG_ID,
+    ])
+
+    assert code == 0
+    loaded = pipeline.load_extraction_snapshot(
+        output,
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+    assert loaded.documents.empty
+    assert loaded.attempts.empty
+    assert loaded.current_extractions.empty
+    assert loaded.review_queue.empty
+
+
+def test_extract_still_rejects_attempts_outside_scope(tmp_path: Path) -> None:
+    documents = _documents(count=2)
+    parent = _publish_parent_snapshot(
+        tmp_path,
+        documents=documents,
+        attempts=_success_attempts(documents),
+    )
+    scope = _write_scope(tmp_path / "scope.csv", ["BOE-A-2026-101"])
+
+    with pytest.raises(pipeline.PipelineError, match="outside the cumulative scope"):
+        pipeline.build_extraction_plan(
+            documents=_write_documents(tmp_path / "input", count=2),
+            attempts=parent,
+            scope_paths=[scope],
+            execute_model=False,
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
