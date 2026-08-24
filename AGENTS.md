@@ -226,6 +226,11 @@ same commit. Verify documented commands against the real CLI.
 - Before authorizing a long model run, require validated bounded scopes and a
   cumulative continuation path from durable attempts; reject resume inputs
   whose source or extraction identity is incompatible.
+- Historical candidate generation must be deterministic and must never call a
+  model or create final project IDs.
+- Deduplicate historical extraction by BOE document while preserving every
+  anchor-project-to-BOE candidate link.
+- Broad Tier 3 historical matching is excluded from the final W14 corpus.
 - After a deterministic extraction fix, recanonicalize every eligible persisted
   structured output homogeneously into a new cumulative snapshot before
   combining it with new attempts; preserve the original attempts and add zero

@@ -248,6 +248,7 @@ def test_cli_help_lists_the_minimal_command_surface() -> None:
         "source",
         "extract",
         "extraction-subset",
+        "history",
         "recanonicalize",
         "silver",
         "downstream",
@@ -256,6 +257,26 @@ def test_cli_help_lists_the_minimal_command_surface() -> None:
         "run",
     ):
         assert command in output
+
+
+def test_history_cli_has_no_model_execution_flag() -> None:
+    completed = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "renewables_permitting.pipeline",
+            "history",
+            "--help",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert completed.returncode == 0
+    assert "--execute-model" not in completed.stdout
+    assert "--history-start" in completed.stdout
+    assert "--history-end" in completed.stdout
 
 
 def test_silver_help_exposes_explicit_corrections_option() -> None:

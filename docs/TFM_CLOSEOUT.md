@@ -37,6 +37,7 @@ work listed here may enter the product.
 | Period/funnel decision | **W14 + CONSERVATIVE BACKFILL CONFIRMED** | The completed 48-document non-holdout anchor supports the bounded pivot; P2 is retained only as fallback and `main-04` remains paused |
 | Anchor + historical backfill audit | **SUPERSEDED BY COMPLETED W14 PILOT** | The earlier `CONTINUE P2` decision remains historical evidence; the observed final anchor now supports Tier 1 + strict Tier 2 implementation |
 | W14 anchor pilot | **COMPLETED — 48 CURRENT; 0 BLOCKERS; PIVOT CONFIRMED** | Final snapshot `runs/final-w14-anchor-pilot-20260807-20260820-v1/extraction-final`; 40 potential roots, 56 historical candidate BOEs, 9 reusable and 47 fresh; see `docs/FINAL_CORPUS_W14_ANCHOR_COMPLETION.md` |
+| W14 historical retrieval | **IMPLEMENTED + TESTED — EXTRACTION NOT AUTHORIZED** | Offline `project_history_retrieval_v1` reproduces 40 roots, 71 Tier 1 + 7 Tier 2 strict links, 56 unique BOEs, 0 holdout and 0 conflicts; 9 are reusable and 47 fresh |
 | Holdout exposure provenance | **RESOLVED — 479 development-exposed BOEs versioned** | `docs/HOLDOUT_EXPOSURE_PROVENANCE.md`; P2 exposed: 263; P2 provisionally eligible: 19,226 |
 | Source reliability mitigation | Operationally validated in v2 | Three transient XML failures recovered after one retry; zero exhausted retries |
 | Final P2 extraction `main-01` | **CLOSED — 250 ACCOUNTED; 249 CURRENT; 1 REJECTED; 0 BLOCKERS** | Loader-validated `extraction-main-01-final-v2` has 501 unique attempts; see `docs/FINAL_EXTRACTION_MAIN01_IDEMPOTENCY_FIX.md` |
@@ -191,8 +192,9 @@ Operational constraints that remain in force:
   The human decides evidence and approval; derivable IDs and hashes are
   calculated by code. Streamlit does not correct data.
 - The CLI does not yet combine a historical document snapshot and a new cohort
-  automatically. Never replace the cumulative corpus with a partial cohort;
-  full accumulation automation is POST-TFM unless indispensable for delivery.
+  automatically. A minimal validated union/materialization step is still
+  required before Silver; never replace the cumulative corpus with a partial
+  cohort or join Parquets manually.
 - Every functional block closes with tests, documentation-impact review,
   human review and an explicitly approved commit/push before the next gate.
 
@@ -462,7 +464,12 @@ pilot executed its 42 authorized fresh documents, and a narrow deterministic
 validation fix recovered its only false blocker without another model call.
 The loader-valid `extraction-final` snapshot contains 48 current extractions,
 zero blockers and 40 potential roots. Offline Tier 1 plus strict Tier 2
-retrieval finds 56 unique historical candidate BOEs, of which nine are already
-reusable and 47 would require model execution. The corpus pivot is therefore
-confirmed: implement the versioned W14 backfill next, retain P2 only as a
-fallback and require separate authorization before any historical model call.
+retrieval is now implemented as `project_history_retrieval_v1`: it reproduces
+71 Tier 1 and seven strict Tier 2 links, 56 unique historical candidate BOEs,
+zero holdout overlap and zero source conflicts. Nine BOEs are reusable and 47
+fresh model documents remain **not authorized**. The corpus strategy is **W14
++ CONSERVATIVE BACKFILL — CONFIRMED**; the anchor is closed, `main-04` is
+abandoned for the final corpus and retained only as P2 fallback, and the two
+`main-03` retries are likewise unauthorized fallback work. The next gate is
+human authorization of the historical extraction; the holdout remains sealed
+and unexecuted.

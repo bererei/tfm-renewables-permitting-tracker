@@ -108,6 +108,12 @@ from renewables_permitting.ine_reference import (
     load_municipality_reference,
     materialize_municipality_dimension,
 )
+from renewables_permitting.project_history import (
+    ProjectHistoryMaterialization,
+    build_project_history,
+    materialize_project_history,
+    scope_table_fingerprint,
+)
 
 
 PIPELINE_STAGE_VERSION = "1"
@@ -2908,6 +2914,21 @@ def _build_parser() -> argparse.ArgumentParser:
     extraction_subset.add_argument("--output-dir", type=Path, required=True)
     _add_expected_config(extraction_subset)
 
+    history = subparsers.add_parser(
+        "history",
+        help="derive deterministic Tier 1 + Tier 2 strict historical scope",
+    )
+    history.add_argument("--documents", type=Path, required=True)
+    history.add_argument("--anchor-extraction", type=Path, required=True)
+    history.add_argument("--anchor-scope", type=Path, required=True)
+    history.add_argument("--p2-main-scopes", type=Path, required=True)
+    history.add_argument("--municipality-reference", type=Path, required=True)
+    history.add_argument("--history-start", type=_parse_date, required=True)
+    history.add_argument("--history-end", type=_parse_date, required=True)
+    history.add_argument("--holdout", type=Path, required=True)
+    history.add_argument("--output-dir", type=Path, required=True)
+    _add_expected_config(history)
+
     recanonicalize = subparsers.add_parser(
         "recanonicalize",
         help="replay a frozen extraction snapshot without model calls",
@@ -3055,6 +3076,143 @@ def _handle_extraction_subset(args: argparse.Namespace) -> int:
     print(f"preserved manual reviews: {result.selected_manual_review_count}")
     print(f"subset identity: {result.snapshot_identity_sha256}")
     print(f"extraction subset complete: output={result.output_dir}")
+    return EXIT_SUCCESS
+
+
+def _load_p2_main_scope_collection(path: Path) -> pd.DataFrame:
+    """Load the versioned P2 main scopes used by the audited search boundary."""
+
+    path = Path(path)
+    manifest_path = path / "manifest.json"
+    if not path.is_dir() or not manifest_path.is_file() or manifest_path.is_symlink():
+        raise PipelineError("P2 main scope collection manifest is missing.")
+    manifest = _load_json_manifest(path, stage="P2 main scope collection")
+    entries = manifest.get("main_scopes")
+    if not isinstance(entries, list) or not entries:
+        raise PipelineError("P2 main scope collection has no declared scopes.")
+    frames: list[pd.DataFrame] = []
+    declared_files: set[str] = set()
+    for entry in entries:
+        if not isinstance(entry, Mapping) or not isinstance(entry.get("filename"), str):
+            raise PipelineError("P2 main scope metadata is invalid.")
+        filename = str(entry["filename"])
+        if filename in declared_files or not re.fullmatch(r"main-\d{2}\.csv", filename):
+            raise PipelineError("P2 main scope filenames are invalid.")
+        declared_files.add(filename)
+        frame, id_column = _load_scope_table(path / filename)
+        if id_column != "identificador_boe":
+            raise PipelineError("P2 main scope identifier column is incompatible.")
+        if entry.get("row_count") != len(frame):
+            raise PipelineError(f"P2 main scope row count mismatch: {filename}")
+        if entry.get("scope_sha256") != _scope_table_fingerprint(frame, id_column):
+            raise PipelineError(f"P2 main scope fingerprint mismatch: {filename}")
+        frames.append(frame)
+    combined = pd.concat(frames, ignore_index=True)
+    if combined["identificador_boe"].duplicated().any():
+        raise PipelineError("P2 main scope collection contains duplicate BOEs.")
+    expected = manifest.get("counts", {}).get("main_model_documents")
+    if expected != len(combined):
+        raise PipelineError("P2 main scope collection count is inconsistent.")
+    return combined.sort_values("identificador_boe", kind="stable").reset_index(drop=True)
+
+
+def run_project_history_stage(
+    *,
+    documents: Path,
+    anchor_extraction: Path,
+    anchor_scope: Path,
+    p2_main_scopes: Path,
+    municipality_reference: Path,
+    history_start: date,
+    history_end: date,
+    holdout: Path,
+    output_dir: Path,
+    expected_extraction_config_id: str,
+) -> ProjectHistoryMaterialization:
+    """Materialize deterministic project history; this stage has no AI path."""
+
+    _validate_expected_config(expected_extraction_config_id)
+    source_documents = load_documents_input(documents)
+    source_manifest = _load_json_manifest(Path(documents), stage="Source")
+    source_snapshot_id = source_manifest.get("document_identity_sha256")
+    if (
+        not isinstance(source_snapshot_id, str)
+        or source_snapshot_id != _documents_identity(source_documents)
+    ):
+        raise PipelineError("Source snapshot document identity is inconsistent.")
+    anchor = load_extraction_snapshot(
+        anchor_extraction,
+        expected_extraction_config_id=expected_extraction_config_id,
+    )
+    if not anchor.review_queue.empty:
+        blocking = anchor.review_queue["reason_severity"].eq("blocking").fillna(False)
+        if blocking.any():
+            raise ReviewRequired("Anchor extraction contains blocking reviews.")
+    anchor_snapshot_id = _extraction_snapshot_identity(anchor)
+    anchor_scope_frame, anchor_id_column = _load_scope_table(anchor_scope)
+    if anchor_id_column != "identificador_boe":
+        raise PipelineError("Anchor scope identifier column is incompatible.")
+    p2_main_frame = _load_p2_main_scope_collection(p2_main_scopes)
+    holdout_frame, holdout_id_column = _load_scope_table(holdout)
+    if holdout_id_column != "identificador_boe":
+        raise PipelineError("Holdout identifier column is incompatible.")
+    reference = load_municipality_reference(municipality_reference)
+    build = build_project_history(
+        source_documents=source_documents,
+        anchor_current_extractions=anchor.current_extractions,
+        municipality_dimension=reference.dimension,
+        anchor_scope=anchor_scope_frame,
+        p2_main_scope=p2_main_frame,
+        holdout_scope=holdout_frame,
+        anchor_snapshot_id=anchor_snapshot_id,
+        history_start=history_start,
+        history_end=history_end,
+    )
+    code_path = Path(__file__).with_name("project_history.py")
+    return materialize_project_history(
+        build,
+        output_dir=output_dir,
+        source_snapshot_id=source_snapshot_id,
+        anchor_snapshot_id=anchor_snapshot_id,
+        anchor_scope_fingerprint=_scope_table_fingerprint(
+            anchor_scope_frame, anchor_id_column
+        ),
+        ine_reference_sha256=reference.semantic_reference_sha256,
+        p2_main_scope_fingerprint=scope_table_fingerprint(
+            p2_main_frame.loc[:, [
+                "identificador_boe", "publication_date", "source_document_sha256"
+            ]]
+        ),
+        holdout_scope_fingerprint=_scope_table_fingerprint(
+            holdout_frame, holdout_id_column
+        ),
+        history_start=history_start,
+        history_end=history_end,
+        code_sha256=_sha256_file(code_path),
+    )
+
+
+def _handle_history(args: argparse.Namespace) -> int:
+    result = run_project_history_stage(
+        documents=args.documents,
+        anchor_extraction=args.anchor_extraction,
+        anchor_scope=args.anchor_scope,
+        p2_main_scopes=args.p2_main_scopes,
+        municipality_reference=args.municipality_reference,
+        history_start=args.history_start,
+        history_end=args.history_end,
+        holdout=args.holdout,
+        output_dir=args.output_dir,
+        expected_extraction_config_id=args.expected_extraction_config_id,
+    )
+    counts = result.manifest["counts"]
+    print(f"anchor roots: {counts['anchor_roots']}")
+    print(f"Tier 1 links: {counts['tier_1_links']}")
+    print(f"Tier 2 strict links: {counts['tier_2_strict_links']}")
+    print(f"unique historical BOE: {counts['unique_historical_boe']}")
+    print(f"holdout overlaps: {counts['holdout_overlaps']}")
+    print(f"history identity: {result.manifest['materialization_identity_sha256']}")
+    print(f"history complete: output={result.output_dir}")
     return EXIT_SUCCESS
 
 
@@ -3377,6 +3535,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "source": _handle_source,
         "extract": _handle_extract,
         "extraction-subset": _handle_extraction_subset,
+        "history": _handle_history,
         "recanonicalize": _handle_recanonicalize,
         "silver": _handle_silver,
         "downstream": _handle_downstream,

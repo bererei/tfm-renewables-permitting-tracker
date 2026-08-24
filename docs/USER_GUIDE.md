@@ -223,6 +223,7 @@ Para conocer la interfaz exacta de una fase, usa siempre su ayuda:
 uv run python -m renewables_permitting.pipeline source --help
 uv run python -m renewables_permitting.pipeline extract --help
 uv run python -m renewables_permitting.pipeline extraction-subset --help
+uv run python -m renewables_permitting.pipeline history --help
 uv run python -m renewables_permitting.pipeline recanonicalize --help
 uv run python -m renewables_permitting.pipeline silver --help
 uv run python -m renewables_permitting.pipeline downstream --help
@@ -238,6 +239,7 @@ uv run python -m renewables_permitting.pipeline run --help
 | `source` | Descarga sumarios/XML y prepara documentos | BOE, salvo `--dry-run` |
 | `extract` | Planifica/reutiliza intentos y extrae documentos pendientes | Gemini solo con `--execute-model` |
 | `extraction-subset` | Proyecta el historial reutilizable de un snapshot a un scope menor | No |
+| `history` | Construye candidatos históricos Tier 1 + Tier 2 strict y un scope BOE deduplicado | No |
 | `recanonicalize` | Reaplica reglas deterministas a outputs persistidos compatibles | No |
 | `silver` | Verifica selección/revisión, aplica correcciones y crea 13 tablas | No |
 | `downstream` | Resuelve territorio, agrupa y construye Gold | No |
@@ -262,6 +264,11 @@ deben ser nuevos: el pipeline no sobrescribe una salida ya existente.
   `--output-dir` nuevo y el config ID esperado. Verifica el snapshot parent y
   publica sin red ni modelo un snapshot nuevo con la historia completa de
   attempts y revisiones de los BOE del scope que ya existan en el parent.
+- `history` exige el source, la extracción y scope anchor, la colección de
+  scopes main P2, el snapshot INE, límites de fecha, registro holdout, destino
+  nuevo y config ID esperado. Busca offline mediante nombre/alias exacto y
+  tokens distintivos corroborados por tecnología o territorio. Tier 3 no forma
+  parte del corpus final y el subcomando no dispone de opción de modelo.
 - `recanonicalize` exige `--source-extraction-snapshot`, `--documents`,
   `--output-dir`, `--source-expected-extraction-config-id` y
   `--target-expected-extraction-config-id`. `--scope` puede repetirse y
@@ -892,6 +899,34 @@ Usa después `runs/<NUEVO_RUN>/reuse-input` como `--attempts` del `extract`
 limitado por el mismo scope. No copies Parquets ni elimines historial para
 hacer compatible el input: una review huérfana, un hash de source distinto o
 una identidad incompatible hacen fallar la proyección antes de publicarla.
+
+#### Construir el scope histórico conservador
+
+`history` parte de roots de generación ya extraídos en un anchor, conserva el
+linaje root↔BOE y deduplica por documento el scope que consumirá `extract`. El
+holdout se excluye antes de construir el texto de búsqueda. La operación no
+llama al BOE ni al modelo y publica Parquet de relaciones, un scope CSV
+compatible con `extract` y un manifest verificable.
+
+**Ejemplo W14 offline:** el destino debe ser nuevo.
+
+```bash
+uv run python -m renewables_permitting.pipeline history \
+  --documents runs/final-corpus-preflight-20220101-20260820-v2/source \
+  --anchor-extraction runs/final-w14-anchor-pilot-20260807-20260820-v1/extraction-final \
+  --anchor-scope config/evaluation/final_w14_anchor_pilot_v1.csv \
+  --p2-main-scopes config/evaluation/final_p2_execution_scopes_v1 \
+  --municipality-reference runs/ine-reference-20260614-25a3bbb28f0c21c5 \
+  --history-start 2022-01-01 --history-end 2026-08-06 \
+  --holdout config/evaluation/final_holdout_p2_v1.csv \
+  --output-dir runs/<NUEVO_RUN>/history \
+  --expected-extraction-config-id "$EXTRACTION_CONFIG_ID"
+```
+
+Para evitar llamadas repetidas, proyecta después un snapshot acumulativo
+compatible con `extraction-subset` usando `historical_scope.csv`; pásalo como
+`--attempts` al dry-run o a una extracción que haya sido autorizada
+separadamente. Generar el scope histórico no autoriza esa extracción.
 
 ### 10.2.1 Extracciones largas por scopes y continuación
 
