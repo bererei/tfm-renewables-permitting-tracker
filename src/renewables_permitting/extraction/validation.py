@@ -85,7 +85,8 @@ _POST_MODEL_NON_PROJECT_TITLE_PATTERNS = (
     ),
     re.compile(
         r"\binstalaci[oó]n\s+de\s+generaci[oó]n\s+de\s+energ[ií]a\s+"
-        r"el[eé]ctrica\s+denominada\s+sustituci[oó]n\s+de\s+tramo\s+de\s+"
+        r"el[eé]ctrica\s+denominada\s+[\"«“]?\s*sustituci[oó]n\s+de\s+"
+        r"(?:tramo\s+de\s+)?"
         r"(?:lamt|lmt|l[ií]nea)\b",
         re.IGNORECASE,
     ),

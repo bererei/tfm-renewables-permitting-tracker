@@ -814,6 +814,15 @@ generación eléctrica o hidroeléctrica. La policy forma parte de
 `EXTRACTION_CONFIG_ID`: cuando cambia, los intentos de la identidad anterior
 no se reutilizan automáticamente.
 
+Después del modelo, la validación admite como no relevantes únicamente
+contextos auditados y estrechos en los que el vocabulario de generación
+envuelve en realidad infraestructura de red autónoma, como una sustitución
+denominada de LAMT o LMT. Esta excepción no preclasifica el BOE ni se aplica a
+una planta de generación expresamente nombrada. Si una corrección determinista
+de este tipo recupera un output estructurado persistido, recanonicaliza el
+scope completo en una ruta nueva y revisa el replay antes de publicarlo; no
+edites el intento original ni llames de nuevo al modelo.
+
 Solo después de revisar el número de llamadas nuevas y configurar la
 credencial fuera del repositorio, autoriza las llamadas externas.
 

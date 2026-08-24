@@ -34,9 +34,9 @@ work listed here may enter the product.
 | Final Corpus Preflight 2022 v2 | Source snapshot reusable; isolated source drift resolved by human decision | Current official source wins for the Final TFM corpus; changed source hash is not automatically reusable; `docs/FINAL_CORPUS_PREFLIGHT_2022_V2.md` preserves the pre-decision audit |
 | Candidate funnel audit | Human-reviewed; R1+R3 approved | R2/R4 remain unimplemented; historical evidence is preserved in `docs/FINAL_CORPUS_CANDIDATE_FUNNEL_AUDIT.md` |
 | Pre-model R1+R3 mitigation | Implemented + tested — pending human review | Policy `binary_named_generation_pre_model_guard_v4`; strict offline P1/P2/P3 model counts 7,223/5,037/2,881; no model or source calls |
-| Period/funnel decision | **P2 REMAINS CURRENT — SHORT-WINDOW ALTERNATIVE PENDING HUMAN DECISION** | No corpus pivot is approved; `main-04` is paused and remains unauthorized |
-| Anchor + historical backfill audit | **COMPLETED — CONTINUE P2** | No anchor/history implementation enters this TFM; see `docs/FINAL_CORPUS_ANCHOR_BACKFILL_AUDIT.md` |
-| W14 anchor pilot | **PREPARED OFFLINE — PENDING HUMAN AUTHORIZATION** | Exact non-holdout scope: 48; reusable: 6; fresh Gemini calls: 42; dry-run validated; Gemini remains unauthorized; see `docs/FINAL_CORPUS_W14_ANCHOR_PILOT_PLAN.md` |
+| Period/funnel decision | **W14 + CONSERVATIVE BACKFILL CONFIRMED** | The completed 48-document non-holdout anchor supports the bounded pivot; P2 is retained only as fallback and `main-04` remains paused |
+| Anchor + historical backfill audit | **SUPERSEDED BY COMPLETED W14 PILOT** | The earlier `CONTINUE P2` decision remains historical evidence; the observed final anchor now supports Tier 1 + strict Tier 2 implementation |
+| W14 anchor pilot | **COMPLETED — 48 CURRENT; 0 BLOCKERS; PIVOT CONFIRMED** | Final snapshot `runs/final-w14-anchor-pilot-20260807-20260820-v1/extraction-final`; 40 potential roots, 56 historical candidate BOEs, 9 reusable and 47 fresh; see `docs/FINAL_CORPUS_W14_ANCHOR_COMPLETION.md` |
 | Holdout exposure provenance | **RESOLVED — 479 development-exposed BOEs versioned** | `docs/HOLDOUT_EXPOSURE_PROVENANCE.md`; P2 exposed: 263; P2 provisionally eligible: 19,226 |
 | Source reliability mitigation | Operationally validated in v2 | Three transient XML failures recovered after one retry; zero exhausted retries |
 | Final P2 extraction `main-01` | **CLOSED — 250 ACCOUNTED; 249 CURRENT; 1 REJECTED; 0 BLOCKERS** | Loader-validated `extraction-main-01-final-v2` has 501 unique attempts; see `docs/FINAL_EXTRACTION_MAIN01_IDEMPOTENCY_FIX.md` |
@@ -427,13 +427,15 @@ FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW
 → MAIN-03 OPERATIONAL RETRIES — 2 CANDIDATES; NOT AUTHORIZED
 → ANCHOR + HISTORICAL BACKFILL AUDIT — COMPLETED; CONTINUE P2
 → SHORT-WINDOW BACKFILL AUDIT — COMPLETED
-→ W14 PILOT — PREPARED OFFLINE; 48 NON-HOLDOUT MODEL DOCS; 6 REUSABLE; 42 NEW CALLS
-→ W14 GEMINI EXECUTION — NOT AUTHORIZED
-→ CORPUS PIVOT — NOT APPROVED; P2 REMAINS CURRENT
+→ W14 PILOT — EXECUTED; 42 FRESH DOCUMENTS; 41 INITIAL SUCCESSES; 1 FALSE BLOCKER
+→ W14 ANCHOR COMPLETION — 48 CURRENT; 0 BLOCKERS; 40 POTENTIAL ROOTS
+→ W14 HISTORICAL PROJECTION — 78 LINKS; 56 UNIQUE BOE; 9 REUSABLE; 47 FRESH
+→ CORPUS PIVOT — CONFIRMED; W14 + CONSERVATIVE BACKFILL
+→ P2 — FALLBACK ONLY; MAIN-04 REMAINS PAUSED
 → GEMINI — NO FURTHER CALLS AUTHORIZED
 → MAIN-04 — PAUSED; NOT AUTHORIZED
 → HOLDOUT — NOT EXECUTED
-→ NEXT: HUMAN AUTHORIZATION OR REJECTION OF BOUNDED W14 ANCHOR PILOT
+→ NEXT: IMPLEMENT VERSIONED TIER 1 + STRICT TIER 2 BACKFILL; DO NOT EXECUTE IT
 ```
 
 The source, configuration, funnel, corrections and cost evidence pass the P2
@@ -455,8 +457,12 @@ current extractions, one inherited rejection, zero semantic blockers and two
 operational blockers. The operational retries for `BOE-B-2025-41490` and
 `BOE-B-2025-45035` remain separate and unauthorized. The holdout remains
 sealed and unexecuted and `main-04` remains paused and unauthorized. The prior
-annual anchor/backfill decision remains historical evidence. W14 now has a
-versioned 48-document non-holdout scope, a validated offline six-document
-reuse snapshot and an exact 42-call dry-run, but Gemini execution remains
-unauthorized. This preparation does not change the corpus decision: P2 remains
-the contractual baseline until the W14 human gate is resolved.
+annual anchor/backfill decision remains historical evidence. The bounded W14
+pilot executed its 42 authorized fresh documents, and a narrow deterministic
+validation fix recovered its only false blocker without another model call.
+The loader-valid `extraction-final` snapshot contains 48 current extractions,
+zero blockers and 40 potential roots. Offline Tier 1 plus strict Tier 2
+retrieval finds 56 unique historical candidate BOEs, of which nine are already
+reusable and 47 would require model execution. The corpus pivot is therefore
+confirmed: implement the versioned W14 backfill next, retain P2 only as a
+fallback and require separate authorization before any historical model call.

@@ -1281,6 +1281,20 @@ def test_main02_public_utility_variants_validate_as_specific_action(
             id="grid-line-replacement",
         ),
         pytest.param(
+            "BOE-B-2026-27232",
+            "Anuncio por el que se convoca para el levantamiento de actas "
+            "previas a la ocupación por la construcción de infraestructuras "
+            "de evacuación asociadas a la instalación de generación de "
+            "energía eléctrica denominada \"Sustitución de LAMT 25 kV "
+            "Casariche para conversión a doble circuito\".",
+            "La finalidad es sustituir el tramo de LAMT y construir un nuevo "
+            "tramo de LSMT.",
+            "Anuncio por el que se convoca para el levantamiento de actas "
+            "previas a la ocupación de la evacuación asociada a la planta "
+            "fotovoltaica Casariche Solar.",
+            id="quoted-grid-line-replacement-without-tramo-prefix",
+        ),
+        pytest.param(
             "BOE-B-2026-441",
             "Corrección de errores de la segunda convocatoria de los "
             "programas para la concesión de ayudas a la repotenciación de "
