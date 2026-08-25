@@ -2576,6 +2576,33 @@ def _event_is_integrated(event: PublicationEvent, source_text: str) -> bool:
     return len(_material_generation_groups(event, source_text)) == 1
 
 
+def _event_has_single_shared_component_action(event: PublicationEvent) -> bool:
+    """Detecta una única actuación sobre un componente común a todas las raíces."""
+
+    generation_refs = {
+        asset.local_generation_asset_ref for asset in event.generation_assets
+    }
+    if len(generation_refs) < 2 or len(event.administrative_actions) != 1:
+        return False
+
+    action = event.administrative_actions[0]
+    if len(action.targets) != 1:
+        return False
+    target_ref = action.targets[0]
+    target_component = next(
+        (
+            component
+            for component in event.associated_components
+            if component.local_component_ref == target_ref
+        ),
+        None,
+    )
+    return (
+        target_component is not None
+        and set(target_component.related_generation_asset_refs) == generation_refs
+    )
+
+
 def _renumber_event(event: PublicationEvent) -> PublicationEvent:
     event = event.model_copy(deep=True)
     generation_mapping = {
@@ -3018,12 +3045,22 @@ def _canonicalize_project_extraction(
         )
         adjustments.extend(current)
 
-        split_events, current = _split_independent_generation_event(
-            event,
-            source_text=source_text,
-        )
-        adjustments.extend(current)
-        canonical_events.extend(split_events)
+        if (
+            preserve_explicit_semantics
+            and _event_has_single_shared_component_action(event)
+        ):
+            canonical_events.append(_renumber_event(event))
+            adjustments.append(
+                "Revisión explícita preservada como una única actuación sobre "
+                "un componente compartido por varias plantas independientes."
+            )
+        else:
+            split_events, current = _split_independent_generation_event(
+                event,
+                source_text=source_text,
+            )
+            adjustments.extend(current)
+            canonical_events.extend(split_events)
 
     extraction.publication_events = canonical_events
     if (

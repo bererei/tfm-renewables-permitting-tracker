@@ -98,6 +98,10 @@ same commit. Verify documented commands against the real CLI.
 - Within one BOE publication, represent each independent generation project as
   a separate publication event when the document provides enough evidence to
   distinguish it from the others.
+- A versioned human review may keep independent generation plants in one event
+  only when the BOE publishes one administrative action on one component
+  explicitly shared by every plant in that event. Preserve each plant as a
+  generation root and represent the shared component and action exactly once.
 - Do not group independent projects merely because they share a publication,
   promoter, administrative file, province, environmental procedure, or
   evacuation infrastructure.

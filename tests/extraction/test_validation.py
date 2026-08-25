@@ -6,6 +6,7 @@ import pytest
 
 from renewables_permitting.extraction.canonicalization import (
     canonicalize_project_extraction,
+    canonicalize_reviewed_project_extraction,
     preclassify_document_without_model,
 )
 from renewables_permitting.extraction.models import (
@@ -533,6 +534,114 @@ def test_independent_plants_are_split() -> None:
     assert all(len(event.generation_assets) == 1 for event in canonical.publication_events)
 
 
+def _shared_component_action_case() -> tuple[
+    BOESourceDocument,
+    BOEProjectExtraction,
+]:
+    title = (
+        "Resolución por la que se concede la declaración de utilidad pública "
+        "de la infraestructura de evacuación común Atenea."
+    )
+    component_evidence = (
+        "infraestructura de evacuación común Atenea asociada a las plantas "
+        "fotovoltaicas HSF ANUBIS, HSF AFRODITA y HSF DEMETER"
+    )
+    document = _test_document(
+        "BOE-B-2023-27607",
+        title,
+        f"{title} {component_evidence}.",
+    )
+    extraction = _test_extraction(
+        document.boe_id,
+        [PublicationEvent(
+            generation_assets=[
+                _asset(
+                    f"generation_asset_{index}",
+                    name,
+                    GenerationType.PHOTOVOLTAIC,
+                    component_evidence,
+                )
+                for index, name in enumerate(
+                    ("HSF ANUBIS", "HSF AFRODITA", "HSF DEMETER"),
+                    start=1,
+                )
+            ],
+            associated_components=[AssociatedComponent(
+                local_component_ref="component_1",
+                component_type=AssociatedComponentType.EVACUATION_SYSTEM,
+                names_raw=["Atenea"],
+                description_raw="infraestructura de evacuación común Atenea",
+                related_generation_asset_refs=[
+                    "generation_asset_1",
+                    "generation_asset_2",
+                    "generation_asset_3",
+                ],
+                evidence=component_evidence,
+            )],
+            administrative_actions=[_action(
+                AdministrativeActionType.PUBLIC_UTILITY_DECLARATION,
+                AdministrativeDecision.DECLARED,
+                title,
+                ["component_1"],
+            )],
+            event_summary=(
+                "Declaración de utilidad pública de la evacuación compartida."
+            ),
+        )],
+    )
+    return document, extraction
+
+
+def test_validation_accepts_one_action_on_component_shared_by_all_roots() -> None:
+    document, extraction = _shared_component_action_case()
+
+    validate_extraction_against_document(
+        document=document,
+        extraction=extraction,
+    )
+
+
+def test_reviewed_shared_component_action_is_not_split_by_canonicalization() -> None:
+    document, extraction = _shared_component_action_case()
+
+    canonical, _ = canonicalize_reviewed_project_extraction(
+        extraction,
+        source_text=f"{document.title}\n{document.text}",
+        document_title=document.title,
+    )
+
+    assert len(canonical.publication_events) == 1
+    event = canonical.publication_events[0]
+    assert len(event.generation_assets) == 3
+    assert len(event.associated_components) == 1
+    assert event.associated_components[0].related_generation_asset_refs == [
+        "generation_asset_1",
+        "generation_asset_2",
+        "generation_asset_3",
+    ]
+    assert len(event.administrative_actions) == 1
+    assert event.administrative_actions[0].targets == ["component_1"]
+
+
+def test_validation_rejects_shared_action_component_missing_one_root() -> None:
+    document, extraction = _shared_component_action_case()
+    extraction.publication_events[0].associated_components[
+        0
+    ].related_generation_asset_refs = [
+        "generation_asset_1",
+        "generation_asset_2",
+    ]
+
+    with pytest.raises(
+        DocumentExtractionValidationError,
+        match="plantas independientes",
+    ):
+        validate_extraction_against_document(
+            document=document,
+            extraction=extraction,
+        )
+
+
 def test_same_name_hybrid_relation_is_valid() -> None:
     title = "Hibridación de la instalación Armus Solar con tecnología eólica y fotovoltaica."
     document = _test_document("BOE-A-2026-10007", title)
@@ -715,6 +824,72 @@ def test_generation_table_header_applies_only_to_its_structured_rows() -> None:
         validate_extraction_against_document(
             document=document,
             extraction=outside_table,
+        )
+
+
+def test_generation_production_table_accepts_only_declared_plant_rows() -> None:
+    title = "Resolución relativa a una infraestructura de evacuación."
+    table_intro = (
+        "Finalidad de la Instalación: Evacuación de las instalaciones de "
+        "producción de energía eléctrica mediante tecnología fotovoltaica "
+        "relacionadas a continuación:"
+    )
+    text = (
+        f"{table_intro}\nINSTALACIÓN\nPROMOTOR\nEXPEDIENTE\n"
+        "HSF ANUBIS\nANUBIS ENERGÍA, S.L.\n284.563\n"
+        "SET ATENEA\nATENEA SOSTENIBLE, S.L.\n287.535\n"
+        "Las características de la infraestructura se describen después."
+    )
+    document = _test_document("BOE-B-2026-10074", title, text)
+
+    valid = _test_extraction(
+        document.boe_id,
+        [PublicationEvent(
+            generation_assets=[_asset(
+                "generation_asset_1",
+                "HSF ANUBIS",
+                GenerationType.PHOTOVOLTAIC,
+                "HSF ANUBIS",
+            )],
+            administrative_actions=[_action(
+                AdministrativeActionType.OTHER,
+                AdministrativeDecision.OTHER,
+                title,
+                ["event"],
+            )],
+            event_summary="Actuación relativa a HSF ANUBIS.",
+        )],
+    )
+    validate_extraction_against_document(
+        document=document,
+        extraction=valid,
+    )
+
+    infrastructure_as_root = _test_extraction(
+        document.boe_id,
+        [PublicationEvent(
+            generation_assets=[_asset(
+                "generation_asset_1",
+                "SET ATENEA",
+                GenerationType.PHOTOVOLTAIC,
+                "SET ATENEA",
+            )],
+            administrative_actions=[_action(
+                AdministrativeActionType.OTHER,
+                AdministrativeDecision.OTHER,
+                title,
+                ["event"],
+            )],
+            event_summary="Actuación relativa a la subestación.",
+        )],
+    )
+    with pytest.raises(
+        DocumentExtractionValidationError,
+        match="no identifica la denominación como planta de generación",
+    ):
+        validate_extraction_against_document(
+            document=document,
+            extraction=infrastructure_as_root,
         )
 
 
@@ -1393,6 +1568,39 @@ def test_post_model_exceptions_do_not_hide_named_generation_projects(
         validate_extraction_against_document(
             document=document,
             extraction=_not_relevant_extraction(document),
+        )
+
+
+def test_post_model_watercourse_maintenance_crossing_plant_is_non_project() -> None:
+    title = (
+        "Anuncio de la Confederación Hidrográfica por el que se somete a "
+        "información pública la solicitud de autorización para las labores "
+        "de mantenimiento y conservación de un tramo del cauce del arroyo "
+        "que atraviesa el Parque Solar Fotovoltaico Don Rodrigo II."
+    )
+    document = _test_document("BOE-B-2026-10075", title)
+
+    validate_extraction_against_document(
+        document=document,
+        extraction=_not_relevant_extraction(document),
+    )
+
+    generation_title = (
+        "Anuncio por el que se somete a información pública la solicitud de "
+        "autorización administrativa previa del Parque Solar Fotovoltaico "
+        "Don Rodrigo II."
+    )
+    generation_document = _test_document(
+        "BOE-B-2026-10076",
+        generation_title,
+    )
+    with pytest.raises(
+        DocumentExtractionValidationError,
+        match="Posible falso negativo de alcance",
+    ):
+        validate_extraction_against_document(
+            document=generation_document,
+            extraction=_not_relevant_extraction(generation_document),
         )
 
 

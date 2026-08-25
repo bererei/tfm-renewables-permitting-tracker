@@ -132,6 +132,10 @@ sus asociaciones con plantas o los targets de una actuación, la
 canonicalización posterior conserva esas decisiones válidas. Solo infiere las
 relaciones ausentes; una referencia inexistente o un componente sin linaje de
 generación se rechaza en lugar de aceptarse como excepción a la validación.
+Una revisión humana puede conservar varias plantas independientes en un único
+evento solo si representa una única actuación dirigida a un único componente
+relacionado explícitamente con todas ellas. Las plantas siguen siendo raíces y
+el componente y la actuación compartidos no se duplican por planta.
 
 > [!NOTE]
 > Un hash físico verifica bytes concretos de un archivo. Un hash semántico

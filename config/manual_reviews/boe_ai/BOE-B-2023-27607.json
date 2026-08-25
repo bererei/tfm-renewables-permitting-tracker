@@ -1,0 +1,85 @@
+{
+  "identificador_boe": "BOE-B-2023-27607",
+  "source_document_sha256": "913b7f465e50a6d649e6b8a73b2405f3a9a58284a64f0e995c165d9417a694e5",
+  "source_attempt_id": "a2415952da72463a80b66a0fa15384f5",
+  "extraction_config_id": "4b54b89dbfe8640e",
+  "document_validation_version": "25",
+  "review_status": "manually_validated",
+  "reviewer": "human_tfm_review",
+  "review_notes": "Decisión humana aprobada: el BOE identifica HSF ANUBIS, HSF AFRODITA y HSF DEMETER como tres plantas fotovoltaicas independientes asociadas a una infraestructura de evacuación común, y concede una única declaración de utilidad pública a esa infraestructura compartida. La publicación, el componente y la actuación se representan una sola vez; las tres plantas se conservan como raíces de generación.",
+  "reviewed_at_utc": "2026-08-25T10:12:37Z",
+  "corrected_extraction": {
+    "classification_status": "classified",
+    "document_scope": "generation_project_specific",
+    "classification_reason": "La resolución concede una única declaración en concreto de utilidad pública para una infraestructura de evacuación compartida por tres plantas fotovoltaicas identificadas en la publicación.",
+    "publication_events": [
+      {
+        "generation_assets": [
+          {
+            "local_generation_asset_ref": "generation_asset_1",
+            "names_raw": [
+              "HSF ANUBIS"
+            ],
+            "generation_type": "fotovoltaica",
+            "technical_mentions": [],
+            "evidence": "HSF ANUBIS"
+          },
+          {
+            "local_generation_asset_ref": "generation_asset_2",
+            "names_raw": [
+              "HSF AFRODITA"
+            ],
+            "generation_type": "fotovoltaica",
+            "technical_mentions": [],
+            "evidence": "HSF AFRODITA"
+          },
+          {
+            "local_generation_asset_ref": "generation_asset_3",
+            "names_raw": [
+              "HSF DEMETER"
+            ],
+            "generation_type": "fotovoltaica",
+            "technical_mentions": [],
+            "evidence": "HSF DEMETER"
+          }
+        ],
+        "associated_components": [
+          {
+            "local_component_ref": "component_1",
+            "component_type": "sistema_evacuacion",
+            "names_raw": [
+              "Subestación Eléctrica Atenea 30/220 kV y Línea Aérea 220 kV Atenea - Marchamorón"
+            ],
+            "description_raw": "infraestructura de evacuación",
+            "related_generation_asset_refs": [
+              "generation_asset_1",
+              "generation_asset_2",
+              "generation_asset_3"
+            ],
+            "technical_mentions": [],
+            "evidence": "infraestructura de evacuación asociada a instalaciones de generación de energía eléctrica denominada \"Subestación Eléctrica Atenea 30/220 kV y Línea Aérea 220 kV Atenea - Marchamorón\""
+          }
+        ],
+        "administrative_actions": [
+          {
+            "action_type": "declaracion_utilidad_publica",
+            "decision": "declarado",
+            "is_modification": false,
+            "targets": [
+              "component_1"
+            ],
+            "evidence": "Resolución de la Delegación Territorial en Sevilla de Economía, Hacienda y Fondos Europeos y de Industria, Energía y Minas por la que se concede a favor de la mercantil Atenea Sostenible, S.L., la declaración en concreto de utilidad pública para la implantación de la infraestructura de evacuación asociada a instalaciones de generación de energía eléctrica denominada \"Subestación Eléctrica Atenea 30/220 kV y Línea Aérea 220 kV Atenea - Marchamorón\", ubicada en los términos municipales de Los Molares, Utrera y Alcalá de Guadaira (Sevilla)."
+          }
+        ],
+        "participants": [],
+        "administrative_locations": [],
+        "generation_relations": [],
+        "case_file_references": [],
+        "event_summary": "Declaración de utilidad pública de la infraestructura de evacuación compartida por HSF ANUBIS, HSF AFRODITA y HSF DEMETER."
+      }
+    ],
+    "extraction_notes": null,
+    "boe_id": "BOE-B-2023-27607",
+    "publication_date": "2023-09-25"
+  }
+}

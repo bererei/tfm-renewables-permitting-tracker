@@ -36,8 +36,12 @@ work listed here may enter the product.
 | Pre-model R1+R3 mitigation | Implemented + tested — pending human review | Policy `binary_named_generation_pre_model_guard_v4`; strict offline P1/P2/P3 model counts 7,223/5,037/2,881; no model or source calls |
 | Period/funnel decision | **W14 + CONSERVATIVE BACKFILL CONFIRMED** | The completed 48-document non-holdout anchor supports the bounded pivot; P2 is retained only as fallback and `main-04` remains paused |
 | Anchor + historical backfill audit | **SUPERSEDED BY COMPLETED W14 PILOT** | The earlier `CONTINUE P2` decision remains historical evidence; the observed final anchor now supports Tier 1 + strict Tier 2 implementation |
-| W14 anchor pilot | **COMPLETED — 48 CURRENT; 0 BLOCKERS; PIVOT CONFIRMED** | Final snapshot `runs/final-w14-anchor-pilot-20260807-20260820-v1/extraction-final`; 40 potential roots, 56 historical candidate BOEs, 9 reusable and 47 fresh; see `docs/FINAL_CORPUS_W14_ANCHOR_COMPLETION.md` |
-| W14 historical retrieval | **IMPLEMENTED + TESTED — EXTRACTION NOT AUTHORIZED** | Offline `project_history_retrieval_v1` reproduces 40 roots, 71 Tier 1 + 7 Tier 2 strict links, 56 unique BOEs, 0 holdout and 0 conflicts; 9 are reusable and 47 fresh |
+| W14 anchor pilot | **CLOSED — 48 CURRENT; 0 BLOCKERS; PIVOT CONFIRMED** | Final snapshot `runs/final-w14-anchor-pilot-20260807-20260820-v1/extraction-final`; 40 potential roots; see `docs/FINAL_CORPUS_W14_ANCHOR_COMPLETION.md` |
+| W14 historical retrieval | **CLOSED** | Offline `project_history_retrieval_v1` reproduces 40 roots, 71 Tier 1 + 7 Tier 2 strict links, 56 unique BOEs, 0 holdout and 0 conflicts |
+| W14 historical extraction | **CLOSED — 56 CURRENT; 0 BLOCKERS** | Loader-valid `history-extraction-final-v2` contains 128 unique attempts, 54 relevant documents, two non-relevant documents and one versioned manual review; see `docs/FINAL_CORPUS_W14_HISTORY_FAILURE_REVIEW.md` |
+| Anchor + history extraction union | **NOT STARTED** | Minimal contractual union tooling remains REQUIRED before Silver; no manual Parquet concatenation |
+| Final-corpus Silver | **NOT STARTED** | Depends on the validated anchor + history extraction union |
+| Final holdout | **SEALED — NOT EXECUTED** | No holdout source or output was inspected during W14 historical extraction |
 | Holdout exposure provenance | **RESOLVED — 479 development-exposed BOEs versioned** | `docs/HOLDOUT_EXPOSURE_PROVENANCE.md`; P2 exposed: 263; P2 provisionally eligible: 19,226 |
 | Source reliability mitigation | Operationally validated in v2 | Three transient XML failures recovered after one retry; zero exhausted retries |
 | Final P2 extraction `main-01` | **CLOSED — 250 ACCOUNTED; 249 CURRENT; 1 REJECTED; 0 BLOCKERS** | Loader-validated `extraction-main-01-final-v2` has 501 unique attempts; see `docs/FINAL_EXTRACTION_MAIN01_IDEMPOTENCY_FIX.md` |
@@ -431,13 +435,17 @@ FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW
 → SHORT-WINDOW BACKFILL AUDIT — COMPLETED
 → W14 PILOT — EXECUTED; 42 FRESH DOCUMENTS; 41 INITIAL SUCCESSES; 1 FALSE BLOCKER
 → W14 ANCHOR COMPLETION — 48 CURRENT; 0 BLOCKERS; 40 POTENTIAL ROOTS
-→ W14 HISTORICAL PROJECTION — 78 LINKS; 56 UNIQUE BOE; 9 REUSABLE; 47 FRESH
+→ W14 HISTORICAL RETRIEVAL — CLOSED; 78 LINKS; 56 UNIQUE BOE
+→ W14 HISTORICAL EXTRACTION — CLOSED; 56 CURRENT; 0 BLOCKERS; 128 UNIQUE ATTEMPTS
+→ W14 HISTORY LINK AUDIT — 41 CONFIRMED; 2 FALSE POSITIVE; 35 AMBIGUOUS
 → CORPUS PIVOT — CONFIRMED; W14 + CONSERVATIVE BACKFILL
 → P2 — FALLBACK ONLY; MAIN-04 REMAINS PAUSED
 → GEMINI — NO FURTHER CALLS AUTHORIZED
 → MAIN-04 — PAUSED; NOT AUTHORIZED
-→ HOLDOUT — NOT EXECUTED
-→ NEXT: IMPLEMENT VERSIONED TIER 1 + STRICT TIER 2 BACKFILL; DO NOT EXECUTE IT
+→ HOLDOUT — SEALED; NOT EXECUTED
+→ ANCHOR + HISTORY UNION — NOT STARTED
+→ SILVER — NOT STARTED
+→ NEXT: IMPLEMENT MINIMAL CONTRACTUAL EXTRACTION UNION; DO NOT RUN SILVER YET
 ```
 
 The source, configuration, funnel, corrections and cost evidence pass the P2
@@ -464,12 +472,15 @@ pilot executed its 42 authorized fresh documents, and a narrow deterministic
 validation fix recovered its only false blocker without another model call.
 The loader-valid `extraction-final` snapshot contains 48 current extractions,
 zero blockers and 40 potential roots. Offline Tier 1 plus strict Tier 2
-retrieval is now implemented as `project_history_retrieval_v1`: it reproduces
-71 Tier 1 and seven strict Tier 2 links, 56 unique historical candidate BOEs,
-zero holdout overlap and zero source conflicts. Nine BOEs are reusable and 47
-fresh model documents remain **not authorized**. The corpus strategy is **W14
-+ CONSERVATIVE BACKFILL — CONFIRMED**; the anchor is closed, `main-04` is
-abandoned for the final corpus and retained only as P2 fallback, and the two
-`main-03` retries are likewise unauthorized fallback work. The next gate is
-human authorization of the historical extraction; the holdout remains sealed
-and unexecuted.
+retrieval is closed as `project_history_retrieval_v1`: it reproduces 71 Tier 1
+and seven strict Tier 2 links, 56 unique historical candidate BOEs, zero
+holdout overlap and zero source conflicts. The loader-valid
+`history-extraction-final-v2` snapshot contains 56 current extractions, 128 unique
+attempts and zero blockers after offline deterministic validation fixes and one
+versioned manual review; no additional model call was required. The 78
+candidate links evaluate as 41 confirmed, two false positives and 35 ambiguous
+for later grouping. The corpus strategy is **W14 + CONSERVATIVE BACKFILL —
+CONFIRMED**; the anchor and history extractions are closed, while their
+contractual union and final-corpus Silver have not started. `main-04` and the
+two old `main-03` retries remain unauthorized fallback work. The holdout
+remains sealed and unexecuted.

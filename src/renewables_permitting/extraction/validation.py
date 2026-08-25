@@ -9,6 +9,7 @@ from renewables_permitting.extraction.canonicalization import (
     _bounded_generation_list_contains_name,
     _canonical_documentary_text,
     _documentary_contains,
+    _event_has_single_shared_component_action,
     _event_is_integrated,
     _evidence_is_supported,
     _find_literal_span,
@@ -45,6 +46,12 @@ _GENERATION_TABLE_CONTEXT_RE = re.compile(
 )
 _GENERATION_TABLE_HEADER_RE = re.compile(
     r"^denominaci[oó]n$",
+    re.IGNORECASE,
+)
+_GENERATION_PRODUCTION_TABLE_CONTEXT_RE = re.compile(
+    r"\binstalaciones?\s+de\s+producci[oó]n"
+    r"(?:\s+de\s+energ[ií]a\s+el[eé]ctrica)?\s+mediante\s+"
+    r"tecnolog[ií]a\s+(?:solar\s+)?fotovoltaica\b",
     re.IGNORECASE,
 )
 _GENERATION_TABLE_CASE_FILE_RE = re.compile(
@@ -97,6 +104,12 @@ _POST_MODEL_NON_PROJECT_TITLE_PATTERNS = (
         r"[^.;]{0,300}\bminicentrales\s+hidroel[eé]ctricas\b",
         re.IGNORECASE,
     ),
+    re.compile(
+        r"\blabores?\s+de\s+mantenimiento\s+y\s+conservaci[oó]n\s+de\s+"
+        r"un\s+tramo\s+del\s+cauce\b[^.;]{0,240}\bque\s+atraviesa\s+"
+        r"(?:el\s+|la\s+)?(?:parque|planta|central)\b",
+        re.IGNORECASE,
+    ),
 )
 
 
@@ -134,22 +147,31 @@ def _generation_table_names(source_text: str) -> set[str]:
     ]
     names: set[str] = set()
     for index in range(len(lines) - 2):
-        if not _GENERATION_TABLE_HEADER_RE.fullmatch(lines[index]):
-            continue
-        if "expediente" not in lines[index + 1].casefold():
-            continue
         local_context = " ".join(lines[max(0, index - 2):index])
-        if not _GENERATION_TABLE_CONTEXT_RE.search(local_context):
+        denomination_table = (
+            _GENERATION_TABLE_HEADER_RE.fullmatch(lines[index]) is not None
+            and "expediente" in lines[index + 1].casefold()
+            and _GENERATION_TABLE_CONTEXT_RE.search(local_context) is not None
+        )
+        production_table = (
+            lines[index].casefold() == "instalación"
+            and lines[index + 1].casefold() == "promotor"
+            and lines[index + 2].casefold() == "expediente"
+            and _GENERATION_PRODUCTION_TABLE_CONTEXT_RE.search(local_context)
+            is not None
+        )
+        if not denomination_table and not production_table:
             continue
 
-        has_promoter = (
+        has_promoter = production_table or (
             index + 2 < len(lines)
             and lines[index + 2].casefold() == "promotor"
         )
         row_width = 3 if has_promoter else 2
+        expediente_offset = 2 if production_table else 1
         row_index = index + row_width
-        while row_index + 1 < len(lines):
-            expediente = lines[row_index + 1]
+        while row_index + expediente_offset < len(lines):
+            expediente = lines[row_index + expediente_offset]
             valid_expediente = (
                 re.search(r"\d", expediente) is not None
                 if has_promoter
@@ -353,7 +375,11 @@ def validate_extraction_against_document(
             if not supported:
                 issues.append(f"{path}: semántica no respaldada.")
 
-        if len(event.generation_assets) > 1 and not _event_is_integrated(event, source):
+        if (
+            len(event.generation_assets) > 1
+            and not _event_is_integrated(event, source)
+            and not _event_has_single_shared_component_action(event)
+        ):
             issues.append(
                 f"{event_path}: varias plantas independientes deben estar en eventos distintos."
             )

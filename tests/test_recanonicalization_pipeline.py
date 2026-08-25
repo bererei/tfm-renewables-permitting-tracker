@@ -976,6 +976,44 @@ def test_main01_versioned_human_reviews_encode_closed_dispositions() -> None:
         assert pd.Timestamp(payload["reviewed_at_utc"]).tzinfo is not None
 
 
+def test_w14_history_versioned_review_encodes_27607_disposition() -> None:
+    payload = json.loads(
+        Path("config/manual_reviews/boe_ai/BOE-B-2023-27607.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert payload["source_document_sha256"] == (
+        "913b7f465e50a6d649e6b8a73b2405f3a9a58284a64f0e995c165d9417a694e5"
+    )
+    assert payload["source_attempt_id"] == (
+        "a2415952da72463a80b66a0fa15384f5"
+    )
+    assert payload["review_status"] == "manually_validated"
+    assert payload["reviewer"] == "human_tfm_review"
+    assert pd.Timestamp(payload["reviewed_at_utc"]).tzinfo is not None
+
+    extraction = BOEProjectExtraction.model_validate(
+        payload["corrected_extraction"]
+    )
+    assert len(extraction.publication_events) == 1
+    event = extraction.publication_events[0]
+    assert [
+        asset.names_raw[0] for asset in event.generation_assets
+    ] == ["HSF ANUBIS", "HSF AFRODITA", "HSF DEMETER"]
+    assert len(event.associated_components) == 1
+    assert event.associated_components[0].related_generation_asset_refs == [
+        "generation_asset_1",
+        "generation_asset_2",
+        "generation_asset_3",
+    ]
+    assert len(event.administrative_actions) == 1
+    action = event.administrative_actions[0]
+    assert action.action_type.value == "declaracion_utilidad_publica"
+    assert action.decision.value == "declarado"
+    assert action.targets == ["component_1"]
+
+
 def test_historical_snapshot_requires_the_explicit_matching_identity(
     tmp_path,
 ) -> None:
