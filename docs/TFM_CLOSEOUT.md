@@ -40,7 +40,7 @@ work listed here may enter the product.
 | W14 historical retrieval | **CLOSED** | Offline `project_history_retrieval_v1` reproduces 40 roots, 71 Tier 1 + 7 Tier 2 strict links, 56 unique BOEs, 0 holdout and 0 conflicts |
 | W14 historical extraction | **CLOSED — 56 CURRENT; 0 BLOCKERS** | Loader-valid `history-extraction-final-v2` contains 128 unique attempts, 54 relevant documents, two non-relevant documents and one versioned manual review; see `docs/FINAL_CORPUS_W14_HISTORY_FAILURE_REVIEW.md` |
 | W14 extraction union | **CLOSED — 104 CURRENT; 0 BLOCKERS** | Loader-valid `runs/final-w14-corpus-20220101-20260820-v1/extraction`; 286 unique attempts; one manual review; identity `dea0f79d9b743dccff23f19995da6ff470866c1d717a2ad1a3af7c415d06eae3` |
-| Final-corpus Silver | **NOT EXECUTED — READY** | Next gate; consume the validated W14 extraction union directly |
+| Final-corpus Silver | **CLOSED — 13 TABLES; 0 VALIDATION ISSUES** | Loader-valid `runs/final-w14-corpus-20220101-20260820-v1/silver`; identity `1fdcdb0fc15d7ccef062dd69a9fb35d2f85ddff5ec6a4a0ecba035332eb28014`; see `docs/FINAL_CORPUS_W14_SILVER_MATERIALIZATION.md` |
 | Review/admin audit | **COMPLETED — POST-CORPUS WORK** | The versioned file workflow remains the August path; administrative UI/backend work remains POST-TFM |
 | Final holdout | **SEALED — NOT EXECUTED** | No holdout source or output was inspected during W14 historical extraction |
 | Holdout exposure provenance | **RESOLVED — 479 development-exposed BOEs versioned** | `docs/HOLDOUT_EXPOSURE_PROVENANCE.md`; P2 exposed: 263; P2 provisionally eligible: 19,226 |
@@ -448,9 +448,12 @@ FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW
 → GEMINI — NO FURTHER CALLS AUTHORIZED
 → HOLDOUT — SEALED; NOT EXECUTED
 → REVIEW/ADMIN AUDIT — COMPLETED; ADMINISTRATIVE UI/BACKEND IS POST-TFM
-→ SILVER — NOT EXECUTED
+→ W14 SILVER — CLOSED; 13 TABLES; 0 CORRECTIONS; 0 VALIDATION ISSUES
+→ SILVER ID — 1fdcdb0fc15d7ccef062dd69a9fb35d2f85ddff5ec6a4a0ecba035332eb28014
+→ LOCATIONS — NOT EXECUTED
+→ GROUPING — NOT EXECUTED
 → GOLD — NOT EXECUTED
-→ NEXT: FINAL SILVER MATERIALIZATION
+→ NEXT: FINAL DOWNSTREAM MATERIALIZATION
 ```
 
 The source, configuration, funnel, corrections and cost evidence pass the P2
@@ -491,6 +494,11 @@ order-independent union is closed at
 `runs/final-w14-corpus-20220101-20260820-v1/extraction`: 48 non-holdout anchor
 BOEs plus 56 conservatively recovered historical BOEs, zero overlap, 104
 current extractions, 286 unique attempts, one validated manual review and zero
-blockers. Final-corpus Silver and Gold have not been executed. P2 is fallback
-only; `main-04` through `main-20` and the two old `main-03` retries are not
-required for the final TFM corpus. The holdout remains sealed and unexecuted.
+blockers. Final-corpus Silver is closed with 13 contract-valid tables, zero
+corrections, identity
+`1fdcdb0fc15d7ccef062dd69a9fb35d2f85ddff5ec6a4a0ecba035332eb28014`
+and the reproducibility evidence in
+`docs/FINAL_CORPUS_W14_SILVER_MATERIALIZATION.md`. Locations, grouping and Gold
+have not been executed. P2 is fallback only; `main-04` through `main-20` and
+the two old `main-03` retries are not required for the final TFM corpus. The
+holdout remains sealed and unexecuted.
