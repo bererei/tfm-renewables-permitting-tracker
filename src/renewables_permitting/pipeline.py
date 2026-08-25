@@ -117,6 +117,7 @@ from renewables_permitting.project_history import (
 
 
 PIPELINE_STAGE_VERSION = "1"
+EXTRACTION_UNION_OPERATION_VERSION = "1"
 EXIT_SUCCESS = 0
 EXIT_FAILURE = 1
 EXIT_MODEL_PERMISSION_REQUIRED = 3
@@ -233,6 +234,49 @@ class ExtractionSubsetResult:
     selected_document_count: int
     selected_attempt_count: int
     selected_manual_review_count: int
+    blocking_review_count: int
+
+
+@dataclass(frozen=True)
+class ExtractionUnionParent:
+    """Verified parent lineage used by one extraction union."""
+
+    snapshot: LoadedExtractionSnapshot
+    snapshot_identity_sha256: str
+    root_snapshot_identity_sha256: str
+    deterministic_code_sha256: str
+    recanonicalization_materialization_version: str
+
+
+@dataclass(frozen=True)
+class ExtractionUnionPlan:
+    """Side-effect-free, fully recomputed extraction union."""
+
+    output_dir: Path
+    source_snapshot: Path
+    source_snapshot_identity_sha256: str
+    parents: tuple[ExtractionUnionParent, ...]
+    documents: pd.DataFrame
+    attempts: pd.DataFrame
+    manual_reviews: pd.DataFrame
+    current_extractions: pd.DataFrame
+    review_queue: pd.DataFrame
+    snapshot_identity_sha256: str
+    deterministic_code_sha256: str
+
+
+@dataclass(frozen=True)
+class ExtractionUnionResult:
+    """Published union of disjoint compatible extraction snapshots."""
+
+    output_dir: Path
+    manifest_path: Path
+    snapshot_identity_sha256: str
+    parent_snapshot_identities: tuple[str, ...]
+    document_count: int
+    attempt_count: int
+    manual_review_count: int
+    current_extraction_count: int
     blocking_review_count: int
 
 
@@ -1856,6 +1900,585 @@ def materialize_extraction_subset(
     )
 
 
+def _load_union_source_snapshot(
+    source_snapshot: Path,
+) -> tuple[pd.DataFrame, Mapping[str, Any], str]:
+    """Load the common source boundary required by an extraction union."""
+
+    source_snapshot = Path(source_snapshot).absolute()
+    manifest = _load_json_manifest(source_snapshot, stage="Source")
+    if (
+        manifest.get("stage") != "source"
+        or manifest.get("stage_version") != PIPELINE_STAGE_VERSION
+    ):
+        raise PipelineError("Source snapshot metadata is incompatible.")
+    document_path = _verify_artifact(
+        source_snapshot, manifest, "documents"
+    )
+    documents = prepare_documents(pd.read_parquet(document_path))
+    identity = manifest.get("document_identity_sha256")
+    counts = manifest.get("counts")
+    if (
+        not isinstance(identity, str)
+        or identity != _documents_identity(documents)
+        or not isinstance(counts, Mapping)
+        or counts.get("documents") != len(documents)
+    ):
+        raise PipelineError("Source snapshot document identity is inconsistent.")
+    return documents, manifest, identity
+
+
+def _union_parent_deterministic_provenance(
+    manifest: Mapping[str, Any],
+) -> tuple[str, str]:
+    """Return the deterministic canonicalisation identity of one parent."""
+
+    if manifest.get("snapshot_type") == "extraction_union":
+        union = manifest.get("union")
+        if not isinstance(union, Mapping):
+            raise PipelineError(
+                "Extraction union parent provenance is incomplete."
+            )
+        code_sha256 = union.get("parent_deterministic_code_sha256")
+        materialization_version = union.get(
+            "parent_recanonicalization_materialization_version"
+        )
+    else:
+        target = manifest.get("target")
+        recanonicalization = manifest.get("recanonicalization")
+        if not isinstance(target, Mapping) or not isinstance(
+            recanonicalization, Mapping
+        ):
+            raise PipelineError(
+                "Offline recanonicalization is required before extraction "
+                "union: parent has no deterministic target provenance."
+            )
+        expected_target = {
+            "extraction_config_id": EXTRACTION_CONFIG_ID,
+            "contract_schema_sha256": CONTRACT_SCHEMA_SHA256,
+            "instructions_sha256": INSTRUCTIONS_SHA256,
+            "canonicalization_policy": EXTRACTION_CONFIG[
+                "canonicalization_policy"
+            ],
+        }
+        target_mismatches = [
+            key
+            for key, expected_value in expected_target.items()
+            if target.get(key) != expected_value
+        ]
+        if target_mismatches:
+            raise PipelineError(
+                "Extraction parent deterministic target is incompatible: "
+                f"{target_mismatches}."
+            )
+        target_code = target.get("deterministic_code_sha256")
+        replay_code = recanonicalization.get("deterministic_code_sha256")
+        target_version = target.get(
+            "recanonicalization_materialization_version"
+        )
+        replay_version = recanonicalization.get("materialization_version")
+        if target_code != replay_code or target_version != replay_version:
+            raise PipelineError(
+                "Extraction parent deterministic provenance is internally "
+                "inconsistent."
+            )
+        code_sha256 = target_code
+        materialization_version = target_version
+
+    active_code = deterministic_recanonicalization_code_sha256()
+    if (
+        code_sha256 != active_code
+        or materialization_version
+        != RECANONICALIZATION_MATERIALIZATION_VERSION
+    ):
+        raise PipelineError(
+            "Offline recanonicalization is required before extraction union: "
+            "parent deterministic provenance is not current."
+        )
+    return str(code_sha256), str(materialization_version)
+
+
+def _load_extraction_union_parents(
+    input_extractions: Sequence[Path],
+    *,
+    expected_extraction_config_id: str,
+) -> tuple[ExtractionUnionParent, ...]:
+    if len(input_extractions) < 2:
+        raise PipelineError("Extraction union requires at least two parents.")
+
+    expected = {
+        "stage": "extraction",
+        "stage_version": PIPELINE_STAGE_VERSION,
+        "extraction_config_id": expected_extraction_config_id,
+        "model_provider": MODEL_PROVIDER,
+        "model_name": AI_MODEL_NAME,
+        "instructions_sha256": INSTRUCTIONS_SHA256,
+        "contract_schema_sha256": CONTRACT_SCHEMA_SHA256,
+        "canonicalization_policy": EXTRACTION_CONFIG[
+            "canonicalization_policy"
+        ],
+        "scope_classification_policy": EXTRACTION_CONFIG[
+            "scope_classification_policy"
+        ],
+        "document_validation_version": DOCUMENT_VALIDATION_VERSION,
+    }
+    parents: list[ExtractionUnionParent] = []
+    seen_paths: set[Path] = set()
+    for value in input_extractions:
+        path = Path(value).absolute()
+        if path in seen_paths:
+            raise PipelineError("Extraction union contains a repeated parent.")
+        seen_paths.add(path)
+        loaded = load_extraction_snapshot(
+            path,
+            expected_extraction_config_id=expected_extraction_config_id,
+        )
+        mismatches = [
+            key
+            for key, expected_value in expected.items()
+            if loaded.manifest.get(key) != expected_value
+        ]
+        if mismatches:
+            raise PipelineError(
+                "Extraction union parent identity is incompatible: "
+                f"{mismatches}."
+            )
+        code_sha256, materialization_version = (
+            _union_parent_deterministic_provenance(loaded.manifest)
+        )
+        snapshot_identity = _extraction_snapshot_identity(loaded)
+        root_identity = loaded.manifest.get(
+            "root_snapshot_identity_sha256", snapshot_identity
+        )
+        if not isinstance(root_identity, str) or not re.fullmatch(
+            r"[0-9a-f]{64}", root_identity
+        ):
+            raise PipelineError("Extraction parent root identity is invalid.")
+        parents.append(ExtractionUnionParent(
+            snapshot=loaded,
+            snapshot_identity_sha256=snapshot_identity,
+            root_snapshot_identity_sha256=root_identity,
+            deterministic_code_sha256=code_sha256,
+            recanonicalization_materialization_version=(
+                materialization_version
+            ),
+        ))
+    identities = [parent.snapshot_identity_sha256 for parent in parents]
+    if len(set(identities)) != len(identities):
+        raise PipelineError(
+            "Extraction union parent snapshot identities are duplicated."
+        )
+    return tuple(sorted(
+        parents,
+        key=lambda parent: parent.snapshot_identity_sha256,
+    ))
+
+
+def _combine_union_manual_reviews(
+    parents: Sequence[ExtractionUnionParent],
+) -> pd.DataFrame:
+    frames = [parent.snapshot.manual_reviews for parent in parents]
+    column_order = list(dict.fromkeys(
+        column for frame in frames for column in frame.columns
+    ))
+    records = [
+        record
+        for frame in frames
+        for record in frame.to_dict(orient="records")
+    ]
+    if not records:
+        return empty_manual_reviews()
+    reviews = normalise_manual_reviews(pd.DataFrame.from_records(
+        records, columns=column_order
+    ))
+    review_ids = reviews["manual_review_id"].astype("string")
+    duplicated = review_ids.notna() & review_ids.duplicated(keep=False)
+    if duplicated.any():
+        sample = sorted(set(
+            review_ids.loc[duplicated].dropna().astype(str)
+        ))[:5]
+        raise PipelineError(
+            "Extraction union contains manual_review_id collisions; "
+            f"sample={sample}."
+        )
+    return reviews.sort_values(
+        ["identificador_boe", "reviewed_at_utc", "manual_review_id"],
+        kind="stable",
+    ).reset_index(drop=True)
+
+
+def _union_manual_review_identity(reviews: pd.DataFrame) -> str:
+    if reviews.empty:
+        records: list[dict[str, Any]] = []
+    else:
+        records = reviews.sort_values(
+            [
+                "identificador_boe",
+                "reviewed_at_utc",
+                "source_attempt_id",
+                "review_status",
+            ],
+            kind="stable",
+        ).to_dict(orient="records")
+    return sha256(_canonical_json_bytes(records)).hexdigest()
+
+
+def plan_extraction_union(
+    *,
+    input_extractions: Sequence[Path],
+    source_snapshot: Path,
+    output_dir: Path,
+    expected_extraction_config_id: str,
+) -> ExtractionUnionPlan:
+    """Validate and recompute a union without writing any artifact."""
+
+    _validate_expected_config(expected_extraction_config_id)
+    output_dir = _validate_new_output(output_dir)
+    source_documents, _source_manifest, source_identity = (
+        _load_union_source_snapshot(source_snapshot)
+    )
+    parents = _load_extraction_union_parents(
+        input_extractions,
+        expected_extraction_config_id=expected_extraction_config_id,
+    )
+
+    seen_boe: set[str] = set()
+    seen_attempts: set[str] = set()
+    union_boe: set[str] = set()
+    attempts = empty_ai_extraction_attempts_log()
+    for parent in parents:
+        parent_boe = set(
+            parent.snapshot.documents["identificador"].astype(str)
+        )
+        overlap = sorted(seen_boe & parent_boe)
+        if overlap:
+            raise PipelineError(
+                "Extraction union parents contain overlapping BOE IDs; "
+                f"sample={overlap[:20]}."
+            )
+        seen_boe.update(parent_boe)
+        union_boe.update(parent_boe)
+
+        parent_attempts = set(
+            parent.snapshot.attempts["attempt_id"].astype(str)
+        )
+        attempt_overlap = sorted(seen_attempts & parent_attempts)
+        if attempt_overlap:
+            raise PipelineError(
+                "Extraction union contains attempt_id collisions; "
+                f"sample={attempt_overlap[:5]}."
+            )
+        seen_attempts.update(parent_attempts)
+        attempts = combine_ai_extraction_attempt_frames(
+            attempts, parent.snapshot.attempts
+        )
+
+    source_by_boe = source_documents.set_index("identificador", drop=False)
+    absent = sorted(union_boe - set(source_by_boe.index.astype(str)))
+    if absent:
+        raise PipelineError(
+            "Extraction union parent documents are absent from the common "
+            f"source; sample={absent[:20]}."
+        )
+    source_hashes = source_by_boe["source_document_sha256"].astype(str)
+    conflicts: list[str] = []
+    for parent in parents:
+        for row in parent.snapshot.documents.itertuples(index=False):
+            boe_id = str(row.identificador)
+            if source_hashes.loc[boe_id] != str(row.source_document_sha256):
+                conflicts.append(boe_id)
+    if conflicts:
+        raise PipelineError(
+            "Extraction union source document hash conflict; "
+            f"sample={sorted(set(conflicts))[:20]}."
+        )
+
+    documents = source_documents.loc[
+        source_documents["identificador"].astype(str).isin(union_boe)
+    ].sort_values("identificador", kind="stable").reset_index(drop=True)
+    attempts = attempts.sort_values(
+        ["identificador_boe", "extracted_at", "attempt_id"],
+        kind="stable",
+        na_position="first",
+    ).reset_index(drop=True)
+    _validate_unique_attempt_ids(
+        attempts, context="Extraction union attempts"
+    )
+    manual_reviews = _combine_union_manual_reviews(parents)
+    current = select_best_valid_extractions(
+        attempts=attempts,
+        source_df=documents,
+        manual_reviews=manual_reviews,
+    ).sort_values(
+        ["identificador_boe", "attempt_id"], kind="stable"
+    ).reset_index(drop=True)
+    review_queue = build_review_queue(
+        attempts=attempts,
+        source_df=documents,
+        manual_reviews=manual_reviews,
+    ).sort_values(
+        ["identificador_boe", "review_queue_id"], kind="stable"
+    ).reset_index(drop=True)
+    blocking_count = int(
+        review_queue["reason_severity"].eq("blocking").fillna(False).sum()
+    )
+    if blocking_count:
+        raise ReviewRequired(
+            "Extraction union recomputation produced blocking reviews: "
+            f"{blocking_count}."
+        )
+
+    deterministic_code_sha256 = _sha256_file(Path(__file__))
+    snapshot_identity = sha256(_canonical_json_bytes({
+        "operation": (
+            f"extraction_union_v{EXTRACTION_UNION_OPERATION_VERSION}"
+        ),
+        "parent_snapshot_identities": [
+            parent.snapshot_identity_sha256 for parent in parents
+        ],
+        "source_snapshot_identity_sha256": source_identity,
+        "extraction_config_id": EXTRACTION_CONFIG_ID,
+        "instructions_sha256": INSTRUCTIONS_SHA256,
+        "contract_schema_sha256": CONTRACT_SCHEMA_SHA256,
+        "canonicalization_policy": EXTRACTION_CONFIG[
+            "canonicalization_policy"
+        ],
+        "scope_classification_policy": EXTRACTION_CONFIG[
+            "scope_classification_policy"
+        ],
+        "model_provider": MODEL_PROVIDER,
+        "model_name": AI_MODEL_NAME,
+        "document_validation_version": DOCUMENT_VALIDATION_VERSION,
+        "parent_deterministic_code_sha256": (
+            deterministic_recanonicalization_code_sha256()
+        ),
+        "parent_recanonicalization_materialization_version": (
+            RECANONICALIZATION_MATERIALIZATION_VERSION
+        ),
+        "union_deterministic_code_sha256": deterministic_code_sha256,
+        "document_identity_sha256": _documents_identity(documents),
+        "attempt_ids": sorted(attempts["attempt_id"].astype(str)),
+        "manual_review_identity_sha256": _union_manual_review_identity(
+            manual_reviews
+        ),
+    })).hexdigest()
+    return ExtractionUnionPlan(
+        output_dir=output_dir,
+        source_snapshot=Path(source_snapshot).absolute(),
+        source_snapshot_identity_sha256=source_identity,
+        parents=parents,
+        documents=documents,
+        attempts=attempts,
+        manual_reviews=manual_reviews,
+        current_extractions=current,
+        review_queue=review_queue,
+        snapshot_identity_sha256=snapshot_identity,
+        deterministic_code_sha256=deterministic_code_sha256,
+    )
+
+
+def _print_extraction_union_plan(plan: ExtractionUnionPlan) -> None:
+    print(f"union parents: {len(plan.parents)}")
+    for parent in plan.parents:
+        print(
+            "union parent: "
+            f"id={parent.snapshot_identity_sha256} "
+            f"documents={len(parent.snapshot.documents)} "
+            f"attempts={len(parent.snapshot.attempts)} "
+            f"manual_reviews={len(parent.snapshot.manual_reviews)}"
+        )
+    print(f"union source identity: {plan.source_snapshot_identity_sha256}")
+    print(f"union documents: {len(plan.documents)}")
+    print(f"union attempts: {len(plan.attempts)}")
+    print(f"union manual reviews: {len(plan.manual_reviews)}")
+    print(f"union current extractions: {len(plan.current_extractions)}")
+    blocking_count = int(
+        plan.review_queue["reason_severity"]
+        .eq("blocking")
+        .fillna(False)
+        .sum()
+    )
+    print(f"union blocking reviews: {blocking_count}")
+    print(f"union identity: {plan.snapshot_identity_sha256}")
+
+
+def materialize_extraction_union(
+    *,
+    input_extractions: Sequence[Path],
+    source_snapshot: Path,
+    output_dir: Path,
+    expected_extraction_config_id: str,
+    created_at: datetime | None = None,
+) -> ExtractionUnionResult:
+    """Atomically publish a recomputed union of compatible parents."""
+
+    plan = plan_extraction_union(
+        input_extractions=input_extractions,
+        source_snapshot=source_snapshot,
+        output_dir=output_dir,
+        expected_extraction_config_id=expected_extraction_config_id,
+    )
+    instant = _normalise_created_at(created_at)
+    staging_dir, prefix = _staging_directory(plan.output_dir)
+    published = False
+    try:
+        document_path = staging_dir / _EXTRACTION_DOCUMENTS
+        attempt_path = staging_dir / _EXTRACTION_ATTEMPTS
+        manual_path = staging_dir / _EXTRACTION_MANUAL_REVIEWS
+        current_path = staging_dir / _EXTRACTION_CURRENT
+        queue_path = staging_dir / _EXTRACTION_REVIEW_QUEUE
+        save_parquet_atomic(plan.documents, document_path)
+        save_parquet_atomic(plan.attempts, attempt_path)
+        save_parquet_atomic(plan.manual_reviews, manual_path)
+        save_parquet_atomic(plan.current_extractions, current_path)
+        save_parquet_atomic(plan.review_queue, queue_path)
+        blocking_count = int(
+            plan.review_queue["reason_severity"]
+            .eq("blocking")
+            .fillna(False)
+            .sum()
+        )
+        rejected_count = int(
+            plan.manual_reviews["review_status"]
+            .eq("rejected")
+            .fillna(False)
+            .sum()
+        )
+        validated_count = int(
+            plan.manual_reviews["review_status"]
+            .eq("manually_validated")
+            .fillna(False)
+            .sum()
+        )
+        parent_entries = [{
+            "input_extraction": str(parent.snapshot.input_dir),
+            "snapshot_identity_sha256": (
+                parent.snapshot_identity_sha256
+            ),
+            "root_snapshot_identity_sha256": (
+                parent.root_snapshot_identity_sha256
+            ),
+            "document_count": len(parent.snapshot.documents),
+            "attempt_count": len(parent.snapshot.attempts),
+            "manual_review_count": len(parent.snapshot.manual_reviews),
+            "deterministic_code_sha256": (
+                parent.deterministic_code_sha256
+            ),
+            "recanonicalization_materialization_version": (
+                parent.recanonicalization_materialization_version
+            ),
+        } for parent in plan.parents]
+        manifest = {
+            "stage": "extraction",
+            "stage_version": PIPELINE_STAGE_VERSION,
+            "snapshot_type": "extraction_union",
+            "union_operation_version": EXTRACTION_UNION_OPERATION_VERSION,
+            "snapshot_identity_sha256": plan.snapshot_identity_sha256,
+            "created_at": _format_created_at(instant),
+            "extraction_config_id": EXTRACTION_CONFIG_ID,
+            "model_provider": MODEL_PROVIDER,
+            "model_name": AI_MODEL_NAME,
+            "instructions_sha256": INSTRUCTIONS_SHA256,
+            "contract_schema_sha256": CONTRACT_SCHEMA_SHA256,
+            "canonicalization_policy": EXTRACTION_CONFIG[
+                "canonicalization_policy"
+            ],
+            "scope_classification_policy": EXTRACTION_CONFIG[
+                "scope_classification_policy"
+            ],
+            "document_validation_version": DOCUMENT_VALIDATION_VERSION,
+            "document_identity_sha256": _documents_identity(plan.documents),
+            "retry_error_boe_ids": [],
+            "deterministic_code_sha256": plan.deterministic_code_sha256,
+            "source_snapshot": {
+                "input_source": str(plan.source_snapshot),
+                "document_identity_sha256": (
+                    plan.source_snapshot_identity_sha256
+                ),
+            },
+            "parents": parent_entries,
+            "root_parent_snapshot_identities": sorted({
+                parent.root_snapshot_identity_sha256
+                for parent in plan.parents
+            }),
+            "union": {
+                "operation_version": EXTRACTION_UNION_OPERATION_VERSION,
+                "order_independent": True,
+                "overlap_policy": "reject",
+                "parent_deterministic_code_sha256": (
+                    deterministic_recanonicalization_code_sha256()
+                ),
+                "parent_recanonicalization_materialization_version": (
+                    RECANONICALIZATION_MATERIALIZATION_VERSION
+                ),
+                "deterministic_code_sha256": (
+                    plan.deterministic_code_sha256
+                ),
+                "model_requests_added": 0,
+            },
+            "counts": {
+                "documents": len(plan.documents),
+                "compatible_existing_before_run": len(
+                    plan.current_extractions
+                ) + rejected_count,
+                "pending_before_run": 0,
+                "model_calls_planned": 0,
+                "explicit_error_retries": 0,
+                "attempts": len(plan.attempts),
+                "manual_reviews": len(plan.manual_reviews),
+                "manually_validated": validated_count,
+                "human_rejected": rejected_count,
+                "current_extractions": len(plan.current_extractions),
+                "blocking_review": blocking_count,
+            },
+            "artifacts": {
+                "documents": _artifact(document_path, plan.documents),
+                "attempts": _artifact(attempt_path, plan.attempts),
+                "manual_reviews": _artifact(
+                    manual_path, plan.manual_reviews
+                ),
+                "current_extractions": _artifact(
+                    current_path, plan.current_extractions
+                ),
+                "review_queue": _artifact(
+                    queue_path, plan.review_queue
+                ),
+            },
+        }
+        manifest_path = staging_dir / _EXTRACTION_MANIFEST
+        _write_json(manifest_path, manifest)
+        loaded = load_extraction_snapshot(
+            staging_dir,
+            expected_extraction_config_id=expected_extraction_config_id,
+        )
+        if _extraction_snapshot_identity(loaded) != (
+            plan.snapshot_identity_sha256
+        ):
+            raise PipelineError(
+                "Extraction union snapshot identity failed round trip."
+            )
+        _validate_new_output(plan.output_dir)
+        staging_dir.rename(plan.output_dir)
+        published = True
+    finally:
+        if not published:
+            _cleanup_staging(staging_dir, plan.output_dir, prefix)
+
+    return ExtractionUnionResult(
+        output_dir=plan.output_dir,
+        manifest_path=plan.output_dir / _EXTRACTION_MANIFEST,
+        snapshot_identity_sha256=plan.snapshot_identity_sha256,
+        parent_snapshot_identities=tuple(
+            parent.snapshot_identity_sha256 for parent in plan.parents
+        ),
+        document_count=len(plan.documents),
+        attempt_count=len(plan.attempts),
+        manual_review_count=len(plan.manual_reviews),
+        current_extraction_count=len(plan.current_extractions),
+        blocking_review_count=0,
+    )
+
+
 def _has_structured_text(series: pd.Series) -> pd.Series:
     return series.notna() & series.astype("string").str.strip().ne("")
 
@@ -2914,6 +3537,20 @@ def _build_parser() -> argparse.ArgumentParser:
     extraction_subset.add_argument("--output-dir", type=Path, required=True)
     _add_expected_config(extraction_subset)
 
+    extraction_union = subparsers.add_parser(
+        "extraction-union",
+        help="combine complete histories from disjoint compatible snapshots",
+    )
+    extraction_union.add_argument(
+        "--input-extraction", type=Path, action="append", required=True
+    )
+    extraction_union.add_argument(
+        "--source-snapshot", type=Path, required=True
+    )
+    extraction_union.add_argument("--output-dir", type=Path, required=True)
+    _add_expected_config(extraction_union)
+    _add_dry_run(extraction_union)
+
     history = subparsers.add_parser(
         "history",
         help="derive deterministic Tier 1 + Tier 2 strict historical scope",
@@ -3076,6 +3713,31 @@ def _handle_extraction_subset(args: argparse.Namespace) -> int:
     print(f"preserved manual reviews: {result.selected_manual_review_count}")
     print(f"subset identity: {result.snapshot_identity_sha256}")
     print(f"extraction subset complete: output={result.output_dir}")
+    return EXIT_SUCCESS
+
+
+def _handle_extraction_union(args: argparse.Namespace) -> int:
+    arguments = {
+        "input_extractions": args.input_extraction,
+        "source_snapshot": args.source_snapshot,
+        "output_dir": args.output_dir,
+        "expected_extraction_config_id": (
+            args.expected_extraction_config_id
+        ),
+    }
+    if args.dry_run:
+        plan = plan_extraction_union(**arguments)
+        _print_extraction_union_plan(plan)
+        print("DRY RUN: no model/network/write execution performed")
+        return EXIT_SUCCESS
+    result = materialize_extraction_union(**arguments)
+    print(f"union documents: {result.document_count}")
+    print(f"union attempts: {result.attempt_count}")
+    print(f"union manual reviews: {result.manual_review_count}")
+    print(f"union current extractions: {result.current_extraction_count}")
+    print(f"union blocking reviews: {result.blocking_review_count}")
+    print(f"union identity: {result.snapshot_identity_sha256}")
+    print(f"extraction union complete: output={result.output_dir}")
     return EXIT_SUCCESS
 
 
@@ -3535,6 +4197,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "source": _handle_source,
         "extract": _handle_extract,
         "extraction-subset": _handle_extraction_subset,
+        "extraction-union": _handle_extraction_union,
         "history": _handle_history,
         "recanonicalize": _handle_recanonicalize,
         "silver": _handle_silver,

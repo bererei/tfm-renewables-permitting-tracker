@@ -227,6 +227,7 @@ Para conocer la interfaz exacta de una fase, usa siempre su ayuda:
 uv run python -m renewables_permitting.pipeline source --help
 uv run python -m renewables_permitting.pipeline extract --help
 uv run python -m renewables_permitting.pipeline extraction-subset --help
+uv run python -m renewables_permitting.pipeline extraction-union --help
 uv run python -m renewables_permitting.pipeline history --help
 uv run python -m renewables_permitting.pipeline recanonicalize --help
 uv run python -m renewables_permitting.pipeline silver --help
@@ -243,6 +244,7 @@ uv run python -m renewables_permitting.pipeline run --help
 | `source` | Descarga sumarios/XML y prepara documentos | BOE, salvo `--dry-run` |
 | `extract` | Planifica/reutiliza intentos y extrae documentos pendientes | Gemini solo con `--execute-model` |
 | `extraction-subset` | Proyecta el historial reutilizable de un snapshot a un scope menor | No |
+| `extraction-union` | Une historias completas de snapshots compatibles y disjuntos | No |
 | `history` | Construye candidatos históricos Tier 1 + Tier 2 strict y un scope BOE deduplicado | No |
 | `recanonicalize` | Reaplica reglas deterministas a outputs persistidos compatibles | No |
 | `silver` | Verifica selección/revisión, aplica correcciones y crea 13 tablas | No |
@@ -268,6 +270,11 @@ deben ser nuevos: el pipeline no sobrescribe una salida ya existente.
   `--output-dir` nuevo y el config ID esperado. Verifica el snapshot parent y
   publica sin red ni modelo un snapshot nuevo con la historia completa de
   attempts y revisiones de los BOE del scope que ya existan en el parent.
+- `extraction-union` exige repetir `--input-extraction` para al menos dos
+  snapshots, además de `--source-snapshot`, un `--output-dir` nuevo y el config
+  ID esperado. Los parents deben ser compatibles, disjuntos y estar bajo la
+  procedencia determinista vigente. `--dry-run` valida y recomputa selección y
+  cola sin publicar.
 - `history` exige el source, la extracción y scope anchor, la colección de
   scopes main P2, el snapshot INE, límites de fecha, registro holdout, destino
   nuevo y config ID esperado. Busca offline mediante nombre/alias exacto y
@@ -903,6 +910,34 @@ Usa después `runs/<NUEVO_RUN>/reuse-input` como `--attempts` del `extract`
 limitado por el mismo scope. No copies Parquets ni elimines historial para
 hacer compatible el input: una review huérfana, un hash de source distinto o
 una identidad incompatible hacen fallar la proyección antes de publicarla.
+
+#### Unir snapshots de extracción disjuntos
+
+`extraction-union` combina snapshots compatibles contra un único source
+contractual. Preserva todos los attempts y revisiones, y vuelve a calcular la
+selección vigente y la cola con las funciones productivas. No llama al modelo,
+no concatena manualmente `current_extractions` y siempre publica un snapshot
+nuevo. Falla de forma cerrada ante BOE solapados, IDs de attempt o review
+colisionados, hashes documentales distintos, linaje inválido o procedencia
+incompatible.
+
+**Plantilla offline:** repite `--input-extraction` para cada parent y revisa
+primero el dry-run.
+
+```bash
+uv run python -m renewables_permitting.pipeline extraction-union \
+  --input-extraction <SNAPSHOT_EXTRACCION_A> \
+  --input-extraction <SNAPSHOT_EXTRACCION_B> \
+  --source-snapshot <SNAPSHOT_SOURCE_COMUN> \
+  --output-dir runs/<NUEVO_RUN>/extraction \
+  --expected-extraction-config-id "$EXTRACTION_CONFIG_ID" \
+  --dry-run
+```
+
+El orden de parents no cambia la identidad semántica. Un parent válido vacío
+aporta linaje pero ninguna fila. Si el gate solicita recanonicalización,
+publica primero el parent actualizado offline en otra ruta; nunca edites el
+snapshot original ni unas sus Parquets con scripts externos.
 
 #### Construir el scope histórico conservador
 

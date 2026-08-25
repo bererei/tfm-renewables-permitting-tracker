@@ -34,19 +34,20 @@ work listed here may enter the product.
 | Final Corpus Preflight 2022 v2 | Source snapshot reusable; isolated source drift resolved by human decision | Current official source wins for the Final TFM corpus; changed source hash is not automatically reusable; `docs/FINAL_CORPUS_PREFLIGHT_2022_V2.md` preserves the pre-decision audit |
 | Candidate funnel audit | Human-reviewed; R1+R3 approved | R2/R4 remain unimplemented; historical evidence is preserved in `docs/FINAL_CORPUS_CANDIDATE_FUNNEL_AUDIT.md` |
 | Pre-model R1+R3 mitigation | Implemented + tested — pending human review | Policy `binary_named_generation_pre_model_guard_v4`; strict offline P1/P2/P3 model counts 7,223/5,037/2,881; no model or source calls |
-| Period/funnel decision | **W14 + CONSERVATIVE BACKFILL CONFIRMED** | The completed 48-document non-holdout anchor supports the bounded pivot; P2 is retained only as fallback and `main-04` remains paused |
+| Period/funnel decision | **W14 + CONSERVATIVE BACKFILL CONFIRMED** | The completed non-holdout anchor supports the bounded pivot; P2 is fallback only and `main-04` through `main-20` are not required for the final corpus |
 | Anchor + historical backfill audit | **SUPERSEDED BY COMPLETED W14 PILOT** | The earlier `CONTINUE P2` decision remains historical evidence; the observed final anchor now supports Tier 1 + strict Tier 2 implementation |
-| W14 anchor pilot | **CLOSED — 48 CURRENT; 0 BLOCKERS; PIVOT CONFIRMED** | Final snapshot `runs/final-w14-anchor-pilot-20260807-20260820-v1/extraction-final`; 40 potential roots; see `docs/FINAL_CORPUS_W14_ANCHOR_COMPLETION.md` |
+| W14 anchor pilot | **CLOSED — 48 CURRENT; 0 BLOCKERS; PIVOT CONFIRMED** | Original snapshot remains immutable; union-compatible offline replay is `extraction-final-v2` with unchanged extraction semantics and 40 roots |
 | W14 historical retrieval | **CLOSED** | Offline `project_history_retrieval_v1` reproduces 40 roots, 71 Tier 1 + 7 Tier 2 strict links, 56 unique BOEs, 0 holdout and 0 conflicts |
 | W14 historical extraction | **CLOSED — 56 CURRENT; 0 BLOCKERS** | Loader-valid `history-extraction-final-v2` contains 128 unique attempts, 54 relevant documents, two non-relevant documents and one versioned manual review; see `docs/FINAL_CORPUS_W14_HISTORY_FAILURE_REVIEW.md` |
-| Anchor + history extraction union | **NOT STARTED** | Minimal contractual union tooling remains REQUIRED before Silver; no manual Parquet concatenation |
-| Final-corpus Silver | **NOT STARTED** | Depends on the validated anchor + history extraction union |
+| W14 extraction union | **CLOSED — 104 CURRENT; 0 BLOCKERS** | Loader-valid `runs/final-w14-corpus-20220101-20260820-v1/extraction`; 286 unique attempts; one manual review; identity `dea0f79d9b743dccff23f19995da6ff470866c1d717a2ad1a3af7c415d06eae3` |
+| Final-corpus Silver | **NOT EXECUTED — READY** | Next gate; consume the validated W14 extraction union directly |
+| Review/admin audit | **COMPLETED — POST-CORPUS WORK** | The versioned file workflow remains the August path; administrative UI/backend work remains POST-TFM |
 | Final holdout | **SEALED — NOT EXECUTED** | No holdout source or output was inspected during W14 historical extraction |
 | Holdout exposure provenance | **RESOLVED — 479 development-exposed BOEs versioned** | `docs/HOLDOUT_EXPOSURE_PROVENANCE.md`; P2 exposed: 263; P2 provisionally eligible: 19,226 |
 | Source reliability mitigation | Operationally validated in v2 | Three transient XML failures recovered after one retry; zero exhausted retries |
 | Final P2 extraction `main-01` | **CLOSED — 250 ACCOUNTED; 249 CURRENT; 1 REJECTED; 0 BLOCKERS** | Loader-validated `extraction-main-01-final-v2` has 501 unique attempts; see `docs/FINAL_EXTRACTION_MAIN01_IDEMPOTENCY_FIX.md` |
 | Final P2 extraction `main-02` | **CLOSED — 500 ACCOUNTED; 499 CURRENT; 1 REJECTED; 0 BLOCKERS** | Loader-validated `extraction-main-02-final`; eight deterministic blockers were resolved offline and the one isolated operational retry completed; cumulative `main-01` + `main-02` model cost USD 5.9837646; see `docs/FINAL_EXTRACTION_MAIN02_BLOCKER_FIX.md` |
-| Final P2 extraction `main-03` | **SEMANTICALLY CLOSED — 750 ACCOUNTED; 747 CURRENT; 1 REJECTED; 2 OPERATIONAL BLOCKERS** | The approved `BOE-B-2024-3861` semantics are preserved in loader-valid `extraction-main-03-recanonicalized-v2`; semantic blockers are zero and the two operational retries remain unauthorized; see `docs/FINAL_EXTRACTION_MAIN03_REVIEW_PRECEDENCE_FIX.md` |
+| Final P2 extraction `main-03` | **FALLBACK ONLY** | The loader-valid snapshot remains preserved; its two operational retries are P2 fallback work and are not required for the final TFM corpus |
 | Deterministic `main-02` blocker fix | **CLOSED** | Eight semantic blockers resolved offline with unchanged extraction identity; the separate operational retry also completed |
 | Deterministic `main-01` blocker fix | **IMPLEMENTED + TESTED + COMMITTED** | Four confirmed families corrected without changing extraction identity; offline replay and P2 impact audit in `docs/FINAL_EXTRACTION_MAIN01_BLOCKER_FIX.md` |
 | Explicit error retry tooling | **IMPLEMENTED + TESTED; NO FURTHER GEMINI CALLS AUTHORIZED** | The two `main-01` retries and the separate `main-02` retry completed; the two `main-03` candidates remain unauthorized |
@@ -195,9 +196,9 @@ Operational constraints that remain in force:
 - Corrections use VS Code + Codex + versioned inputs + tests + regeneration.
   The human decides evidence and approval; derivable IDs and hashes are
   calculated by code. Streamlit does not correct data.
-- The CLI does not yet combine a historical document snapshot and a new cohort
-  automatically. A minimal validated union/materialization step is still
-  required before Silver; never replace the cumulative corpus with a partial
+- The CLI combines only disjoint, compatible extraction snapshots through
+  `extraction-union`, preserving full attempt/review history and recomputing
+  selections and queues. Never replace the cumulative corpus with a partial
   cohort or join Parquets manually.
 - Every functional block closes with tests, documentation-impact review,
   human review and an explicitly approved commit/push before the next gate.
@@ -439,13 +440,17 @@ FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW
 → W14 HISTORICAL EXTRACTION — CLOSED; 56 CURRENT; 0 BLOCKERS; 128 UNIQUE ATTEMPTS
 → W14 HISTORY LINK AUDIT — 41 CONFIRMED; 2 FALSE POSITIVE; 35 AMBIGUOUS
 → CORPUS PIVOT — CONFIRMED; W14 + CONSERVATIVE BACKFILL
-→ P2 — FALLBACK ONLY; MAIN-04 REMAINS PAUSED
+→ ANCHOR OFFLINE RECANONICALIZATION — CLOSED; 48 OUTPUTS UNCHANGED; 0 MODEL CALLS
+→ W14 EXTRACTION UNION — CLOSED; 104 CURRENT; 286 UNIQUE ATTEMPTS; 0 BLOCKERS
+→ P2 — FALLBACK / ABANDONED FOR FINAL CORPUS
+→ MAIN-04…MAIN-20 — NOT REQUIRED FOR FINAL TFM CORPUS
+→ MAIN-03 RETRIES — P2 FALLBACK ONLY
 → GEMINI — NO FURTHER CALLS AUTHORIZED
-→ MAIN-04 — PAUSED; NOT AUTHORIZED
 → HOLDOUT — SEALED; NOT EXECUTED
-→ ANCHOR + HISTORY UNION — NOT STARTED
-→ SILVER — NOT STARTED
-→ NEXT: IMPLEMENT MINIMAL CONTRACTUAL EXTRACTION UNION; DO NOT RUN SILVER YET
+→ REVIEW/ADMIN AUDIT — COMPLETED; ADMINISTRATIVE UI/BACKEND IS POST-TFM
+→ SILVER — NOT EXECUTED
+→ GOLD — NOT EXECUTED
+→ NEXT: FINAL SILVER MATERIALIZATION
 ```
 
 The source, configuration, funnel, corrections and cost evidence pass the P2
@@ -480,7 +485,12 @@ attempts and zero blockers after offline deterministic validation fixes and one
 versioned manual review; no additional model call was required. The 78
 candidate links evaluate as 41 confirmed, two false positives and 35 ambiguous
 for later grouping. The corpus strategy is **W14 + CONSERVATIVE BACKFILL —
-CONFIRMED**; the anchor and history extractions are closed, while their
-contractual union and final-corpus Silver have not started. `main-04` and the
-two old `main-03` retries remain unauthorized fallback work. The holdout
-remains sealed and unexecuted.
+CONFIRMED**. The anchor was recanonicalized offline into `extraction-final-v2`
+with 48 semantically unchanged outputs and zero model calls. The contractual,
+order-independent union is closed at
+`runs/final-w14-corpus-20220101-20260820-v1/extraction`: 48 non-holdout anchor
+BOEs plus 56 conservatively recovered historical BOEs, zero overlap, 104
+current extractions, 286 unique attempts, one validated manual review and zero
+blockers. Final-corpus Silver and Gold have not been executed. P2 is fallback
+only; `main-04` through `main-20` and the two old `main-03` retries are not
+required for the final TFM corpus. The holdout remains sealed and unexecuted.

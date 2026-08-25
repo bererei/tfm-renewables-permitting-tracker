@@ -245,6 +245,10 @@ same commit. Verify documented commands against the real CLI.
 - Derived extraction subsets must preserve complete selected-document
   attempt/review history and must never relax the rule that attempts outside
   an extraction scope are invalid.
+- Extraction snapshot unions must preserve complete attempt/review history,
+  recompute effective selections and review queues, reject identity or
+  document/attempt collisions fail-closed, and never be implemented as manual
+  Parquet concatenation.
 - Retry failed model attempts only through explicit BOE selection. Append a
   new attempt and preserve the failed historical attempt unchanged.
 - Prefer offline tests, fixtures, mocks, and previously stored outputs during

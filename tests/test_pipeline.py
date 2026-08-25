@@ -248,6 +248,7 @@ def test_cli_help_lists_the_minimal_command_surface() -> None:
         "source",
         "extract",
         "extraction-subset",
+        "extraction-union",
         "history",
         "recanonicalize",
         "silver",
@@ -1780,6 +1781,7 @@ def _publish_parent_snapshot(
     attempts: pd.DataFrame,
     manual_reviews: pd.DataFrame | None = None,
 ) -> Path:
+    tmp_path.mkdir(parents=True, exist_ok=True)
     documents_path = tmp_path / "documents.parquet"
     attempts_path = tmp_path / "attempts.parquet"
     documents.to_parquet(documents_path, index=False)
@@ -1846,6 +1848,93 @@ def _rewrite_manifest_artifact(
         + "\n",
         encoding="utf-8",
     )
+
+
+def _publish_union_source_snapshot(
+    path: Path,
+    documents: pd.DataFrame,
+) -> Path:
+    path.mkdir(parents=True)
+    prepared = pipeline.prepare_documents(documents)
+    document_path = path / "documents.parquet"
+    prepared.to_parquet(document_path, index=False)
+    manifest = {
+        "stage": "source",
+        "stage_version": pipeline.PIPELINE_STAGE_VERSION,
+        "document_identity_sha256": pipeline._documents_identity(prepared),
+        "counts": {"documents": len(prepared)},
+        "artifacts": {
+            "documents": pipeline._artifact(document_path, prepared),
+        },
+    }
+    (path / "manifest.json").write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True)
+        + "\n",
+        encoding="utf-8",
+    )
+    return path
+
+
+def _mark_union_parent_current(snapshot: Path) -> Path:
+    manifest_path = snapshot / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    code_sha256 = pipeline.deterministic_recanonicalization_code_sha256()
+    materialization_version = (
+        pipeline.RECANONICALIZATION_MATERIALIZATION_VERSION
+    )
+    manifest["snapshot_type"] = "recanonicalized_extraction"
+    manifest["snapshot_identity_sha256"] = hashlib.sha256(
+        f"{snapshot}:{manifest['document_identity_sha256']}".encode()
+    ).hexdigest()
+    manifest["recanonicalization"] = {
+        "materialization_version": materialization_version,
+        "deterministic_code_sha256": code_sha256,
+        "model_requests_added": 0,
+    }
+    manifest["target"] = {
+        "extraction_config_id": EXTRACTION_CONFIG_ID,
+        "contract_schema_sha256": CONTRACT_SCHEMA_SHA256,
+        "instructions_sha256": INSTRUCTIONS_SHA256,
+        "canonicalization_policy": manifest["canonicalization_policy"],
+        "recanonicalization_materialization_version": materialization_version,
+        "deterministic_code_sha256": code_sha256,
+    }
+    manifest_path.write_text(
+        json.dumps(manifest, ensure_ascii=False, indent=2, sort_keys=True)
+        + "\n",
+        encoding="utf-8",
+    )
+    return snapshot
+
+
+def _publish_union_parent(
+    path: Path,
+    *,
+    documents: pd.DataFrame,
+    attempts: pd.DataFrame,
+    manual_reviews: pd.DataFrame | None = None,
+) -> Path:
+    return _mark_union_parent_current(_publish_parent_snapshot(
+        path,
+        documents=documents,
+        attempts=attempts,
+        manual_reviews=manual_reviews,
+    ))
+
+
+def _union_documents(*boe_ids: str) -> pd.DataFrame:
+    return pd.DataFrame([
+        {
+            "identificador": boe_id,
+            "fecha_publicacion": pd.Timestamp(2026, 1, index + 2),
+            "titulo": f"Se autoriza la planta fotovoltaica Aurora {index + 1}.",
+            "texto_limpio": (
+                f"Se autoriza la planta fotovoltaica Aurora {index + 1}."
+            ),
+            "xml_status": "ok",
+        }
+        for index, boe_id in enumerate(boe_ids)
+    ])
 
 
 def test_extraction_subset_preserves_selected_history_and_parent(
@@ -2180,6 +2269,400 @@ def test_extraction_subset_supports_empty_reuse_and_cli(
     assert loaded.attempts.empty
     assert loaded.current_extractions.empty
     assert loaded.review_queue.empty
+
+
+def test_extraction_union_preserves_complete_history_and_manual_decisions(
+    tmp_path: Path,
+) -> None:
+    documents_a = pipeline.prepare_documents(_union_documents(
+        "BOE-A-2026-101", "BOE-A-2026-102"
+    ))
+    documents_b = pipeline.prepare_documents(_union_documents(
+        "BOE-A-2026-201", "BOE-A-2026-202"
+    ))
+    first = documents_a.iloc[[0]]
+    failed = _error_attempt(first)
+    failed.loc[:, "attempt_id"] = "attempt-failed"
+    failed.loc[:, "extracted_at"] = NOW - timedelta(minutes=2)
+    success = _success_attempts(first)
+    success.loc[:, "attempt_id"] = "attempt-success"
+    success.loc[:, "extracted_at"] = NOW - timedelta(minutes=1)
+    derived = success.copy(deep=True)
+    derived.loc[:, "attempt_id"] = "attempt-derived"
+    derived.loc[:, "attempt_origin"] = "recanonicalized"
+    derived.loc[:, "source_attempt_id"] = "attempt-success"
+    derived.loc[:, "extracted_at"] = NOW
+    attempts_a = normalise_ai_extraction_attempts_log(pd.concat([
+        failed,
+        success,
+        derived,
+        _success_attempts(documents_a.iloc[[1]]),
+    ], ignore_index=True))
+    attempts_b = _success_attempts(documents_b)
+    reviews_a = pd.DataFrame([_manual_review(
+        documents_a.iloc[0],
+        derived.iloc[0],
+        status="manually_validated",
+        reviewed_at=NOW + timedelta(minutes=1),
+    )])
+    reviews_b = pd.DataFrame([_manual_review(
+        documents_b.iloc[1],
+        attempts_b.iloc[1],
+        status="rejected",
+        reviewed_at=NOW + timedelta(minutes=2),
+    )])
+    parent_a = _publish_union_parent(
+        tmp_path / "a",
+        documents=documents_a,
+        attempts=attempts_a,
+        manual_reviews=reviews_a,
+    )
+    parent_b = _publish_union_parent(
+        tmp_path / "b",
+        documents=documents_b,
+        attempts=attempts_b,
+        manual_reviews=reviews_b,
+    )
+    source = _publish_union_source_snapshot(
+        tmp_path / "source",
+        pd.concat([documents_a, documents_b], ignore_index=True),
+    )
+
+    result = pipeline.materialize_extraction_union(
+        input_extractions=[parent_a, parent_b],
+        source_snapshot=source,
+        output_dir=tmp_path / "union",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        created_at=NOW,
+    )
+    loaded = pipeline.load_extraction_snapshot(
+        result.output_dir,
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+
+    assert len(loaded.documents) == 4
+    assert set(loaded.attempts["attempt_id"].astype(str)) >= {
+        "attempt-failed", "attempt-success", "attempt-derived"
+    }
+    assert len(loaded.attempts) == len(attempts_a) + len(attempts_b)
+    assert set(loaded.manual_reviews["review_status"].astype(str)) == {
+        "manually_validated", "rejected"
+    }
+    selected = loaded.current_extractions.set_index("identificador_boe")
+    assert selected.loc[
+        "BOE-A-2026-101", "selection_source"
+    ] == "manually_validated"
+    assert "BOE-A-2026-202" not in selected.index
+    assert loaded.review_queue.empty
+    assert loaded.manifest["snapshot_type"] == "extraction_union"
+    assert loaded.manifest["union_operation_version"] == "1"
+
+
+def test_extraction_union_is_order_independent_idempotent_and_immutable(
+    tmp_path: Path,
+) -> None:
+    documents_a = _union_documents("BOE-A-2026-101", "BOE-A-2026-102")
+    documents_b = _union_documents("BOE-A-2026-201", "BOE-A-2026-202")
+    parent_a = _publish_union_parent(
+        tmp_path / "a",
+        documents=documents_a,
+        attempts=_success_attempts(documents_a),
+    )
+    parent_b = _publish_union_parent(
+        tmp_path / "b",
+        documents=documents_b,
+        attempts=_success_attempts(documents_b),
+    )
+    source = _publish_union_source_snapshot(
+        tmp_path / "source",
+        pd.concat([documents_a, documents_b], ignore_index=True),
+    )
+    parent_hashes = {
+        path: hashlib.sha256(path.read_bytes()).hexdigest()
+        for parent in (parent_a, parent_b)
+        for path in parent.iterdir()
+    }
+
+    first = pipeline.materialize_extraction_union(
+        input_extractions=[parent_a, parent_b],
+        source_snapshot=source,
+        output_dir=tmp_path / "union-ab",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        created_at=NOW,
+    )
+    second = pipeline.materialize_extraction_union(
+        input_extractions=[parent_b, parent_a],
+        source_snapshot=source,
+        output_dir=tmp_path / "union-ba",
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        created_at=NOW + timedelta(days=1),
+    )
+    loaded_first = pipeline.load_extraction_snapshot(
+        first.output_dir,
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+    loaded_second = pipeline.load_extraction_snapshot(
+        second.output_dir,
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+
+    assert first.snapshot_identity_sha256 == second.snapshot_identity_sha256
+    for name in (
+        "documents", "attempts", "manual_reviews",
+        "current_extractions", "review_queue",
+    ):
+        pd.testing.assert_frame_equal(
+            getattr(loaded_first, name),
+            getattr(loaded_second, name),
+        )
+    assert parent_hashes == {
+        path: hashlib.sha256(path.read_bytes()).hexdigest()
+        for parent in (parent_a, parent_b)
+        for path in parent.iterdir()
+    }
+    assert [
+        entry["snapshot_identity_sha256"]
+        for entry in loaded_first.manifest["parents"]
+    ] == sorted([
+        pipeline._extraction_snapshot_identity(
+            pipeline.load_extraction_snapshot(
+                parent,
+                expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+            )
+        )
+        for parent in (parent_a, parent_b)
+    ])
+
+
+def test_extraction_union_accepts_a_valid_empty_parent_and_cli_dry_run(
+    tmp_path: Path,
+    capsys,
+) -> None:
+    documents = _union_documents("BOE-A-2026-101")
+    parent = _publish_union_parent(
+        tmp_path / "full",
+        documents=documents,
+        attempts=_success_attempts(documents),
+    )
+    empty_documents = documents.iloc[0:0].copy(deep=True)
+    empty_parent = _publish_union_parent(
+        tmp_path / "empty",
+        documents=empty_documents,
+        attempts=pipeline.empty_ai_extraction_attempts_log(),
+    )
+    source = _publish_union_source_snapshot(tmp_path / "source", documents)
+
+    code = pipeline.main([
+        "extraction-union",
+        "--input-extraction", str(empty_parent),
+        "--input-extraction", str(parent),
+        "--source-snapshot", str(source),
+        "--output-dir", str(tmp_path / "union"),
+        "--expected-extraction-config-id", EXTRACTION_CONFIG_ID,
+        "--dry-run",
+    ])
+
+    assert code == 0
+    assert "union documents: 1" in capsys.readouterr().out
+    assert not (tmp_path / "union").exists()
+
+
+@pytest.mark.parametrize(
+    ("manifest_key", "message"),
+    [
+        ("extraction_config_id", "metadata is incompatible"),
+        ("instructions_sha256", "provenance is incompatible"),
+        ("contract_schema_sha256", "provenance is incompatible"),
+    ],
+)
+def test_extraction_union_rejects_parent_identity_mismatch(
+    tmp_path: Path,
+    manifest_key: str,
+    message: str,
+) -> None:
+    documents_a = _union_documents("BOE-A-2026-101")
+    documents_b = _union_documents("BOE-A-2026-201")
+    parent_a = _publish_union_parent(
+        tmp_path / "a",
+        documents=documents_a,
+        attempts=_success_attempts(documents_a),
+    )
+    parent_b = _publish_union_parent(
+        tmp_path / "b",
+        documents=documents_b,
+        attempts=_success_attempts(documents_b),
+    )
+    manifest_path = parent_b / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest[manifest_key] = "incompatible"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    source = _publish_union_source_snapshot(
+        tmp_path / "source",
+        pd.concat([documents_a, documents_b], ignore_index=True),
+    )
+
+    with pytest.raises(pipeline.PipelineError, match=message):
+        pipeline.plan_extraction_union(
+            input_extractions=[parent_a, parent_b],
+            source_snapshot=source,
+            output_dir=tmp_path / "union",
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
+    assert not (tmp_path / "union").exists()
+
+
+def test_extraction_union_rejects_overlap_and_attempt_collision(
+    tmp_path: Path,
+) -> None:
+    same_document = _union_documents("BOE-A-2026-101")
+    parent_a = _publish_union_parent(
+        tmp_path / "overlap-a",
+        documents=same_document,
+        attempts=_success_attempts(same_document),
+    )
+    parent_b = _publish_union_parent(
+        tmp_path / "overlap-b",
+        documents=same_document,
+        attempts=_success_attempts(same_document),
+    )
+    source = _publish_union_source_snapshot(
+        tmp_path / "overlap-source", same_document
+    )
+    with pytest.raises(pipeline.PipelineError, match="overlapping BOE"):
+        pipeline.plan_extraction_union(
+            input_extractions=[parent_a, parent_b],
+            source_snapshot=source,
+            output_dir=tmp_path / "overlap-union",
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
+
+    documents_a = _union_documents("BOE-A-2026-201")
+    documents_b = _union_documents("BOE-A-2026-301")
+    attempts_a = _success_attempts(documents_a)
+    attempts_b = _success_attempts(documents_b)
+    attempts_a.loc[:, "attempt_id"] = "shared-attempt"
+    attempts_b.loc[:, "attempt_id"] = "shared-attempt"
+    collision_a = _publish_union_parent(
+        tmp_path / "collision-a",
+        documents=documents_a,
+        attempts=attempts_a,
+    )
+    collision_b = _publish_union_parent(
+        tmp_path / "collision-b",
+        documents=documents_b,
+        attempts=attempts_b,
+    )
+    collision_source = _publish_union_source_snapshot(
+        tmp_path / "collision-source",
+        pd.concat([documents_a, documents_b], ignore_index=True),
+    )
+    with pytest.raises(pipeline.PipelineError, match="attempt_id collision"):
+        pipeline.plan_extraction_union(
+            input_extractions=[collision_a, collision_b],
+            source_snapshot=collision_source,
+            output_dir=tmp_path / "collision-union",
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
+
+
+def test_extraction_union_rejects_source_conflict_and_stale_code(
+    tmp_path: Path,
+) -> None:
+    documents_a = _union_documents("BOE-A-2026-101")
+    documents_b = _union_documents("BOE-A-2026-201")
+    parent_a = _publish_union_parent(
+        tmp_path / "a",
+        documents=documents_a,
+        attempts=_success_attempts(documents_a),
+    )
+    parent_b = _publish_union_parent(
+        tmp_path / "b",
+        documents=documents_b,
+        attempts=_success_attempts(documents_b),
+    )
+    conflicting = pd.concat([documents_a, documents_b], ignore_index=True)
+    conflicting.loc[
+        conflicting["identificador"].eq("BOE-A-2026-201"),
+        "texto_limpio",
+    ] = "Contenido diferente."
+    conflicting.loc[
+        conflicting["identificador"].eq("BOE-A-2026-201"),
+        "titulo",
+    ] = "Contenido diferente."
+    source = _publish_union_source_snapshot(
+        tmp_path / "source", conflicting
+    )
+    with pytest.raises(pipeline.PipelineError, match="source document hash"):
+        pipeline.plan_extraction_union(
+            input_extractions=[parent_a, parent_b],
+            source_snapshot=source,
+            output_dir=tmp_path / "source-conflict",
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
+
+    manifest_path = parent_b / "manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["target"]["deterministic_code_sha256"] = "0" * 64
+    manifest["recanonicalization"]["deterministic_code_sha256"] = "0" * 64
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    valid_source = _publish_union_source_snapshot(
+        tmp_path / "valid-source",
+        pd.concat([documents_a, documents_b], ignore_index=True),
+    )
+    with pytest.raises(
+        pipeline.PipelineError,
+        match="Offline recanonicalization is required",
+    ):
+        pipeline.plan_extraction_union(
+            input_extractions=[parent_a, parent_b],
+            source_snapshot=valid_source,
+            output_dir=tmp_path / "stale-code",
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
+
+
+def test_extraction_union_rejects_dangling_manual_review_atomically(
+    tmp_path: Path,
+) -> None:
+    documents_a = pipeline.prepare_documents(
+        _union_documents("BOE-A-2026-101")
+    )
+    attempts_a = _success_attempts(documents_a)
+    parent_a = _publish_union_parent(
+        tmp_path / "a",
+        documents=documents_a,
+        attempts=attempts_a,
+        manual_reviews=pd.DataFrame([_manual_review(
+            documents_a.iloc[0],
+            attempts_a.iloc[0],
+            status="rejected",
+            reviewed_at=NOW,
+        )]),
+    )
+    manual_path = parent_a / "manual_reviews.parquet"
+    manual = pd.read_parquet(manual_path)
+    manual.loc[:, "source_attempt_id"] = "missing-attempt"
+    manual.to_parquet(manual_path, index=False)
+    _rewrite_manifest_artifact(parent_a, "manual_reviews", row_count=1)
+    documents_b = _union_documents("BOE-A-2026-201")
+    parent_b = _publish_union_parent(
+        tmp_path / "b",
+        documents=documents_b,
+        attempts=_success_attempts(documents_b),
+    )
+    source = _publish_union_source_snapshot(
+        tmp_path / "source",
+        pd.concat([documents_a, documents_b], ignore_index=True),
+    )
+
+    with pytest.raises(ValueError, match="source_attempt_id.*no existe"):
+        pipeline.materialize_extraction_union(
+            input_extractions=[parent_a, parent_b],
+            source_snapshot=source,
+            output_dir=tmp_path / "union",
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
+    assert not (tmp_path / "union").exists()
 
 
 def test_extract_still_rejects_attempts_outside_scope(tmp_path: Path) -> None:
