@@ -41,6 +41,9 @@ work listed here may enter the product.
 | W14 historical extraction | **CLOSED — 56 CURRENT; 0 BLOCKERS** | Loader-valid `history-extraction-final-v2` contains 128 unique attempts, 54 relevant documents, two non-relevant documents and one versioned manual review; see `docs/FINAL_CORPUS_W14_HISTORY_FAILURE_REVIEW.md` |
 | W14 extraction union | **CLOSED — 104 CURRENT; 0 BLOCKERS** | Loader-valid `runs/final-w14-corpus-20220101-20260820-v1/extraction`; 286 unique attempts; one manual review; identity `dea0f79d9b743dccff23f19995da6ff470866c1d717a2ad1a3af7c415d06eae3` |
 | Final-corpus Silver | **CLOSED — 13 TABLES; 0 VALIDATION ISSUES** | Loader-valid `runs/final-w14-corpus-20220101-20260820-v1/silver`; identity `1fdcdb0fc15d7ccef062dd69a9fb35d2f85ddff5ec6a4a0ecba035332eb28014`; see `docs/FINAL_CORPUS_W14_SILVER_MATERIALIZATION.md` |
+| Final-corpus locations | **CLOSED — 828 MENTIONS; 0 INVALID INE CODES** | 624 fully and 204 partially resolved; no ambiguous/conflicting row |
+| Final-corpus grouping | **CLOSED — 159 MENTIONS; 86 PROJECTS; 0 CONFLICTS** | Deterministic `generation_asset_mentions`-only grouping; ID `8021c957139b51ac3b9ebb7546012ad7a7bbf1ec1d7362f48051699c41b10062` |
+| Final-corpus Gold | **CLOSED — 4 TABLES; 0 PK/FK ISSUES** | Loader-valid `runs/final-w14-corpus-20220101-20260820-v1/downstream/gold`; downstream ID `e3664ebb4efa0876262aed522d8c68e670c13c9ddee5f1fc0c8b76b74481b6e3`; see `docs/FINAL_CORPUS_W14_DOWNSTREAM_MATERIALIZATION.md` |
 | Review/admin audit | **COMPLETED — POST-CORPUS WORK** | The versioned file workflow remains the August path; administrative UI/backend work remains POST-TFM |
 | Final holdout | **SEALED — NOT EXECUTED** | No holdout source or output was inspected during W14 historical extraction |
 | Holdout exposure provenance | **RESOLVED — 479 development-exposed BOEs versioned** | `docs/HOLDOUT_EXPOSURE_PROVENANCE.md`; P2 exposed: 263; P2 provisionally eligible: 19,226 |
@@ -450,10 +453,13 @@ FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW
 → REVIEW/ADMIN AUDIT — COMPLETED; ADMINISTRATIVE UI/BACKEND IS POST-TFM
 → W14 SILVER — CLOSED; 13 TABLES; 0 CORRECTIONS; 0 VALIDATION ISSUES
 → SILVER ID — 1fdcdb0fc15d7ccef062dd69a9fb35d2f85ddff5ec6a4a0ecba035332eb28014
-→ LOCATIONS — NOT EXECUTED
-→ GROUPING — NOT EXECUTED
-→ GOLD — NOT EXECUTED
-→ NEXT: FINAL DOWNSTREAM MATERIALIZATION
+→ LOCATIONS — CLOSED; 828 MENTIONS; 0 INVALID INE CODES
+→ GROUPING — CLOSED; 159 MENTIONS; 86 PROJECTS; 0 CONFLICTS
+→ GOLD — CLOSED; 4 TABLES; 0 PK/FK ISSUES
+→ DOWNSTREAM ID — e3664ebb4efa0876262aed522d8c68e670c13c9ddee5f1fc0c8b76b74481b6e3
+→ REVIEW/REPORT WORKFLOW AUDIT — COMPLETED; ADMINISTRATIVE UI GAPS POST-TFM
+→ STREAMLIT — NEXT
+→ NEXT: STREAMLIT FINAL ALIGNMENT + MINIMUM SAFE REPORTING
 ```
 
 The source, configuration, funnel, corrections and cost evidence pass the P2
@@ -498,7 +504,13 @@ blockers. Final-corpus Silver is closed with 13 contract-valid tables, zero
 corrections, identity
 `1fdcdb0fc15d7ccef062dd69a9fb35d2f85ddff5ec6a4a0ecba035332eb28014`
 and the reproducibility evidence in
-`docs/FINAL_CORPUS_W14_SILVER_MATERIALIZATION.md`. Locations, grouping and Gold
-have not been executed. P2 is fallback only; `main-04` through `main-20` and
-the two old `main-03` retries are not required for the final TFM corpus. The
-holdout remains sealed and unexecuted.
+`docs/FINAL_CORPUS_W14_SILVER_MATERIALIZATION.md`. Final deterministic
+locations, grouping and Gold are closed at
+`runs/final-w14-corpus-20220101-20260820-v1/downstream`: 828 location mentions,
+159 grouped generation mentions, 86 canonical projects, four contract-valid
+Gold tables and downstream identity
+`e3664ebb4efa0876262aed522d8c68e670c13c9ddee5f1fc0c8b76b74481b6e3`.
+See `docs/FINAL_CORPUS_W14_DOWNSTREAM_MATERIALIZATION.md`. Streamlit final
+alignment and the minimum safe reporting channel are next. P2 is fallback
+only; `main-04` through `main-20` and the two old `main-03` retries are not
+required for the final TFM corpus. The holdout remains sealed and unexecuted.
