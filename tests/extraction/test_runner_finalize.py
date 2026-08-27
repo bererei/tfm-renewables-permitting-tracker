@@ -370,6 +370,9 @@ def test_exact_operation_order_arguments_and_return_references(
             "attempts": attempts,
             "source_df": source_df,
             "manual_reviews": normalized_manual,
+            "enable_historical_antecedent_safeguard": False,
+            "historical_antecedent_corrections": None,
+            "historical_antecedent_reviews": None,
         }
         return queue
 
@@ -381,6 +384,9 @@ def test_exact_operation_order_arguments_and_return_references(
             "manual_reviews": normalized_manual,
             "run_scope": "pilot",
             "minimum_auto_validation_rate": 0.81,
+            "enable_historical_antecedent_safeguard": False,
+            "historical_antecedent_corrections": None,
+            "historical_antecedent_reviews": None,
         }
         return metric
 
@@ -1359,6 +1365,9 @@ def test_run_and_finalize_extractions_keeps_async_public_signature() -> None:
         "run_scope",
         "minimum_auto_validation_rate",
         "checkpoint_every",
+        "enable_historical_antecedent_safeguard",
+        "historical_antecedent_corrections",
+        "historical_antecedent_reviews",
     )
 
 

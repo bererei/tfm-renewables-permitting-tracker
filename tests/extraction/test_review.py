@@ -2071,6 +2071,9 @@ def test_review_public_workflow_signatures_are_stable() -> None:
         "manual_reviews",
         "expected_extraction_config_id",
         "expected_document_validation_version",
+        "enable_historical_antecedent_safeguard",
+        "historical_antecedent_corrections",
+        "historical_antecedent_reviews",
     )
     assert tuple(signature(select_best_valid_extractions).parameters) == (
         "attempts",

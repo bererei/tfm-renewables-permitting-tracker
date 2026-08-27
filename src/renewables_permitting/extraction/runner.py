@@ -32,6 +32,12 @@ from renewables_permitting.extraction.config import (
     TRANSIENT_RETRY_BASE_SECONDS,
     TRANSIENT_RUN_ATTEMPTS,
 )
+from renewables_permitting.extraction.corrections import (
+    LoadedAdministrativeActionCorrections,
+)
+from renewables_permitting.extraction.historical_antecedent_reviews import (
+    LoadedHistoricalAntecedentReviews,
+)
 from renewables_permitting.extraction.documents import (
     BOESourceDocument,
     PreparedDocumentPrompt,
@@ -468,6 +474,13 @@ async def run_and_finalize_extractions(
     run_scope: str = "production",
     minimum_auto_validation_rate: float = 0.95,
     checkpoint_every: int = CHECKPOINT_EVERY,
+    enable_historical_antecedent_safeguard: bool = False,
+    historical_antecedent_corrections: (
+        LoadedAdministrativeActionCorrections | None
+    ) = None,
+    historical_antecedent_reviews: (
+        LoadedHistoricalAntecedentReviews | None
+    ) = None,
 ) -> dict[str, pd.DataFrame]:
     records = await extract_documents(
         run_df,
@@ -492,6 +505,13 @@ async def run_and_finalize_extractions(
         attempts=attempts,
         source_df=source_df,
         manual_reviews=manual_reviews,
+        enable_historical_antecedent_safeguard=(
+            enable_historical_antecedent_safeguard
+        ),
+        historical_antecedent_corrections=(
+            historical_antecedent_corrections
+        ),
+        historical_antecedent_reviews=historical_antecedent_reviews,
     )
     if review_queue_path is not None:
         save_parquet_atomic(review_queue, review_queue_path)
@@ -502,6 +522,13 @@ async def run_and_finalize_extractions(
         manual_reviews=manual_reviews,
         run_scope=run_scope,
         minimum_auto_validation_rate=minimum_auto_validation_rate,
+        enable_historical_antecedent_safeguard=(
+            enable_historical_antecedent_safeguard
+        ),
+        historical_antecedent_corrections=(
+            historical_antecedent_corrections
+        ),
+        historical_antecedent_reviews=historical_antecedent_reviews,
     )
     if quality_metrics_path is not None:
         append_quality_metric(quality_metric, quality_metrics_path)

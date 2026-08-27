@@ -208,6 +208,9 @@ Streamlit mailto
 - extraction structure or semantics → versioned `manual_review`;
 - historical antecedent misattributed → approved
   `administrative_action_correction` exclusion;
+- false positive of `possible_historical_antecedent` → approved action-level
+  `CURRENT` decision in `config/manual_reviews/historical_antecedent_reviews.csv`,
+  with no extraction or correction change;
 - location or grouping → deterministic technical correction/rule plus tests,
   because no generic downstream correction contract exists.
 
@@ -219,6 +222,24 @@ redeploy or repoint Streamlit. Never edit generated Gold or Parquet files.
 
 **CLOSED — 8 HUMAN DECISIONS APPROVED; 11 TECHNICAL ROWS APPLIED.** The
 corrected Gold is loader-valid and the negative controls are unchanged.
-Separately, the repeated pattern warrants a systemic semantic-warning/review
-safeguard upstream. That safeguard remains the next REQUIRED block and must
-not be implemented as a regex-only automatic exclusion.
+
+The repeated pattern now has the upstream systemic safeguard
+`possible_historical_antecedent` (`historical_antecedent` policy v1). It runs
+after canonical/documentary validation while building the review queue and
+requires both a strong temporal/structural signal and an independent contextual
+signal. It preserves the extracted action and routes unresolved findings to a
+blocking human review; it never decides `ANTECEDENT/CURRENT` or applies an
+exclusion. Diagnostics retain action identity, original evidence and hash,
+signals, source positions/section, excerpt, document hash, attempt lineage and
+policy version.
+
+The executable pre-correction replay in
+`tests/extraction/test_historical_antecedents.py` detects **11/11** approved
+historical rows and **0/5** negative controls. Exact reconciliation against the
+versioned correction identity resolves the eleven approved findings, leaving
+zero new pending reviews. A separate exact, versioned `CURRENT` decision can
+resolve a future false positive without mutating the extracted action; partial
+resolution within one BOE leaves every unresolved sibling finding blocking.
+The detector contains no BOE-specific production
+exception. The environmental-outcome distinction illustrated by
+`BOE-A-2025-17072` and `BOE-A-2025-17147` remains P1 and outside this safeguard.

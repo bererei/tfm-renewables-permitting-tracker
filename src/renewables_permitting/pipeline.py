@@ -57,12 +57,13 @@ from renewables_permitting.extraction.config import (
     INSTRUCTIONS_SHA256,
     MODEL_PROVIDER,
 )
-from renewables_permitting.extraction.documents import (
-    build_source_document,
-)
 from renewables_permitting.extraction.corrections import (
+    LoadedAdministrativeActionCorrections,
     apply_administrative_action_corrections,
     load_administrative_action_corrections,
+)
+from renewables_permitting.extraction.documents import (
+    build_source_document,
 )
 from renewables_permitting.extraction.correction_subset import (
     AdministrativeActionCorrectionsSubsetPlan,
@@ -83,7 +84,18 @@ from renewables_permitting.extraction.flat_validation import (
 from renewables_permitting.extraction.flatten import (
     flatten_current_extractions,
 )
+from renewables_permitting.extraction.historical_antecedents import (
+    HISTORICAL_ANTECEDENT_POLICY_VERSION,
+    POSSIBLE_HISTORICAL_ANTECEDENT_REASON_CODE,
+)
+from renewables_permitting.extraction.historical_antecedent_reviews import (
+    LoadedHistoricalAntecedentReviews,
+    load_historical_antecedent_reviews,
+)
 from renewables_permitting.extraction.models import BOEProjectExtraction
+from renewables_permitting.extraction.paths import (
+    CONFIG_DIR,
+)
 from renewables_permitting.extraction.persistence import save_parquet_atomic
 from renewables_permitting.extraction.recanonicalization import (
     RECANONICALIZATION_MATERIALIZATION_VERSION,
@@ -144,6 +156,21 @@ _EXTRACTION_ATTEMPTS = "attempts.parquet"
 _EXTRACTION_MANUAL_REVIEWS = "manual_reviews.parquet"
 _EXTRACTION_CURRENT = "current_extractions.parquet"
 _EXTRACTION_REVIEW_QUEUE = "review_queue.parquet"
+_EXTRACTION_HISTORICAL_ANTECEDENT_CORRECTIONS = (
+    "historical_antecedent_corrections.csv"
+)
+_EXTRACTION_HISTORICAL_ANTECEDENT_REVIEWS = (
+    "historical_antecedent_reviews.csv"
+)
+_HISTORICAL_ANTECEDENT_SAFEGUARD_KEY = (
+    "possible_historical_antecedent"
+)
+_ADMINISTRATIVE_ACTION_CORRECTIONS_PATH = (
+    CONFIG_DIR / "corrections" / "administrative_action_corrections.csv"
+)
+_HISTORICAL_ANTECEDENT_REVIEWS_PATH = (
+    CONFIG_DIR / "manual_reviews" / "historical_antecedent_reviews.csv"
+)
 _RUN_ID_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}")
 
 
@@ -270,6 +297,8 @@ class ExtractionUnionPlan:
     review_queue: pd.DataFrame
     snapshot_identity_sha256: str
     deterministic_code_sha256: str
+    historical_antecedent_corrections: LoadedAdministrativeActionCorrections
+    historical_antecedent_reviews: LoadedHistoricalAntecedentReviews
 
 
 @dataclass(frozen=True)
@@ -383,6 +412,104 @@ def _artifact(path: Path, dataframe: pd.DataFrame) -> dict[str, Any]:
         "row_count": len(dataframe),
         "sha256": _sha256_file(path),
     }
+
+
+def _historical_antecedent_safeguard_manifest(
+    corrections: LoadedAdministrativeActionCorrections,
+    reviews: LoadedHistoricalAntecedentReviews,
+) -> dict[str, str]:
+    """Declare detector, correction and CURRENT-review input identities."""
+
+    return {
+        "policy_version": HISTORICAL_ANTECEDENT_POLICY_VERSION,
+        "reason_code": POSSIBLE_HISTORICAL_ANTECEDENT_REASON_CODE,
+        "corrections_logical_path": corrections.logical_path,
+        "corrections_file_sha256": corrections.file_sha256,
+        "corrections_identity": corrections.semantic_identity,
+        "reviews_logical_path": reviews.logical_path,
+        "reviews_file_sha256": reviews.file_sha256,
+        "reviews_identity": reviews.semantic_identity,
+    }
+
+
+def _copy_historical_antecedent_corrections(
+    corrections: LoadedAdministrativeActionCorrections,
+    destination: Path,
+) -> None:
+    """Copy exact validated registry bytes into a reproducible snapshot."""
+
+    shutil.copyfile(corrections.source_path, destination)
+
+
+def _copy_historical_antecedent_reviews(
+    reviews: LoadedHistoricalAntecedentReviews,
+    destination: Path,
+) -> None:
+    """Copy exact validated CURRENT-decision bytes into a snapshot."""
+
+    shutil.copyfile(reviews.source_path, destination)
+
+
+def _load_snapshot_historical_antecedent_corrections(
+    snapshot_dir: Path,
+    manifest: Mapping[str, Any],
+) -> LoadedAdministrativeActionCorrections | None:
+    """Load the snapshot-local safeguard input, or legacy-disabled state."""
+
+    declaration = manifest.get(_HISTORICAL_ANTECEDENT_SAFEGUARD_KEY)
+    if declaration is None:
+        return None
+    if not isinstance(declaration, Mapping) or (
+        declaration.get("policy_version")
+        != HISTORICAL_ANTECEDENT_POLICY_VERSION
+        or declaration.get("reason_code")
+        != POSSIBLE_HISTORICAL_ANTECEDENT_REASON_CODE
+    ):
+        raise PipelineError(
+            "Historical-antecedent safeguard metadata is incompatible."
+        )
+    correction_path = _verify_artifact(
+        snapshot_dir,
+        manifest,
+        "historical_antecedent_corrections",
+    )
+    loaded = load_administrative_action_corrections(correction_path)
+    if (
+        declaration.get("corrections_file_sha256") != loaded.file_sha256
+        or declaration.get("corrections_identity")
+        != loaded.semantic_identity
+    ):
+        raise PipelineError(
+            "Historical-antecedent correction lineage is inconsistent."
+        )
+    return loaded
+
+
+def _load_snapshot_historical_antecedent_reviews(
+    snapshot_dir: Path,
+    manifest: Mapping[str, Any],
+) -> LoadedHistoricalAntecedentReviews | None:
+    """Load snapshot-local CURRENT decisions, including draft compatibility."""
+
+    declaration = manifest.get(_HISTORICAL_ANTECEDENT_SAFEGUARD_KEY)
+    if declaration is None or not isinstance(declaration, Mapping):
+        return None
+    if "reviews_identity" not in declaration:
+        return None
+    review_path = _verify_artifact(
+        snapshot_dir,
+        manifest,
+        "historical_antecedent_reviews",
+    )
+    loaded = load_historical_antecedent_reviews(review_path)
+    if (
+        declaration.get("reviews_file_sha256") != loaded.file_sha256
+        or declaration.get("reviews_identity") != loaded.semantic_identity
+    ):
+        raise PipelineError(
+            "Historical-antecedent CURRENT-review lineage is inconsistent."
+        )
+    return loaded
 
 
 def _validate_new_output(output_dir: Path) -> Path:
@@ -1147,6 +1274,12 @@ def build_extraction_plan(
     retry_error_boe_ids: Sequence[str] = (),
     execute_model: bool,
     expected_extraction_config_id: str,
+    historical_antecedent_corrections: (
+        LoadedAdministrativeActionCorrections | None
+    ) = None,
+    historical_antecedent_reviews: (
+        LoadedHistoricalAntecedentReviews | None
+    ) = None,
 ) -> ExtractionPlan:
     """Plan compatible reuse and new model work without side effects."""
 
@@ -1172,6 +1305,13 @@ def build_extraction_plan(
         attempts=attempts_frame,
         source_df=source,
         manual_reviews=manual_frame,
+        enable_historical_antecedent_safeguard=(
+            historical_antecedent_corrections is not None
+        ),
+        historical_antecedent_corrections=(
+            historical_antecedent_corrections
+        ),
+        historical_antecedent_reviews=historical_antecedent_reviews,
     )
     retry_ids = _validate_retry_error_selection(
         retry_error_boe_ids,
@@ -1253,6 +1393,12 @@ def run_extraction_stage(
     execute_model: bool = False,
     dry_run: bool = False,
     checkpoint_every: int = CHECKPOINT_EVERY,
+    historical_antecedent_corrections: Path = (
+        _ADMINISTRATIVE_ACTION_CORRECTIONS_PATH
+    ),
+    historical_antecedent_reviews: Path = (
+        _HISTORICAL_ANTECEDENT_REVIEWS_PATH
+    ),
 ) -> ExtractionStageResult | ExtractionPlan:
     """Reuse compatible attempts and publish selection/review state.
 
@@ -1262,6 +1408,12 @@ def run_extraction_stage(
     """
 
     output_dir = _validate_new_output(output_dir)
+    loaded_historical_corrections = load_administrative_action_corrections(
+        historical_antecedent_corrections
+    )
+    loaded_historical_reviews = load_historical_antecedent_reviews(
+        historical_antecedent_reviews
+    )
     plan = build_extraction_plan(
         documents=documents,
         attempts=attempts,
@@ -1270,6 +1422,8 @@ def run_extraction_stage(
         retry_error_boe_ids=retry_error_boe_ids,
         execute_model=execute_model,
         expected_extraction_config_id=expected_extraction_config_id,
+        historical_antecedent_corrections=loaded_historical_corrections,
+        historical_antecedent_reviews=loaded_historical_reviews,
     )
     _print_extraction_plan(plan)
     if dry_run:
@@ -1289,6 +1443,12 @@ def run_extraction_stage(
         manual_path = staging_dir / _EXTRACTION_MANUAL_REVIEWS
         current_path = staging_dir / _EXTRACTION_CURRENT
         queue_path = staging_dir / _EXTRACTION_REVIEW_QUEUE
+        historical_corrections_path = (
+            staging_dir / _EXTRACTION_HISTORICAL_ANTECEDENT_CORRECTIONS
+        )
+        historical_reviews_path = (
+            staging_dir / _EXTRACTION_HISTORICAL_ANTECEDENT_REVIEWS
+        )
         plan.documents.to_parquet(document_path, index=False)
         save_parquet_atomic(plan.attempts, attempt_path)
 
@@ -1347,10 +1507,23 @@ def run_extraction_stage(
             attempts=all_attempts,
             source_df=plan.documents,
             manual_reviews=plan.manual_reviews,
+            enable_historical_antecedent_safeguard=True,
+            historical_antecedent_corrections=(
+                loaded_historical_corrections
+            ),
+            historical_antecedent_reviews=loaded_historical_reviews,
         )
         save_parquet_atomic(plan.manual_reviews, manual_path)
         save_parquet_atomic(current, current_path)
         save_parquet_atomic(review_queue, queue_path)
+        _copy_historical_antecedent_corrections(
+            loaded_historical_corrections,
+            historical_corrections_path,
+        )
+        _copy_historical_antecedent_reviews(
+            loaded_historical_reviews,
+            historical_reviews_path,
+        )
         blocking_count = int(
             review_queue["reason_severity"].eq("blocking").fillna(False).sum()
         )
@@ -1372,6 +1545,12 @@ def run_extraction_stage(
             "document_validation_version": DOCUMENT_VALIDATION_VERSION,
             "document_identity_sha256": _documents_identity(plan.documents),
             "retry_error_boe_ids": list(plan.retry_error_document_ids),
+            _HISTORICAL_ANTECEDENT_SAFEGUARD_KEY: (
+                _historical_antecedent_safeguard_manifest(
+                    loaded_historical_corrections,
+                    loaded_historical_reviews,
+                )
+            ),
             "counts": {
                 "documents": len(plan.documents),
                 "compatible_existing_before_run": (
@@ -1394,6 +1573,14 @@ def run_extraction_stage(
                 ),
                 "current_extractions": _artifact(current_path, current),
                 "review_queue": _artifact(queue_path, review_queue),
+                "historical_antecedent_corrections": _artifact(
+                    historical_corrections_path,
+                    loaded_historical_corrections.corrections,
+                ),
+                "historical_antecedent_reviews": _artifact(
+                    historical_reviews_path,
+                    loaded_historical_reviews.reviews,
+                ),
             },
         }
         manifest_path = staging_dir / _EXTRACTION_MANIFEST
@@ -1469,6 +1656,18 @@ def load_extraction_snapshot(
         != DOCUMENT_VALIDATION_VERSION
     ):
         raise PipelineError("Extraction snapshot provenance is incompatible.")
+    historical_antecedent_corrections = (
+        _load_snapshot_historical_antecedent_corrections(
+            snapshot_dir,
+            manifest,
+        )
+    )
+    historical_antecedent_reviews = (
+        _load_snapshot_historical_antecedent_reviews(
+            snapshot_dir,
+            manifest,
+        )
+    )
     expected_files = {
         _EXTRACTION_MANIFEST,
         _EXTRACTION_DOCUMENTS,
@@ -1477,6 +1676,12 @@ def load_extraction_snapshot(
         _EXTRACTION_CURRENT,
         _EXTRACTION_REVIEW_QUEUE,
     }
+    if historical_antecedent_corrections is not None:
+        expected_files.add(
+            _EXTRACTION_HISTORICAL_ANTECEDENT_CORRECTIONS
+        )
+    if historical_antecedent_reviews is not None:
+        expected_files.add(_EXTRACTION_HISTORICAL_ANTECEDENT_REVIEWS)
     if not snapshot_dir.is_dir() or {
         path.name for path in snapshot_dir.iterdir()
     } != expected_files:
@@ -1549,6 +1754,13 @@ def load_extraction_snapshot(
         manual_reviews=manual,
         expected_extraction_config_id=expected_extraction_config_id,
         expected_document_validation_version=manifest_validation_version,
+        enable_historical_antecedent_safeguard=(
+            historical_antecedent_corrections is not None
+        ),
+        historical_antecedent_corrections=(
+            historical_antecedent_corrections
+        ),
+        historical_antecedent_reviews=historical_antecedent_reviews,
     )
     if manifest.get("document_identity_sha256") != _documents_identity(
         documents
@@ -1713,6 +1925,32 @@ def materialize_extraction_subset(
         input_extraction,
         expected_extraction_config_id=expected_extraction_config_id,
     )
+    inherited_historical_corrections = (
+        _load_snapshot_historical_antecedent_corrections(
+            parent.input_dir,
+            parent.manifest,
+        )
+    )
+    parent_historical_corrections = (
+        inherited_historical_corrections
+        if inherited_historical_corrections is not None
+        else load_administrative_action_corrections(
+            _ADMINISTRATIVE_ACTION_CORRECTIONS_PATH
+        )
+    )
+    inherited_historical_reviews = (
+        _load_snapshot_historical_antecedent_reviews(
+            parent.input_dir,
+            parent.manifest,
+        )
+    )
+    parent_historical_reviews = (
+        inherited_historical_reviews
+        if inherited_historical_reviews is not None
+        else load_historical_antecedent_reviews(
+            _HISTORICAL_ANTECEDENT_REVIEWS_PATH
+        )
+    )
     (
         requested_ids,
         scope_fingerprint,
@@ -1761,6 +1999,11 @@ def materialize_extraction_subset(
         attempts=attempts,
         source_df=documents,
         manual_reviews=manual_reviews,
+        enable_historical_antecedent_safeguard=True,
+        historical_antecedent_corrections=(
+            parent_historical_corrections
+        ),
+        historical_antecedent_reviews=parent_historical_reviews,
     )
 
     expected_current = parent.current_extractions.loc[
@@ -1783,8 +2026,17 @@ def materialize_extraction_subset(
         raise PipelineError(
             "Extraction subset changed the current extraction selection."
         )
+    comparable_review_queue = (
+        review_queue.loc[
+            ~review_queue["reason_code"].eq(
+                POSSIBLE_HISTORICAL_ANTECEDENT_REASON_CODE
+            )
+        ].reset_index(drop=True)
+        if inherited_historical_corrections is None
+        else review_queue
+    )
     if not _frame_equal(
-        review_queue,
+        comparable_review_queue,
         expected_queue,
         sort_by=("identificador_boe", "review_queue_id"),
         ignore_columns=("queued_at",),
@@ -1805,6 +2057,15 @@ def materialize_extraction_subset(
             manual_reviews["manual_review_id"].astype(str)
         ),
         "extraction_config_id": EXTRACTION_CONFIG_ID,
+        "historical_antecedent_policy_version": (
+            HISTORICAL_ANTECEDENT_POLICY_VERSION
+        ),
+        "historical_antecedent_corrections_identity": (
+            parent_historical_corrections.semantic_identity
+        ),
+        "historical_antecedent_reviews_identity": (
+            parent_historical_reviews.semantic_identity
+        ),
     })).hexdigest()
     blocking_count = int(
         review_queue["reason_severity"].eq("blocking").fillna(False).sum()
@@ -1818,11 +2079,25 @@ def materialize_extraction_subset(
         manual_path = staging_dir / _EXTRACTION_MANUAL_REVIEWS
         current_path = staging_dir / _EXTRACTION_CURRENT
         queue_path = staging_dir / _EXTRACTION_REVIEW_QUEUE
+        historical_corrections_path = (
+            staging_dir / _EXTRACTION_HISTORICAL_ANTECEDENT_CORRECTIONS
+        )
+        historical_reviews_path = (
+            staging_dir / _EXTRACTION_HISTORICAL_ANTECEDENT_REVIEWS
+        )
         save_parquet_atomic(documents, document_path)
         save_parquet_atomic(attempts, attempt_path)
         save_parquet_atomic(manual_reviews, manual_path)
         save_parquet_atomic(current, current_path)
         save_parquet_atomic(review_queue, queue_path)
+        _copy_historical_antecedent_corrections(
+            parent_historical_corrections,
+            historical_corrections_path,
+        )
+        _copy_historical_antecedent_reviews(
+            parent_historical_reviews,
+            historical_reviews_path,
+        )
         manifest = {
             "stage": "extraction",
             "stage_version": PIPELINE_STAGE_VERSION,
@@ -1845,6 +2120,12 @@ def materialize_extraction_subset(
             "document_identity_sha256": _documents_identity(documents),
             "retry_error_boe_ids": [],
             "deterministic_code_sha256": _sha256_file(Path(__file__)),
+            _HISTORICAL_ANTECEDENT_SAFEGUARD_KEY: (
+                _historical_antecedent_safeguard_manifest(
+                    parent_historical_corrections,
+                    parent_historical_reviews,
+                )
+            ),
             "parent": {
                 "input_extraction": str(Path(input_extraction).absolute()),
                 "snapshot_identity_sha256": parent_identity,
@@ -1879,6 +2160,14 @@ def materialize_extraction_subset(
                 "manual_reviews": _artifact(manual_path, manual_reviews),
                 "current_extractions": _artifact(current_path, current),
                 "review_queue": _artifact(queue_path, review_queue),
+                "historical_antecedent_corrections": _artifact(
+                    historical_corrections_path,
+                    parent_historical_corrections.corrections,
+                ),
+                "historical_antecedent_reviews": _artifact(
+                    historical_reviews_path,
+                    parent_historical_reviews.reviews,
+                ),
             },
         }
         manifest_path = staging_dir / _EXTRACTION_MANIFEST
@@ -2130,23 +2419,122 @@ def _union_manual_review_identity(reviews: pd.DataFrame) -> str:
     return sha256(_canonical_json_bytes(records)).hexdigest()
 
 
+def _registry_record_identities(
+    dataframe: pd.DataFrame,
+    *,
+    boe_ids: set[str],
+) -> set[bytes]:
+    """Return complete relevant records, independent of row order."""
+
+    relevant = dataframe.loc[
+        dataframe["boe_id"].astype(str).isin(boe_ids)
+    ]
+    return {
+        _canonical_json_bytes(record)
+        for record in relevant.to_dict(orient="records")
+    }
+
+
+def _assert_snapshot_safeguard_lineage(
+    snapshot: LoadedExtractionSnapshot,
+    *,
+    corrections: LoadedAdministrativeActionCorrections,
+    reviews: LoadedHistoricalAntecedentReviews,
+) -> None:
+    """Fail closed if target inputs drop or rewrite relevant decisions."""
+
+    boe_ids = set(snapshot.documents["identificador"].astype(str))
+    inherited_corrections = (
+        _load_snapshot_historical_antecedent_corrections(
+            snapshot.input_dir,
+            snapshot.manifest,
+        )
+    )
+    if inherited_corrections is not None:
+        parent_records = _registry_record_identities(
+            inherited_corrections.corrections,
+            boe_ids=boe_ids,
+        )
+        target_records = _registry_record_identities(
+            corrections.corrections,
+            boe_ids=boe_ids,
+        )
+        if not parent_records.issubset(target_records):
+            raise PipelineError(
+                "Target corrections drop or rewrite relevant source "
+                "safeguard provenance."
+            )
+
+    inherited_reviews = _load_snapshot_historical_antecedent_reviews(
+        snapshot.input_dir,
+        snapshot.manifest,
+    )
+    if inherited_reviews is not None:
+        parent_records = _registry_record_identities(
+            inherited_reviews.reviews,
+            boe_ids=boe_ids,
+        )
+        target_records = _registry_record_identities(
+            reviews.reviews,
+            boe_ids=boe_ids,
+        )
+        if not parent_records.issubset(target_records):
+            raise PipelineError(
+                "Target CURRENT reviews drop or rewrite relevant source "
+                "safeguard provenance."
+            )
+
+
+def _assert_union_safeguard_lineage(
+    parents: Sequence[ExtractionUnionParent],
+    *,
+    corrections: LoadedAdministrativeActionCorrections,
+    reviews: LoadedHistoricalAntecedentReviews,
+) -> None:
+    """Validate every parent before recomputing the union queue."""
+
+    for parent in parents:
+        _assert_snapshot_safeguard_lineage(
+            parent.snapshot,
+            corrections=corrections,
+            reviews=reviews,
+        )
+
+
 def plan_extraction_union(
     *,
     input_extractions: Sequence[Path],
     source_snapshot: Path,
     output_dir: Path,
     expected_extraction_config_id: str,
+    historical_antecedent_corrections: Path = (
+        _ADMINISTRATIVE_ACTION_CORRECTIONS_PATH
+    ),
+    historical_antecedent_reviews: Path = (
+        _HISTORICAL_ANTECEDENT_REVIEWS_PATH
+    ),
 ) -> ExtractionUnionPlan:
     """Validate and recompute a union without writing any artifact."""
 
     _validate_expected_config(expected_extraction_config_id)
     output_dir = _validate_new_output(output_dir)
+    loaded_historical_corrections = load_administrative_action_corrections(
+        historical_antecedent_corrections
+    )
+    loaded_historical_reviews = load_historical_antecedent_reviews(
+        historical_antecedent_reviews
+    )
     source_documents, _source_manifest, source_identity = (
         _load_union_source_snapshot(source_snapshot)
     )
     parents = _load_extraction_union_parents(
         input_extractions,
         expected_extraction_config_id=expected_extraction_config_id,
+    )
+    _assert_union_safeguard_lineage(
+        parents,
+        corrections=loaded_historical_corrections,
+        reviews=loaded_historical_reviews,
     )
 
     seen_boe: set[str] = set()
@@ -2223,6 +2611,11 @@ def plan_extraction_union(
         attempts=attempts,
         source_df=documents,
         manual_reviews=manual_reviews,
+        enable_historical_antecedent_safeguard=True,
+        historical_antecedent_corrections=(
+            loaded_historical_corrections
+        ),
+        historical_antecedent_reviews=loaded_historical_reviews,
     ).sort_values(
         ["identificador_boe", "review_queue_id"], kind="stable"
     ).reset_index(drop=True)
@@ -2268,6 +2661,15 @@ def plan_extraction_union(
         "manual_review_identity_sha256": _union_manual_review_identity(
             manual_reviews
         ),
+        "historical_antecedent_policy_version": (
+            HISTORICAL_ANTECEDENT_POLICY_VERSION
+        ),
+        "historical_antecedent_corrections_identity": (
+            loaded_historical_corrections.semantic_identity
+        ),
+        "historical_antecedent_reviews_identity": (
+            loaded_historical_reviews.semantic_identity
+        ),
     })).hexdigest()
     return ExtractionUnionPlan(
         output_dir=output_dir,
@@ -2281,6 +2683,10 @@ def plan_extraction_union(
         review_queue=review_queue,
         snapshot_identity_sha256=snapshot_identity,
         deterministic_code_sha256=deterministic_code_sha256,
+        historical_antecedent_corrections=(
+            loaded_historical_corrections
+        ),
+        historical_antecedent_reviews=loaded_historical_reviews,
     )
 
 
@@ -2316,6 +2722,12 @@ def materialize_extraction_union(
     output_dir: Path,
     expected_extraction_config_id: str,
     created_at: datetime | None = None,
+    historical_antecedent_corrections: Path = (
+        _ADMINISTRATIVE_ACTION_CORRECTIONS_PATH
+    ),
+    historical_antecedent_reviews: Path = (
+        _HISTORICAL_ANTECEDENT_REVIEWS_PATH
+    ),
 ) -> ExtractionUnionResult:
     """Atomically publish a recomputed union of compatible parents."""
 
@@ -2324,6 +2736,10 @@ def materialize_extraction_union(
         source_snapshot=source_snapshot,
         output_dir=output_dir,
         expected_extraction_config_id=expected_extraction_config_id,
+        historical_antecedent_corrections=(
+            historical_antecedent_corrections
+        ),
+        historical_antecedent_reviews=historical_antecedent_reviews,
     )
     instant = _normalise_created_at(created_at)
     staging_dir, prefix = _staging_directory(plan.output_dir)
@@ -2334,11 +2750,25 @@ def materialize_extraction_union(
         manual_path = staging_dir / _EXTRACTION_MANUAL_REVIEWS
         current_path = staging_dir / _EXTRACTION_CURRENT
         queue_path = staging_dir / _EXTRACTION_REVIEW_QUEUE
+        historical_corrections_path = (
+            staging_dir / _EXTRACTION_HISTORICAL_ANTECEDENT_CORRECTIONS
+        )
+        historical_reviews_path = (
+            staging_dir / _EXTRACTION_HISTORICAL_ANTECEDENT_REVIEWS
+        )
         save_parquet_atomic(plan.documents, document_path)
         save_parquet_atomic(plan.attempts, attempt_path)
         save_parquet_atomic(plan.manual_reviews, manual_path)
         save_parquet_atomic(plan.current_extractions, current_path)
         save_parquet_atomic(plan.review_queue, queue_path)
+        _copy_historical_antecedent_corrections(
+            plan.historical_antecedent_corrections,
+            historical_corrections_path,
+        )
+        _copy_historical_antecedent_reviews(
+            plan.historical_antecedent_reviews,
+            historical_reviews_path,
+        )
         blocking_count = int(
             plan.review_queue["reason_severity"]
             .eq("blocking")
@@ -2397,6 +2827,12 @@ def materialize_extraction_union(
             "document_identity_sha256": _documents_identity(plan.documents),
             "retry_error_boe_ids": [],
             "deterministic_code_sha256": plan.deterministic_code_sha256,
+            _HISTORICAL_ANTECEDENT_SAFEGUARD_KEY: (
+                _historical_antecedent_safeguard_manifest(
+                    plan.historical_antecedent_corrections,
+                    plan.historical_antecedent_reviews,
+                )
+            ),
             "source_snapshot": {
                 "input_source": str(plan.source_snapshot),
                 "document_identity_sha256": (
@@ -2449,6 +2885,14 @@ def materialize_extraction_union(
                 ),
                 "review_queue": _artifact(
                     queue_path, plan.review_queue
+                ),
+                "historical_antecedent_corrections": _artifact(
+                    historical_corrections_path,
+                    plan.historical_antecedent_corrections.corrections,
+                ),
+                "historical_antecedent_reviews": _artifact(
+                    historical_reviews_path,
+                    plan.historical_antecedent_reviews.reviews,
                 ),
             },
         }
@@ -3167,10 +3611,22 @@ def recanonicalize_extraction_snapshot(
     manual_reviews: Path | None = None,
     scope_paths: Sequence[Path] = (),
     created_at: datetime | None = None,
+    historical_antecedent_corrections: Path = (
+        _ADMINISTRATIVE_ACTION_CORRECTIONS_PATH
+    ),
+    historical_antecedent_reviews: Path = (
+        _HISTORICAL_ANTECEDENT_REVIEWS_PATH
+    ),
 ) -> RecanonicalizationStageResult:
     """Publish a target snapshot by replaying only deterministic policy code."""
 
     instant = _normalise_created_at(created_at)
+    loaded_historical_corrections = load_administrative_action_corrections(
+        historical_antecedent_corrections
+    )
+    loaded_historical_reviews = load_historical_antecedent_reviews(
+        historical_antecedent_reviews
+    )
     plan = plan_recanonicalization_snapshot(
         source_snapshot=source_snapshot,
         documents=documents,
@@ -3184,6 +3640,11 @@ def recanonicalize_extraction_snapshot(
         manual_reviews=manual_reviews,
         scope_paths=scope_paths,
         created_at=instant,
+    )
+    _assert_snapshot_safeguard_lineage(
+        plan.source,
+        corrections=loaded_historical_corrections,
+        reviews=loaded_historical_reviews,
     )
     _print_recanonicalization_plan(plan)
     source_identity = (
@@ -3218,6 +3679,11 @@ def recanonicalize_extraction_snapshot(
         attempts=attempts,
         source_df=plan.documents,
         manual_reviews=manual_reviews_frame,
+        enable_historical_antecedent_safeguard=True,
+        historical_antecedent_corrections=(
+            loaded_historical_corrections
+        ),
+        historical_antecedent_reviews=loaded_historical_reviews,
     )
     blocking_count = int(
         review_queue["reason_severity"].eq("blocking").fillna(False).sum()
@@ -3231,11 +3697,25 @@ def recanonicalize_extraction_snapshot(
         manual_path = staging_dir / _EXTRACTION_MANUAL_REVIEWS
         current_path = staging_dir / _EXTRACTION_CURRENT
         queue_path = staging_dir / _EXTRACTION_REVIEW_QUEUE
+        historical_corrections_path = (
+            staging_dir / _EXTRACTION_HISTORICAL_ANTECEDENT_CORRECTIONS
+        )
+        historical_reviews_path = (
+            staging_dir / _EXTRACTION_HISTORICAL_ANTECEDENT_REVIEWS
+        )
         plan.documents.to_parquet(document_path, index=False)
         save_parquet_atomic(attempts, attempt_path)
         save_parquet_atomic(manual_reviews_frame, manual_path)
         save_parquet_atomic(current, current_path)
         save_parquet_atomic(review_queue, queue_path)
+        _copy_historical_antecedent_corrections(
+            loaded_historical_corrections,
+            historical_corrections_path,
+        )
+        _copy_historical_antecedent_reviews(
+            loaded_historical_reviews,
+            historical_reviews_path,
+        )
 
         source_artifacts = plan.source.manifest.get("artifacts")
         if not isinstance(source_artifacts, Mapping):
@@ -3269,6 +3749,15 @@ def recanonicalize_extraction_snapshot(
                 RECANONICALIZATION_MATERIALIZATION_VERSION
             ),
             "deterministic_code_sha256": plan.deterministic_code_sha256,
+            "historical_antecedent_policy_version": (
+                HISTORICAL_ANTECEDENT_POLICY_VERSION
+            ),
+            "historical_antecedent_corrections_identity": (
+                loaded_historical_corrections.semantic_identity
+            ),
+            "historical_antecedent_reviews_identity": (
+                loaded_historical_reviews.semantic_identity
+            ),
         })).hexdigest()
         manifest = {
             "stage": "extraction",
@@ -3289,6 +3778,12 @@ def recanonicalize_extraction_snapshot(
             ],
             "document_validation_version": DOCUMENT_VALIDATION_VERSION,
             "document_identity_sha256": _documents_identity(plan.documents),
+            _HISTORICAL_ANTECEDENT_SAFEGUARD_KEY: (
+                _historical_antecedent_safeguard_manifest(
+                    loaded_historical_corrections,
+                    loaded_historical_reviews,
+                )
+            ),
             "recanonicalization": {
                 "mode": plan.mode,
                 "materialization_version": (
@@ -3375,6 +3870,14 @@ def recanonicalize_extraction_snapshot(
                 ),
                 "current_extractions": _artifact(current_path, current),
                 "review_queue": _artifact(queue_path, review_queue),
+                "historical_antecedent_corrections": _artifact(
+                    historical_corrections_path,
+                    loaded_historical_corrections.corrections,
+                ),
+                "historical_antecedent_reviews": _artifact(
+                    historical_reviews_path,
+                    loaded_historical_reviews.reviews,
+                ),
             },
         }
         manifest_path = staging_dir / _EXTRACTION_MANIFEST

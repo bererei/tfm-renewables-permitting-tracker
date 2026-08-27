@@ -49,7 +49,7 @@ work listed here may enter the product.
 | Final-corpus grouping | **CLOSED — 159 MENTIONS; 86 PROJECTS; 0 CONFLICTS** | Deterministic `generation_asset_mentions`-only grouping; ID `8021c957139b51ac3b9ebb7546012ad7a7bbf1ec1d7362f48051699c41b10062` |
 | Final-corpus Gold | **CLOSED — CORRECTED V2; 4 TABLES; 0 PK/FK ISSUES** | Loader-valid `runs/final-w14-corpus-20220101-20260820-v2/downstream/gold`; downstream ID `316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86`; 86 projects and 80 relevant BOE |
 | Streamlit against corrected Gold | **COMPATIBLE — APPTEST PASSED** | Public configuration loaded corrected Gold v2; 86/80 KPIs, charts, map, catalogue, detail and mailto smoke passed without app code changes |
-| Systemic historical-antecedent safeguard | **NOT YET IMPLEMENTED — NEXT REQUIRED BLOCK** | Keep semantic warning/review fail-closed; do not implement regex-only automatic deletion |
+| Systemic historical-antecedent safeguard | **IMPLEMENTED + 1,312 TESTS PASS — PENDING HUMAN REVIEW** | Deterministic dual-signal warning, non-destructive blocking review, exact ANTECEDENT correction reconciliation, persistent CURRENT validation and executable 11/11 + 0/5 replay; no automatic exclusion |
 | Review/admin audit | **COMPLETED — POST-CORPUS WORK** | The versioned file workflow remains the August path; administrative UI/backend work remains POST-TFM |
 | Final holdout | **SEALED — NOT EXECUTED** | No holdout source or output was inspected during W14 historical extraction |
 | Holdout exposure provenance | **RESOLVED — 479 development-exposed BOEs versioned** | `docs/HOLDOUT_EXPOSURE_PROVENANCE.md`; P2 exposed: 263; P2 provisionally eligible: 19,226 |
@@ -470,7 +470,8 @@ FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW
 → DOWNSTREAM ID — 316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86
 → REVIEW/REPORT WORKFLOW AUDIT — COMPLETED; ADMINISTRATIVE UI GAPS POST-TFM
 → STREAMLIT — COMPATIBLE WITH CORRECTED GOLD; APPTEST PASSED
-→ NEXT: SYSTEMIC HISTORICAL-ANTECEDENT WARNING/REVIEW SAFEGUARD
+→ HISTORICAL-ANTECEDENT SAFEGUARD — IMPLEMENTED; 11/11 RECALL; 0/5 FALSE POSITIVES
+→ NEXT: HUMAN REVIEW + EXPLICITLY APPROVED COMMIT/PUSH; THEN PUBLIC DEPLOYMENT AND FINAL VISUAL/SECURITY REVIEW
 ```
 
 The source, configuration, funnel, corrections and cost evidence pass the P2
@@ -522,6 +523,8 @@ Gold tables and downstream identity
 See `docs/FINAL_W14_ADMIN_ACTION_CORRECTIONS.md`. Streamlit is contractually
 compatible with corrected Gold through its public configuration and passed
 AppTest without code changes. The systemic historical-antecedent safeguard is
-the next REQUIRED block. P2 is fallback only; `main-04` through `main-20` and the two old
+implemented as a non-destructive dual-signal review gate with exact approved-
+correction or CURRENT-validation reconciliation and executable replay; human patch review remains
+required. P2 is fallback only; `main-04` through `main-20` and the two old
 `main-03` retries are not required for the final TFM corpus. The holdout
 remains sealed and unexecuted.

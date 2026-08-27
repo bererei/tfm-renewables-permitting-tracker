@@ -33,13 +33,84 @@ explicación humana. Los códigos vigentes son:
   decisión manual;
 - `source_not_attempted`: documento objetivo sin intento vigente;
 - `extraction_error`: error de extracción o estado no elegible;
-- `document_validation_failed`: intento que no superó la validación documental.
+- `document_validation_failed`: intento que no superó la validación documental;
+- `possible_historical_antecedent`: una o más actuaciones de una extracción
+  válida contienen señales documentales de que podrían proceder de antecedentes
+  y requieren decisión humana.
 
 Todos son bloqueantes en esta fase. Para un intento con varios estados
 problemáticos se emite un único motivo: el fallo documental prevalece sobre el
 error genérico, y la incertidumbre solo se usa para intentos correctos que sí
 superaron la validación. La cola se ordena por BOE y su identificador estable
 incluye BOE, hash, intento —vacío si no existe— y código.
+
+## Safeguard de posibles antecedentes históricos
+
+`possible_historical_antecedent` es un hallazgo de revisión, no una
+clasificación automática `ANTECEDENT/CURRENT` ni una corrección. El detector
+puro se ejecuta sobre la extracción canónica que ya superó la validación
+documental y devuelve diagnósticos; no modifica, filtra, rechaza ni elimina
+`administrative_actions`. La selección vigente conserva el mismo JSON. La
+severidad `blocking` impide que un snapshot con un caso pendiente pase
+silenciosamente a Silver, pero no tiene semántica de exclusión de datos.
+
+Cada candidato exige conjuntamente:
+
+1. al menos una señal temporal o estructural fuerte: ubicación en
+   `Antecedentes de hecho`, referencia explícita a una resolución o publicación
+   BOE anterior, o fecha anterior ligada sintácticamente a redacción
+   retrospectiva;
+2. al menos una señal contextual independiente: evidencia anterior al bloque
+   resolutivo, separación explícita entre antecedentes y fundamentos/dispositivo
+   o, en anuncios sin dispositivo, un acto actual distinto declarado por el
+   título.
+
+Un keyword, una fecha aislada, `Fundamentos de Derecho`, la ausencia en el
+título o el tipo de actuación no bastan por sí solos. La evidencia se localiza
+con normalización determinista de Unicode y espacios, conservando el texto
+extraído original, posiciones, sección y un pasaje fuente. Los fragmentos
+`[...]` solo se usan cuando todos pueden ordenarse en un intervalo acotado. Si
+la cita no se localiza, tiene demasiadas posiciones o también aparece en el
+dispositivo actual, el detector no emite una conclusión histórica.
+
+La cola mantiene una fila documental por BOE y agrega los diagnósticos de cada
+actuación en `validation_issues_json`, con `administrative_action_id`, tipo,
+decisión, huella de evidencia, señales, posiciones, sección, fuente y versión
+del detector. `source_attempt_id`, hash documental, configuración y JSON
+propuesto conservan el linaje normal de la revisión.
+
+La detección y la resolución son pasos separados y admiten dos resultados
+humanos distintos. `ANTECEDENT` coincide exactamente por BOE,
+`administrative_action_id`, tipo, decisión y SHA-256 de evidencia con una
+corrección aprobada; solo esa corrección modifica la copia usada para Silver.
+`CURRENT` coincide además por hash del documento, código de motivo y versión
+del detector con una decisión aprobada en
+`config/manual_reviews/historical_antecedent_reviews.csv`; no es una corrección
+y deja la extracción semánticamente idéntica. Si ambos resultados intentan
+resolver el mismo finding, la reconciliación falla por contradicción.
+Una `manual_review` genérica marcada `manually_validated` no suprime estos
+findings por BOE; un rechazo documental sí los cierra porque ninguna actuación
+de ese documento entra en la selección para Silver.
+
+La reconciliación se realiza por actuación antes de agregar la cola por BOE.
+Por ello, si A está resuelta y B no, `validation_issues_json` conserva B y la
+fila documental sigue bloqueando; una resolución de A nunca elimina B. La
+métrica `n_review_required` cuenta BOE pendientes, mientras el inventario de
+actuaciones se conserva y se cuenta en los diagnósticos, no en las filas
+agregadas.
+
+El snapshot copia los bytes de ambos registros validados como
+`historical_antecedent_corrections.csv` y
+`historical_antecedent_reviews.csv`, y declara sus hashes físicos e identidades
+semánticas junto a la versión de política. Así, un cambio futuro de los masters
+no altera retrospectivamente la cola publicada. Subsets conservan el input
+versionado; unions y recanonicalizaciones rechazan un input objetivo que quite
+o reescriba procedencia relevante del parent. Los snapshots anteriores a esta
+política siguen cargando con su contrato histórico.
+
+El replay versionado usa las actuaciones erróneas anteriores a la corrección:
+detecta 11/11 antecedentes aprobados, marca 0/5 controles actuales y reconcilia
+las once huellas contra sus correcciones aprobadas sin reabrir la cola.
 
 ## Métricas y estado de calidad
 
@@ -148,7 +219,7 @@ permanecen fuera del alcance actual.
 
 ## Límites actuales
 
-Siguen pendientes los warnings para extracciones válidas pero sospechosas, el
+Siguen pendientes otros warnings para extracciones válidas pero sospechosas, el
 tratamiento administrativo de documentos no intentados más allá de exigir que
 se procesen, y la prioridad y asignación de revisores. También queda pendiente
 revisar el significado funcional de `rejected`; aquí se conserva exactamente

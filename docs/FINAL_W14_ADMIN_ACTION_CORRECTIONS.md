@@ -191,7 +191,14 @@ The holdout was neither run nor inspected.
 
 ## 12. Residual safeguard
 
-The corrected corpus is closed. A systemic historical-antecedent semantic
-warning and fail-closed review safeguard remains the next REQUIRED block. It
-must use discourse and provenance evidence and must not be a regex-only
-automatic deletion. That safeguard was deliberately not implemented here.
+The corrected corpus remains closed. The subsequent REQUIRED block implemented
+the systemic `possible_historical_antecedent` warning and fail-closed review
+safeguard without changing this correction materialization. It uses combined
+temporal/structural and contextual evidence, preserves every extracted action,
+and reconciles exact approved correction fingerprints before creating pending
+reviews. A distinct versioned `CURRENT` review registry resolves a detector
+false positive without changing the extraction or inventing a no-op correction;
+no such row is needed for the five controls because the detector does not flag
+them. Its pre-correction replay is 11/11 approved rows and 0/5 controls; see
+`docs/FINAL_W14_ADMIN_ACTION_TEMPORAL_AUDIT.md` and
+`docs/architecture/extraction_quality_review.md`.

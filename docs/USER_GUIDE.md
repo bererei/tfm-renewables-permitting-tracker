@@ -1229,6 +1229,53 @@ filas bloqueantes. En los comandos siguientes llámalo
 > vaciar la cola. La decisión debe tener linaje al documento y al attempt
 > vigente. Si no puede resolverse, el caso sigue bloqueando.
 
+La cola también puede contener
+`reason_code=possible_historical_antecedent`. Es un safeguard semántico: exige
+una señal temporal/estructural fuerte y otra contextual, pero no decide si la
+actuación es `ANTECEDENT` o `CURRENT`. Revisa en
+`validation_issues_json` el `administrative_action_id`, evidencia original,
+SHA-256, señales, sección, posiciones y pasaje fuente. El JSON de extracción
+propuesto sigue conteniendo la actuación; el hallazgo no la elimina, rechaza ni
+modifica.
+
+`extract` carga por defecto dos inputs humanos versionados:
+`config/corrections/administrative_action_corrections.csv` para decisiones
+`ANTECEDENT` y
+`config/manual_reviews/historical_antecedent_reviews.csv` para decisiones
+`CURRENT`. Una corrección se reconcilia por BOE, action ID, tipo, decisión y
+huella de evidencia. Una validación `CURRENT` exige además el hash documental,
+el reason code y la versión del detector; deja el JSON de extracción sin
+cambios y solo resuelve ese finding. No uses una corrección vacía o `exclude`
+ficticia para aceptar un falso positivo.
+Tampoco uses una `manual_review` genérica: aunque valide la extracción, no
+resuelve warnings históricos por acción. Un rechazo documental sí los elimina
+de la cola porque ese BOE no aporta ninguna actuación a Silver.
+
+El snapshot copia ambos inputs como
+`historical_antecedent_corrections.csv` y
+`historical_antecedent_reviews.csv` y registra sus identidades en el manifest,
+de modo que el loader reproduce la misma cola aunque los masters cambien
+después. La reconciliación ocurre por actuación: si un BOE tiene A resuelta y B
+pendiente, su única fila de cola conserva B en `validation_issues_json` y sigue
+bloqueando. `extraction-subset`, `extraction-union` y `recanonicalize` propagan
+el contrato; union y recanonicalización fallan si su input objetivo pierde una
+decisión relevante ya presente en el parent.
+
+Para un caso nuevo, inspecciona la fuente y obtén una decisión humana:
+
+- `ANTECEDENT`: añade la exclusión aprobada al master de correcciones mediante
+  la sección 11. La copia incluida en el snapshot resuelve la cola; para excluir
+  la acción de Silver sigue siendo obligatorio derivar el
+  `corrections-subset` contractual descrito en 10.4.
+- `CURRENT`: añade una fila aprobada al registro de revisiones históricas con
+  el documento, action ID, fingerprint, motivo, versión del detector, razón y
+  procedencia humana exactos. No cambies `corrected_extraction` ni crees una
+  corrección de datos.
+- `AMBIGUOUS`: no registres una resolución; el finding continúa bloqueando.
+
+En los dos resultados cerrados, vuelve a ejecutar `extract` con los mismos
+attempts y un destino nuevo; no hace falta repetir Gemini.
+
 ### 10.4 Materializar Silver y aplicar correcciones
 
 Cuando la cola bloqueante sea cero, decide si el corpus contiene los targets
@@ -1536,6 +1583,7 @@ UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
 uv run --with pytest pytest \
   tests/test_pipeline.py \
   tests/test_downstream.py \
+  tests/extraction/test_historical_antecedents.py \
   tests/extraction/test_corrections.py \
   -q -p no:cacheprovider
 ```

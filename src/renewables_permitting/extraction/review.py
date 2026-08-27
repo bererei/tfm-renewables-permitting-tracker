@@ -20,7 +20,19 @@ from renewables_permitting.extraction.config import (
     INSTRUCTIONS_SHA256,
     MODEL_PROVIDER,
 )
+from renewables_permitting.extraction.corrections import (
+    LoadedAdministrativeActionCorrections,
+)
 from renewables_permitting.extraction.documents import build_source_document
+from renewables_permitting.extraction.historical_antecedents import (
+    POSSIBLE_HISTORICAL_ANTECEDENT_REASON_CODE,
+    HistoricalAntecedentFinding,
+    detect_possible_historical_antecedents,
+    reconcile_historical_antecedent_findings,
+)
+from renewables_permitting.extraction.historical_antecedent_reviews import (
+    LoadedHistoricalAntecedentReviews,
+)
 from renewables_permitting.extraction.models import BOEProjectExtraction
 from renewables_permitting.extraction.paths import (
     BOE_AI_EXTRACTION_ATTEMPTS_PATH,
@@ -267,6 +279,9 @@ _REASON_CLASSIFICATION_UNCERTAIN = "classification_uncertain"
 _REASON_SOURCE_NOT_ATTEMPTED = "source_not_attempted"
 _REASON_EXTRACTION_ERROR = "extraction_error"
 _REASON_DOCUMENT_VALIDATION_FAILED = "document_validation_failed"
+_REASON_POSSIBLE_HISTORICAL_ANTECEDENT = (
+    POSSIBLE_HISTORICAL_ANTECEDENT_REASON_CODE
+)
 
 _REVIEW_REASON_POLICIES = {
     _REASON_CLASSIFICATION_UNCERTAIN: {
@@ -291,6 +306,13 @@ _REVIEW_REASON_POLICIES = {
         "severity": "blocking",
         "message": (
             "El último intento vigente no superó la validación documental."
+        ),
+    },
+    _REASON_POSSIBLE_HISTORICAL_ANTECEDENT: {
+        "severity": "blocking",
+        "message": (
+            "Una o más actuaciones pueden proceder de antecedentes históricos; "
+            "se requiere una decisión humana antes de publicar."
         ),
     },
 }
@@ -933,6 +955,57 @@ def _latest_manual_reviews_for_current_sources(
     )
 
 
+def _pending_historical_antecedent_findings(
+    *,
+    current_extractions: pd.DataFrame,
+    sources: pd.DataFrame,
+    corrections: LoadedAdministrativeActionCorrections | None,
+    current_reviews: LoadedHistoricalAntecedentReviews | None,
+) -> dict[str, tuple[HistoricalAntecedentFinding, ...]]:
+    """Detect and reconcile warnings without changing attempt JSON."""
+
+    required_source_columns = {
+        "identificador",
+        "fecha_publicacion",
+        "titulo",
+        "texto_limpio",
+        "source_document_sha256",
+    }
+    missing = sorted(required_source_columns - set(sources.columns))
+    if missing:
+        raise ValueError(
+            "El safeguard de antecedentes históricos requiere las columnas "
+            f"documentales: {missing}."
+        )
+    source_by_boe = {
+        str(row["identificador"]): row
+        for _, row in sources.iterrows()
+    }
+    pending_by_boe: dict[
+        str, tuple[HistoricalAntecedentFinding, ...]
+    ] = {}
+    for _, attempt in current_extractions.sort_values(
+        "identificador_boe", kind="stable"
+    ).iterrows():
+        boe_id = str(attempt["identificador_boe"])
+        document = build_source_document(source_by_boe[boe_id])
+        extraction = BOEProjectExtraction.model_validate_json(
+            str(attempt["extraction_json"])
+        )
+        findings = detect_possible_historical_antecedents(
+            document=document,
+            extraction=extraction,
+        )
+        reconciliation = reconcile_historical_antecedent_findings(
+            findings,
+            corrections,
+            current_reviews,
+        )
+        if reconciliation.pending:
+            pending_by_boe[boe_id] = reconciliation.pending
+    return pending_by_boe
+
+
 def build_review_queue(
     *,
     attempts: pd.DataFrame,
@@ -940,6 +1013,13 @@ def build_review_queue(
     manual_reviews: pd.DataFrame | None = None,
     expected_extraction_config_id: str = EXTRACTION_CONFIG_ID,
     expected_document_validation_version: str = DOCUMENT_VALIDATION_VERSION,
+    enable_historical_antecedent_safeguard: bool = False,
+    historical_antecedent_corrections: (
+        LoadedAdministrativeActionCorrections | None
+    ) = None,
+    historical_antecedent_reviews: (
+        LoadedHistoricalAntecedentReviews | None
+    ) = None,
 ) -> pd.DataFrame:
     sources = _validated_target_sources(source_df)
     latest_attempts = _latest_attempts_for_current_sources(
@@ -960,18 +1040,45 @@ def build_review_queue(
         manual_reviews,
         source_df,
     )
-    resolved_ids = set(
+    current_extractions = select_best_valid_extractions(
+        attempts=attempts,
+        source_df=sources,
+        manual_reviews=manual_reviews,
+        expected_extraction_config_id=expected_extraction_config_id,
+        expected_document_validation_version=(
+            expected_document_validation_version
+        ),
+    )
+    manually_validated_ids = set(
         latest_manual.loc[
-            latest_manual["review_status"].isin(
-                ["manually_validated", "rejected"]
-            ),
+            latest_manual["review_status"].eq("manually_validated"),
             "identificador_boe",
         ].astype(str)
+    )
+    rejected_ids = set(
+        latest_manual.loc[
+            latest_manual["review_status"].eq("rejected"),
+            "identificador_boe",
+        ].astype(str)
+    )
+    pending_historical = (
+        _pending_historical_antecedent_findings(
+            current_extractions=current_extractions,
+            sources=sources,
+            corrections=historical_antecedent_corrections,
+            current_reviews=historical_antecedent_reviews,
+        )
+        if enable_historical_antecedent_safeguard
+        else {}
     )
 
     latest_by_boe = {
         str(row["identificador_boe"]): row
         for _, row in latest_attempts.iterrows()
+    }
+    current_by_boe = {
+        str(row["identificador_boe"]): row
+        for _, row in current_extractions.iterrows()
     }
     queued_at = datetime.now(timezone.utc)
     records: list[dict[str, Any]] = []
@@ -985,10 +1092,18 @@ def build_review_queue(
             reason_code = _REASON_SOURCE_NOT_ATTEMPTED
         else:
             reason_code = _review_reason_code(attempt)
-            if reason_code is None or boe_id in resolved_ids:
+            if boe_id in rejected_ids:
+                continue
+            if boe_id in manually_validated_ids:
+                reason_code = None
+            if reason_code is None and boe_id in pending_historical:
+                reason_code = _REASON_POSSIBLE_HISTORICAL_ANTECEDENT
+                attempt = current_by_boe[boe_id]
+            if reason_code is None:
                 continue
 
         reason_policy = _REVIEW_REASON_POLICIES[reason_code]
+        historical_findings = pending_historical.get(boe_id, ())
         attempt_id = pd.NA if attempt is None else attempt["attempt_id"]
         queue_key = (
             f"{boe_id}|{source['source_document_sha256']}|"
@@ -1020,10 +1135,19 @@ def build_review_queue(
                 pd.NA if attempt is None else attempt["error_message"]
             ),
             "processing_stage": (
-                pd.NA if attempt is None else attempt["processing_stage"]
+                "historical_antecedent_safeguard"
+                if historical_findings
+                else pd.NA if attempt is None else attempt["processing_stage"]
             ),
             "validation_issues_json": (
-                pd.NA
+                json.dumps(
+                    [finding.as_dict() for finding in historical_findings],
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                )
+                if historical_findings
+                else pd.NA
                 if attempt is None
                 else attempt["validation_issues_json"]
             ),
@@ -1376,6 +1500,13 @@ def build_quality_metric(
     manual_reviews: pd.DataFrame | None,
     run_scope: str,
     minimum_auto_validation_rate: float = 0.95,
+    enable_historical_antecedent_safeguard: bool = False,
+    historical_antecedent_corrections: (
+        LoadedAdministrativeActionCorrections | None
+    ) = None,
+    historical_antecedent_reviews: (
+        LoadedHistoricalAntecedentReviews | None
+    ) = None,
 ) -> pd.DataFrame:
     if not 0 <= minimum_auto_validation_rate <= 1:
         raise ValueError("minimum_auto_validation_rate debe estar entre 0 y 1.")
@@ -1415,6 +1546,11 @@ def build_quality_metric(
     manual_decision_ids = manual_valid_ids | rejected_ids
     effective_auto_ids = auto_ids - manual_decision_ids
     effective_valid_ids = effective_auto_ids | manual_valid_ids
+    current_extractions = select_best_valid_extractions(
+        attempts=attempts,
+        source_df=sources,
+        manual_reviews=manual_reviews,
+    )
 
     unresolved_attempt_ids = {
         str(row["identificador_boe"])
@@ -1422,6 +1558,15 @@ def build_quality_metric(
         if _review_reason_code(row) is not None
         and str(row["identificador_boe"]) not in manual_decision_ids
     }
+    if enable_historical_antecedent_safeguard:
+        unresolved_attempt_ids.update(
+            set(_pending_historical_antecedent_findings(
+                current_extractions=current_extractions,
+                sources=sources,
+                corrections=historical_antecedent_corrections,
+                current_reviews=historical_antecedent_reviews,
+            ))
+        )
     pending_blocking_ids = unattempted_ids | unresolved_attempt_ids
 
     n_source = len(target_ids)
