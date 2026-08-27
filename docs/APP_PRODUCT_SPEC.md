@@ -26,6 +26,14 @@ lee Silver, no ejecuta el pipeline y no corrige datos.
 **2026-08-20**. Los detalles cosméticos pueden resolverse durante la
 implementación sin reabrir este gate.
 
+**Alineación posterior:** las decisiones de la tercera revisión visual humana
+documentadas en
+[`FINAL_STREAMLIT_PRODUCT_ALIGNMENT.md`](FINAL_STREAMLIT_PRODUCT_ALIGNMENT.md)
+reemplazan para el producto final la navegación independiente de **Explorar**
+y el alcance opcional de los cross-filters descritos en este registro de Gate
+2. El catálogo completo queda integrado en **Resumen** y las selecciones nativas
+de gráficos, mapa y tabla forman parte de la implementación final.
+
 ### Dataset lifecycle and terminology
 
 - **Development corpus:** los 140 documentos actuales, utilizados para
@@ -197,9 +205,10 @@ Gate 2 fija exactamente dos KPIs REQUIRED.
 
 ### Placement
 
-Los filtros viven en la **sidebar** de Resumen y Explorar. La zona principal
-empieza con un resumen compacto de filtros activos y una acción **Limpiar
-filtros**. No se duplican controles de fecha o territorio encima de gráficos.
+Los filtros viven en la **sidebar** de Resumen. No se duplican controles de
+fecha o territorio encima de gráficos. El único acceso contextual adicional es
+el selector temporal de la zona gráfica administrativa, sincronizado con el
+mismo estado canónico de **Interpretación temporal** del sidebar.
 
 ### Controls
 
@@ -265,19 +274,14 @@ publicaciones asociadas en el intervalo**, no “proyectos activos”.
 - intervalo de fechas único;
 - situación, trámite, interpretación y any/all;
 - recálculo de KPIs, mapa, gráficos y tabla con una sola selección global;
-- selección de una fila en Explorar para abrir la ficha;
-- resumen visible de filtros activos y acción para limpiarlos.
-
-### NOT REQUIRED FOR AUGUST
-
-- click en una geometría para escribir CCAA/provincia/municipio en el mismo
-  estado global y mostrarlo como filtro activo;
-- click en una barra para añadir la situación publicada seleccionada.
-
-Solo pueden entrar como OPTIONAL si el componente gráfico devuelve selecciones
-estables, accesibles y testeables sin nueva dependencia ni complejidad de
-estado. Si complican implementación o tests, se eliminan. Siempre tienen una
-alternativa equivalente mediante filtros explícitos.
+- selección de una fila del catálogo de Resumen para abrir la ficha;
+- resumen visible de filtros activos y acción para limpiarlos;
+- click en mapa, gráficos anuales, gráfico administrativo y celdas filtrables
+  del catálogo, siempre traducido a los mismos filtros globales;
+- el marcador **Todo** de una fila administrativa aplica solo el trámite y
+  conserva todas sus situaciones;
+- cada segmento administrativo aplica conjuntamente trámite y situación
+  publicada.
 
 ### POST-TFM
 
@@ -285,9 +289,10 @@ alternativa equivalente mediante filtros explícitos.
 - lasso, multi-selección compleja o asociaciones implícitas tipo Qlik;
 - sincronización persistente de selecciones entre sesiones.
 
-**Decisión aprobada:** entregar filtros explícitos y selección de fila. No se
-intenta reproducir el motor asociativo de Qlik. El click-to-cross-filter de mapa
-o barras es OPTIONAL y no se duplica el control temporal.
+**Decisión aprobada:** las interacciones implementadas complementan los filtros
+explícitos y componen con AND; no intentan reproducir el motor asociativo de
+Qlik. El selector temporal contextual no introduce otra semántica ni otro
+estado independiente.
 
 ## 10. Page architecture
 
@@ -413,34 +418,27 @@ huérfanos, geometrías inválidas o licencia no apta.
 
 ## 14. Administrative situations chart
 
-### Approved default design
+### Approved final design
 
-El título REQUIRED es **Últimas situaciones publicadas por trámite** y el
-default es **Todos los trámites**. El gráfico muestra una barra por situación
-publicada:
-
-- con un solo trámite seleccionado, la medida es proyectos distintos y cada
-  proyecto aparece como máximo una vez;
-- con Todos o varios trámites, la medida semántica es combinaciones distintas
-  `project_id × action_type`; un proyecto puede contribuir a varias barras y
-  las barras no son categorías exclusivas ni deben sumarse como proyectos.
-
-El subtítulo y el eje cambian explícitamente entre **Proyectos** y
-**Combinaciones proyecto–trámite**. No se oculta la granularidad.
-Una ayuda breve explica que las barras no son grupos mutuamente exclusivos de
-proyectos cuando se muestran todos o varios trámites.
+Una sola zona gráfica contiene un selector segmentado con las dos
+interpretaciones temporales aprobadas y un único gráfico de barras por trámite
+y situación publicada. Cada marca conserva `action_type` y `decision`, cuenta
+proyectos distintos y, al seleccionarse, aplica ambos valores a los filtros
+globales. El título y la explicación cambian con el modo sin usar «estado
+actual» ni afirmar una situación jurídica definitiva.
 
 ### Temporal interpretation
 
 - Default **Última decisión publicada por trámite**: una fila por
-  `project_id × action_type` antes de filtros.
+  `project_id × action_type` antes de filtros y título **Última situación
+  publicada por tipo de actuación**.
 - **Cualquier publicación histórica**: el título cambia a **Situaciones
-  publicadas históricamente** y deduplica cada combinación proyecto–trámite–
-  decisión para que BOE repetidos no inflen la barra.
+  publicadas históricamente por tipo de actuación** y deduplica cada combinación
+  proyecto–trámite–decisión para que BOE repetidos no inflen la barra.
 
-Una selección de situación global restringe las barras; una selección de
-trámite cambia su grano como se describe. El click de barra es OPTIONAL porque
-el mismo efecto siempre está disponible como filtro.
+Una selección global restringe las barras. El click de una marca aplica
+simultáneamente su trámite y situación, y el sidebar hace visibles ambos
+predicados.
 
 ## 15. BOE timeline
 
@@ -511,7 +509,8 @@ proyecto carece de esos elementos.
 
 ### Chronology and evidence
 
-Cronología completa ordenada determinísticamente por fecha e índices:
+Cronología completa ordenada determinísticamente de la publicación más
+reciente a la más antigua, con índices ascendentes dentro de una fecha:
 
 - fecha;
 - trámite;

@@ -36,9 +36,11 @@ proyecto. La declaración reproducible y sus identidades están en
 [`docs/freezes/core_data_freeze_2026-08-13.md`](docs/freezes/core_data_freeze_2026-08-13.md).
 La extensión Gold aditiva `project_locations` está materializada y validada
 junto con `project_location_sources`, que conserva el linaje de cada territorio
-hasta la mención, el evento y el BOE fuente. No cambia los project IDs ni
-`project_events` congelados. El MVP local y read-only de Streamlit también está
-implementado y consume exclusivamente las cuatro tablas Gold validadas:
+hasta la mención, el evento y el BOE fuente. El producto final W14 usa un Gold
+validado separado con 104 documentos analizados, 80 BOE relevantes y 86
+proyectos agrupados en
+`runs/final-w14-corpus-20220101-20260820-v1/downstream/gold`. La aplicación
+read-only de Streamlit consume exclusivamente sus cuatro tablas Gold:
 `projects`, `project_events`, `project_locations` y
 `project_location_sources`.
 
@@ -63,7 +65,7 @@ Ejecuta el MVP read-only desde la raíz del repositorio:
 uv run streamlit run streamlit_app.py
 ```
 
-La aplicación utiliza por defecto el snapshot Gold local validado. El operador
+La aplicación utiliza por defecto el Gold final W14 validado. El operador
 puede configurar su ubicación e identidad esperada sin exponer paths en la UI:
 
 ```bash
@@ -73,9 +75,28 @@ uv run streamlit run streamlit_app.py
 ```
 
 El MVP no escribe en Gold ni ejecuta el pipeline. El despliegue público y el
-flujo de reportes/correcciones desde la interfaz siguen pendientes. Cuando se
-implemente ese flujo, la usuaria no tendrá que introducir manualmente hashes,
-IDs internos ni identificadores de versión.
+flujo administrativo de correcciones siguen fuera de la aplicación pública.
+El reporte mínimo de posibles errores abre un correo local y no persiste datos.
+Para habilitarlo sin hardcodear una dirección:
+
+```bash
+RENEWABLES_REPORT_EMAIL="<CORREO_DE_REVISION>" \
+uv run streamlit run streamlit_app.py
+```
+
+El resumen incluye dos KPIs en cards, mapa administrativo Folium/Leaflet a tres
+niveles con geometría local IGN/CNIG y contexto de países Natural Earth local,
+sin tiles externos ni API key, dos
+gráficos temporales en paralelo, gráfico administrativo y el catálogo completo.
+Los gráficos y el mapa actúan como filtros globales cuando representan una
+dimensión filtrable. El catálogo mantiene una fila por proyecto, permite elegir
+columnas visibles, filtrar mediante celdas de tecnología o territorio y abrir
+la ficha desde una fila o la celda Proyecto. El control de reporte está justo
+debajo de Metodología en la barra lateral y nunca modifica Gold. La ficha usa
+mapa, resumen documental y cronología agrupada por
+publicación. La procedencia cartográfica y la operación completa se documentan en
+[`docs/FINAL_STREAMLIT_PRODUCT_ALIGNMENT.md`](docs/FINAL_STREAMLIT_PRODUCT_ALIGNMENT.md)
+y [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md).
 
 El explorador técnico de las tablas Gold está desactivado por defecto. Para
 habilitarlo expresamente en una sesión local:

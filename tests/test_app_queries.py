@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
@@ -12,20 +13,33 @@ from renewables_permitting.app_queries import (
     LOCATION_LEVEL_LABELS,
     TECHNOLOGY_LABELS,
     ProjectNotFoundError,
+    build_administrative_situation_counts,
     build_boe_url,
+    build_catalog_interaction_context,
+    build_dashboard_selection,
+    build_chart_year_filter,
     build_latest_project_actions,
     build_matching_action_summary,
+    build_project_publication_summary,
+    build_publication_counts,
     build_project_catalog,
+    build_yearly_project_counts,
+    build_territory_project_counts,
+    extract_chart_selected_values,
+    extract_chart_selected_year,
     filter_projects,
+    format_project_display_name,
     get_filter_options,
     get_project_detail,
     get_project_location_sources,
     get_project_locations,
     get_project_timeline,
+    group_project_timeline_by_publication,
     label_action_type,
     label_decision,
     label_location_level,
     label_technology,
+    summarize_dashboard_selection,
 )
 
 
@@ -524,6 +538,58 @@ def test_catalog_has_one_row_per_project_and_deterministic_territory() -> None:
     assert badulaque["territorial_summary"] == (
         "Cariño, Cedeira, Cerdido y 4 más"
     )
+    assert badulaque["autonomous_communities"] == "Galicia"
+    assert badulaque["provinces"] == "A Coruña"
+    assert badulaque["municipalities"] == (
+        "Cariño, Cedeira, Cerdido y 4 más"
+    )
+
+
+def test_catalog_interaction_context_keeps_structured_unabridged_values() -> None:
+    dataset = synthetic_dataset()
+    original_locations = dataset.project_locations.copy(deep=True)
+
+    context = build_catalog_interaction_context(
+        dataset,
+        ("project_badulaque",),
+    )
+
+    assert context == [{
+        "project_id": "project_badulaque",
+        "technology": "eolica",
+        "autonomous_communities": ("Galicia",),
+        "provinces": ("A Coruña",),
+        "province_communities": ("Galicia",),
+        "municipalities": (
+            "Cariño",
+            "Cedeira",
+            "Cerdido",
+            "Mañón",
+            "Moeche",
+            "Muras",
+            "Ortigueira",
+        ),
+        "municipality_provinces": ("A Coruña",),
+        "municipality_communities": ("Galicia",),
+    }]
+    pd.testing.assert_frame_equal(dataset.project_locations, original_locations)
+
+
+@pytest.mark.parametrize(
+    ("raw_name", "expected"),
+    [
+        ("  parque   eólico Mudarra ", "Parque eólico Mudarra"),
+        ("PARQUE EÓLICO MUDARRA", "Parque eólico Mudarra"),
+        ("HSF ANUBIS", "HSF Anubis"),
+        ("SET ATENEA 30/220 KV", "SET Atenea 30/220 kV"),
+        ("BESS MUDARRA II 50 MW", "BESS Mudarra II 50 MW"),
+    ],
+)
+def test_project_display_name_is_deterministic_and_preserves_acronyms(
+    raw_name: str,
+    expected: str,
+) -> None:
+    assert format_project_display_name(raw_name) == expected
 
 
 def test_text_search_is_accent_and_case_insensitive() -> None:
@@ -975,9 +1041,120 @@ def test_timeline_is_stably_ordered() -> None:
     timeline = get_project_timeline(changed, "project_badulaque")
 
     assert timeline["administrative_action_id"].tolist() == [
-        "action_bad_1",
         "action_bad_2",
+        "action_bad_1",
     ]
+
+
+def test_timeline_groups_actions_once_per_boe_newest_first() -> None:
+    rows = _frame(
+        [
+            _event(
+                "project_badulaque",
+                "event_new",
+                "action_new",
+                "BOE-A-2025-20",
+                "2025-02-10",
+                "declaracion_utilidad_publica",
+                "declarado",
+            ),
+            _event(
+                "project_badulaque",
+                "event_old",
+                "action_old_2",
+                "BOE-A-2024-10",
+                "2024-01-10",
+                "autorizacion_administrativa_construccion",
+                "autorizado",
+                action_index=2,
+            ),
+            _event(
+                "project_badulaque",
+                "event_old",
+                "action_old_1",
+                "BOE-A-2024-10",
+                "2024-01-10",
+                "autorizacion_administrativa_previa",
+                "autorizado",
+                action_index=1,
+            ),
+        ],
+        PROJECT_EVENT_DTYPES,
+    )
+
+    groups = group_project_timeline_by_publication(rows)
+
+    assert [group.boe_id for group in groups] == [
+        "BOE-A-2025-20",
+        "BOE-A-2024-10",
+    ]
+    assert [action.administrative_action_id for action in groups[1].actions] == [
+        "action_old_1",
+        "action_old_2",
+    ]
+
+
+def test_don_rodrigo_timeline_is_newest_first_with_stable_action_order() -> None:
+    rows = _frame(
+        [
+            _event(
+                "project_don_rodrigo",
+                "BOE-B-2026-12663_event_1",
+                "BOE-B-2026-12663_event_1_action_1",
+                "BOE-B-2026-12663",
+                "2026-04-23",
+                "autorizacion_administrativa_previa",
+                "sometido_informacion_publica",
+                action_index=1,
+            ),
+            _event(
+                "project_don_rodrigo",
+                "BOE-A-2026-17939_event_1",
+                "BOE-A-2026-17939_event_1_action_2",
+                "BOE-A-2026-17939",
+                "2026-08-19",
+                "autorizacion_administrativa_construccion",
+                "autorizado",
+                action_index=2,
+            ),
+            _event(
+                "project_don_rodrigo",
+                "BOE-A-2026-17939_event_1",
+                "BOE-A-2026-17939_event_1_action_1",
+                "BOE-A-2026-17939",
+                "2026-08-19",
+                "autorizacion_administrativa_previa",
+                "autorizado",
+                action_index=1,
+            ),
+        ],
+        PROJECT_EVENT_DTYPES,
+    )
+
+    groups = group_project_timeline_by_publication(rows)
+
+    assert [group.boe_id for group in groups] == [
+        "BOE-A-2026-17939",
+        "BOE-B-2026-12663",
+    ]
+    assert [
+        action.administrative_action_id for action in groups[0].actions
+    ] == [
+        "BOE-A-2026-17939_event_1_action_1",
+        "BOE-A-2026-17939_event_1_action_2",
+    ]
+
+
+def test_project_publication_summary_counts_distinct_actions_without_duplicates(
+) -> None:
+    dataset = synthetic_dataset()
+    timeline = get_project_timeline(dataset, "project_badulaque")
+    sources = get_project_location_sources(dataset, "project_badulaque")
+
+    summary = build_project_publication_summary(timeline, sources)
+
+    assert summary["boe_id"].is_unique
+    assert summary["administrative_actions"].tolist() == [1, 1]
 
 
 def test_project_detail_is_complete_and_independent_of_prior_filters() -> None:
@@ -1036,13 +1213,19 @@ def test_observed_domains_have_explicit_labels() -> None:
         "autorizacion_administrativa_construccion",
         "autorizacion_administrativa_previa",
         "concesion_aguas",
+        "correccion_errores",
         "declaracion_impacto_ambiental",
         "declaracion_utilidad_publica",
         "evaluacion_impacto_ambiental",
         "informe_determinacion_afeccion_ambiental",
         "informe_impacto_ambiental",
+        "informacion_publica",
         "levantamiento_actas_previas_ocupacion",
+        "modificacion_autorizacion",
         "otro",
+        "solicitud_tramitacion",
+        "solicitud_tramitacion_ambiental",
+        "subsanacion_documentacion",
         "terminacion_procedimiento",
     } <= ACTION_TYPE_LABELS.keys()
     assert {
@@ -1050,13 +1233,19 @@ def test_observed_domains_have_explicit_labels() -> None:
         "autorizado",
         "convocado",
         "declarado",
+        "denegado",
         "desestimado",
         "desfavorable",
         "desistido",
         "formulado",
+        "favorable",
+        "modificado",
+        "rectificado",
         "requiere_evaluacion_ambiental_ordinaria",
         "sin_efectos_adversos_significativos",
+        "solicitado",
         "sometido_informacion_publica",
+        "subsanado",
     } <= DECISION_LABELS.keys()
     assert set(LOCATION_LEVEL_LABELS) == {
         "municipality",
@@ -1092,6 +1281,7 @@ def test_queries_do_not_mutate_inputs() -> None:
     }
 
     build_project_catalog(dataset)
+    build_catalog_interaction_context(dataset, dataset.projects["project_id"])
     filter_projects(dataset, provinces=("Huelva",))
     get_project_timeline(dataset, "project_volateo")
     get_project_locations(dataset, "project_volateo")
@@ -1099,6 +1289,257 @@ def test_queries_do_not_mutate_inputs() -> None:
 
     for name, original in originals.items():
         pd.testing.assert_frame_equal(getattr(dataset, name), original)
+
+
+def test_dashboard_metrics_count_distinct_projects_and_boe() -> None:
+    dataset = synthetic_dataset()
+    duplicated_boe = dataset.project_events.iloc[[0]].copy()
+    duplicated_boe["project_id"] = "project_volateo"
+    duplicated_boe["event_id"] = "event_vol_shared"
+    duplicated_boe["administrative_action_id"] = "action_vol_shared"
+    shared = _with_project_events(
+        dataset,
+        pd.concat([dataset.project_events, duplicated_boe], ignore_index=True),
+    )
+
+    metrics = summarize_dashboard_selection(build_dashboard_selection(shared))
+
+    assert metrics.projects == 6
+    assert metrics.relevant_boe_publications == dataset.project_events[
+        "boe_id"
+    ].nunique()
+
+
+def test_publication_counts_deduplicate_project_events_from_same_boe() -> None:
+    dataset = synthetic_dataset()
+    repeated = pd.concat(
+        [dataset.project_events, dataset.project_events.iloc[[0]]],
+        ignore_index=True,
+    )
+
+    counts = build_publication_counts(repeated)
+
+    assert counts["boe_publications"].sum() == dataset.project_events[
+        "boe_id"
+    ].nunique()
+    assert list(counts.columns) == ["publication_year", "boe_publications"]
+
+
+def test_yearly_project_counts_count_distinct_projects_with_publication() -> None:
+    dataset = synthetic_dataset()
+    repeated = pd.concat(
+        [dataset.project_events, dataset.project_events.iloc[[0]]],
+        ignore_index=True,
+    )
+
+    counts = build_yearly_project_counts(repeated)
+
+    assert list(counts.columns) == ["publication_year", "projects"]
+    assert counts.set_index("publication_year")["projects"].to_dict() == {
+        2023: 2,
+        2024: 5,
+        2025: 1,
+    }
+
+
+def test_chart_year_selection_builds_exact_calendar_filter_and_can_clear() -> None:
+    selected = build_chart_year_filter(2022, available_years=range(2022, 2027))
+    cleared = build_chart_year_filter(None, available_years=range(2022, 2027))
+
+    assert selected.publication_years == (2022,)
+    assert selected.start_date == date(2022, 1, 1)
+    assert selected.end_date == date(2022, 12, 31)
+    assert cleared.publication_years == ()
+    assert cleared.start_date is None
+    assert cleared.end_date is None
+
+
+def test_chart_year_filter_composes_with_existing_catalogue_filters() -> None:
+    temporal = build_chart_year_filter(2024, available_years=range(2022, 2027))
+
+    selection = build_dashboard_selection(
+        synthetic_dataset(),
+        technologies=("fotovoltaica",),
+        autonomous_communities=("Andalucía",),
+        publication_years=temporal.publication_years,
+        start_date=temporal.start_date,
+        end_date=temporal.end_date,
+        temporal_interpretation="historical",
+    )
+
+    assert set(selection.projects["project_id"]) == {
+        "project_puebla",
+        "project_andevalo",
+    }
+    assert set(selection.supporting_events["publication_date"].dt.year) == {2024}
+
+
+def test_chart_selection_parser_handles_streamlit_point_selection() -> None:
+    state = {
+        "selection": {
+            "project_year_selection": [{"publication_year": 2024}],
+        }
+    }
+
+    assert extract_chart_selected_year(
+        state,
+        selection_name="project_year_selection",
+        available_years=range(2022, 2027),
+    ) == 2024
+    assert extract_chart_selected_year(
+        {"selection": {"project_year_selection": []}},
+        selection_name="project_year_selection",
+        available_years=range(2022, 2027),
+    ) is None
+
+
+def test_chart_selection_parser_reads_named_cross_filter_fields() -> None:
+    state = {
+        "selection": {
+            "administrative_selection": [{
+                "action_type": "declaracion_impacto_ambiental",
+                "decision": "favorable",
+            }],
+        }
+    }
+
+    assert extract_chart_selected_values(
+        state,
+        selection_name="administrative_selection",
+        fields=("action_type", "decision"),
+    ) == {
+        "action_type": "declaracion_impacto_ambiental",
+        "decision": "favorable",
+    }
+    assert extract_chart_selected_values(
+        {"selection": {"administrative_selection": []}},
+        selection_name="administrative_selection",
+        fields=("action_type", "decision"),
+    ) is None
+
+
+def test_administrative_counts_use_distinct_projects_per_action_and_decision() -> None:
+    dataset = synthetic_dataset()
+    duplicated = pd.concat(
+        [dataset.project_events, dataset.project_events.iloc[[0]]],
+        ignore_index=True,
+    )
+
+    counts = build_administrative_situation_counts(
+        duplicated,
+        temporal_interpretation="historical",
+    )
+
+    row = counts[
+        (counts["action_type"] == "declaracion_impacto_ambiental")
+        & (counts["decision"] == "desfavorable")
+    ].iloc[0]
+    assert int(row["project_count"]) == 2
+
+
+def test_territory_counts_deduplicate_project_and_code() -> None:
+    dataset = synthetic_dataset()
+    duplicate = dataset.project_locations.iloc[[0]].copy()
+    duplicate["project_location_id"] = "location_duplicate_source"
+    locations = pd.concat(
+        [dataset.project_locations, duplicate],
+        ignore_index=True,
+    )
+
+    counts = build_territory_project_counts(
+        locations,
+        project_ids=dataset.projects["project_id"],
+        level="municipality",
+    )
+
+    badulaque = counts[counts["code"] == "15001"].iloc[0]
+    assert int(badulaque["project_count"]) == 1
+
+
+def test_publication_year_composes_with_technology_and_territory() -> None:
+    dataset = synthetic_dataset()
+
+    selection = build_dashboard_selection(
+        dataset,
+        technologies=["fotovoltaica"],
+        autonomous_communities=["Andalucía"],
+        publication_years=[2024],
+    )
+
+    assert set(selection.projects["project_id"]) == {
+        "project_puebla",
+        "project_andevalo",
+    }
+    assert set(selection.supporting_events["publication_date"].dt.year) == {2024}
+
+
+def test_project_without_resolved_territory_remains_in_dashboard_but_not_map() -> None:
+    source = synthetic_dataset()
+    locations = source.project_locations[
+        source.project_locations["project_id"] != "project_insular"
+    ].reset_index(drop=True)
+    dataset = GoldDataset(
+        projects=source.projects,
+        project_events=source.project_events,
+        project_locations=locations,
+        project_location_sources=source.project_location_sources,
+        manifest=source.manifest,
+        gold_dir=source.gold_dir,
+        downstream_id=source.downstream_id,
+    )
+
+    selection = build_dashboard_selection(dataset)
+    map_counts = build_territory_project_counts(
+        locations,
+        project_ids=selection.projects["project_id"],
+        level="autonomous_community",
+    )
+
+    assert "project_insular" in set(selection.projects["project_id"])
+    assert summarize_dashboard_selection(selection).projects == 6
+    assert int(map_counts["project_count"].sum()) == 5
+
+
+def test_27607_shared_action_appears_once_in_each_project_chronology() -> None:
+    source = synthetic_dataset()
+    projects = source.projects.copy()
+    identities = (
+        ("project_badulaque", "HSF ANUBIS"),
+        ("project_volateo", "HSF AFRODITA"),
+        ("project_puebla", "HSF DEMETER"),
+    )
+    for project_id, name in identities:
+        projects.loc[projects["project_id"].eq(project_id), "project_name"] = name
+    rows = [
+        _event(
+            project_id,
+            "event_27607",
+            "action_27607_shared_dup",
+            "BOE-B-2023-27607",
+            "2023-11-18",
+            "declaracion_utilidad_publica",
+            "declarado",
+        )
+        for project_id, _ in identities
+    ]
+    dataset = GoldDataset(
+        projects=projects,
+        project_events=_frame(rows, PROJECT_EVENT_DTYPES),
+        project_locations=source.project_locations,
+        project_location_sources=source.project_location_sources,
+        manifest=source.manifest,
+        gold_dir=source.gold_dir,
+        downstream_id=source.downstream_id,
+    )
+
+    for project_id, _ in identities:
+        timeline = get_project_timeline(dataset, project_id)
+        assert len(timeline) == 1
+        assert timeline.iloc[0]["administrative_action_id"] == (
+            "action_27607_shared_dup"
+        )
+    counts = build_administrative_situation_counts(dataset.project_events)
+    assert int(counts.iloc[0]["project_count"]) == 3
 
 
 @pytest.mark.parametrize(

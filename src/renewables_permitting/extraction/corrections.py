@@ -334,6 +334,18 @@ def load_administrative_action_corrections(
     )
 
 
+def empty_administrative_action_corrections() -> pd.DataFrame:
+    """Build the typed header-only schema used by a derived empty subset."""
+
+    dataframe = pd.DataFrame(columns=ADMINISTRATIVE_ACTION_CORRECTION_COLUMNS)
+    for column in ADMINISTRATIVE_ACTION_CORRECTION_COLUMNS:
+        if column == "correction_version":
+            dataframe[column] = dataframe[column].astype("Int64")
+        else:
+            dataframe[column] = dataframe[column].astype("string")
+    return dataframe
+
+
 def _typed_applied_corrections(records: list[dict[str, Any]]) -> pd.DataFrame:
     """Build the stable audit-sidecar DataFrame and its explicit dtypes."""
 

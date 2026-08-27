@@ -227,6 +227,7 @@ Para conocer la interfaz exacta de una fase, usa siempre su ayuda:
 uv run python -m renewables_permitting.pipeline source --help
 uv run python -m renewables_permitting.pipeline extract --help
 uv run python -m renewables_permitting.pipeline extraction-subset --help
+uv run python -m renewables_permitting.pipeline corrections-subset --help
 uv run python -m renewables_permitting.pipeline extraction-union --help
 uv run python -m renewables_permitting.pipeline history --help
 uv run python -m renewables_permitting.pipeline recanonicalize --help
@@ -244,6 +245,7 @@ uv run python -m renewables_permitting.pipeline run --help
 | `source` | Descarga sumarios/XML y prepara documentos | BOE, salvo `--dry-run` |
 | `extract` | Planifica/reutiliza intentos y extrae documentos pendientes | Gemini solo con `--execute-model` |
 | `extraction-subset` | Proyecta el historial reutilizable de un snapshot a un scope menor | No |
+| `corrections-subset` | Proyecta el registro de correcciones al universo documental de una extracción | No |
 | `extraction-union` | Une historias completas de snapshots compatibles y disjuntos | No |
 | `history` | Construye candidatos históricos Tier 1 + Tier 2 strict y un scope BOE deduplicado | No |
 | `recanonicalize` | Reaplica reglas deterministas a outputs persistidos compatibles | No |
@@ -270,6 +272,10 @@ deben ser nuevos: el pipeline no sobrescribe una salida ya existente.
   `--output-dir` nuevo y el config ID esperado. Verifica el snapshot parent y
   publica sin red ni modelo un snapshot nuevo con la historia completa de
   attempts y revisiones de los BOE del scope que ya existan en el parent.
+- `corrections-subset` exige `--corrections`, `--extraction-snapshot`, un
+  `--output-dir` nuevo y el config ID esperado. Excluye únicamente correcciones
+  cuyo BOE no pertenece al corpus y valida de forma fail-closed todos los
+  targets in-scope. `--dry-run` no publica.
 - `extraction-union` exige repetir `--input-extraction` para al menos dos
   snapshots, además de `--source-snapshot`, un `--output-dir` nuevo y el config
   ID esperado. Los parents deben ser compatibles, disjuntos y estar bajo la
@@ -370,8 +376,11 @@ detenerlo, vuelve al terminal y pulsa `Ctrl+C`.
 Sin variables adicionales, la aplicación espera este Gold validado:
 
 ```text
-runs/canonical-140-streamlit-base-20260814/downstream/gold
+runs/final-w14-corpus-20220101-20260820-v1/downstream/gold
 ```
+
+El downstream ID predeterminado es
+`e3664ebb4efa0876262aed522d8c68e670c13c9ddee5f1fc0c8b76b74481b6e3`.
 
 Su downstream ID esperado está fijado en la aplicación. Para abrir otro
 snapshot validado, configura **las dos** variables antes de iniciar Streamlit:
@@ -388,6 +397,42 @@ uv run streamlit run streamlit_app.py
 El ID se obtiene de `downstream_materialization_id` en el `manifest.json` de
 Gold. No uses un ID recordado ni lo calcules a mano.
 
+El mapa usa por defecto los tres assets de geometría administrativa local
+verificada en `app_assets/geometry/ign_bdlje_2026-07-28` y el contexto local
+de países en `app_assets/geometry/natural_earth`. Para probar referencias ya
+validadas deben configurarse conjuntamente su directorio y hash del manifest:
+
+```bash
+export RENEWABLES_GEOMETRY_DIR="<GEOMETRIA_VALIDADA>"
+export RENEWABLES_EXPECTED_GEOMETRY_SHA256="<SHA256_MANIFEST>"
+export RENEWABLES_COUNTRY_CONTEXT_DIR="<CONTEXTO_NATURAL_EARTH_VALIDADO>"
+export RENEWABLES_EXPECTED_COUNTRY_CONTEXT_SHA256="<SHA256_MANIFEST_CONTEXTO>"
+```
+
+Los polígonos se representan con Folium/Leaflet sobre **Natural Earth** local:
+una capa vectorial public-domain de países y costas, sin tiles remotos, API key
+ni watermark de proveedor. La geometría administrativa IGN se mantiene en un
+asset y manifest independientes. El componente sí carga los recursos frontend
+JavaScript/CSS declarados por Folium; un despliegue totalmente offline debe
+permitirlos o servirlos localmente. Esto no implica una descarga de datos del
+mapa en runtime.
+
+Para habilitar **Reportar posible error**, configura una dirección funcional
+del proyecto; no escribas una dirección personal en el código:
+
+```bash
+export RENEWABLES_REPORT_EMAIL="<CORREO_DE_REVISION>"
+uv run streamlit run streamlit_app.py
+```
+
+Como alternativa de despliegue, usa el secret de Streamlit `report_email`. Si
+la variable de entorno está presente tiene precedencia; un valor explícito no
+válido falla de forma segura. Si la variable está ausente, se prueba el secret.
+Sin un destino válido, la barra lateral conserva **Reportar posible error** como
+botón deshabilitado, muestra un aviso discreto y no crea un enlace roto. El
+enlace configurado abre el cliente de correo de la usuaria: la aplicación no
+envía ni almacena el mensaje.
+
 > [!WARNING]
 > La aplicación rechaza un directorio inexistente, symlinks, archivos
 > inesperados, versiones incompatibles, columnas o dtypes erróneos, PK/FK
@@ -397,36 +442,103 @@ Gold. No uses un ID recordado ni lo calcules a mano.
 
 ## 7. Usar la aplicación
 
-### Explorar
+### Resumen
 
-La vista **Explorar** contiene métricas, filtros y el catálogo de proyectos.
-Los filtros disponibles son:
+La vista inicial presenta exactamente dos indicadores dinámicos: **Proyectos**
+y **Publicaciones BOE relevantes**. Ambos aparecen en tarjetas delimitadas y
+usan identidades distintas; el segundo cuenta `boe_id`, no filas de eventos.
+Incluye además:
+
+- mapa de asociaciones administrativas por comunidad/ciudad autónoma o
+  provincia;
+- proyectos distintos con publicación observada por año;
+- publicaciones BOE distintas por año;
+- una zona gráfica administrativa con selector temporal y conteos de proyectos
+  distintos por trámite y situación publicada;
+- el catálogo completo, con una fila por proyecto.
+
+Los dos gráficos anuales son interactivos. Al seleccionar, por ejemplo, 2022,
+la aplicación fija **Año de publicación = 2022** y el intervalo visible
+**01/01/2022–31/12/2022**. Esa selección actualiza indicadores, ambos gráficos,
+mapa y catálogo, y se combina con tecnología, territorio y administración. La
+barra lateral identifica el año procedente del gráfico y ofrece **Quitar año
+seleccionado**. En el gráfico administrativo, el punto **Todo** de una fila
+aplica solo su **Trámite** y conserva todas las situaciones; un segmento aplica
+simultáneamente **Trámite** y **Situación publicada**. Los controles laterales
+reflejan siempre el resultado. Un polígono aplica el nivel territorial visible.
+Todas estas selecciones se combinan con AND con los filtros existentes.
+
+La zona gráfica administrativa muestra un solo gráfico cada vez. Su selector
+segmentado reutiliza exactamente **Última decisión publicada por trámite** y
+**Cualquier publicación histórica**. Comparte el mismo estado que
+**Interpretación temporal** en la barra lateral: cambiar cualquiera de los dos
+controles actualiza el otro. El primer modo conserva la publicación más reciente
+por `project_id × action_type`; el segundo cuenta una vez cada combinación
+proyecto–trámite–situación observada en cualquier publicación del corpus.
+
+El botón primario **Limpiar filtros** restablece filtros laterales y selecciones
+de gráficos, mapa y tabla. Sin filtros, los indicadores vuelven a 86 proyectos
+y 80 publicaciones BOE relevantes.
+
+**Evolución de proyectos** cuenta proyectos distintos con al menos una
+publicación observada en cada año. No significa proyectos construidos ni
+necesariamente proyectos nuevos. **Evolución de publicaciones BOE** cuenta BOE
+distintos, aunque una publicación incluya varias actuaciones o proyectos.
+
+El selector segmentado **Nivel territorial** muestra como tres alternativas
+visibles **Comunidades y ciudades autónomas**, **Provincias** y **Municipios**.
+Cambiar de alternativa no borra los demás filtros. La capa conserva siempre las 19
+unidades del primer nivel o las 52 provincias/ciudades equivalentes. En
+Municipios conserva los 95 códigos municipales representados por el corpus
+final, no los 8.132 municipios españoles. En los tres niveles, un territorio
+del universo correspondiente con cero proyectos bajo los filtros aparece en
+gris y no desaparece. Los polígonos proceden de IGN/CNIG y se unen mediante
+códigos administrativos. Natural Earth local aporta contexto de España,
+Portugal, Francia, Marruecos y el norte de África. Ceuta, Melilla y Canarias se
+muestran en su posición real, sin recuadros desplazados.
+
+Al pulsar un polígono, la aplicación usa su código —no sus coordenadas ni solo
+su nombre— para sincronizar comunidad, provincia y municipio según el nivel. Un proyecto
+puede aparecer en varios polígonos; no sumes las celdas como total de proyectos.
+El mapa no representa coordenadas, densidad ni la ubicación física exacta de
+una planta. Los proyectos sin territorio resuelto siguen apareciendo en los
+indicadores y en el catálogo. El municipio sigue disponible también en el
+filtro lateral, la tabla y la ficha.
+
+### Filtros y catálogo integrado
+
+**Resumen** contiene los filtros compartidos y el catálogo completo de
+proyectos, ordenado por última publicación observada. No existe una página
+Explorar duplicada. Los filtros
+disponibles son:
 
 - texto libre;
 - tecnología;
 - jerarquía territorial: comunidad autónoma, provincia y municipio;
 - interpretación temporal;
-- situación publicada;
+- año de publicación;
+- fecha de publicación;
 - trámite;
-- coincidencia de trámites cuando se eligen dos o más;
-- intervalo inclusivo de fechas de publicación.
+- situación publicada;
+- coincidencia de trámites cuando se eligen dos o más.
+
+Los cinco controles de **Seguimiento administrativo** aparecen exactamente en
+ese orden. **Fecha publicación** representa un intervalo inclusivo.
 
 Dentro de una categoría, varias opciones se combinan con **OR**: seleccionar
 dos tecnologías muestra una u otra. Entre categorías se usa **AND**: una
 tecnología y una provincia deben cumplirse simultáneamente.
 
 **Situación publicada** es la decisión registrada en una publicación del BOE,
-por ejemplo, «Autorizado» o «Sometido a información pública». No equivale por
-sí sola al estado jurídico actual del proyecto.
+por ejemplo, «Autorizado» o «Sometido a información pública». Metodología
+explica el alcance correcto de esta interpretación.
 
 La **interpretación temporal** predeterminada es **Última decisión publicada
 por trámite**. Para cada proyecto y tipo de trámite, selecciona primero la fila
 más reciente disponible y aplica después fecha, situación y trámite. La opción
 **Cualquier publicación histórica** busca en todas las filas, aunque exista una
-publicación posterior para ese mismo trámite. Actualmente ambos modos devuelven
-22 proyectos al seleccionar «Sometido a información pública», pero esa cifra es
-solo una observación del snapshot validado y los resultados pueden divergir al
-incorporar publicaciones posteriores.
+publicación posterior para ese mismo trámite. Los resultados de ambos modos
+pueden divergir cuando existe una publicación posterior para el mismo trámite.
 
 Varias situaciones se combinan siempre con **OR**. Si se eligen dos o más
 trámites aparece **Coincidencia de trámites**:
@@ -450,18 +562,54 @@ Por ejemplo, el snapshot actual permite localizar **FV El Coscojar II** bajo
 autorización administrativa previa y autorización administrativa de
 construcción.
 
-Selecciona una única fila del catálogo para abrir su ficha.
+Selecciona una única fila o la celda **Proyecto** para abrir su ficha. Las
+celdas de **Tecnología**, **Comunidad autónoma**, **Provincia** y
+**Municipio(s)** pasan sus valores a los filtros globales y actualizan
+indicadores, ambos gráficos temporales, mapa, gráfico administrativo y tabla.
+Provincia sincroniza su comunidad padre; Municipio(s), su provincia y
+comunidad. Cuando una celda contiene varios territorios, la aplicación usa los
+valores estructurados completos asociados al proyecto con OR, no interpreta la
+cadena abreviada visible. Una celda filtrable prevalece sobre una selección de
+fila simultánea. Las fechas primera/última siguen siendo informativas porque
+su conversión automática a un filtro anual sería ambigua.
+
+El catálogo mantiene una fila por proyecto aunque existan varios territorios.
+Muestra por defecto **Proyecto**, **Tecnología**, **Comunidad autónoma**,
+**Provincia**, **Municipio(s)**, primera y última publicación observadas y
+**N.º BOE**. El selector **Columnas visibles** permite ocultar o añadir columnas;
+**Proyecto** permanece siempre visible. Los valores múltiples se presentan como
+listas compactas y deterministas.
+
+Los nombres se normalizan solo para presentación: se corrigen espacios y el
+uso íntegro de mayúsculas sin perder siglas, unidades, números o romanos. Por
+ejemplo, `HSF ANUBIS` se muestra como **HSF Anubis**. El Gold y la evidencia
+literal no se modifican. El glosario se encuentra exclusivamente en
+**Metodología** y reúne las siglas controladas o recurrentes respaldadas por las
+fuentes de la aplicación: BOE, CNIG, FV, HSF, IGN e INE. Los nombres oficiales,
+como **HSF Anubis**, no se expanden automáticamente.
 
 ### Ficha de proyecto
 
 La ficha muestra:
 
-- nombre, tecnología e identificador canónico;
-- primera y última publicación;
-- número de publicaciones y actuaciones;
-- territorio publicado, organizado por nivel;
-- cronología de actuaciones;
-- enlaces a publicaciones del BOE.
+- nombre, tecnología y un resumen determinista construido solo con Gold;
+- tarjetas compactas, en este orden: **Publicaciones BOE**, **Actuaciones
+  publicadas**, **Primera publicación observada** y **Última publicación
+  observada**;
+- mapa contextual del ámbito territorial asociado al proyecto, limitado al
+  nivel resuelto más preciso;
+- resumen compacto de publicaciones implicadas;
+- cronología de actuaciones agrupada por fecha y publicación BOE;
+- enlaces a publicaciones del BOE y evidencia expandible.
+
+Cuando existen municipios resolubles, la ficha carga y resalta únicamente los
+municipios de ese proyecto, con provincia, comunidad y países Natural Earth
+como contexto; no carga
+los miles de municipios españoles. Cada BOE aparece una vez en la cronología,
+desde la publicación más reciente hasta la más antigua, y contiene debajo sus
+actuaciones en orden estable. La evidencia literal se conserva en expanders por actuación. Si no
+consta territorio resoluble, la ficha muestra el mensaje correspondiente en
+lugar de reservar un mapa vacío.
 
 Los territorios pueden proceder de la planta o de componentes asociados, como
 almacenamiento o evacuación. El texto del BOE no siempre permite atribuir cada
@@ -473,11 +621,35 @@ territorio a un componente concreto.
 > modificar, sustituir o referirse a otra; interpreta siempre la evidencia y
 > la publicación.
 
+El único control **Reportar posible error** aparece inmediatamente debajo de
+**Metodología** en la barra lateral, también cuando estás en una ficha; nunca
+se duplica dentro del cuerpo. Abre un borrador `mailto:` con la vista, filtros
+activos y una plantilla de tipo de incidencia. En ficha añade el nombre,
+`project_id` estable, periodo observado, BOE más reciente y enlace público. No
+crea un ticket, no persiste datos y no aplica correcciones.
+
+La persona administradora clasifica el correo fuera de Streamlit. Un error de
+contenido o estructura de extracción puede resolverse mediante una
+`manual_review` versionada. El contrato actual de correcciones solo automatiza
+la exclusión aprobada de una actuación histórica mal atribuida; otros defectos
+de resolución territorial o agrupación pueden requerir una regla determinista,
+tests y revisión técnica. En todos los casos aceptados se recanonicaliza o
+materializa de nuevo, se validan Silver y downstream y se publica un Gold nuevo.
+La aplicación pública nunca edita Gold. Un backend administrativo persistente
+permanece POST-TFM.
+
 ### Metodología
 
 La vista **Metodología** explica alcance, fuentes, freeze y limitaciones. Es la
 referencia apropiada antes de interpretar ausencias o comparar el producto con
-un registro administrativo exhaustivo.
+un registro administrativo exhaustivo. Allí se concentra el glosario compacto
+—BOE, CNIG, FV, HSF, IGN e INE— y la advertencia de interpretación:
+
+> Interpretación de las situaciones administrativas. La aplicación muestra
+> actuaciones y decisiones publicadas en el BOE dentro del periodo analizado.
+> Estas publicaciones describen la evolución administrativa observada, pero no
+> deben interpretarse por sí solas como una certificación del estado jurídico
+> actual y definitivo del proyecto.
 
 ### Auditoría de datos Gold
 
@@ -519,10 +691,12 @@ y validación.
 ## 8. Modelo Gold
 
 Gold no es una tabla gigante: son cuatro tablas con granularidades distintas.
-El snapshot local predeterminado validado contiene 116 proyectos, 169 filas de
-eventos de proyecto correspondientes a 165 actuaciones administrativas únicas,
-584 localizaciones de proyecto y 602 fuentes territoriales. Esos conteos
-pertenecen a ese snapshot; otro run puede tener otros.
+El snapshot final W14 predeterminado contiene 86 proyectos, 251 filas de
+eventos de proyecto, 453 asociaciones territoriales y 839 fuentes
+territoriales. Representa 80 publicaciones BOE relevantes dentro de 104
+documentos analizados; los otros 24 fueron clasificados como no relevantes.
+Esos conteos pertenecen a este corpus de cohorte y no constituyen un censo
+exhaustivo nacional.
 
 ### `projects`
 
@@ -545,9 +719,10 @@ pertenecen a ese snapshot; otro run puede tener otros.
 Cada fila es una atribución `project_id × administrative_action_id`. Un evento
 de publicación puede contener varias actuaciones y una misma actuación puede
 tener targets pertenecientes a varios proyectos. En ese caso se expande a una
-fila por proyecto. En el snapshot validado, cuatro actuaciones se atribuyen a
-dos proyectos; por eso hay 169 filas, pero solo 165 valores únicos de
-`administrative_action_id`, y ese identificador por sí solo no es la PK Gold.
+fila por proyecto. En el snapshot final W14, seis actuaciones son
+multiproyecto —cinco se atribuyen a dos proyectos y una a tres—; por eso hay
+251 filas, pero 244 valores únicos de `administrative_action_id`. Ese
+identificador por sí solo no es la PK Gold.
 
 ### `project_locations`
 
@@ -634,7 +809,7 @@ from pathlib import Path
 
 from renewables_permitting.app_data import load_gold_dataset
 
-gold_dir = Path("runs/canonical-140-streamlit-base-20260814/downstream/gold")
+gold_dir = Path("runs/final-w14-corpus-20220101-20260820-v1/downstream/gold")
 manifest = json.loads((gold_dir / "manifest.json").read_text(encoding="utf-8"))
 expected_id = manifest["downstream_materialization_id"]
 
@@ -1061,8 +1236,26 @@ del registro de correcciones. Cada corrección aprobada exige exactamente una
 coincidencia por entidad y fingerprint. Aplicar el registro completo a una
 cohorte aislada que no contiene esos BOE falla con cero targets.
 
-Para una prueba aislada sin ninguno de los targets aprobados, omite
-`--corrections`:
+Deriva primero un registro limitado al corpus y revisa sus conteos e identidad:
+
+```bash
+uv run python -m renewables_permitting.pipeline corrections-subset \
+  --corrections config/corrections/administrative_action_corrections.csv \
+  --extraction-snapshot <EXTRACTION_SNAPSHOT_VALIDADO> \
+  --output-dir runs/<NUEVO_RUN>/corrections-subset \
+  --expected-extraction-config-id "$EXTRACTION_CONFIG_ID" \
+  --dry-run
+```
+
+Repite sin `--dry-run` para publicar el subset atómico. Si su manifest declara
+cero filas seleccionadas, omite `--corrections` al materializar Silver. Si
+declara una o más, pasa exactamente el CSV derivado:
+
+```bash
+--corrections runs/<NUEVO_RUN>/corrections-subset/administrative_action_corrections.csv
+```
+
+Después ejecuta el dry-run de Silver:
 
 **Plantilla:** sustituye `<EXTRACTION_SNAPSHOT_VALIDADO>` y `<NUEVO_RUN>`.
 
@@ -1075,12 +1268,9 @@ uv run python -m renewables_permitting.pipeline silver \
 ```
 
 No fabriques un subconjunto improvisado del CSV para hacer pasar una cohorte.
-En una reconstrucción acumulativa que contiene las entidades históricas,
-reaplica el registro versionado completo añadiendo exactamente:
-
-```bash
---corrections config/corrections/administrative_action_corrections.csv
-```
+La operación contractual conserva el schema y las filas seleccionadas sin
+reescribir IDs, decisiones, evidencia o procedencia. Un BOE fuera del universo
+se excluye; un BOE in-scope cuyo target no coincide exactamente una vez aborta.
 
 `--corrections` pertenece al subcomando `silver`, no a `run`. Toda corrección
 requiere evidencia y aprobación humana. No edites Parquets, manifests o Gold,
@@ -1227,6 +1417,17 @@ sustantivo, la evidencia y la decisión de excluir.
 
 La aplicación es deliberadamente read-only: no permite proponer ni aprobar
 correcciones desde Streamlit.
+
+La auditoría W14 de atribución temporal y las once decisiones humanas aplicadas
+se documentan en
+[`FINAL_W14_ADMIN_ACTION_TEMPORAL_AUDIT.md`](FINAL_W14_ADMIN_ACTION_TEMPORAL_AUDIT.md).
+El gate previo obligatorio se describe en
+[`FINAL_W14_CORRECTIONS_SUBSET_TOOLING.md`](FINAL_W14_CORRECTIONS_SUBSET_TOOLING.md).
+El resultado corregido está en
+`runs/final-w14-corpus-20220101-20260820-v2` y se documenta en
+[`FINAL_W14_ADMIN_ACTION_CORRECTIONS.md`](FINAL_W14_ADMIN_ACTION_CORRECTIONS.md).
+Para validarlo en Streamlit se usan las variables públicas de Gold de la
+sección 6; el cambio del default o del despliegue es una operación separada.
 
 ## 12. Ejemplo práctico de corrección
 
@@ -1407,9 +1608,12 @@ unset RENEWABLES_GOLD_DIR RENEWABLES_EXPECTED_DOWNSTREAM_ID
 
 ## 16. Estado de las funciones futuras
 
-**Disponible:** aplicación Streamlit local y read-only sobre las cuatro tablas
-Gold, con catálogo, filtros por última publicación o histórico, situación y
-trámite, ficha, cronología, territorio, metodología y explorador Gold local. La
+**Disponible:** aplicación Streamlit read-only sobre las cuatro tablas Gold,
+con Resumen como página principal, dos KPIs, mapa administrativo, dos gráficos
+temporales en paralelo y un gráfico administrativo, todos los visuales
+aplicables como filtros, catálogo territorial completo y configurable, ficha
+con mapa y cronología agrupada, evidencia, reporte lateral `mailto:`,
+metodología y auditoría Gold local. La
 [guía técnica de Streamlit](STREAMLIT_CODE_GUIDE.md) documenta su arquitectura,
 extensiones seguras y tests. El seguimiento administrativo está implementado y
 pendiente de revisión humana.
@@ -1436,6 +1640,8 @@ automática de snapshots documentales tampoco está disponible actualmente.
 | Downstream ID incorrecto | La variable esperada no coincide con `downstream_materialization_id`. Usa el ID previamente validado para ese snapshot. |
 | Manifest incompatible | Las versiones o el esquema no corresponden al loader actual. Usa un snapshot compatible o regenera con código/configuración aprobados. |
 | Hash incorrecto | El archivo no coincide con el manifest. Considera el snapshot corrupto; no edites el hash ni el Parquet. |
+| Mapa no disponible | Verifica `RENEWABLES_GEOMETRY_DIR`, `RENEWABLES_COUNTRY_CONTEXT_DIR`, ambos hashes de manifest y sus GeoJSON. Si el componente queda vacío, comprueba los recursos frontend Leaflet JavaScript/CSS. No existe un tile provider que configurar y no debes descargar geometría en runtime. |
+| Reporte no configurado | Define `RENEWABLES_REPORT_EMAIL` o el secret `report_email`; no hardcodees una dirección personal. |
 | `pytest` no disponible | Ejecuta uno de los comandos completos con `uv run --with pytest` de la sección 14; `pytest` no está declarado como dependencia base. |
 | Streamlit ya está activo | Vuelve al terminal que lo ejecuta y pulsa `Ctrl+C` antes de iniciar otra instancia. |
 | El run/output ya existe | El pipeline protege contra overwrite. Elige un run ID y directorios nuevos; no borres el anterior para forzar la operación. |
@@ -1479,6 +1685,8 @@ automática de snapshots documentales tampoco está disponible actualmente.
 - [README](../README.md): inicio rápido y estado del producto.
 - [Reglas de trabajo](../AGENTS.md): contratos, freeze y salvaguardas.
 - [Roadmap de cierre](TFM_CLOSEOUT.md): prioridades y gates hasta la entrega.
+- [Alineación final del producto](FINAL_STREAMLIT_PRODUCT_ALIGNMENT.md):
+  alcance, métricas, mapa, procedencia, tests y brechas residuales.
 - [Guía técnica de Streamlit](STREAMLIT_CODE_GUIDE.md): arquitectura del MVP,
   extensiones seguras y tests para modificar su código.
 - [Declaración del core freeze](freezes/core_data_freeze_2026-08-13.md).

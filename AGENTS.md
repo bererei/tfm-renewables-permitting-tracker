@@ -171,6 +171,10 @@ same commit. Verify documented commands against the real CLI.
   Silver and Gold.
 - Calculate correction IDs, hashes, fingerprints and versions in code whenever
   they are derivable; do not enter them manually.
+- Corrections outside an extraction document universe may be excluded only by
+  an explicit, lineage-preserving corrections-subset operation. Corrections
+  whose BOE is in scope must still resolve exactly one target and fail closed
+  otherwise.
 - Ambiguous or pending records must not pass silently into Gold as confirmed
   data.
 - Gold outputs must be fully regenerable from validated Silver inputs,
@@ -185,6 +189,23 @@ same commit. Verify documented commands against the real CLI.
   It must not read Silver, execute the pipeline, call BOE/model services or
   provide data/correction write paths. An approved error-report channel must
   remain bounded, validated and separate from Gold and the correction flow.
+- The relevant-BOE KPI counts distinct BOE publications, never event rows.
+- Administrative map measures count distinct projects per published territory;
+  polygon counts are non-additive and never represent exact plant locations.
+- Analytical maps must preserve the complete CCAA/province reference geometry
+  independently of filtered counts. Municipality remains an analytical map and
+  filter level, using the final-corpus municipality universe instead of all
+  Spanish municipalities; zero counts must remain visible within that universe.
+- Public maps use versioned local vector context and must not depend on external
+  basemap tiles, provider API keys or runtime geometry downloads.
+- Display normalization must never mutate Gold values, literal BOE evidence,
+  source text, identifiers or URLs.
+- Chart selections must compose with the explicit filters through the shared
+  query layer and remain synchronized with the visible filter state.
+- The public `mailto:` report control is not a persistent issue backend and
+  must never write analytical data or approve corrections. Accepted reports
+  enter the existing review/correction and deterministic regeneration process
+  outside Streamlit.
 - Keep a future administrative application separate from the public app.
 - Treat `runs/` as regenerable, run-scoped operational output. Do not edit
   derived artifacts in place, alias a candidate as validated, or overwrite the

@@ -1,0 +1,51 @@
+{
+  "artifacts": {
+    "autonomous_community": {
+      "file": "autonomous_communities.geojson",
+      "sha256": "54fd723d1d687c11b7ed17b256ffc53fed88cee787674f129880733f3b66ba0f"
+    },
+    "municipality": {
+      "file": "project_municipalities.geojson",
+      "sha256": "0ef0f331c2be0641a80e65416cfcfe60f57abc4b9af2657f74adb6941187100b"
+    },
+    "province": {
+      "file": "provinces.geojson",
+      "sha256": "8861b8ed21e4d46210f59ca02e759d24832280e2a693ee40c285f558b6f781ee"
+    }
+  },
+  "code_fields": {
+    "autonomous_community": "code",
+    "municipality": "code",
+    "province": "code"
+  },
+  "contract_version": "app-administrative-geometry-v2",
+  "feature_counts": {
+    "autonomous_community": 19,
+    "municipality": 95,
+    "province": 52
+  },
+  "license_attribution": "Obra derivada de BDLJE CC-BY 4.0 ign.es",
+  "processing": {
+    "output_crs": "WGS84-compatible GeoJSON",
+    "selected_from_gold_downstream_id": "e3664ebb4efa0876262aed522d8c68e670c13c9ddee5f1fc0c8b76b74481b6e3",
+    "simplification_tolerance_degrees": {
+      "autonomous_community": 0.005,
+      "municipality": 0.001,
+      "province": 0.0025
+    },
+    "source_crs": {
+      "canary_islands": "EPSG:4326",
+      "peninsula_balearic_ceuta_melilla": "EPSG:4258"
+    },
+    "version": "ign_bdlje_app_geometry_v2"
+  },
+  "source": {
+    "catalog_url": "https://centrodedescargas.cnig.es/CentroDescargas/limites-municipales-provinciales-autonomicos",
+    "file": "LINEAS_LIMITE.ZIP",
+    "organization": "IGN/CNIG",
+    "product": "Límites y Unidades Administrativas Actuales",
+    "publication_date": "2026-07-28",
+    "series": "Límites municipales, provinciales y autonómicos",
+    "sha256": "d752b1b943e6c60f46a23119d6c3d4ad0b198461c502f0a5433197d7a5e34c83"
+  }
+}

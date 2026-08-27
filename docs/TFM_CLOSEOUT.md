@@ -23,6 +23,9 @@ work listed here may enter the product.
 | Core extraction, Silver, INE enrichment, grouping, `projects` and `project_events` | FROZEN, validated, committed and tagged | `docs/freezes/core_data_freeze_2026-08-13.md`; `tfm-core-freeze-2026-08-13` |
 | Gold `project_locations` and `project_location_sources` | Validated, committed and pushed | `9a0916d`; frozen project membership and events unchanged |
 | Local read-only Streamlit MVP | Validated, committed and pushed | `479f513` |
+| Final W14 Streamlit alignment | **TECHNICALLY CLOSED — HUMAN VISUAL REVIEW REQUIRED** | Final Gold defaults, KPI cards, selectable annual charts, Folium map migration, configurable catalogue, grouped detail and methodology; pending human browser approval and commit; `docs/FINAL_STREAMLIT_PRODUCT_ALIGNMENT.md` |
+| Administrative map | **CLOSED — 0 UNMATCHED CODES** | Local Natural Earth country context plus official IGN/CNIG BDLJE reference: 19 communities/autonomous cities, 52 provinces and the 95 final-corpus municipalities are analytical levels; 83/86 projects map-eligible; no external basemap tiles |
+| Minimum safe error reporting | **CLOSED — CONFIGURABLE MAILTO ONLY** | Environment/secret recipient contract, bounded contextual template, safe fallback, no persistence or data mutation; deployment still requires an operator-supplied mailbox |
 | `docs/USER_GUIDE.md` | Reviewed, committed and pushed | `898df2b` |
 | `docs/STREAMLIT_CODE_GUIDE.md` | Reviewed, committed and pushed | `cb144e1` |
 | Gold data explorer | Validated, committed and pushed | `c35136d`; local and disabled by default |
@@ -40,10 +43,13 @@ work listed here may enter the product.
 | W14 historical retrieval | **CLOSED** | Offline `project_history_retrieval_v1` reproduces 40 roots, 71 Tier 1 + 7 Tier 2 strict links, 56 unique BOEs, 0 holdout and 0 conflicts |
 | W14 historical extraction | **CLOSED — 56 CURRENT; 0 BLOCKERS** | Loader-valid `history-extraction-final-v2` contains 128 unique attempts, 54 relevant documents, two non-relevant documents and one versioned manual review; see `docs/FINAL_CORPUS_W14_HISTORY_FAILURE_REVIEW.md` |
 | W14 extraction union | **CLOSED — 104 CURRENT; 0 BLOCKERS** | Loader-valid `runs/final-w14-corpus-20220101-20260820-v1/extraction`; 286 unique attempts; one manual review; identity `dea0f79d9b743dccff23f19995da6ff470866c1d717a2ad1a3af7c415d06eae3` |
-| Final-corpus Silver | **CLOSED — 13 TABLES; 0 VALIDATION ISSUES** | Loader-valid `runs/final-w14-corpus-20220101-20260820-v1/silver`; identity `1fdcdb0fc15d7ccef062dd69a9fb35d2f85ddff5ec6a4a0ecba035332eb28014`; see `docs/FINAL_CORPUS_W14_SILVER_MATERIALIZATION.md` |
+| W14 administrative-action corrections | **CLOSED — 8 APPROVED DECISIONS; 11 APPLIED ROWS** | Contractual subset selected 11 W14 rows and excluded the five master rows outside the corpus; 244→233 Silver actions; `docs/FINAL_W14_ADMIN_ACTION_CORRECTIONS.md` |
+| Final-corpus Silver | **CLOSED — CORRECTED V2; 13 TABLES; 0 VALIDATION ISSUES** | Loader-valid `runs/final-w14-corpus-20220101-20260820-v2/silver`; identity `1ade4c5e07c1cb13f06c86c0c3e8bd08316b0ee02a35d213dc05b797528fa978`; 11 applied corrections |
 | Final-corpus locations | **CLOSED — 828 MENTIONS; 0 INVALID INE CODES** | 624 fully and 204 partially resolved; no ambiguous/conflicting row |
 | Final-corpus grouping | **CLOSED — 159 MENTIONS; 86 PROJECTS; 0 CONFLICTS** | Deterministic `generation_asset_mentions`-only grouping; ID `8021c957139b51ac3b9ebb7546012ad7a7bbf1ec1d7362f48051699c41b10062` |
-| Final-corpus Gold | **CLOSED — 4 TABLES; 0 PK/FK ISSUES** | Loader-valid `runs/final-w14-corpus-20220101-20260820-v1/downstream/gold`; downstream ID `e3664ebb4efa0876262aed522d8c68e670c13c9ddee5f1fc0c8b76b74481b6e3`; see `docs/FINAL_CORPUS_W14_DOWNSTREAM_MATERIALIZATION.md` |
+| Final-corpus Gold | **CLOSED — CORRECTED V2; 4 TABLES; 0 PK/FK ISSUES** | Loader-valid `runs/final-w14-corpus-20220101-20260820-v2/downstream/gold`; downstream ID `316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86`; 86 projects and 80 relevant BOE |
+| Streamlit against corrected Gold | **COMPATIBLE — APPTEST PASSED** | Public configuration loaded corrected Gold v2; 86/80 KPIs, charts, map, catalogue, detail and mailto smoke passed without app code changes |
+| Systemic historical-antecedent safeguard | **NOT YET IMPLEMENTED — NEXT REQUIRED BLOCK** | Keep semantic warning/review fail-closed; do not implement regex-only automatic deletion |
 | Review/admin audit | **COMPLETED — POST-CORPUS WORK** | The versioned file workflow remains the August path; administrative UI/backend work remains POST-TFM |
 | Final holdout | **SEALED — NOT EXECUTED** | No holdout source or output was inspected during W14 historical extraction |
 | Holdout exposure provenance | **RESOLVED — 479 development-exposed BOEs versioned** | `docs/HOLDOUT_EXPOSURE_PROVENANCE.md`; P2 exposed: 263; P2 provisionally eligible: 19,226 |
@@ -62,11 +68,12 @@ verifies the expected downstream identity and never reads Silver or executes
 the pipeline. Project detail always uses the complete published chronology,
 independently of the filters used to locate the project.
 
-The current 140-document **development corpus** is the frozen baseline for
+The 140-document **development corpus** is the frozen baseline for
 development, contracts, tests, regression, architectural validation and
 dashboard design; it is not the final product corpus. The **Final TFM corpus**
-will be a separate, new multi-year materialization used for the written
-results, definitive screenshots, metrics, map, charts and demonstration. Its
+is the separate W14 plus conservative-backfill multi-year materialization used
+for the written results, definitive screenshots, metrics, map, charts and
+demonstration. Its
 validated, versioned Gold publication is the **deployment dataset**, with its
 own downstream ID, manifest, hashes and rollback. In short:
 
@@ -76,8 +83,9 @@ Final TFM corpus    → final materialization
 Deployment dataset → published Gold
 ```
 
-Current phase: **product completion**. Gates 1 and 2 are complete. Public
-deployment, implementation of the approved minimum safe error reporting and
+Current phase: **product completion**. Gates 1 and 2, the final corpus, Gold
+materialization and final local Streamlit alignment are complete. Public
+deployment, final visual/security review, screenshots, written evidence and
 the final holdout remain pending. `project_components` and
 `project_relationships` are approved concepts deferred to POST-TFM, not August
 Gold contracts.
@@ -154,29 +162,29 @@ Complete in dependency order:
    mailto reporting and the August detail scope fixed. Components and
    relationships are deferred. Do not create separate `APP_QUESTIONS.md` or
    `APP_WIREFRAMES.md`.
-3. **Final corpus ingestion audit — REQUIRED.** Inspect the real CLI and code
+3. **Final corpus ingestion audit — COMPLETE.** Inspect the real CLI and code
    before running anything to determine whether source supports a multi-year
    interval and one complete snapshot, whether a clean new run is possible,
    whether snapshots must be combined, deduplication behavior, run naming,
    outputs, candidate/document scale and model-call needs. Treat a full
    multi-year rebuild as the preferred hypothesis only if the audit supports
    it; do not assume this capability.
-4. **Final Corpus Build — REQUIRED.** Preflight, build, review and validate a
+4. **Final Corpus Build — COMPLETE.** Preflight, build, review and validate a
    new multi-year corpus and produce the deployment dataset described below.
    Do not modify or alias the 140-document development freeze.
-5. **KPI definitions.** Freeze project and BOE-publication counts plus only the
+5. **KPI definitions — COMPLETE.** Freeze project and BOE-publication counts plus only the
    additional measures approved by Gates 1 and 2. Power is excluded from the
    August dashboard.
 6. **Approved Gold extensions.** No candidate Gold extension enters August:
    `project_components` and `project_relationships` are deferred to POST-TFM.
-7. **Dashboard.** Implement the approved KPIs, territorial map, latest-situation
+7. **Dashboard — COMPLETE.** Implement the approved KPIs, territorial map, latest-situation
    view and publication evolution without regressing existing exploration.
-8. **Project detail.** Add only fields approved by the data catalogue while
+8. **Project detail — COMPLETE.** Add only fields approved by the data catalogue while
    preserving full chronology, BOE evidence and the non-legal-status wording.
-9. **Minimum safe error reporting.** Implement the approved preformatted mailto
+9. **Minimum safe error reporting — COMPLETE.** Implement the approved preformatted mailto
    with bounded project/entity context and a safely configured recipient. It
    cannot modify data or approve corrections.
-10. **Security.** Preserve contractual Gold loading, expected downstream ID,
+10. **Security — COMPLETE LOCALLY; DEPLOYMENT REVIEW PENDING.** Preserve contractual Gold loading, expected downstream ID,
    safe paths/errors, pinned dependencies, secrets outside Git and a disabled
    public Gold explorer.
 11. **Deployment.** Publish a simple versioned artifact derived from validated
@@ -303,8 +311,9 @@ backend that violates the stop conditions, stop and apply the scope-cut rule.
 
 Codex must not skip or combine gates.
 
-Gate 2 fixes two KPIs, the three-level map and two required charts, explicit
-filters as the cross-filter mechanism, current navigation and mailto reporting.
+Gate 2 and the later approved visual decisions fix two KPIs, a three-level
+CCAA/city, province and final-corpus-municipality summary map, municipality detail, two required charts,
+explicit filters as the cross-filter mechanism, current navigation and mailto reporting.
 Components and relationships are deferred. No material product decision remains
 open.
 
@@ -451,15 +460,17 @@ FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW
 → GEMINI — NO FURTHER CALLS AUTHORIZED
 → HOLDOUT — SEALED; NOT EXECUTED
 → REVIEW/ADMIN AUDIT — COMPLETED; ADMINISTRATIVE UI/BACKEND IS POST-TFM
-→ W14 SILVER — CLOSED; 13 TABLES; 0 CORRECTIONS; 0 VALIDATION ISSUES
-→ SILVER ID — 1fdcdb0fc15d7ccef062dd69a9fb35d2f85ddff5ec6a4a0ecba035332eb28014
+→ W14 TEMPORAL AUDIT — CLOSED; 8 HUMAN DECISIONS APPROVED
+→ CORRECTIONS SUBSET — CLOSED; 11 SELECTED; 5 OUT OF SCOPE
+→ W14 SILVER V2 — CLOSED; 13 TABLES; 11 CORRECTIONS; 0 VALIDATION ISSUES
+→ SILVER ID — 1ade4c5e07c1cb13f06c86c0c3e8bd08316b0ee02a35d213dc05b797528fa978
 → LOCATIONS — CLOSED; 828 MENTIONS; 0 INVALID INE CODES
 → GROUPING — CLOSED; 159 MENTIONS; 86 PROJECTS; 0 CONFLICTS
 → GOLD — CLOSED; 4 TABLES; 0 PK/FK ISSUES
-→ DOWNSTREAM ID — e3664ebb4efa0876262aed522d8c68e670c13c9ddee5f1fc0c8b76b74481b6e3
+→ DOWNSTREAM ID — 316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86
 → REVIEW/REPORT WORKFLOW AUDIT — COMPLETED; ADMINISTRATIVE UI GAPS POST-TFM
-→ STREAMLIT — NEXT
-→ NEXT: STREAMLIT FINAL ALIGNMENT + MINIMUM SAFE REPORTING
+→ STREAMLIT — COMPATIBLE WITH CORRECTED GOLD; APPTEST PASSED
+→ NEXT: SYSTEMIC HISTORICAL-ANTECEDENT WARNING/REVIEW SAFEGUARD
 ```
 
 The source, configuration, funnel, corrections and cost evidence pass the P2
@@ -500,17 +511,17 @@ order-independent union is closed at
 `runs/final-w14-corpus-20220101-20260820-v1/extraction`: 48 non-holdout anchor
 BOEs plus 56 conservatively recovered historical BOEs, zero overlap, 104
 current extractions, 286 unique attempts, one validated manual review and zero
-blockers. Final-corpus Silver is closed with 13 contract-valid tables, zero
-corrections, identity
-`1fdcdb0fc15d7ccef062dd69a9fb35d2f85ddff5ec6a4a0ecba035332eb28014`
-and the reproducibility evidence in
-`docs/FINAL_CORPUS_W14_SILVER_MATERIALIZATION.md`. Final deterministic
-locations, grouping and Gold are closed at
-`runs/final-w14-corpus-20220101-20260820-v1/downstream`: 828 location mentions,
+blockers. Final-corpus Silver v2 is closed with 13 contract-valid tables, 11
+applied human corrections, 233 administrative actions and identity
+`1ade4c5e07c1cb13f06c86c0c3e8bd08316b0ee02a35d213dc05b797528fa978`.
+Final deterministic locations, grouping and Gold are closed at
+`runs/final-w14-corpus-20220101-20260820-v2/downstream`: 828 location mentions,
 159 grouped generation mentions, 86 canonical projects, four contract-valid
 Gold tables and downstream identity
-`e3664ebb4efa0876262aed522d8c68e670c13c9ddee5f1fc0c8b76b74481b6e3`.
-See `docs/FINAL_CORPUS_W14_DOWNSTREAM_MATERIALIZATION.md`. Streamlit final
-alignment and the minimum safe reporting channel are next. P2 is fallback
-only; `main-04` through `main-20` and the two old `main-03` retries are not
-required for the final TFM corpus. The holdout remains sealed and unexecuted.
+`316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86`.
+See `docs/FINAL_W14_ADMIN_ACTION_CORRECTIONS.md`. Streamlit is contractually
+compatible with corrected Gold through its public configuration and passed
+AppTest without code changes. The systemic historical-antecedent safeguard is
+the next REQUIRED block. P2 is fallback only; `main-04` through `main-20` and the two old
+`main-03` retries are not required for the final TFM corpus. The holdout
+remains sealed and unexecuted.

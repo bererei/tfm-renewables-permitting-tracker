@@ -64,6 +64,13 @@ from renewables_permitting.extraction.corrections import (
     apply_administrative_action_corrections,
     load_administrative_action_corrections,
 )
+from renewables_permitting.extraction.correction_subset import (
+    AdministrativeActionCorrectionsSubsetPlan,
+    LoadedAdministrativeActionCorrectionsSubset,
+    corrections_subset_code_sha256,
+    materialize_administrative_action_corrections_subset,
+    plan_administrative_action_corrections_subset,
+)
 from renewables_permitting.extraction.flat_materialization import (
     FlatMaterializationError,
     FlatMaterializationResult,
@@ -3477,6 +3484,53 @@ def run_silver_stage(
     )
 
 
+def run_corrections_subset_stage(
+    *,
+    corrections: Path,
+    extraction_snapshot: Path,
+    output_dir: Path,
+    expected_extraction_config_id: str,
+    dry_run: bool = False,
+) -> (
+    AdministrativeActionCorrectionsSubsetPlan
+    | LoadedAdministrativeActionCorrectionsSubset
+):
+    """Derive a fail-closed correction registry for one extraction corpus."""
+
+    _validate_expected_config(expected_extraction_config_id)
+    output_dir = _validate_new_output(output_dir)
+    loaded = load_extraction_snapshot(
+        extraction_snapshot,
+        expected_extraction_config_id=expected_extraction_config_id,
+    )
+    blocking_count = int(
+        loaded.review_queue["reason_severity"]
+        .eq("blocking")
+        .fillna(False)
+        .sum()
+    )
+    if blocking_count:
+        raise ReviewRequired(
+            "Corrections subset requires a zero-blocker extraction snapshot; "
+            f"blocking={blocking_count}."
+        )
+    parent = load_administrative_action_corrections(corrections)
+    plan = plan_administrative_action_corrections_subset(
+        corrections=parent,
+        current_extractions=loaded.current_extractions,
+        corpus_boe_ids=loaded.documents["identificador"].astype(str),
+        source_extraction_snapshot_id=_extraction_snapshot_identity(loaded),
+        extraction_config_id=expected_extraction_config_id,
+        deterministic_code_sha256=corrections_subset_code_sha256(),
+    )
+    if dry_run:
+        return plan
+    return materialize_administrative_action_corrections_subset(
+        plan,
+        output_dir=output_dir,
+    )
+
+
 def _parse_date(value: str) -> date:
     try:
         return date.fromisoformat(value)
@@ -3536,6 +3590,20 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     extraction_subset.add_argument("--output-dir", type=Path, required=True)
     _add_expected_config(extraction_subset)
+
+    corrections_subset = subparsers.add_parser(
+        "corrections-subset",
+        help="derive a fail-closed correction registry for one extraction",
+    )
+    corrections_subset.add_argument(
+        "--corrections", type=Path, required=True
+    )
+    corrections_subset.add_argument(
+        "--extraction-snapshot", type=Path, required=True
+    )
+    corrections_subset.add_argument("--output-dir", type=Path, required=True)
+    _add_expected_config(corrections_subset)
+    _add_dry_run(corrections_subset)
 
     extraction_union = subparsers.add_parser(
         "extraction-union",
@@ -3713,6 +3781,40 @@ def _handle_extraction_subset(args: argparse.Namespace) -> int:
     print(f"preserved manual reviews: {result.selected_manual_review_count}")
     print(f"subset identity: {result.snapshot_identity_sha256}")
     print(f"extraction subset complete: output={result.output_dir}")
+    return EXIT_SUCCESS
+
+
+def _handle_corrections_subset(args: argparse.Namespace) -> int:
+    result = run_corrections_subset_stage(
+        corrections=args.corrections,
+        extraction_snapshot=args.extraction_snapshot,
+        output_dir=args.output_dir,
+        expected_extraction_config_id=args.expected_extraction_config_id,
+        dry_run=args.dry_run,
+    )
+    if isinstance(result, AdministrativeActionCorrectionsSubsetPlan):
+        plan = result
+    else:
+        manifest = result.manifest
+        subset = manifest["subset"]
+        plan = None
+        print(
+            "corrections subset: "
+            f"master={manifest['parent_corrections']['row_count']} "
+            f"selected={subset['selected_correction_count']} "
+            f"out_of_scope={subset['out_of_scope_correction_count']}"
+        )
+        print(f"corrections subset identity: {result.materialization_identity}")
+        print(f"corrections subset complete: output={result.output_dir}")
+    if plan is not None:
+        print(
+            "corrections subset: "
+            f"master={len(plan.parent_corrections.corrections)} "
+            f"selected={len(plan.selected_correction_ids)} "
+            f"out_of_scope={len(plan.out_of_scope_correction_ids)}"
+        )
+        print(f"corrections subset identity: {plan.materialization_identity}")
+        print("DRY RUN: corrections subset was not materialized")
     return EXIT_SUCCESS
 
 
@@ -4197,6 +4299,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         "source": _handle_source,
         "extract": _handle_extract,
         "extraction-subset": _handle_extraction_subset,
+        "corrections-subset": _handle_corrections_subset,
         "extraction-union": _handle_extraction_union,
         "history": _handle_history,
         "recanonicalize": _handle_recanonicalize,

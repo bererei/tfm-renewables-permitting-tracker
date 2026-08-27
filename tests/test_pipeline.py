@@ -29,6 +29,9 @@ from renewables_permitting.extraction.corrections import (
     ADMINISTRATIVE_ACTION_CORRECTION_COLUMNS,
     evidence_sha256,
 )
+from renewables_permitting.extraction.correction_subset import (
+    load_administrative_action_corrections_subset,
+)
 from renewables_permitting.extraction.models import (
     AdministrativeAction,
     AdministrativeActionType,
@@ -248,6 +251,7 @@ def test_cli_help_lists_the_minimal_command_surface() -> None:
         "source",
         "extract",
         "extraction-subset",
+        "corrections-subset",
         "extraction-union",
         "history",
         "recanonicalize",
@@ -2269,6 +2273,118 @@ def test_extraction_subset_supports_empty_reuse_and_cli(
     assert loaded.attempts.empty
     assert loaded.current_extractions.empty
     assert loaded.review_queue.empty
+
+
+def _write_out_of_scope_corrections_master(path: Path) -> Path:
+    boe_id = "BOE-A-2026-999"
+    evidence = "Actuación histórica ajena al corpus de prueba."
+    pd.DataFrame([{
+        "correction_id": "historical-action-exclusion-out-of-scope",
+        "correction_version": 1,
+        "status": "approved",
+        "boe_id": boe_id,
+        "entity_type": "administrative_action",
+        "operation": "exclude",
+        "administrative_action_id": f"{boe_id}_event_1_action_1",
+        "expected_action_type": "informacion_publica",
+        "expected_decision": "convocado",
+        "expected_evidence_sha256": evidence_sha256(evidence),
+        "reason_code": "historical_antecedent_misattributed",
+        "reason": "Es un antecedente histórico.",
+        "decision_source": "human_decision:test",
+        "reviewed_on": "2026-08-26",
+        "reviewer": "human_tfm_review",
+    }], columns=ADMINISTRATIVE_ACTION_CORRECTION_COLUMNS).to_csv(
+        path,
+        index=False,
+    )
+    return path
+
+
+def test_corrections_subset_cli_dry_run_and_empty_round_trip(
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    documents = _documents()
+    parent = _publish_parent_snapshot(
+        tmp_path / "input",
+        documents=documents,
+        attempts=_success_attempts(documents),
+    )
+    master = _write_out_of_scope_corrections_master(tmp_path / "master.csv")
+    master_before = master.read_bytes()
+    output = tmp_path / "corrections-subset"
+
+    dry_code = pipeline.main([
+        "corrections-subset",
+        "--corrections", str(master),
+        "--extraction-snapshot", str(parent),
+        "--output-dir", str(output),
+        "--expected-extraction-config-id", EXTRACTION_CONFIG_ID,
+        "--dry-run",
+    ])
+    dry_output = capsys.readouterr().out
+
+    assert dry_code == 0
+    assert not output.exists()
+    assert "master=1" in dry_output
+    assert "selected=0" in dry_output
+    assert "out_of_scope=1" in dry_output
+
+    code = pipeline.main([
+        "corrections-subset",
+        "--corrections", str(master),
+        "--extraction-snapshot", str(parent),
+        "--output-dir", str(output),
+        "--expected-extraction-config-id", EXTRACTION_CONFIG_ID,
+    ])
+
+    assert code == 0
+    loaded = load_administrative_action_corrections_subset(
+        output,
+        expected_extraction_snapshot_id=(
+            pipeline._extraction_snapshot_identity(
+                pipeline.load_extraction_snapshot(
+                    parent,
+                    expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+                )
+            )
+        ),
+        expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+    )
+    assert loaded.corrections.empty
+    assert loaded.manifest["subset"]["selected_correction_count"] == 0
+    assert loaded.manifest["subset"]["out_of_scope_correction_count"] == 1
+    assert master.read_bytes() == master_before
+
+
+def test_corrections_subset_rejects_blocking_snapshot_and_config_mismatch(
+    tmp_path: Path,
+) -> None:
+    documents = _documents()
+    blocking_parent = _publish_parent_snapshot(
+        tmp_path / "blocking",
+        documents=documents,
+        attempts=_error_attempt(documents),
+    )
+    master = _write_out_of_scope_corrections_master(tmp_path / "master.csv")
+
+    with pytest.raises(pipeline.ReviewRequired, match="blocking"):
+        pipeline.run_corrections_subset_stage(
+            corrections=master,
+            extraction_snapshot=blocking_parent,
+            output_dir=tmp_path / "blocked-output",
+            expected_extraction_config_id=EXTRACTION_CONFIG_ID,
+        )
+    with pytest.raises(pipeline.PipelineError, match="configuration mismatch"):
+        pipeline.run_corrections_subset_stage(
+            corrections=master,
+            extraction_snapshot=blocking_parent,
+            output_dir=tmp_path / "bad-config-output",
+            expected_extraction_config_id="stale-config",
+        )
+    assert not (tmp_path / "blocked-output").exists()
+    assert not (tmp_path / "bad-config-output").exists()
 
 
 def test_extraction_union_preserves_complete_history_and_manual_decisions(
