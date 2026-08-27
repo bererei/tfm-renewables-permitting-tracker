@@ -376,11 +376,11 @@ detenerlo, vuelve al terminal y pulsa `Ctrl+C`.
 Sin variables adicionales, la aplicación espera este Gold validado:
 
 ```text
-runs/final-w14-corpus-20220101-20260820-v1/downstream/gold
+runs/final-w14-corpus-20220101-20260820-v2/downstream/gold
 ```
 
 El downstream ID predeterminado es
-`e3664ebb4efa0876262aed522d8c68e670c13c9ddee5f1fc0c8b76b74481b6e3`.
+`316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86`.
 
 Su downstream ID esperado está fijado en la aplicación. Para abrir otro
 snapshot validado, configura **las dos** variables antes de iniciar Streamlit:
@@ -809,7 +809,7 @@ from pathlib import Path
 
 from renewables_permitting.app_data import load_gold_dataset
 
-gold_dir = Path("runs/final-w14-corpus-20220101-20260820-v1/downstream/gold")
+gold_dir = Path("runs/final-w14-corpus-20220101-20260820-v2/downstream/gold")
 manifest = json.loads((gold_dir / "manifest.json").read_text(encoding="utf-8"))
 expected_id = manifest["downstream_materialization_id"]
 
@@ -1473,8 +1473,9 @@ El gate previo obligatorio se describe en
 El resultado corregido está en
 `runs/final-w14-corpus-20220101-20260820-v2` y se documenta en
 [`FINAL_W14_ADMIN_ACTION_CORRECTIONS.md`](FINAL_W14_ADMIN_ACTION_CORRECTIONS.md).
-Para validarlo en Streamlit se usan las variables públicas de Gold de la
-sección 6; el cambio del default o del despliegue es una operación separada.
+El default activo de la sección 6 ya apunta a este Gold v2 corregido. Un
+despliegue que sobrescriba la configuración debe actualizar conjuntamente
+`RENEWABLES_GOLD_DIR` y `RENEWABLES_EXPECTED_DOWNSTREAM_ID`.
 
 ## 12. Ejemplo práctico de corrección
 

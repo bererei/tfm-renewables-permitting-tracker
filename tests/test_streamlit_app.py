@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import json
 from datetime import date
 from hashlib import sha256
@@ -19,6 +20,29 @@ from test_app_geometry import _write_country_context
 
 
 APP_PATH = Path(__file__).parents[1] / "streamlit_app.py"
+
+
+def test_production_defaults_select_corrected_gold_v2() -> None:
+    module = ast.parse(APP_PATH.read_text(encoding="utf-8"))
+    defaults = {}
+    for node in module.body:
+        if not isinstance(node, ast.Assign) or len(node.targets) != 1:
+            continue
+        target = node.targets[0]
+        if isinstance(target, ast.Name) and target.id in {
+            "DEFAULT_GOLD_DIR",
+            "DEFAULT_DOWNSTREAM_ID",
+        }:
+            defaults[target.id] = ast.literal_eval(node.value)
+
+    assert defaults == {
+        "DEFAULT_GOLD_DIR": (
+            "runs/final-w14-corpus-20220101-20260820-v2/downstream/gold"
+        ),
+        "DEFAULT_DOWNSTREAM_ID": (
+            "316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86"
+        ),
+    }
 
 
 def _write_app_geometry(

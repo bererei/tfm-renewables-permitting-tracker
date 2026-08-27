@@ -8,9 +8,16 @@ questions about projects, BOE publications, administrative associations,
 published situations and documentary evidence. It does not execute or modify
 the analytical pipeline.
 
+> **Operational update (2026-08-27):** the active application default is the
+> corrected Gold v2 at
+> `runs/final-w14-corpus-20220101-20260820-v2/downstream/gold`, with downstream
+> ID `316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86`.
+> The v1 path and identity below are preserved as the input audited during the
+> original product-alignment review.
+
 ## 2. Final Gold input
 
-The default input is:
+The default input at the time of this alignment audit was:
 
 ```text
 runs/final-w14-corpus-20220101-20260820-v1/downstream/gold

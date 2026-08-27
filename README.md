@@ -39,7 +39,8 @@ junto con `project_location_sources`, que conserva el linaje de cada territorio
 hasta la mención, el evento y el BOE fuente. El producto final W14 usa un Gold
 validado separado con 104 documentos analizados, 80 BOE relevantes y 86
 proyectos agrupados en
-`runs/final-w14-corpus-20220101-20260820-v1/downstream/gold`. La aplicación
+`runs/final-w14-corpus-20220101-20260820-v2/downstream/gold`, con downstream ID
+`316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86`. La aplicación
 read-only de Streamlit consume exclusivamente sus cuatro tablas Gold:
 `projects`, `project_events`, `project_locations` y
 `project_location_sources`.

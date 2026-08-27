@@ -88,10 +88,10 @@ from renewables_permitting.extraction.paths import find_project_root
 
 LOGGER = logging.getLogger(__name__)
 DEFAULT_GOLD_DIR = (
-    "runs/final-w14-corpus-20220101-20260820-v1/downstream/gold"
+    "runs/final-w14-corpus-20220101-20260820-v2/downstream/gold"
 )
 DEFAULT_DOWNSTREAM_ID = (
-    "e3664ebb4efa0876262aed522d8c68e670c13c9ddee5f1fc0c8b76b74481b6e3"
+    "316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86"
 )
 DEFAULT_GEOMETRY_DIR = "app_assets/geometry/ign_bdlje_2026-07-28"
 DEFAULT_GEOMETRY_SHA256 = (
