@@ -2,7 +2,13 @@
 
 Este directorio contiene decisiones manuales versionadas que actúan como
 entradas reproducibles del pipeline. Cada fichero JSON corresponde a una
-revisión y debe conservar el formato generado por `create_manual_review_file()`.
+revisión. Para aprobar la propuesta exacta de la cola o rechazar la extracción
+completa usa la CLI, que deriva el formato y la procedencia:
+
+```bash
+uv run python -m renewables_permitting.admin validate-extraction --help
+uv run python -m renewables_permitting.admin reject-extraction --help
+```
 
 Las decisiones `manually_validated` y `rejected` requieren:
 
@@ -17,7 +23,13 @@ coincidir. Las plantillas incluyen `extraction_config_id` y
 intento fuente validado, nunca de valores inventados. Las revisiones `pending`
 no son decisiones finales y no afectan a la selección.
 
-Estos JSON son entradas que deben revisarse mediante Git. Los Parquet y demás
-outputs derivados se regeneran desde ellas y nunca deben editarse manualmente.
-No se almacenan aquí respuestas completas del modelo, salvo la extracción
-corregida necesaria para una validación manual.
+La CLI sólo aprueba `proposed_extraction_json` sin editarlo o registra
+`rejected`; no es un editor JSON. Una corrección estructural distinta de la
+propuesta sigue siendo developer-only y debe conservar el formato de
+`create_manual_review_file()` además de superar el mismo loader y la revisión
+humana.
+
+Estos JSON deben revisarse mediante Git. Los Parquet y demás outputs derivados
+se regeneran desde ellos y nunca se editan manualmente. No se almacenan aquí
+respuestas completas del modelo, salvo la extracción completa necesaria para
+una validación manual.

@@ -24,7 +24,7 @@ corrección, validación y recuperación.
 8. [Modelo Gold](#8-modelo-gold)
 9. [Inspeccionar las tablas](#9-inspeccionar-las-tablas)
 10. [Incorporar nuevos BOE](#10-incorporar-nuevos-boe)
-11. [Correcciones desde VS Code](#11-correcciones-desde-vs-code)
+11. [CLI administrativa de revisión](#11-cli-administrativa-de-revisión)
 12. [Ejemplo práctico de corrección](#12-ejemplo-práctico-de-corrección)
 13. [Ejemplo de actualización con nuevos BOE](#13-ejemplo-de-actualización-con-nuevos-boe)
 14. [Validación](#14-validación)
@@ -39,7 +39,7 @@ corrección, validación y recuperación.
 - [Quiero abrir la aplicación](#6-iniciar-streamlit).
 - [Quiero inspeccionar los datos](#9-inspeccionar-las-tablas).
 - [Quiero incorporar nuevos BOE](#10-incorporar-nuevos-boe).
-- [Quiero corregir un error](#11-correcciones-desde-vs-code).
+- [Quiero corregir un error](#11-cli-administrativa-de-revisión).
 - [Quiero validar un nuevo snapshot](#14-validación).
 - [Tengo un problema](#17-solución-de-problemas).
 
@@ -1263,14 +1263,14 @@ decisión relevante ya presente en el parent.
 
 Para un caso nuevo, inspecciona la fuente y obtén una decisión humana:
 
-- `ANTECEDENT`: añade la exclusión aprobada al master de correcciones mediante
-  la sección 11. La copia incluida en el snapshot resuelve la cola; para excluir
-  la acción de Silver sigue siendo obligatorio derivar el
-  `corrections-subset` contractual descrito en 10.4.
-- `CURRENT`: añade una fila aprobada al registro de revisiones históricas con
-  el documento, action ID, fingerprint, motivo, versión del detector, razón y
-  procedencia humana exactos. No cambies `corrected_extraction` ni crees una
-  corrección de datos.
+- `ANTECEDENT`: registra la exclusión aprobada en el master de correcciones con
+  el subcomando `antecedent` de la sección 11. La copia incluida en el snapshot
+  resuelve la cola; para excluir la acción de Silver sigue siendo obligatorio
+  derivar el `corrections-subset` contractual descrito en 10.4.
+- `CURRENT`: registra la decisión con el subcomando `current` de la sección 11;
+  la CLI deriva el documento, action ID, fingerprint, motivo y versión del
+  detector, y conserva la razón y procedencia humanas exactas. No cambies
+  `corrected_extraction` ni crees una corrección de datos.
 - `AMBIGUOUS`: no registres una resolución; el finding continúa bloqueando.
 
 En los dos resultados cerrados, vuelve a ejecutar `extract` con los mismos
@@ -1396,7 +1396,136 @@ mismo `attempt_id` con cualquier campo estable distinto aborta la operación;
 nunca se deduplica silenciosamente. El loader y el gate de publicación exigen
 IDs únicos, y el destino debe seguir siendo una ruta nueva inexistente.
 
-## 11. Correcciones desde VS Code
+## 11. CLI administrativa de revisión
+
+La CLI administrativa registra decisiones humanas mediante los contratos
+versionados existentes. No edita campos arbitrarios, no modifica snapshots y
+no ejecuta extracción, Silver, downstream, modelo, BOE ni despliegue.
+
+Consulta la interfaz exacta:
+
+```bash
+uv run python -m renewables_permitting.admin --help
+uv run python -m renewables_permitting.admin list --help
+uv run python -m renewables_permitting.admin show --help
+uv run python -m renewables_permitting.admin current --help
+uv run python -m renewables_permitting.admin antecedent --help
+uv run python -m renewables_permitting.admin validate-extraction --help
+uv run python -m renewables_permitting.admin reject-extraction --help
+uv run python -m renewables_permitting.admin list-decisions --help
+```
+
+### 11.1 Inspeccionar casos
+
+`list` carga y vuelve a validar el snapshot completo; no trata
+`review_queue.parquet` de forma aislada. Los warnings históricos se muestran
+por actuación aunque la cola contenga una fila agregada por BOE.
+
+```bash
+uv run python -m renewables_permitting.admin list \
+  --extraction-snapshot <EXTRACTION_VALIDADA>
+
+uv run python -m renewables_permitting.admin show \
+  --extraction-snapshot <EXTRACTION_VALIDADA> \
+  --boe-id <BOE-ID> \
+  --index <N>
+```
+
+Si un BOE contiene un único caso, `--index` puede omitirse. Nunca se selecciona
+silenciosamente entre varios findings. `show` presenta evidencia literal,
+sección, pasaje fuente y señales del detector; en una revisión genérica
+presenta un resumen estructurado de la propuesta sin permitir editarla.
+
+### 11.2 Decidir CURRENT o ANTECEDENT
+
+La persona introduce únicamente selección, razón, reviewer y referencia de la
+decisión. BOE, action ID, tipo, decisión, hashes, versiones, policy, fecha e
+identificadores técnicos se derivan del snapshot y de los contratos.
+
+```bash
+uv run python -m renewables_permitting.admin current \
+  --extraction-snapshot <EXTRACTION_VALIDADA> \
+  --boe-id <BOE-ID> --index <N> \
+  --reason "<MOTIVO>" \
+  --reviewer "<REVIEWER>" \
+  --decision-source "<REFERENCIA>" \
+  --dry-run
+
+uv run python -m renewables_permitting.admin antecedent \
+  --extraction-snapshot <EXTRACTION_VALIDADA> \
+  --boe-id <BOE-ID> --index <N> \
+  --reason "<MOTIVO>" \
+  --reviewer "<REVIEWER>" \
+  --decision-source "<REFERENCIA>" \
+  --dry-run
+```
+
+`CURRENT` registra un falso positivo en
+`config/manual_reviews/historical_antecedent_reviews.csv` y no cambia la
+extracción. `ANTECEDENT` añade una exclusión exacta a
+`config/corrections/administrative_action_corrections.csv`; la extracción
+fuente permanece intacta y Silver aplicará la exclusión más tarde.
+
+Tras revisar el preview, repite sin `--dry-run`. La CLI solicita confirmación;
+`--yes` sólo omite esa pregunta, nunca las validaciones. Un duplicado, conflicto
+CURRENT/ANTECEDENT, finding resuelto o fingerprint stale aborta sin escribir.
+
+### 11.3 Validar o rechazar una extracción completa
+
+Estas operaciones utilizan el contrato genérico de un JSON por BOE:
+
+```bash
+uv run python -m renewables_permitting.admin validate-extraction \
+  --extraction-snapshot <EXTRACTION_VALIDADA> \
+  --boe-id <BOE-ID> \
+  --reviewer "<REVIEWER>" \
+  --notes "<NOTAS>" \
+  --dry-run
+
+uv run python -m renewables_permitting.admin reject-extraction \
+  --extraction-snapshot <EXTRACTION_VALIDADA> \
+  --boe-id <BOE-ID> \
+  --reviewer "<REVIEWER>" \
+  --notes "<NOTAS>" \
+  --dry-run
+```
+
+`validate-extraction` aprueba exclusivamente la propuesta exacta que ya está
+en la cola y vuelve a ejecutar Pydantic, canonicalización y validación
+documental. No acepta JSON del operador. `reject-extraction` rechaza el BOE
+completo. Ambas rechazan `source_not_attempted` y warnings históricos, que
+requieren primero un intento o una decisión CURRENT/ANTECEDENT respectivamente.
+
+`list-decisions` valida y muestra por separado CURRENT, ANTECEDENT y, cuando se
+aporta el snapshot, las revisiones genéricas aplicables:
+
+```bash
+uv run python -m renewables_permitting.admin list-decisions \
+  --extraction-snapshot <EXTRACTION_VALIDADA> \
+  --boe-id <BOE-ID>
+```
+
+### 11.4 Persistencia y límites
+
+Los CSV se validan completos, se serializan determinísticamente en staging, se
+comprueba que el original no cambió, se reemplazan atómicamente y se recargan.
+Los JSON preservan un fichero por BOE y sólo permiten crear o promover una
+decisión pending; nunca sobrescriben silenciosamente una decisión decisiva.
+Git sigue siendo el rollback y no se crean backups persistentes.
+
+La CLI **no soporta** corregir tipo/decisión/evidencia, añadir actuaciones,
+editar nombres, tecnología, potencia, participantes, relaciones, territorios o
+códigos INE, ni hacer merge/split de proyectos. Una corrección estructural
+completa sigue siendo developer-only y exige preparar un
+`corrected_extraction` completo fuera de esta interfaz. La app Streamlit sigue
+siendo pública y read-only; no importa ni llama a esta CLI.
+
+Después de guardar una decisión la CLI sólo imprime plantillas de los pasos
+posteriores. El operador debe revisar Git y materializar **outputs nuevos** con
+`extract`, `corrections-subset`, `silver --corrections` y `downstream`; nada de
+ello se ejecuta automáticamente.
+
+### 11.5 Contrato de exclusión histórica
 
 El registro vigente es
 `config/corrections/administrative_action_corrections.csv`. Su contrato v1 es
@@ -1428,39 +1557,29 @@ reviewer
 
 Procedimiento:
 
-1. Identifica el BOE en la extracción vigente y en la publicación fuente.
-2. Identifica la actuación exacta y conserva su evidencia literal.
-3. Confirma humanamente que el acto es un antecedente y no uno adoptado por la
-   publicación actual.
+1. Ejecuta `list` y `show` sobre la extracción validada.
+2. Confirma humanamente si el finding es CURRENT o ANTECEDENT.
+3. Ejecuta primero el subcomando elegido con `--dry-run`; no introduzcas IDs ni
+   hashes manualmente.
 4. Decide si es un caso aislado o un defecto sistemático. Un defecto
    sistemático puede exigir código y tests, no una lista creciente de
    exclusiones.
-5. Pide a Codex que prepare una propuesta mínima y trazable a partir del
-   snapshot e input correctos.
-6. Revisa el registro técnico: BOE, action ID, tipo, decisión, evidencia,
-   razón, fuente de decisión, fecha, reviewer y versión.
-7. Calcula la huella con la función productiva, no copiando un hash a mano:
-
-   ```bash
-   uv run python -c \
-   "from renewables_permitting.extraction.corrections import evidence_sha256; print(evidence_sha256('EVIDENCIA LITERAL COMPLETA'))"
-   ```
-
-8. Ejecuta los tests focales de correcciones y pipeline.
-9. Revisa `git diff --check`, el diff exacto y `git status --short`.
-10. Tras aprobación humana, añade explícitamente el CSV y sus tests al commit;
+5. Revisa el preview técnico derivado: BOE, action ID, tipo, decisión,
+   fingerprint, razón, fuente, fecha, reviewer y versión.
+6. Confirma interactivamente o repite con `--yes` sólo después de esa revisión.
+7. Ejecuta los tests focales de CLI, correcciones y pipeline.
+8. Revisa `git diff --check`, el diff exacto y `git status --short`.
+9. Tras aprobación humana, añade explícitamente el registro y sus tests al commit;
     no incluyas `runs/` ni `.agents/`.
-11. Regenera un Silver nuevo con `--corrections` y después downstream/Gold.
-12. Verifica el manifest, `applied_corrections.parquet`, IDs, hashes, conteos y
+10. Regenera una extracción reconciliada, el corrections subset, Silver y
+    downstream en destinos nuevos.
+11. Verifica el manifest, `applied_corrections.parquet`, IDs, hashes, conteos y
     regresiones; finalmente apunta Streamlit al nuevo Gold.
 
-`correction_id` es un identificador estable en lower-kebab-case requerido como
-input; el código lo valida, pero no existe hoy un generador CLI. Codex puede
-proponerlo y comprobar colisiones. `administrative_action_id` se toma del
-snapshot, no se inventa. `expected_evidence_sha256` sí se calcula con la función
-productiva: normaliza Unicode a NFC, unifica finales de línea, elimina espacio
-en los extremos y calcula SHA-256 sobre UTF-8. La usuaria aprueba el juicio
-sustantivo, la evidencia y la decisión de excluir.
+`correction_id` se deriva como
+`historical-action-exclusion-v1-<sha256(identity)[:24]>`. El action ID, tipo,
+decisión y hash de evidencia también se recuperan del finding validado. La
+persona aprueba únicamente el juicio sustantivo, la razón y su referencia.
 
 La aplicación es deliberadamente read-only: no permite proponer ni aprobar
 correcciones desde Streamlit.
@@ -1504,10 +1623,12 @@ un artefacto derivado.
 historical-action-exclusion-v1-16662-dia,1,approved,BOE-A-2024-16662,administrative_action,exclude,BOE-A-2024-16662_event_1_action_2,declaracion_impacto_ambiental,desfavorable,573f1fe53e8d0f556158c0bcf3e2d71b78568d11760affea6fd8e31483e27a25,historical_antecedent_misattributed,Es un antecedente histórico del procedimiento y no un acto adoptado por esta publicación.,human_decisions_consolidated:v1:canonical-140-freeze-candidate-20260813#BOE-A-2024-16662,2026-08-13,human_tfm_review
 ```
 
-Codex puede localizar la fila fuente, preparar el registro, calcular la huella,
-añadir tests y mostrar el diff. La usuaria debe leer el pasaje en su contexto,
-confirmar que es antecedente histórico, aprobar la exclusión y autorizar el
-commit. Al materializar Silver, el código exige que exista exactamente una
+Para un caso nuevo equivalente, usa `list`, `show` y `antecedent --dry-run`
+como describe la sección 11: la CLI localiza el target y deriva el registro y
+la huella sin introducir identificadores técnicos manualmente. La usuaria debe
+leer el pasaje en su contexto, confirmar que es antecedente histórico, aprobar
+la exclusión, persistirla con la CLI y autorizar el commit. Al materializar
+Silver, el código exige que exista exactamente una
 actuación coincidente y que tipo, decisión y hash de evidencia sean idénticos;
 elimina una copia de la actuación, conserva la extracción original y rechaza
 dejar un evento sin ninguna actuación.
@@ -1582,6 +1703,7 @@ uv run --with pytest pytest \
 ```bash
 UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
 uv run --with pytest pytest \
+  tests/test_admin.py \
   tests/test_pipeline.py \
   tests/test_downstream.py \
   tests/extraction/test_historical_antecedents.py \

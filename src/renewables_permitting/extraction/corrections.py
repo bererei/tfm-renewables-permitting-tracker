@@ -151,6 +151,37 @@ def evidence_sha256(evidence: str) -> str:
     ).hexdigest()
 
 
+def historical_action_exclusion_correction_id(
+    *,
+    boe_id: str,
+    administrative_action_id: str,
+    expected_action_type: str,
+    expected_decision: str,
+    expected_evidence_sha256: str,
+) -> str:
+    """Derive the stable technical ID for one exact historical exclusion.
+
+    The complete correction row remains subject to the closed v1 registry
+    validator.  Keeping human reason, reviewer and date outside this identity
+    makes repeated derivation of the same target deterministic.
+    """
+
+    payload = {
+        "contract": "administrative_action_corrections_v1",
+        "correction_version": 1,
+        "entity_type": "administrative_action",
+        "operation": "exclude",
+        "reason_code": _REASON_CODE,
+        "boe_id": str(boe_id),
+        "administrative_action_id": str(administrative_action_id),
+        "expected_action_type": str(expected_action_type),
+        "expected_decision": str(expected_decision),
+        "expected_evidence_sha256": str(expected_evidence_sha256),
+    }
+    digest = sha256(_canonical_json_bytes(payload)).hexdigest()[:24]
+    return f"historical-action-exclusion-v1-{digest}"
+
+
 def _non_empty_text(dataframe: pd.DataFrame, column: str) -> pd.Series:
     """Return a null-safe mask for required non-empty string cells."""
 

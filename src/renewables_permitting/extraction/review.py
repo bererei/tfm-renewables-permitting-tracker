@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from datetime import datetime, timezone
 from hashlib import sha256
 from pathlib import Path
@@ -1432,13 +1433,16 @@ def create_manual_review_file(
     return output_path
 
 
-def load_manual_review_files(
+def _load_manual_review_files(
     source_df: pd.DataFrame,
     attempts: pd.DataFrame,
     *,
-    review_dir: Path = BOE_AI_MANUAL_REVIEW_DIR,
-    output_path: Path | None = BOE_AI_MANUAL_REVIEWS_PATH,
+    review_dir: Path,
+    output_path: Path | None,
+    boe_ids: Iterable[str] | None = None,
 ) -> pd.DataFrame:
+    """Implement full-directory and explicit-scope review loading."""
+
     if not review_dir.exists():
         reviews = empty_manual_reviews()
         if output_path is not None:
@@ -1446,14 +1450,37 @@ def load_manual_review_files(
         return reviews
 
     records: list[dict[str, Any]] = []
+    if boe_ids is None:
+        review_paths = sorted(review_dir.glob("*.json"))
+    else:
+        selected_ids = sorted({str(value) for value in boe_ids})
+        if any(not value.strip() for value in selected_ids):
+            raise ValueError("boe_ids contiene identificadores vacíos.")
+        review_paths = [
+            review_dir / f"{boe_id}.json"
+            for boe_id in selected_ids
+            if (review_dir / f"{boe_id}.json").exists()
+        ]
 
-    for review_path in sorted(review_dir.glob("*.json")):
+    for review_path in review_paths:
+        if not review_path.is_file() or review_path.is_symlink():
+            raise ValueError(
+                f"{review_path}: la revisión debe ser un fichero regular."
+            )
         try:
             payload = json.loads(review_path.read_text(encoding="utf-8"))
         except json.JSONDecodeError as error:
             raise ValueError(f"{review_path}: JSON inválido.") from error
         if not isinstance(payload, dict):
             raise ValueError(f"{review_path}: la revisión debe ser un objeto JSON.")
+        if (
+            boe_ids is not None
+            and payload.get("identificador_boe") != review_path.stem
+        ):
+            raise ValueError(
+                f"{review_path}: identificador_boe no coincide con el nombre "
+                "del fichero."
+            )
         corrected_payload = payload.get("corrected_extraction")
         corrected_json = (
             json.dumps(
@@ -1491,6 +1518,41 @@ def load_manual_review_files(
     if output_path is not None:
         save_parquet_atomic(reviews, output_path)
     return reviews
+
+
+def load_manual_review_files(
+    source_df: pd.DataFrame,
+    attempts: pd.DataFrame,
+    *,
+    review_dir: Path = BOE_AI_MANUAL_REVIEW_DIR,
+    output_path: Path | None = BOE_AI_MANUAL_REVIEWS_PATH,
+) -> pd.DataFrame:
+    """Load every JSON review through the stable public I/O contract."""
+
+    return _load_manual_review_files(
+        source_df,
+        attempts,
+        review_dir=review_dir,
+        output_path=output_path,
+    )
+
+
+def _load_manual_review_files_for_boe_ids(
+    source_df: pd.DataFrame,
+    attempts: pd.DataFrame,
+    *,
+    review_dir: Path,
+    boe_ids: Iterable[str],
+) -> pd.DataFrame:
+    """Validate review files selected by one explicit BOE universe."""
+
+    return _load_manual_review_files(
+        source_df,
+        attempts,
+        review_dir=review_dir,
+        output_path=None,
+        boe_ids=boe_ids,
+    )
 
 
 def build_quality_metric(
