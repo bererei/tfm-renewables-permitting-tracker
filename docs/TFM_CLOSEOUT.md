@@ -48,6 +48,7 @@ work listed here may enter the product.
 | Final-corpus locations | **CLOSED — 828 MENTIONS; 0 INVALID INE CODES** | 624 fully and 204 partially resolved; no ambiguous/conflicting row |
 | Final-corpus grouping | **CLOSED — 159 MENTIONS; 86 PROJECTS; 0 CONFLICTS** | Deterministic `generation_asset_mentions`-only grouping; ID `8021c957139b51ac3b9ebb7546012ad7a7bbf1ec1d7362f48051699c41b10062` |
 | Final-corpus Gold | **CLOSED — CORRECTED V2; 4 TABLES; 0 PK/FK ISSUES** | Loader-valid `runs/final-w14-corpus-20220101-20260820-v2/downstream/gold`; downstream ID `316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86`; 86 projects and 80 relevant BOE |
+| Final Gold publication artifact | **READY — IMMUTABLE; LOADER-VALID; BYTE-EXACT** | Ignored local staging at `data/gold/final-w14-corpus-20220101-20260820-v2-316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86`; distributed outside Git; manifest SHA-256 `cf9901a55c402a68994d992a48a94c075c685387771773dae1931016540a69c0`; downstream ID and 86/80 product counts verified |
 | Streamlit against corrected Gold | **COMPATIBLE — APPTEST PASSED** | Runtime default and public configuration load corrected Gold v2; 86/80 KPIs, charts, map, catalogue, detail and mailto smoke passed |
 | Operational code closeout | **CODE FREEZE READY — 1,344 TESTS PASS** | Original 1,313-test baseline plus 31 administrative-CLI tests; Gold v2 defaults and AppTest remain regression-tested, with the real mailbox remaining deployment configuration |
 | Systemic historical-antecedent safeguard | **CLOSED — HUMAN-APPROVED AND COMMITTED** | Commit `7c9fcbc`; deterministic dual-signal warning, non-destructive blocking review, exact ANTECEDENT correction reconciliation, persistent CURRENT validation and executable 11/11 + 0/5 replay; no automatic exclusion |
@@ -188,9 +189,15 @@ Complete in dependency order:
 10. **Security — COMPLETE LOCALLY; DEPLOYMENT REVIEW PENDING.** Preserve contractual Gold loading, expected downstream ID,
    safe paths/errors, pinned dependencies, secrets outside Git and a disabled
    public Gold explorer.
-11. **Deployment.** Publish a simple versioned artifact derived from validated
-   Gold, with reproducible configuration, rollback and smoke tests. Do not
-   deploy directly from an ignored `runs/` directory.
+11. **Deployment — PUBLICATION CONTRACT APPROVED.** Local publication/staging
+   artifacts live under the intentionally Git-ignored `data/gold/`. Each
+   immutable directory is named with its complete downstream materialization
+   ID; never overwrite it or create a mutable `latest` alias. Git versions
+   code, contracts, documentation and artifact identities, not the Parquet
+   publication artifact, which is distributed separately to the hosting
+   environment. Deployment must configure matching `RENEWABLES_GOLD_DIR` and
+   `RENEWABLES_EXPECTED_DOWNSTREAM_ID` values. Rollback switches both values to
+   a previous validated artifact. Never deploy directly from `runs/`.
 12. **Final validation.** Run focused regressions, the full suite,
     reproducibility and security checks, visual review and production smoke
     tests after the functional freeze.
@@ -406,7 +413,7 @@ Remaining delivery checks:
 - [ ] Design, data-model and functional freezes declared on schedule.
 - [ ] Focused tests and full suite pass after functional freeze.
 - [ ] Final holdout completed without changing frozen development policy.
-- [ ] Production publication artifact and identities verified.
+- [x] Production publication artifact and identities verified.
 - [ ] Public deployment and rollback smoke-tested; Gold explorer disabled.
 - [ ] Security and priority visual reviews completed.
 - [ ] Screenshots, limitations, documentation and written TFM synchronized.

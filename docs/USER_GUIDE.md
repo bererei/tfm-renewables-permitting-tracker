@@ -148,6 +148,7 @@ el componente y la actuación compartidos no se duplican por planta.
 src/          lógica productiva: pipeline, extracción, Silver, downstream y app
 config/       inputs versionados, como correcciones y muestras de evaluación
 runs/         snapshots operacionales regenerables; no se versionan
+data/gold/    staging local ignorado de artefactos Gold de publicación
 docs/         guías, arquitectura, freeze y memoria del TFM
 tests/        garantías ejecutables y fixtures en memoria
 notebooks/    exploración, auditoría y orquestación legacy; no son producción
@@ -160,6 +161,7 @@ Reglas prácticas:
 - no edites manualmente ningún Parquet de `runs/` o `data/`;
 - no copies lógica productiva a un notebook;
 - no añadas `runs/` a Git: contiene artefactos operacionales regenerables;
+- no añadas los artefactos de `data/gold/` a Git: se distribuyen por separado;
 - antes de modificar un input versionado, revisa su contrato y crea tests.
 
 El directorio `.agents/` contiene recursos locales de herramientas. No forma
@@ -381,6 +383,32 @@ runs/final-w14-corpus-20220101-20260820-v2/downstream/gold
 
 El downstream ID predeterminado es
 `316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86`.
+Este default permite validación local, pero un directorio bajo `runs/` nunca se
+usa directamente como artefacto de despliegue.
+
+### Artefacto Gold de publicación
+
+Los artefactos locales de publicación viven bajo `data/gold/`, cuyo contenido
+está intencionadamente ignorado por Git. Cada directorio es inmutable y su
+nombre termina en el `downstream_materialization_id` completo; no se
+sobrescribe y no existe un alias mutable `latest`. Para el corpus final, la
+ruta local aprobada es:
+
+```text
+data/gold/final-w14-corpus-20220101-20260820-v2-316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86
+```
+
+Git versiona código, contratos, documentación e identidades, no los Parquet
+del producto. El directorio completo se distribuye por separado al entorno de
+hosting. El despliegue debe configurar conjuntamente:
+
+```bash
+export RENEWABLES_GOLD_DIR="<RUTA_DEL_ARTEFACTO_PUBLICADO>"
+export RENEWABLES_EXPECTED_DOWNSTREAM_ID="<DOWNSTREAM_ID_DEL_MISMO_ARTEFACTO>"
+```
+
+Ambos valores deben proceder del mismo artefacto validado. Nunca despliegues
+directamente desde `runs/`.
 
 Su downstream ID esperado está fijado en la aplicación. Para abrir otro
 snapshot validado, configura **las dos** variables antes de iniciar Streamlit:
@@ -1369,10 +1397,12 @@ y materializa Gold de forma atómica.
 ### 10.6 Validar y apuntar Streamlit
 
 Comprueba manifests, conteos, IDs y tests antes de considerar válido el run.
-Solo si se trata del nuevo snapshot **acumulativo** validado, configura
-`RENEWABLES_GOLD_DIR` y el `RENEWABLES_EXPECTED_DOWNSTREAM_ID` exacto de su
-manifest, como se explica en la sección 6. El Gold de una cohorte aislada se
-conserva para prueba y auditoría; no sustituye al catálogo acumulativo.
+Solo si se trata del nuevo snapshot **acumulativo** validado, úsalo para la
+validación local y crea después el artefacto inmutable de publicación descrito
+en la sección 6. El despliegue configura `RENEWABLES_GOLD_DIR` y el
+`RENEWABLES_EXPECTED_DOWNSTREAM_ID` exacto de ese artefacto, nunca una ruta de
+`runs/`. El Gold de una cohorte aislada se conserva para prueba y auditoría; no
+sustituye al catálogo acumulativo.
 
 ### 10.7 Ejecución integral sin correcciones
 
@@ -1758,7 +1788,8 @@ edites, muevas ni reutilices tags de freeze existentes.
 ### Volver temporalmente a un Gold anterior
 
 No hay que restaurar ni sobrescribir archivos. Apunta Streamlit al snapshot
-anterior validado:
+anterior validado. En despliegue debe ser un artefacto de publicación ya
+validado y distribuido, no su directorio fuente bajo `runs/`:
 
 **Plantilla:** sustituye ambos marcadores por valores del mismo snapshot
 validado.
@@ -1769,9 +1800,10 @@ export RENEWABLES_EXPECTED_DOWNSTREAM_ID="<DOWNSTREAM_ID_VALIDADO_ANTERIOR>"
 uv run streamlit run streamlit_app.py
 ```
 
-Comprueba que el ID procede del manifest y de la evidencia de validación de ese
-snapshot. Para regresar al valor predeterminado, cierra Streamlit, elimina esas
-variables de la sesión y vuelve a iniciarlo:
+Comprueba que la ruta y el ID proceden del mismo manifest y de la evidencia de
+validación de ese artefacto. El rollback siempre cambia ambos valores. Para
+regresar al valor predeterminado local, cierra Streamlit, elimina esas variables
+de la sesión y vuelve a iniciarlo:
 
 ```bash
 unset RENEWABLES_GOLD_DIR RENEWABLES_EXPECTED_DOWNSTREAM_ID
@@ -1807,7 +1839,7 @@ automática de snapshots documentales tampoco está disponible actualmente.
 
 | Problema | Causa probable y acción segura |
 | --- | --- |
-| Gold no encontrado | Revisa `RENEWABLES_GOLD_DIR`, que exista `manifest.json` y que la ruta termine en `downstream/gold`. No crees archivos vacíos. |
+| Gold no encontrado | Revisa `RENEWABLES_GOLD_DIR` y que el directorio contenga el `manifest.json` y los cuatro Parquet declarados. En despliegue usa el artefacto distribuido, no una ruta de `runs/`. No crees archivos vacíos. |
 | Downstream ID incorrecto | La variable esperada no coincide con `downstream_materialization_id`. Usa el ID previamente validado para ese snapshot. |
 | Manifest incompatible | Las versiones o el esquema no corresponden al loader actual. Usa un snapshot compatible o regenera con código/configuración aprobados. |
 | Hash incorrecto | El archivo no coincide con el manifest. Considera el snapshot corrupto; no edites el hash ni el Parquet. |
