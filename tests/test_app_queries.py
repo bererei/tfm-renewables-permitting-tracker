@@ -451,6 +451,48 @@ def _ids(frame: pd.DataFrame) -> set[str]:
     return set(frame["project_id"].astype(str))
 
 
+def _with_cross_community_location(dataset: GoldDataset) -> GoldDataset:
+    """Give one Andalusian project an additional valid Galician location."""
+
+    extra = dataset.project_locations[
+        dataset.project_locations["project_id"].eq("project_volateo")
+    ].iloc[[0]].copy()
+    extra.loc[:, "project_location_id"] = "location_vol_galicia"
+    extra.loc[:, "municipality"] = "Cariño"
+    extra.loc[:, "municipality_norm"] = "carino"
+    extra.loc[:, "ine_municipality_code"] = "15001"
+    extra.loc[:, "province"] = "A Coruña"
+    extra.loc[:, "province_norm"] = "a coruna"
+    extra.loc[:, "ine_province_code"] = "15"
+    extra.loc[:, "autonomous_community"] = "Galicia"
+    extra.loc[:, "autonomous_community_norm"] = "galicia"
+    extra.loc[:, "ine_autonomous_community_code"] = "12"
+    locations = pd.concat(
+        [dataset.project_locations, extra],
+        ignore_index=True,
+    )
+    extra_source = dataset.project_location_sources[
+        dataset.project_location_sources["project_location_id"].eq(
+            "location_vol_1"
+        )
+    ].iloc[[0]].copy()
+    extra_source.loc[:, "project_location_id"] = "location_vol_galicia"
+    extra_source.loc[:, "location_mention_id"] = "mention_location_vol_galicia"
+    sources = pd.concat(
+        [dataset.project_location_sources, extra_source],
+        ignore_index=True,
+    )
+    return GoldDataset(
+        projects=dataset.projects,
+        project_events=dataset.project_events,
+        project_locations=locations,
+        project_location_sources=sources,
+        manifest=dataset.manifest,
+        gold_dir=dataset.gold_dir,
+        downstream_id=dataset.downstream_id,
+    )
+
+
 def _with_project_events(
     dataset: GoldDataset,
     event_rows: list[dict[str, object]],
@@ -1454,6 +1496,131 @@ def test_territory_counts_deduplicate_project_and_code() -> None:
 
     badulaque = counts[counts["code"] == "15001"].iloc[0]
     assert int(badulaque["project_count"]) == 1
+
+
+def test_community_filter_limits_map_counts_to_active_territory() -> None:
+    dataset = _with_cross_community_location(synthetic_dataset())
+    selection = build_dashboard_selection(
+        dataset,
+        autonomous_communities=("Andalucía",),
+    )
+
+    counts = build_territory_project_counts(
+        dataset.project_locations,
+        project_ids=selection.projects["project_id"],
+        level="autonomous_community",
+        autonomous_communities=("Andalucía",),
+    )
+
+    assert _ids(selection.projects) == {
+        "project_volateo",
+        "project_puebla",
+        "project_andevalo",
+    }
+    assert counts[["code", "project_count"]].to_dict("records") == [
+        {"code": "01", "project_count": 3}
+    ]
+
+
+def test_province_filter_excludes_other_province_map_data() -> None:
+    dataset = _with_cross_community_location(synthetic_dataset())
+    selection = build_dashboard_selection(dataset, provinces=("Málaga",))
+
+    counts = build_territory_project_counts(
+        dataset.project_locations,
+        project_ids=selection.projects["project_id"],
+        level="province",
+        provinces=("Málaga",),
+    )
+
+    assert _ids(selection.projects) == {"project_volateo"}
+    assert counts[["code", "project_count"]].to_dict("records") == [
+        {"code": "29", "project_count": 1}
+    ]
+
+
+def test_municipality_filter_excludes_other_municipality_map_data() -> None:
+    dataset = _with_cross_community_location(synthetic_dataset())
+    selection = build_dashboard_selection(
+        dataset,
+        municipalities=("Antequera",),
+    )
+
+    counts = build_territory_project_counts(
+        dataset.project_locations,
+        project_ids=selection.projects["project_id"],
+        level="municipality",
+        municipalities=("Antequera",),
+    )
+
+    assert _ids(selection.projects) == {"project_volateo"}
+    assert counts[["code", "project_count"]].to_dict("records") == [
+        {"code": "29015", "project_count": 1}
+    ]
+
+
+def test_map_keeps_multiple_locations_inside_active_province() -> None:
+    dataset = _with_cross_community_location(synthetic_dataset())
+    selection = build_dashboard_selection(dataset, provinces=("Málaga",))
+
+    counts = build_territory_project_counts(
+        dataset.project_locations,
+        project_ids=selection.projects["project_id"],
+        level="municipality",
+        provinces=("Málaga",),
+    )
+
+    assert counts[["code", "project_count"]].to_dict("records") == [
+        {"code": "29015", "project_count": 1},
+        {"code": "29032", "project_count": 1},
+    ]
+
+
+def test_no_territorial_map_filter_preserves_all_effective_locations() -> None:
+    dataset = _with_cross_community_location(synthetic_dataset())
+    selection = build_dashboard_selection(dataset)
+
+    baseline = build_territory_project_counts(
+        dataset.project_locations,
+        project_ids=selection.projects["project_id"],
+        level="autonomous_community",
+    )
+    explicit_empty = build_territory_project_counts(
+        dataset.project_locations,
+        project_ids=selection.projects["project_id"],
+        level="autonomous_community",
+        autonomous_communities=(),
+        provinces=(),
+        municipalities=(),
+    )
+
+    pd.testing.assert_frame_equal(explicit_empty, baseline)
+    assert set(baseline["code"].astype(str)) == {"01", "02", "05", "12"}
+
+
+def test_map_territory_scope_composes_with_effective_technology_filter() -> None:
+    dataset = _with_cross_community_location(synthetic_dataset())
+    selection = build_dashboard_selection(
+        dataset,
+        technologies=("fotovoltaica",),
+        autonomous_communities=("Andalucía",),
+    )
+
+    counts = build_territory_project_counts(
+        dataset.project_locations,
+        project_ids=selection.projects["project_id"],
+        level="autonomous_community",
+        autonomous_communities=("Andalucía",),
+    )
+
+    assert _ids(selection.projects) == {
+        "project_volateo",
+        "project_puebla",
+        "project_andevalo",
+    }
+    assert counts[["code", "project_count"]].to_dict("records") == [
+        {"code": "01", "project_count": 3}
+    ]
 
 
 def test_publication_year_composes_with_technology_and_territory() -> None:

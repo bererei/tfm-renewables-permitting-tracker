@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import json
+import re
 from datetime import date
 from hashlib import sha256
 from pathlib import Path
@@ -439,6 +440,16 @@ def _folium_components(app: AppTest):
 
 def _folium_args(element) -> dict[str, object]:
     return json.loads(element.proto.json_args)
+
+
+def _map_project_count(script: str, *, level: str, code: str) -> int:
+    """Read one analytical count from the rendered Folium GeoJSON."""
+
+    for raw_properties in re.findall(r'"properties": (\{[^{}]*\})', script):
+        properties = json.loads(raw_properties)
+        if properties.get("level") == level and properties.get("code") == code:
+            return int(properties["project_count"])
+    raise AssertionError(f"No se encontró {level}:{code} en el mapa.")
 
 
 def _folium_click_payload(
@@ -1935,6 +1946,37 @@ def test_table_basque_community_cell_filters_every_summary_output(
     map_script = str(_folium_args(_folium_components(app)[0])["script"])
     assert '"code": "16"' in map_script
     assert '"project_count": 1' in map_script
+
+
+def test_basque_filter_limits_map_data_but_keeps_other_boundary_context(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    app = _configured_app(
+        monkeypatch,
+        tmp_path,
+        tables=_multi_community_gold_tables(),
+    ).run()
+
+    _sidebar_widget(
+        app.sidebar.multiselect,
+        "Comunidad autónoma",
+    ).set_value(["País Vasco"]).run()
+
+    script = str(_folium_args(_folium_components(app)[0])["script"])
+    assert not app.exception
+    assert _catalog_frame(app)["Proyecto"].tolist() == ["Planta Solar Beta"]
+    assert _map_project_count(
+        script,
+        level="autonomous_community",
+        code="16",
+    ) == 1
+    assert _map_project_count(
+        script,
+        level="autonomous_community",
+        code="01",
+    ) == 0
+    assert '"code": "01"' in script
 
 
 def test_table_multi_community_cell_uses_structured_or_values(

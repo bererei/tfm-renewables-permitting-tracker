@@ -1113,8 +1113,11 @@ def build_territory_project_counts(
     *,
     project_ids: Iterable[str],
     level: str,
+    autonomous_communities: Iterable[str] | None = None,
+    provinces: Iterable[str] | None = None,
+    municipalities: Iterable[str] | None = None,
 ) -> pd.DataFrame:
-    """Count distinct projects per administrative code at one map level."""
+    """Count effective projects inside the active territorial map scope."""
 
     level_columns = {
         "autonomous_community": (
@@ -1144,6 +1147,23 @@ def build_territory_project_counts(
     rows = project_locations[
         project_locations["project_id"].astype(str).isin(selected)
     ].copy()
+    community_values = _selected(autonomous_communities)
+    province_values = _selected(provinces)
+    municipality_values = _selected(municipalities)
+    # project_ids remains the sole project-eligibility source. These predicates
+    # only prevent other valid locations of an eligible multi-territory project
+    # from reappearing outside the active geographic scope on the map.
+    if community_values:
+        rows = rows[
+            rows["autonomous_community"].isin(community_values)
+        ]
+    if province_values:
+        rows = rows[rows["province"].isin(province_values)]
+    if municipality_values:
+        rows = rows[
+            rows["location_level"].eq("municipality")
+            & rows["municipality"].isin(municipality_values)
+        ]
     if level == "municipality":
         rows = rows[rows["location_level"] == "municipality"]
     rows = rows[rows[code_column].notna() & rows[name_column].notna()].copy()

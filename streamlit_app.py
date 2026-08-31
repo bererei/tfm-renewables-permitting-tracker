@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+from collections.abc import Iterable
 from datetime import date
 from pathlib import Path
 
@@ -1087,6 +1088,10 @@ def _matching_action_types_text(values: object, *, limit: int = 3) -> str:
 def _render_map(
     dataset: GoldDataset,
     filtered_projects: pd.DataFrame,
+    *,
+    autonomous_communities: Iterable[str] | None = None,
+    provinces: Iterable[str] | None = None,
+    municipalities: Iterable[str] | None = None,
 ) -> None:
     """Render administrative associations by official INE code."""
 
@@ -1110,6 +1115,9 @@ def _render_map(
         dataset.project_locations,
         project_ids=filtered_projects["project_id"],
         level=level,
+        autonomous_communities=autonomous_communities,
+        provinces=provinces,
+        municipalities=municipalities,
     )
     try:
         geometry = _configured_geometry()
@@ -1523,7 +1531,13 @@ def _render_summary(dataset: GoldDataset) -> None:
     with publication_column:
         _render_publication_chart(selection.supporting_events)
     with st.container(border=True):
-        _render_map(dataset, selection.projects)
+        _render_map(
+            dataset,
+            selection.projects,
+            autonomous_communities=filters["autonomous_communities"],
+            provinces=filters["provinces"],
+            municipalities=filters["municipalities"],
+        )
     with st.container(border=True):
         _render_administrative_chart(
             selection.supporting_events,
