@@ -1759,6 +1759,37 @@ Un test verde no sustituye la inspección del manifest ni la decisión humana.
 No declares validado un nuevo Gold hasta reconstruirlo desde Silver compatible,
 verificarlo contra sus contratos y registrar la evidencia de aceptación.
 
+### Evaluación final del holdout
+
+La evaluación final usa herramientas aisladas de producción bajo
+`evaluation/final_holdout_v1/`. El sistema evaluado sigue siendo exactamente
+`tfm-final` en `282de815bea4e248bdcba2c655e3ee078cb58a49`; la rama
+`tfm-evaluation` añade únicamente el contrato, anotación ciega y scoring.
+
+Mientras el seal siga intacto solo valida las plantillas vacías:
+
+```bash
+uv run python -m evaluation.final_holdout_v1.cli validate-truth \
+  --truth evaluation/final_holdout_v1/templates
+```
+
+`init-truth` es el único comando que lee deliberadamente membership y fuente.
+Se niega a hacerlo sin `--break-seal`; no uses ese flag hasta recibir la
+autorización humana expresa. `evaluate` consume verdad y predicciones ya
+congeladas, nunca ejecuta extracción, Gemini, correcciones, Silver ni Gold:
+
+```bash
+uv run python -m evaluation.final_holdout_v1.cli evaluate \
+  --truth <VERDAD_CIEGA_INMUTABLE> \
+  --predictions <EXTRACCION_PRIMARIA_INMUTABLE> \
+  --execution-record <REGISTRO_EJECUCION_JSON> \
+  --output <EVALUACION_NUEVA_INMUTABLE>
+```
+
+El protocolo completo, matching, métricas, tratamiento de ambigüedad, P0,
+artefactos e interpretación están en
+[`evaluation/FINAL_HOLDOUT_EVALUATION_CONTRACT_V1.md`](evaluation/FINAL_HOLDOUT_EVALUATION_CONTRACT_V1.md).
+
 ## 15. Versionado, commits y rollback
 
 ### Crear y versionar con seguridad
@@ -1895,6 +1926,7 @@ automática de snapshots documentales tampoco está disponible actualmente.
 - [Declaración del core freeze](freezes/core_data_freeze_2026-08-13.md).
 - [CLI del pipeline](../src/renewables_permitting/pipeline.py).
 - [Configuración de extracción](../src/renewables_permitting/extraction/config.py).
+- [Contrato de evaluación final del holdout](evaluation/FINAL_HOLDOUT_EVALUATION_CONTRACT_V1.md).
 - [Revisión y selección](../src/renewables_permitting/extraction/review.py).
 - [Contrato y aplicación de correcciones](../src/renewables_permitting/extraction/corrections.py).
 - [Contrato de las 13 tablas Silver](../src/renewables_permitting/extraction/flat_contract.py).

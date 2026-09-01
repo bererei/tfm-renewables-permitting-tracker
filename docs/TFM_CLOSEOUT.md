@@ -204,7 +204,9 @@ Complete in dependency order:
 13. **Final holdout.** Select it only after the extraction/review policy and
     functional product are frozen. Exclude all 479 documents versioned in
     `development_used_documents.csv`; the holdout remains outside the core
-    freeze. Exposure provenance is resolved, but no holdout has been selected.
+    freeze. Exposure provenance is resolved; the final selection is versioned,
+    sealed and not yet executed. Membership remains undisclosed until the
+    approved blind-annotation and one-shot evaluation protocol breaks the seal.
 14. **Delivery evidence.** Prepare screenshots, limitations, data identities,
     written-TFM evidence and synchronized documentation.
 15. **Git closeout.** Review, commit and push only approved files, record the
