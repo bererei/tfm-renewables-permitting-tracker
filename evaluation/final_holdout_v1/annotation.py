@@ -53,6 +53,15 @@ KEY_PREFIXES = {
     "participants": ("participant_key", "participant"),
     "locations": ("location_key", "location"),
 }
+REVIEW_DOCUMENT_FIELDS = (
+    "annotation_status",
+    "scope_applicability",
+    "scope_adjudication",
+    "expected_document_scope",
+    "reviewer_id",
+    "reviewed_on",
+    "annotation_notes",
+)
 
 
 @dataclass(frozen=True)
@@ -89,6 +98,124 @@ def build_official_boe_url(boe_id: str) -> str:
     if not isinstance(boe_id, str) or _BOE_RE.fullmatch(boe_id) is None:
         raise TruthContractError("Invalid BOE identifier for official URL.")
     return f"{OFFICIAL_BOE_TEXT_URL}?{urlencode({'id': boe_id})}"
+
+
+def _markdown_cell(value: object) -> str:
+    return (
+        str(value)
+        .replace("\\", "\\\\")
+        .replace("|", "\\|")
+        .replace("\r\n", "<br>")
+        .replace("\r", "<br>")
+        .replace("\n", "<br>")
+    )
+
+
+def _fenced_text(value: str) -> str:
+    longest_run = max((len(run) for run in re.findall(r"`+", value)), default=0)
+    fence = "`" * max(3, longest_run + 1)
+    return f"{fence}text\n{value}\n{fence}"
+
+
+def build_ai_qa_review_package(
+    truth: TruthArtifact,
+    boe_id: str,
+    *,
+    title: str,
+    publication_date: str | None,
+    source_text: str,
+) -> bytes:
+    """Render one completed BOE's blind human truth as deterministic Markdown."""
+
+    if not isinstance(boe_id, str) or _BOE_RE.fullmatch(boe_id) is None:
+        raise TruthContractError("Invalid BOE identifier for review export.")
+    documents = truth.tables["documents"]
+    document_rows = documents.loc[
+        documents["identificador_boe"].astype(str).eq(boe_id)
+    ]
+    if len(document_rows) != 1:
+        raise TruthContractError(f"Unknown truth document: {boe_id}")
+    if str(document_rows.iloc[0]["annotation_status"]) != "complete":
+        raise TruthContractError(
+            "Completa y valida primero la anotación humana."
+        )
+    if not isinstance(title, str) or not isinstance(source_text, str):
+        raise TruthContractError("Review export requires local source title and text.")
+
+    lines = [
+        "# Blind Human Annotation Review Package",
+        "",
+        "## Document",
+        "",
+        f"- **BOE ID:** {_markdown_cell(boe_id)}",
+        f"- **Title:** {_markdown_cell(title)}",
+        (
+            "- **Publication date:** "
+            f"{_markdown_cell(publication_date or 'No disponible')}"
+        ),
+        "",
+        "## Official source text",
+        "",
+        _fenced_text(source_text),
+        "",
+        "## Human annotation",
+        "",
+    ]
+
+    for table, spec in TABLE_SPECS.items():
+        frame = truth.tables[table]
+        selected = frame.loc[
+            frame["identificador_boe"].astype(str).eq(boe_id)
+        ]
+        if not selected.empty:
+            selected = selected.sort_values(list(spec.key_columns), kind="stable")
+        columns = (
+            REVIEW_DOCUMENT_FIELDS
+            if table == "documents"
+            else tuple(column for column in spec.columns if column != "identificador_boe")
+        )
+        lines.extend((f"### {table}", ""))
+        if selected.empty:
+            lines.extend(("_No rows for this BOE._", ""))
+            continue
+        for row_number, (_, row) in enumerate(selected.iterrows(), start=1):
+            lines.extend((f"#### Row {row_number}", "", "| Field | Value |"))
+            lines.append("| --- | --- |")
+            for column in columns:
+                lines.append(
+                    f"| `{column}` | {_markdown_cell(row[column])} |"
+                )
+            lines.append("")
+
+    lines.extend((
+        "## Instructions for independent AI QA reviewer",
+        "",
+        "- El BOE suministrado es la única fuente de verdad.",
+        "- Compara la anotación humana con el BOE suministrado.",
+        "- No sustituyas la anotación por una extracción propia.",
+        "- Identifica únicamente discrepancias materiales de estos tipos:",
+        "  - `OMISIÓN`",
+        "  - `INCLUSIÓN_INDEBIDA`",
+        "  - `VALOR_INCORRECTO`",
+        "  - `EVIDENCIA_INSUFICIENTE`",
+        "  - `TEMPORALIDAD_DUDOSA`",
+        "  - `RELACIÓN_TARGET_DUDOSA`",
+        "  - `AMBIGÜEDAD`",
+        "- Cada hallazgo debe incluir un pasaje literal del BOE.",
+        "- Si no existe ninguna discrepancia material, responde exactamente:",
+        "",
+        "  `SIN DISCREPANCIAS MATERIALES DETECTADAS.`",
+        "",
+        "Usa estas columnas de salida:",
+        "",
+        (
+            "| Nº | Tipo | Entidad/campo | Anotación actual | Posible problema | "
+            "Pasaje literal del BOE | Recomendación | Confianza |"
+        ),
+        "| --- | --- | --- | --- | --- | --- | --- | --- |",
+        "",
+    ))
+    return "\n".join(lines).encode("utf-8")
 
 
 def load_annotation_workspace(

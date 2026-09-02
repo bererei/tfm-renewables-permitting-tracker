@@ -14,8 +14,10 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 from evaluation.final_holdout_v1.annotation import (
+    AnnotationWorkspace,
     SOURCE_DIR_ENV,
     TRUTH_DIR_ENV,
+    build_ai_qa_review_package,
     build_official_boe_url,
     derive_entity_reference,
     entity_choices,
@@ -42,6 +44,7 @@ from renewables_permitting.extraction.documents import build_source_document
 BOE_ONE = "BOE-A-2099-101"
 BOE_TWO = "BOE-A-2099-102"
 ACTION_EVIDENCE = "Se otorga autorización administrativa previa a Planta Aurora."
+TECHNICAL_EVIDENCE = "25 MW de potencia instalada"
 REPOSITORY_ROOT = Path(__file__).parents[2]
 ANNOTATION_APP = REPOSITORY_ROOT / "evaluation/final_holdout_v1/annotation_app.py"
 
@@ -97,7 +100,7 @@ def annotation_workspace(tmp_path: Path) -> tuple[Path, Path]:
             "Anuncio de Planta Aurora",
             (
                 "La planta fotovoltaica Planta Aurora se ubica en Villa Solar. "
-                f"{ACTION_EVIDENCE}"
+                f"Dispone de {TECHNICAL_EVIDENCE}. {ACTION_EVIDENCE}"
             ),
         ),
         _source_row(
@@ -208,6 +211,119 @@ def _rows_for_boe(truth_dir: Path, boe_id: str) -> dict[str, list[dict[str, str]
             for _, row in selected.iterrows()
         ]
     return result
+
+
+def _complete_review_package_truth(
+    truth_dir: Path,
+    source_dir: Path,
+) -> tuple[AnnotationWorkspace, pd.Series]:
+    upsert_truth_row(
+        truth_dir,
+        "associated_components",
+        BOE_ONE,
+        {
+            "identificador_boe": BOE_ONE,
+            "event_key": "event_1",
+            "component_key": "component_1",
+            "names_json": '["Subestación Aurora"]',
+            "description_raw": "Subestación sintética de evacuación",
+            "expected_component_type": "subestacion_electrica",
+            "related_asset_keys_json": '["asset_1"]',
+            "applicability": "applicable",
+            "adjudication": "scored_truth",
+            "annotation_notes": NA,
+        },
+    )
+    upsert_truth_row(
+        truth_dir,
+        "technical_mentions",
+        BOE_ONE,
+        {
+            "identificador_boe": BOE_ONE,
+            "event_key": "event_1",
+            "owner_type": "generation_asset",
+            "owner_key": "asset_1",
+            "technical_key": "technical_1",
+            "expected_attribute_type": "potencia_instalada",
+            "expected_value_raw": "25 MW",
+            "applicability": "applicable",
+            "adjudication": "scored_truth",
+            "annotation_notes": NA,
+        },
+    )
+    upsert_truth_row(
+        truth_dir,
+        "participants",
+        BOE_ONE,
+        {
+            "identificador_boe": BOE_ONE,
+            "event_key": "event_1",
+            "participant_key": "participant_1",
+            "participant_name_raw": "Promotora Aurora, S.L.",
+            "expected_participant_role": "promotor",
+            "applicability": "applicable",
+            "adjudication": "scored_truth",
+            "annotation_notes": NA,
+        },
+    )
+    upsert_truth_row(
+        truth_dir,
+        "locations",
+        BOE_ONE,
+        {
+            "identificador_boe": BOE_ONE,
+            "event_key": "event_1",
+            "location_key": "location_1",
+            "location_name_raw": "Villa Solar",
+            "expected_location_level": "municipio",
+            "applicability": "unknown",
+            "adjudication": "ambiguous_not_safely_determinable",
+            "annotation_notes": "Nivel territorial pendiente de adjudicación",
+        },
+    )
+    upsert_truth_row(
+        truth_dir,
+        "evidence_passages",
+        BOE_ONE,
+        {
+            "identificador_boe": BOE_ONE,
+            "owner_type": "technical_mention",
+            "owner_key": "technical_1",
+            "passage_text": TECHNICAL_EVIDENCE,
+            "applicability": "applicable",
+            "adjudication": "scored_truth",
+            "annotation_notes": NA,
+        },
+    )
+    workspace = load_annotation_workspace(truth_dir, source_dir)
+    source_row = workspace.source_documents.loc[
+        workspace.source_documents["identificador"].astype(str).eq(BOE_ONE)
+    ].iloc[0]
+    mark_document_complete(
+        truth_dir,
+        BOE_ONE,
+        source_text=f"{source_row['titulo']}\n{source_row['texto_limpio']}",
+    )
+    completed = load_annotation_workspace(truth_dir, source_dir)
+    completed_source = completed.source_documents.loc[
+        completed.source_documents["identificador"].astype(str).eq(BOE_ONE)
+    ].iloc[0]
+    return completed, completed_source
+
+
+def _build_review_package(
+    workspace: AnnotationWorkspace,
+    source_row: pd.Series,
+) -> bytes:
+    return build_ai_qa_review_package(
+        workspace.truth,
+        BOE_ONE,
+        title=str(source_row["titulo"]),
+        publication_date=pd.Timestamp(source_row["fecha_publicacion"])
+        .date()
+        .isoformat(),
+        source_text=str(source_row["texto_limpio"]),
+    )
 
 
 def test_workspace_loader_has_only_blind_truth_and_source_inputs(
@@ -451,6 +567,130 @@ def test_mark_complete_uses_frozen_document_completeness_and_fails_closed(
     assert documents_path.read_bytes() == before_failure
 
 
+def test_completed_document_builds_full_blind_ai_qa_review_package(
+    annotation_workspace: tuple[Path, Path],
+) -> None:
+    truth_dir, source_dir = annotation_workspace
+    workspace, source_row = _complete_review_package_truth(truth_dir, source_dir)
+
+    package = _build_review_package(workspace, source_row)
+    text = package.decode("utf-8")
+
+    assert text.startswith("# Blind Human Annotation Review Package\n")
+    assert f"- **BOE ID:** {BOE_ONE}" in text
+    assert "- **Title:** Anuncio de Planta Aurora" in text
+    assert "- **Publication date:** 2099-01-01" in text
+    assert str(source_row["texto_limpio"]) in text
+    for table in TABLE_SPECS:
+        assert f"### {table}" in text
+    for expected_value in (
+        '["Planta Aurora"]',
+        "Subestación sintética de evacuación",
+        "25 MW",
+        "autorizacion_administrativa_previa",
+        "generation_asset",
+        "Promotora Aurora, S.L.",
+        "Villa Solar",
+        ACTION_EVIDENCE,
+        TECHNICAL_EVIDENCE,
+        NA,
+        "ambiguous_not_safely_determinable",
+        "scored_truth",
+    ):
+        assert expected_value in text
+    for instruction in (
+        "El BOE suministrado es la única fuente de verdad.",
+        "No sustituyas la anotación por una extracción propia.",
+        "OMISIÓN",
+        "INCLUSIÓN_INDEBIDA",
+        "VALOR_INCORRECTO",
+        "EVIDENCIA_INSUFICIENTE",
+        "TEMPORALIDAD_DUDOSA",
+        "RELACIÓN_TARGET_DUDOSA",
+        "AMBIGÜEDAD",
+        "SIN DISCREPANCIAS MATERIALES DETECTADAS.",
+        "| Nº | Tipo | Entidad/campo | Anotación actual | Posible problema |",
+    ):
+        assert instruction in text
+    for forbidden in (
+        BOE_TWO,
+        "source_document_sha256",
+        "attempt_id",
+        "current_extractions",
+        "review_queue",
+        "model_output",
+        "Gemini",
+        "P0",
+    ):
+        assert forbidden not in text
+
+
+def test_draft_document_cannot_build_review_package(
+    annotation_workspace: tuple[Path, Path],
+) -> None:
+    truth_dir, source_dir = annotation_workspace
+    workspace = load_annotation_workspace(truth_dir, source_dir)
+    source_row = workspace.source_documents.loc[
+        workspace.source_documents["identificador"].astype(str).eq(BOE_ONE)
+    ].iloc[0]
+
+    with pytest.raises(TruthContractError, match="Completa y valida"):
+        _build_review_package(workspace, source_row)
+
+
+def test_review_package_is_deterministic_and_does_not_modify_truth(
+    annotation_workspace: tuple[Path, Path],
+) -> None:
+    truth_dir, source_dir = annotation_workspace
+    workspace, source_row = _complete_review_package_truth(truth_dir, source_dir)
+    before = {
+        path.name: path.read_bytes()
+        for path in sorted(truth_dir.iterdir())
+        if path.is_file()
+    }
+
+    first = _build_review_package(workspace, source_row)
+    second = _build_review_package(workspace, source_row)
+
+    after = {
+        path.name: path.read_bytes()
+        for path in sorted(truth_dir.iterdir())
+        if path.is_file()
+    }
+    assert first == second
+    assert before == after
+
+
+def test_review_package_is_isolated_to_selected_boe(
+    annotation_workspace: tuple[Path, Path],
+) -> None:
+    truth_dir, source_dir = annotation_workspace
+    initial = load_annotation_workspace(truth_dir, source_dir)
+    source_row = initial.source_documents.loc[
+        initial.source_documents["identificador"].astype(str).eq(BOE_TWO)
+    ].iloc[0]
+    mark_document_complete(
+        truth_dir,
+        BOE_TWO,
+        source_text=f"{source_row['titulo']}\n{source_row['texto_limpio']}",
+    )
+    workspace = load_annotation_workspace(truth_dir, source_dir)
+
+    package = build_ai_qa_review_package(
+        workspace.truth,
+        BOE_TWO,
+        title=str(source_row["titulo"]),
+        publication_date="2099-01-02",
+        source_text=str(source_row["texto_limpio"]),
+    ).decode("utf-8")
+
+    assert BOE_TWO in package
+    assert "Este anuncio no identifica ningún proyecto" in package
+    assert BOE_ONE not in package
+    assert "Planta Aurora" not in package
+    assert ACTION_EVIDENCE not in package
+
+
 def test_streamlit_annotation_app_smoke_uses_synthetic_workspace(
     annotation_workspace: tuple[Path, Path],
     monkeypatch: pytest.MonkeyPatch,
@@ -478,6 +718,56 @@ def test_streamlit_annotation_app_smoke_uses_synthetic_workspace(
     assert link.url == (
         "https://www.boe.es/diario_boe/txt.php?id=BOE-A-2099-101"
     )
+    download = app.main.get("download_button")[0].proto
+    assert download.label == "Descargar paquete para revisión IA"
+    assert download.disabled is True
+    assert any(
+        caption.value == "Completa y valida primero la anotación humana."
+        for caption in app.caption
+    )
+
+
+def test_streamlit_completed_document_exposes_in_memory_review_download(
+    annotation_workspace: tuple[Path, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    truth_dir, source_dir = annotation_workspace
+    workspace = load_annotation_workspace(truth_dir, source_dir)
+    source_row = workspace.source_documents.loc[
+        workspace.source_documents["identificador"].astype(str).eq(BOE_ONE)
+    ].iloc[0]
+    mark_document_complete(
+        truth_dir,
+        BOE_ONE,
+        source_text=f"{source_row['titulo']}\n{source_row['texto_limpio']}",
+    )
+    before = {
+        path.name: path.read_bytes()
+        for path in sorted(truth_dir.iterdir())
+        if path.is_file()
+    }
+    monkeypatch.setenv(TRUTH_DIR_ENV, str(truth_dir))
+    monkeypatch.setenv(SOURCE_DIR_ENV, str(source_dir))
+
+    def refuse_network(*args: object, **kwargs: object) -> None:
+        raise AssertionError("Annotation rendering must not access the network.")
+
+    monkeypatch.setattr(socket.socket, "connect", refuse_network)
+
+    app = AppTest.from_file(ANNOTATION_APP, default_timeout=20).run()
+
+    assert not app.exception
+    download = app.main.get("download_button")[0].proto
+    assert download.label == "Descargar paquete para revisión IA"
+    assert download.url.endswith(".md")
+    assert download.disabled is False
+    assert download.ignore_rerun is True
+    after = {
+        path.name: path.read_bytes()
+        for path in sorted(truth_dir.iterdir())
+        if path.is_file()
+    }
+    assert before == after
 
 
 def test_canonical_script_launch_bootstraps_evaluation_namespace(

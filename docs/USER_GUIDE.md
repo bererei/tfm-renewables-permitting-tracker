@@ -1792,8 +1792,21 @@ semánticos. Cada evidencia debe pegarse como pasaje continuo literal de la
 fuente y cada escritura se valida antes del reemplazo atómico del CSV afectado.
 El BOE actual también puede abrirse en la web oficial mediante un enlace que
 solo actúa tras el clic humano; la aplicación no descarga ni valida esa página.
-Tras la primera pasada, la verdad sigue requiriendo QA independiente con IA y
-adjudicación humana antes de `freeze-truth`.
+El flujo de QA posterior es:
+
+1. anotar el documento a ciegas;
+2. validar la anotación;
+3. marcar el documento como `complete`;
+4. descargar **Descargar paquete para revisión IA**;
+5. abrir un chat de IA independiente y adjuntar el paquete Markdown;
+6. obtener una lista de discrepancias materiales con evidencia literal;
+7. adjudicar humanamente cada propuesta;
+8. aplicar solamente los cambios aceptados por la persona revisora.
+
+El paquete incluye exclusivamente el texto BOE local y la anotación humana
+del documento actual; no contiene predicciones del sistema evaluado. La
+descarga se construye en memoria y no modifica la verdad. Tras este flujo, la
+verdad sigue requiriendo adjudicación humana antes de `freeze-truth`.
 
 Mientras el seal siga intacto solo valida las plantillas vacías:
 

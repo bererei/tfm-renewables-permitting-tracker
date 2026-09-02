@@ -18,6 +18,7 @@ import streamlit as st
 from evaluation.final_holdout_v1.annotation import (
     EntityChoice,
     aliases_for_edit,
+    build_ai_qa_review_package,
     build_official_boe_url,
     configured_paths,
     delete_truth_row,
@@ -892,6 +893,20 @@ publication_date = (
 )
 source_text = f"{source_row['titulo']}\n{source_row['texto_limpio']}"
 official_boe_url = build_official_boe_url(selected_boe)
+is_exportable = str(document_row["annotation_status"]) == "complete"
+review_package = (
+    build_ai_qa_review_package(
+        workspace.truth,
+        selected_boe,
+        title=str(source_row["titulo"]),
+        publication_date=(
+            None if publication_date == "No disponible" else publication_date
+        ),
+        source_text=str(source_row["texto_limpio"]),
+    )
+    if is_exportable
+    else b""
+)
 
 st.subheader(str(source_row["titulo"]))
 with st.container(horizontal=True, vertical_alignment="center"):
@@ -908,6 +923,17 @@ with st.container(horizontal=True, vertical_alignment="center"):
             "sigue siendo la fuente usada por la anotación."
         ),
     )
+    st.download_button(
+        "Descargar paquete para revisión IA",
+        data=review_package,
+        file_name=f"{selected_boe}_human_annotation_review.md",
+        mime="text/markdown",
+        icon=":material/download:",
+        disabled=not is_exportable,
+        on_click="ignore",
+    )
+if not is_exportable:
+    st.caption("Completa y valida primero la anotación humana.")
 
 source_column, annotation_column = st.columns([1.15, 1], gap="large")
 with source_column:
