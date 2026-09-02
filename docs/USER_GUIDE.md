@@ -1766,6 +1766,35 @@ La evaluación final usa herramientas aisladas de producción bajo
 `tfm-final` en `282de815bea4e248bdcba2c655e3ee078cb58a49`; la rama
 `tfm-evaluation` añade únicamente el contrato, anotación ciega y scoring.
 
+#### Interfaz local de anotación humana ciega
+
+Con el workspace ya inicializado y el seal formalmente abierto, lanza la
+interfaz local desde la raíz del repositorio:
+
+```bash
+UV_OFFLINE=1 uv run streamlit run \
+  evaluation/final_holdout_v1/annotation_app.py
+```
+
+La pantalla muestra las rutas efectivas. Por defecto usa
+`runs/final_holdout_p2_v1_truth_working` y el snapshot canónico de documentos;
+un operador puede sustituirlas con
+`FINAL_HOLDOUT_ANNOTATION_TRUTH_DIR` y
+`FINAL_HOLDOUT_ANNOTATION_SOURCE_DIR`. La aplicación solo lee esos dos inputs
+y el contrato congelado. No tiene rutas a predicciones, attempts,
+`current_extractions`, review queue, P0 ni servicios de modelo o red.
+
+El humano decide alcance documental, eventos, activos, componentes, menciones
+técnicas, actuaciones, objetivos, participantes, localizaciones y pasajes de
+evidencia. La interfaz únicamente genera claves locales, serializa listas y
+deriva referencias entre entidades ya anotadas; no sugiere ni infiere valores
+semánticos. Cada evidencia debe pegarse como pasaje continuo literal de la
+fuente y cada escritura se valida antes del reemplazo atómico del CSV afectado.
+El BOE actual también puede abrirse en la web oficial mediante un enlace que
+solo actúa tras el clic humano; la aplicación no descarga ni valida esa página.
+Tras la primera pasada, la verdad sigue requiriendo QA independiente con IA y
+adjudicación humana antes de `freeze-truth`.
+
 Mientras el seal siga intacto solo valida las plantillas vacías:
 
 ```bash
