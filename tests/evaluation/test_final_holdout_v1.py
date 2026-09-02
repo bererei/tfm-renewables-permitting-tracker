@@ -42,6 +42,7 @@ from evaluation.final_holdout_v1.matching import (
     normalize_name,
     parse_power_mw,
 )
+from renewables_permitting.extraction.documents import build_source_document
 
 
 SYNTHETIC_HOLDOUT_ID = "a" * 64
@@ -505,6 +506,51 @@ def _execution_record(path: Path, snapshot_identity: str) -> Path:
     return path
 
 
+def _canonical_source_row(
+    *,
+    boe_id: str = "BOE-A-2099-10",
+    text: str = "Texto canónico sintético de la publicación.",
+) -> dict[str, object]:
+    return {
+        "identificador": boe_id,
+        "fecha_publicacion": "2099-01-10",
+        "titulo": "Resolución sintética",
+        "texto_limpio": text,
+        "xml_status": "ok",
+        "doc_file_stem": "20990110-BOE-A-2099-10",
+        "url_html": "https://example.invalid/boe.html",
+        "url_xml": "https://example.invalid/boe.xml",
+        "seccion_nombre": "III",
+        "departamento_nombre": "Departamento sintético",
+        "epigrafe_nombre": "Energía",
+        "summary_sha256": "1" * 64,
+        "candidate_policy_version": "synthetic_v1",
+        "candidate_policy_id": "synthetic",
+        "xml_sha256": "2" * 64,
+        "texto_len": len(text),
+        "parse_error": pd.NA,
+        "source": "synthetic_fixture",
+    }
+
+
+def _write_init_inputs(
+    path: Path,
+    *,
+    source_row: dict[str, object],
+) -> tuple[Path, Path, str]:
+    source_dir = path / "source"
+    source_dir.mkdir(parents=True)
+    source_frame = pd.DataFrame([source_row])
+    source_frame.to_parquet(source_dir / "documents.parquet", index=False)
+    expected_hash = build_source_document(source_frame.iloc[0]).source_document_sha256
+    holdout_path = path / "synthetic_holdout.csv"
+    pd.DataFrame([{
+        "identificador_boe": source_row["identificador"],
+        "source_document_sha256": expected_hash,
+    }]).to_csv(holdout_path, index=False)
+    return holdout_path, source_dir, expected_hash
+
+
 def test_versioned_empty_templates_are_valid() -> None:
     truth = load_truth(TEMPLATES_DIR)
     assert truth.manifest is None
@@ -692,6 +738,151 @@ def test_init_truth_refuses_before_touching_missing_inputs(tmp_path: Path) -> No
             break_seal=False,
         )
     assert not (tmp_path / "output").exists()
+
+
+def test_init_truth_derives_canonical_source_identity_without_mutating_source(
+    tmp_path: Path,
+) -> None:
+    source_row = _canonical_source_row()
+    holdout_path, source_dir, expected_hash = _write_init_inputs(
+        tmp_path,
+        source_row=source_row,
+    )
+    source_path = source_dir / "documents.parquet"
+    source_hash_before = sha256_file(source_path)
+
+    output = initialize_truth(
+        holdout_path=holdout_path,
+        documents_path=source_dir,
+        output_dir=tmp_path / "truth_working",
+        holdout_version="synthetic_holdout_v1",
+        reviewer_id="synthetic_reviewer",
+        break_seal=True,
+    )
+
+    assert output == (tmp_path / "truth_working").absolute()
+    truth = load_truth(output)
+    assert truth.tables["documents"].loc[0, "source_document_sha256"] == expected_hash
+    assert all(
+        frame.empty
+        for table, frame in truth.tables.items()
+        if table != "documents"
+    )
+    assert set(path.name for path in output.iterdir()) == {
+        *(f"{table}.csv" for table in TABLE_SPECS),
+        "truth_metadata.json",
+    }
+    metadata = json.loads((output / "truth_metadata.json").read_text(encoding="utf-8"))
+    assert metadata["predictions_exposed_during_annotation"] is False
+    assert metadata["seal_break_acknowledged"] is True
+    assert sha256_file(source_path) == source_hash_before
+
+
+def test_init_truth_identity_changes_with_canonical_source_content(
+    tmp_path: Path,
+) -> None:
+    hashes: list[str] = []
+    for label, text in (
+        ("first", "Texto canónico sintético inicial."),
+        ("changed", "Texto canónico sintético modificado."),
+    ):
+        case_dir = tmp_path / label
+        holdout_path, source_dir, expected_hash = _write_init_inputs(
+            case_dir,
+            source_row=_canonical_source_row(text=text),
+        )
+        initialize_truth(
+            holdout_path=holdout_path,
+            documents_path=source_dir,
+            output_dir=case_dir / "truth_working",
+            holdout_version="synthetic_holdout_v1",
+            reviewer_id="synthetic_reviewer",
+            break_seal=True,
+        )
+        initialized_hash = pd.read_csv(
+            case_dir / "truth_working" / "documents.csv",
+            dtype=str,
+        ).loc[0, "source_document_sha256"]
+        assert initialized_hash == expected_hash
+        hashes.append(initialized_hash)
+
+    assert hashes[0] != hashes[1]
+
+
+@pytest.mark.parametrize(
+    "missing_column",
+    ["identificador", "fecha_publicacion", "titulo", "texto_limpio"],
+)
+def test_init_truth_rejects_missing_canonical_source_identity_fields(
+    tmp_path: Path,
+    missing_column: str,
+) -> None:
+    source_row = _canonical_source_row()
+    expected_hash = build_source_document(pd.Series(source_row)).source_document_sha256
+    source_row.pop(missing_column)
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    pd.DataFrame([source_row]).to_parquet(
+        source_dir / "documents.parquet",
+        index=False,
+    )
+    holdout_path = tmp_path / "synthetic_holdout.csv"
+    pd.DataFrame([{
+        "identificador_boe": "BOE-A-2099-10",
+        "source_document_sha256": expected_hash,
+    }]).to_csv(holdout_path, index=False)
+
+    with pytest.raises(TruthContractError, match="canonical identity columns"):
+        initialize_truth(
+            holdout_path=holdout_path,
+            documents_path=source_dir,
+            output_dir=tmp_path / "truth_working",
+            holdout_version="synthetic_holdout_v1",
+            reviewer_id="synthetic_reviewer",
+            break_seal=True,
+        )
+    assert not (tmp_path / "truth_working").exists()
+
+
+@pytest.mark.parametrize(
+    ("field", "invalid_value"),
+    [
+        ("identificador", "not-a-boe-id"),
+        ("fecha_publicacion", "not-a-date"),
+        ("titulo", "   "),
+        ("texto_limpio", ""),
+    ],
+)
+def test_init_truth_rejects_malformed_canonical_source_identity_fields(
+    tmp_path: Path,
+    field: str,
+    invalid_value: str,
+) -> None:
+    source_row = _canonical_source_row()
+    expected_hash = build_source_document(pd.Series(source_row)).source_document_sha256
+    source_row[field] = invalid_value
+    source_dir = tmp_path / "source"
+    source_dir.mkdir()
+    pd.DataFrame([source_row]).to_parquet(
+        source_dir / "documents.parquet",
+        index=False,
+    )
+    holdout_path = tmp_path / "synthetic_holdout.csv"
+    pd.DataFrame([{
+        "identificador_boe": "BOE-A-2099-10",
+        "source_document_sha256": expected_hash,
+    }]).to_csv(holdout_path, index=False)
+
+    with pytest.raises(TruthContractError, match="invalid canonical identity fields"):
+        initialize_truth(
+            holdout_path=holdout_path,
+            documents_path=source_dir,
+            output_dir=tmp_path / "truth_working",
+            holdout_version="synthetic_holdout_v1",
+            reviewer_id="synthetic_reviewer",
+            break_seal=True,
+        )
+    assert not (tmp_path / "truth_working").exists()
 
 
 def test_break_seal_path_is_explicit_and_has_no_prediction_input() -> None:

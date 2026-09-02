@@ -13,6 +13,8 @@ from typing import Any, Iterable, Mapping
 
 import pandas as pd
 
+from renewables_permitting.extraction.documents import build_source_document
+
 
 CONTRACT_VERSION = "final_holdout_evaluation_contract_v1"
 FROZEN_PRODUCTION_COMMIT = (
@@ -1048,6 +1050,41 @@ def _documents_path(path: Path) -> Path:
     return path
 
 
+def _derive_source_document_identities(documents: pd.DataFrame) -> pd.DataFrame:
+    required = {
+        "identificador",
+        "fecha_publicacion",
+        "titulo",
+        "texto_limpio",
+    }
+    missing = required - set(documents.columns)
+    if missing:
+        raise TruthContractError(
+            f"Source documents miss canonical identity columns: {sorted(missing)}."
+        )
+    if documents["identificador"].astype("string").duplicated().any():
+        raise TruthContractError("Source documents contain duplicate identifiers.")
+
+    try:
+        source_hashes = [
+            build_source_document(row).source_document_sha256
+            for _, row in documents.iterrows()
+        ]
+    except (KeyError, TypeError, ValueError) as error:
+        raise TruthContractError(
+            "Source documents contain invalid canonical identity fields."
+        ) from error
+
+    return pd.DataFrame({
+        "identificador": documents["identificador"].astype("string"),
+        "source_document_sha256": pd.Series(
+            source_hashes,
+            index=documents.index,
+            dtype="string",
+        ),
+    })
+
+
 def initialize_truth(
     *,
     holdout_path: Path,
@@ -1075,10 +1112,9 @@ def initialize_truth(
         raise TruthContractError("Holdout selection misses identity columns.")
     if holdout["identificador_boe"].duplicated().any():
         raise TruthContractError("Holdout selection contains duplicate documents.")
-    documents = pd.read_parquet(_documents_path(documents_path))
-    required_documents = {"identificador", "source_document_sha256"}
-    if not required_documents.issubset(documents.columns):
-        raise TruthContractError("Source documents miss identity columns.")
+    documents = _derive_source_document_identities(
+        pd.read_parquet(_documents_path(documents_path))
+    )
     selected = holdout[["identificador_boe", "source_document_sha256"]].merge(
         documents[["identificador", "source_document_sha256"]],
         left_on=["identificador_boe", "source_document_sha256"],
