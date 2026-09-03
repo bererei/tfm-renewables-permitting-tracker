@@ -118,6 +118,12 @@ _SECONDARY_TABLES = (
     "action_targets",
     "participants",
 )
+_PRIMARY_QA_TABLES_BEFORE_ACTION_EVIDENCE = (
+    "documents",
+    "events",
+    "generation_assets",
+    "administrative_actions",
+)
 
 
 @dataclass(frozen=True)
@@ -184,6 +190,37 @@ def _selected_rows(
     return selected.sort_values(list(TABLE_SPECS[table].key_columns), kind="stable")
 
 
+def action_evidence_rows(
+    truth: TruthArtifact,
+    boe_id: str,
+    *,
+    action_key: str | None = None,
+) -> pd.DataFrame:
+    """Return only administrative-action evidence for the primary V2 UI."""
+
+    evidence = _selected_rows(truth, "evidence_passages", boe_id)
+    selected = evidence.loc[
+        evidence["owner_type"].astype(str).eq("administrative_action")
+    ]
+    if action_key is not None:
+        selected = selected.loc[
+            selected["owner_key"].astype(str).eq(str(action_key))
+        ]
+    return selected.copy()
+
+
+def secondary_evidence_rows(
+    truth: TruthArtifact,
+    boe_id: str,
+) -> pd.DataFrame:
+    """Return non-action evidence retained only as optional V2 diagnostics."""
+
+    evidence = _selected_rows(truth, "evidence_passages", boe_id)
+    return evidence.loc[
+        ~evidence["owner_type"].astype(str).eq("administrative_action")
+    ].copy()
+
+
 def _append_field_rows(
     lines: list[str],
     *,
@@ -213,8 +250,9 @@ def _append_evidence_rows(
     lines: list[str],
     *,
     selected: pd.DataFrame,
+    heading: str,
 ) -> None:
-    lines.extend(("### Evidencia", ""))
+    lines.extend((f"### {heading}", ""))
     if selected.empty:
         lines.extend(("_Sin filas para este BOE._", ""))
         return
@@ -292,20 +330,27 @@ def build_ai_qa_review_package(
         "## Verdad primaria V2",
         "",
     ]
-    for table, fields in _PRIMARY_FIELDS.items():
+    for table in _PRIMARY_QA_TABLES_BEFORE_ACTION_EVIDENCE:
         _append_field_rows(
             lines,
             truth=truth,
             boe_id=boe_id,
             table=table,
-            fields=fields,
+            fields=_PRIMARY_FIELDS[table],
         )
 
-    evidence = _selected_rows(truth, "evidence_passages", boe_id)
-    primary_evidence = evidence.loc[
-        evidence["owner_type"].astype(str).eq("administrative_action")
-    ]
-    _append_evidence_rows(lines, selected=primary_evidence)
+    _append_evidence_rows(
+        lines,
+        selected=action_evidence_rows(truth, boe_id),
+        heading="Evidencias de actuaciones administrativas",
+    )
+    _append_field_rows(
+        lines,
+        truth=truth,
+        boe_id=boe_id,
+        table="locations",
+        fields=_PRIMARY_FIELDS["locations"],
+    )
 
     lines.extend((
         "## Datos secundarios / diagnósticos — no bloqueantes",
@@ -315,10 +360,11 @@ def build_ai_qa_review_package(
     ))
     for table in _SECONDARY_TABLES:
         _append_secondary_table(lines, truth, boe_id, table)
-    secondary_evidence = evidence.loc[
-        ~evidence["owner_type"].astype(str).eq("administrative_action")
-    ]
-    _append_evidence_rows(lines, selected=secondary_evidence)
+    _append_evidence_rows(
+        lines,
+        selected=secondary_evidence_rows(truth, boe_id),
+        heading="Otras evidencias — secundarias / diagnósticas",
+    )
 
     lines.extend((
         "## Instrucciones fijas para la revisión IA independiente",

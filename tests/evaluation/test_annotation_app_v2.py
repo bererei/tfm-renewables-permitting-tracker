@@ -16,14 +16,18 @@ from streamlit.testing.v1 import AppTest
 from evaluation.final_holdout_v2.annotation import (
     SOURCE_DIR_ENV,
     TRUTH_DIR_ENV,
+    action_evidence_rows,
     build_ai_qa_review_package,
     load_annotation_workspace,
+    secondary_evidence_rows,
     serialize_affected_assets,
+    upsert_truth_row,
 )
 from evaluation.final_holdout_v2.contract import (
     CONTRACT_VERSION,
     NA,
     TABLE_SPECS,
+    TruthContractError,
     load_truth,
 )
 from evaluation.final_holdout_v2.terminology import qa_path, widget_label
@@ -32,6 +36,8 @@ from renewables_permitting.extraction.documents import build_source_document
 
 BOE_ID = "BOE-A-2099-301"
 ACTION_EVIDENCE = "Se otorga autorización administrativa previa a Planta V2."
+SECOND_ACTION_EVIDENCE = "Se publica la decisión administrativa para Planta V2."
+SECONDARY_EVIDENCE = "Promotora V2, SL figura como promotora."
 REPOSITORY_ROOT = Path(__file__).parents[2]
 ANNOTATION_APP = REPOSITORY_ROOT / "evaluation/final_holdout_v2/annotation_app.py"
 
@@ -53,7 +59,8 @@ def v2_annotation_workspace(tmp_path: Path) -> tuple[Path, Path]:
         "titulo": "Resolución sintética V2",
         "texto_limpio": (
             "La planta fotovoltaica Planta V2 se sitúa en Villa V2. "
-            f"{ACTION_EVIDENCE} Tiene 25 MW de potencia instalada."
+            f"{ACTION_EVIDENCE} {SECOND_ACTION_EVIDENCE} "
+            f"{SECONDARY_EVIDENCE} Tiene 25 MW de potencia instalada."
         ),
     }])
     source_dir = tmp_path / "source"
@@ -106,12 +113,26 @@ def v2_annotation_workspace(tmp_path: Path) -> tuple[Path, Path]:
         "location_name_raw": "Villa V2",
         "expected_location_level": "municipio",
     }]
-    rows["evidence_passages"] = [{
-        **_common(),
-        "owner_type": "administrative_action",
-        "owner_key": "action_1",
-        "passage_text": ACTION_EVIDENCE,
-    }]
+    rows["evidence_passages"] = [
+        {
+            **_common(),
+            "owner_type": "administrative_action",
+            "owner_key": "action_1",
+            "passage_text": ACTION_EVIDENCE,
+        },
+        {
+            **_common(),
+            "owner_type": "administrative_action",
+            "owner_key": "action_1",
+            "passage_text": SECOND_ACTION_EVIDENCE,
+        },
+        {
+            **_common(),
+            "owner_type": "participant",
+            "owner_key": "participant_1",
+            "passage_text": SECONDARY_EVIDENCE,
+        },
+    ]
     rows["participants"] = [{
         **_common(),
         "event_key": "event_1",
@@ -211,9 +232,21 @@ def test_v2_review_package_is_primary_first_secondary_labelled_and_deterministic
     assert before == {
         path.name: path.read_bytes() for path in sorted(truth_dir.iterdir())
     }
-    assert text.index("## Verdad primaria V2") < text.index(
+    primary_start = text.index("## Verdad primaria V2")
+    secondary_start = text.index(
         "## Datos secundarios / diagnósticos — no bloqueantes"
     )
+    primary_headings = (
+        "### Documento",
+        "### Evento / proyecto publicado",
+        "### Activo de generación",
+        "### Actuación administrativa",
+        "### Evidencias de actuaciones administrativas",
+        "### Localización",
+    )
+    positions = [text.index(heading, primary_start) for heading in primary_headings]
+    assert positions == sorted(positions)
+    assert positions[-1] < secondary_start
     for path in (
         "document.expected_document_scope",
         "generation_asset/asset_1.names_json",
@@ -225,6 +258,7 @@ def test_v2_review_package_is_primary_first_secondary_labelled_and_deterministic
     ):
         assert f"`{path}`" in text
     assert "SECUNDARIO_NO_BLOQUEANTE" in text
+    assert "### Otras evidencias — secundarias / diagnósticas" in text
     assert "SIN DISCREPANCIAS PRIMARIAS V2 DETECTADAS." in text
     for forbidden in (
         "attempts.parquet",
@@ -251,6 +285,142 @@ def test_v2_review_export_refuses_draft(
         )
 
 
+def test_action_and_secondary_evidence_are_disjoint_and_preserved(
+    v2_annotation_workspace: tuple[Path, Path],
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    workspace = load_annotation_workspace(truth_dir, source_dir)
+    before = (truth_dir / "evidence_passages.csv").read_bytes()
+
+    primary = action_evidence_rows(
+        workspace.truth,
+        BOE_ID,
+        action_key="action_1",
+    )
+    secondary = secondary_evidence_rows(workspace.truth, BOE_ID)
+
+    assert len(primary) == 2
+    assert primary["owner_type"].astype(str).unique().tolist() == [
+        "administrative_action"
+    ]
+    assert set(primary["passage_text"].astype(str)) == {
+        ACTION_EVIDENCE,
+        SECOND_ACTION_EVIDENCE,
+    }
+    assert len(secondary) == 1
+    assert secondary.iloc[0]["owner_type"] == "participant"
+    assert secondary.iloc[0]["passage_text"] == SECONDARY_EVIDENCE
+    assert (truth_dir / "evidence_passages.csv").read_bytes() == before
+
+
+def test_action_evidence_requires_an_existing_action_in_the_ui(
+    v2_annotation_workspace: tuple[Path, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    actions = pd.read_csv(
+        truth_dir / "administrative_actions.csv",
+        dtype="string",
+        keep_default_na=False,
+    )
+    actions.iloc[0:0].to_csv(
+        truth_dir / "administrative_actions.csv",
+        index=False,
+        lineterminator="\n",
+    )
+    evidence = pd.read_csv(
+        truth_dir / "evidence_passages.csv",
+        dtype="string",
+        keep_default_na=False,
+    )
+    evidence = evidence.loc[
+        ~evidence["owner_type"].astype(str).eq("administrative_action")
+    ]
+    evidence.to_csv(
+        truth_dir / "evidence_passages.csv",
+        index=False,
+        lineterminator="\n",
+    )
+    load_truth(truth_dir)
+    monkeypatch.setenv(TRUTH_DIR_ENV, str(truth_dir))
+    monkeypatch.setenv(SOURCE_DIR_ENV, str(source_dir))
+
+    app = AppTest.from_file(ANNOTATION_APP, default_timeout=30).run()
+
+    assert not app.exception
+    assert any(
+        "Añade primero una actuación para poder registrar su evidencia"
+        in message.value
+        for message in app.info
+    )
+    assert not any(
+        "evidence_passage/administrative_action/" in caption.value
+        for caption in app.caption
+    )
+
+
+def test_primary_dependency_messages_are_explicit(
+    v2_annotation_workspace: tuple[Path, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    for table, spec in TABLE_SPECS.items():
+        if table == "documents":
+            continue
+        pd.DataFrame(columns=spec.columns, dtype="string").to_csv(
+            truth_dir / f"{table}.csv",
+            index=False,
+            lineterminator="\n",
+        )
+    load_truth(truth_dir)
+    monkeypatch.setenv(TRUTH_DIR_ENV, str(truth_dir))
+    monkeypatch.setenv(SOURCE_DIR_ENV, str(source_dir))
+
+    app = AppTest.from_file(ANNOTATION_APP, default_timeout=30).run()
+    messages = [message.value for message in app.info]
+
+    assert not app.exception
+    assert any("Añade primero un evento" in message for message in messages)
+    assert any("Añade primero un activo" in message for message in messages)
+    assert any("Añade primero una actuación" in message for message in messages)
+
+
+def test_action_evidence_still_requires_one_literal_continuous_passage(
+    v2_annotation_workspace: tuple[Path, Path],
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    workspace = load_annotation_workspace(truth_dir, source_dir)
+    source = workspace.source_documents.iloc[0]
+    source_text = f"{source['titulo']}\n{source['texto_limpio']}"
+    before = {path.name: path.read_bytes() for path in truth_dir.iterdir()}
+    base_row = {
+        **_common(),
+        "owner_type": "administrative_action",
+        "owner_key": "action_1",
+    }
+
+    with pytest.raises(TruthContractError, match="literal"):
+        upsert_truth_row(
+            truth_dir,
+            "evidence_passages",
+            BOE_ID,
+            {**base_row, "passage_text": "Resumen no literal de la actuación."},
+            source_text=source_text,
+        )
+    with pytest.raises(TruthContractError, match="continuous"):
+        upsert_truth_row(
+            truth_dir,
+            "evidence_passages",
+            BOE_ID,
+            {
+                **base_row,
+                "passage_text": f"{ACTION_EVIDENCE} [...] {SECOND_ACTION_EVIDENCE}",
+            },
+            source_text=source_text,
+        )
+    assert before == {path.name: path.read_bytes() for path in truth_dir.iterdir()}
+
+
 def test_v2_streamlit_surface_is_blind_and_shows_primary_optional_and_paths(
     v2_annotation_workspace: tuple[Path, Path],
     monkeypatch: pytest.MonkeyPatch,
@@ -274,14 +444,15 @@ def test_v2_streamlit_surface_is_blind_and_shows_primary_optional_and_paths(
     ]
     assert subheaders == [
         "1. Documento",
-        "2. Eventos / activos",
-        "3. Actuaciones + activos afectados",
-        "4. Localizaciones",
-        "5. Evidencias de actuaciones",
-        "6. Validación / complete",
+        "2. Eventos / proyectos publicados",
+        "3. Activos de generación",
+        "4. Actuaciones administrativas",
+        "5. Evidencias de actuaciones administrativas",
+        "6. Localizaciones",
+        "7. Validación y estado de anotación",
     ]
     assert any(
-        expander.label == "Opcional / diagnóstico" for expander in app.expander
+        expander.label == "8. Opcional / diagnóstico" for expander in app.expander
     )
     affected = [
         widget
@@ -293,6 +464,10 @@ def test_v2_streamlit_surface_is_blind_and_shows_primary_optional_and_paths(
     assert not any(
         "expected_affected_generation_asset_keys_json" in widget.label
         for widget in [*app.text_input, *app.text_area]
+    )
+    assert any(
+        "evidence_passage/administrative_action/action_1" in caption.value
+        for caption in app.caption
     )
     download = app.main.get("download_button")[0].proto
     assert download.label == "Descargar paquete para revisión IA"

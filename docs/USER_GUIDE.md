@@ -1790,14 +1790,21 @@ documentos; un operador puede sustituirlas con
 y el contrato versionado. No tiene rutas a predicciones, attempts,
 `current_extractions`, review queue, P0 ni servicios de modelo o red.
 
-El humano completa como dimensiones primarias alcance documental, eventos,
-activos de generación, actuaciones y sus activos afectados, localizaciones y
-evidencias de actuaciones. Componentes, targets exactos, potencia principal,
-promotor y otras evidencias aparecen solo bajo **Opcional / diagnóstico** y no
-bloquean `complete`. La interfaz genera claves locales, serializa alias y usa
-multiselect para los activos afectados: nunca solicita JSON, hashes o IDs de
-producción. Cada etiqueta española muestra al lado su ruta canónica, por
-ejemplo `administrative_action/action_1.expected_decision`.
+El orden recomendado de anotación primaria es **Documento → Eventos → Activos
+de generación → Actuaciones → Evidencias de actuaciones → Localizaciones →
+Validación**. La interfaz muestra cada actuación junto a sus pasajes para que
+pueda completarse antes de pasar a la siguiente.
+
+**Evidencias de actuaciones administrativas** es un requisito PRIMARY V2 y
+contiene exclusivamente pasajes cuyo owner es una `administrative_action`.
+Las evidencias de activos, componentes, participantes, localizaciones o
+menciones técnicas son secundarias/diagnósticas. Componentes, targets exactos,
+potencia principal, promotor y esas otras evidencias aparecen solo bajo
+**Opcional / diagnóstico** y no bloquean `complete`. La interfaz genera claves
+locales, serializa alias y usa multiselect para los activos afectados: nunca
+solicita JSON, hashes o IDs de producción. Cada etiqueta española muestra al
+lado su ruta canónica, por ejemplo
+`administrative_action/action_1.expected_decision`.
 
 Cada evidencia primaria debe pegarse como pasaje continuo literal de la fuente
 y cada escritura se valida antes del reemplazo atómico del CSV afectado.
