@@ -53,7 +53,7 @@ work listed here may enter the product.
 | Operational code closeout | **CODE FREEZE READY — 1,351 TESTS PASS** | Original 1,313-test baseline plus 31 administrative-CLI tests and seven territorial map-filter regressions; Gold v2 defaults and AppTest remain regression-tested, with the real mailbox remaining deployment configuration |
 | Systemic historical-antecedent safeguard | **CLOSED — HUMAN-APPROVED AND COMMITTED** | Commit `7c9fcbc`; deterministic dual-signal warning, non-destructive blocking review, exact ANTECEDENT correction reconciliation, persistent CURRENT validation and executable 11/11 + 0/5 replay; no automatic exclusion |
 | Administrative review CLI | **IMPLEMENTED + TESTED — HUMAN REVIEW PENDING** | Optional operational usability block after the initial code freeze: 31 focused tests and 1,344-test full suite pass; separate argparse CLI for inspection, CURRENT, ANTECEDENT, exact-proposal validation, whole-extraction rejection and decision audit; Streamlit remains read-only and admin UI/backend remain POST-TFM |
-| Final holdout | **SEALED — NOT EXECUTED** | No holdout source or output was inspected during W14 historical extraction |
+| Final holdout | **UNSEALED — BLIND HUMAN ANNOTATION IN PROGRESS; SYSTEM NOT EXECUTED** | V1 truth initialized without predictions; three documents have human work. Reduced V2-A annotation contract/tooling implemented for review; real migration and V2-B evaluator remain pending |
 | Holdout exposure provenance | **RESOLVED — 479 development-exposed BOEs versioned** | `docs/HOLDOUT_EXPOSURE_PROVENANCE.md`; P2 exposed: 263; P2 provisionally eligible: 19,226 |
 | Source reliability mitigation | Operationally validated in v2 | Three transient XML failures recovered after one retry; zero exhausted retries |
 | Final P2 extraction `main-01` | **CLOSED — 250 ACCOUNTED; 249 CURRENT; 1 REJECTED; 0 BLOCKERS** | Loader-validated `extraction-main-01-final-v2` has 501 unique attempts; see `docs/FINAL_EXTRACTION_MAIN01_IDEMPOTENCY_FIX.md` |
@@ -435,7 +435,7 @@ FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW
 → P2 TARGET PERIOD — 2024-01-01 TO 2026-08-20 INCLUSIVE
 → FINAL EXTRACTION PREFLIGHT P2 — COMPLETED
 → RESUME MITIGATION — VALIDATED IN REAL EXECUTION
-→ HOLDOUT — 48 BOE SELECTED + VERSIONED; NOT EXECUTED
+→ HOLDOUT — 48 BOE SELECTED + VERSIONED; UNSEALED FOR BLIND HUMAN ANNOTATION; SYSTEM NOT EXECUTED
 → FINAL P2 MAIN-01 — CONTRACTUALLY CLOSED; 250 ACCOUNTED; 249 CURRENT; 1 REJECTED; 0 BLOCKERS
 → GEMINI MAIN-01 — EXECUTED; 2 AUTHORIZED OPERATIONAL RETRIES COMPLETED
 → DETERMINISTIC BLOCKER FIX — IMPLEMENTED + TESTED + COMMITTED
@@ -470,7 +470,7 @@ FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW
 → MAIN-04…MAIN-20 — NOT REQUIRED FOR FINAL TFM CORPUS
 → MAIN-03 RETRIES — P2 FALLBACK ONLY
 → GEMINI — NO FURTHER CALLS AUTHORIZED
-→ HOLDOUT — SEALED; NOT EXECUTED
+→ HOLDOUT — UNSEALED FOR BLIND HUMAN ANNOTATION; PREDICTIONS NOT EXECUTED OR INSPECTED
 → REVIEW/ADMIN AUDIT — COMPLETED; ADMINISTRATIVE UI/BACKEND IS POST-TFM
 → W14 TEMPORAL AUDIT — CLOSED; 8 HUMAN DECISIONS APPROVED
 → CORRECTIONS SUBSET — CLOSED; 11 SELECTED; 5 OUT OF SCOPE
@@ -504,8 +504,9 @@ component scopes or targets. The loader-valid cumulative snapshot
 `extraction-main-03-recanonicalized-v2` accounts for 750 documents, with 747
 current extractions, one inherited rejection, zero semantic blockers and two
 operational blockers. The operational retries for `BOE-B-2025-41490` and
-`BOE-B-2025-45035` remain separate and unauthorized. The holdout remains
-sealed and unexecuted and `main-04` remains paused and unauthorized. The prior
+`BOE-B-2025-45035` remain separate and unauthorized. The holdout is unsealed
+only for blind human annotation; predictions remain unexecuted and unseen, and
+`main-04` remains paused and unauthorized. The prior
 annual anchor/backfill decision remains historical evidence. The bounded W14
 pilot executed its 42 authorized fresh documents, and a narrow deterministic
 validation fix recovered its only false blocker without another model call.
@@ -540,5 +541,6 @@ runtime default. The systemic historical-antecedent safeguard is closed,
 human-approved and committed as `7c9fcbc`: it is a non-destructive
 dual-signal review gate with exact approved-correction or CURRENT-validation
 reconciliation and executable replay. P2 is fallback only; `main-04` through `main-20` and the two old
-`main-03` retries are not required for the final TFM corpus. The holdout
-remains sealed and unexecuted.
+`main-03` retries are not required for the final TFM corpus. The holdout remains
+unsealed only for blind human annotation; predictions remain unexecuted and
+unseen.

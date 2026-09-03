@@ -1,0 +1,7 @@
+{
+  "holdout_artifact_identity": null,
+  "initialization_mode": "template_only",
+  "predictions_exposed_during_annotation": false,
+  "source_snapshot_identity": null,
+  "truth_contract_version": "final_holdout_evaluation_contract_v2"
+}

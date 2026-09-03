@@ -1761,10 +1761,16 @@ verificarlo contra sus contratos y registrar la evidencia de aceptación.
 
 ### Evaluación final del holdout
 
-La evaluación final usa herramientas aisladas de producción bajo
-`evaluation/final_holdout_v1/`. El sistema evaluado sigue siendo exactamente
-`tfm-final` en `282de815bea4e248bdcba2c655e3ee078cb58a49`; la rama
-`tfm-evaluation` añade únicamente el contrato, anotación ciega y scoring.
+El contrato V1 permanece preservado bajo `evaluation/final_holdout_v1/`. La
+anotación final activa usa el contrato reducido
+`final_holdout_evaluation_contract_v2` bajo
+`evaluation/final_holdout_v2/`. El sistema evaluado sigue siendo exactamente
+`tfm-final` en `282de815bea4e248bdcba2c655e3ee078cb58a49`.
+
+La fase V2-A implementa contrato, migración no destructiva, anotación ciega y
+exportación para QA. **Todavía no implementa evaluator, matching, métricas ni
+freeze V2**; esas funciones pertenecen a V2-B y deben cerrarse antes de
+ejecutar el sistema evaluado.
 
 #### Interfaz local de anotación humana ciega
 
@@ -1773,23 +1779,28 @@ interfaz local desde la raíz del repositorio:
 
 ```bash
 UV_OFFLINE=1 uv run streamlit run \
-  evaluation/final_holdout_v1/annotation_app.py
+  evaluation/final_holdout_v2/annotation_app.py
 ```
 
-La pantalla muestra las rutas efectivas. Por defecto usa
-`runs/final_holdout_p2_v1_truth_working` y el snapshot canónico de documentos;
-un operador puede sustituirlas con
-`FINAL_HOLDOUT_ANNOTATION_TRUTH_DIR` y
-`FINAL_HOLDOUT_ANNOTATION_SOURCE_DIR`. La aplicación solo lee esos dos inputs
-y el contrato congelado. No tiene rutas a predicciones, attempts,
+La pantalla muestra las rutas efectivas. Por defecto usa el nuevo destino
+`runs/final_holdout_p2_v1_truth_v2_working` y el snapshot canónico de
+documentos; un operador puede sustituirlas con
+`FINAL_HOLDOUT_V2_ANNOTATION_TRUTH_DIR` y
+`FINAL_HOLDOUT_V2_ANNOTATION_SOURCE_DIR`. La aplicación solo lee esos dos inputs
+y el contrato versionado. No tiene rutas a predicciones, attempts,
 `current_extractions`, review queue, P0 ni servicios de modelo o red.
 
-El humano decide alcance documental, eventos, activos, componentes, menciones
-técnicas, actuaciones, objetivos, participantes, localizaciones y pasajes de
-evidencia. La interfaz únicamente genera claves locales, serializa listas y
-deriva referencias entre entidades ya anotadas; no sugiere ni infiere valores
-semánticos. Cada evidencia debe pegarse como pasaje continuo literal de la
-fuente y cada escritura se valida antes del reemplazo atómico del CSV afectado.
+El humano completa como dimensiones primarias alcance documental, eventos,
+activos de generación, actuaciones y sus activos afectados, localizaciones y
+evidencias de actuaciones. Componentes, targets exactos, potencia principal,
+promotor y otras evidencias aparecen solo bajo **Opcional / diagnóstico** y no
+bloquean `complete`. La interfaz genera claves locales, serializa alias y usa
+multiselect para los activos afectados: nunca solicita JSON, hashes o IDs de
+producción. Cada etiqueta española muestra al lado su ruta canónica, por
+ejemplo `administrative_action/action_1.expected_decision`.
+
+Cada evidencia primaria debe pegarse como pasaje continuo literal de la fuente
+y cada escritura se valida antes del reemplazo atómico del CSV afectado.
 El BOE actual también puede abrirse en la web oficial mediante un enlace que
 solo actúa tras el clic humano; la aplicación no descarga ni valida esa página.
 El flujo de QA posterior es:
@@ -1803,34 +1814,37 @@ El flujo de QA posterior es:
 7. adjudicar humanamente cada propuesta;
 8. aplicar solamente los cambios aceptados por la persona revisora.
 
-El paquete incluye exclusivamente el texto BOE local y la anotación humana
-del documento actual; no contiene predicciones del sistema evaluado. La
-descarga se construye en memoria y no modifica la verdad. Tras este flujo, la
-verdad sigue requiriendo adjudicación humana antes de `freeze-truth`.
+El paquete incluye exclusivamente el texto BOE local y la anotación humana del
+documento actual; no contiene predicciones del sistema evaluado. Presenta
+primero la verdad primaria y separa cualquier fila existente como **Datos
+secundarios / diagnósticos — no bloqueantes**. La columna `Entidad/campo` usa
+las mismas rutas canónicas que la UI. La descarga se construye en memoria y no
+modifica la verdad.
 
-Mientras el seal siga intacto solo valida las plantillas vacías:
-
-```bash
-uv run python -m evaluation.final_holdout_v1.cli validate-truth \
-  --truth evaluation/final_holdout_v1/templates
-```
-
-`init-truth` es el único comando que lee deliberadamente membership y fuente.
-Se niega a hacerlo sin `--break-seal`; no uses ese flag hasta recibir la
-autorización humana expresa. `evaluate` consume verdad y predicciones ya
-congeladas, nunca ejecuta extracción, Gemini, correcciones, Silver ni Gold:
+Las plantillas V2 vacías se validan así:
 
 ```bash
-uv run python -m evaluation.final_holdout_v1.cli evaluate \
-  --truth <VERDAD_CIEGA_INMUTABLE> \
-  --predictions <EXTRACCION_PRIMARIA_INMUTABLE> \
-  --execution-record <REGISTRO_EJECUCION_JSON> \
-  --output <EVALUACION_NUEVA_INMUTABLE>
+UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
+uv run python -m evaluation.final_holdout_v2.cli validate-truth \
+  --truth evaluation/final_holdout_v2/templates
 ```
 
-El protocolo completo, matching, métricas, tratamiento de ambigüedad, P0,
-artefactos e interpretación están en
-[`evaluation/FINAL_HOLDOUT_EVALUATION_CONTRACT_V1.md`](evaluation/FINAL_HOLDOUT_EVALUATION_CONTRACT_V1.md).
+La migración V1→V2 es no destructiva, rechaza un destino existente, conserva
+identidades y filas humanas compatibles y obliga a revalidar como `draft` todo
+documento project-specific. Usa siempre dos rutas distintas:
+
+```bash
+UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
+uv run python -m evaluation.final_holdout_v2.cli migrate-v1-truth \
+  --source <V1_TRUTH_WORKSPACE> \
+  --output <NEW_V2_TRUTH_WORKSPACE>
+```
+
+No ejecutes la migración sobre el workspace real hasta que exista autorización
+humana posterior al review/commit de V2-A. Tampoco existe todavía un comando
+V2 de evaluación o freeze. El alcance, completitud, terminología y frontera
+V2-B están en
+[`evaluation/FINAL_HOLDOUT_EVALUATION_CONTRACT_V2.md`](evaluation/FINAL_HOLDOUT_EVALUATION_CONTRACT_V2.md).
 
 ## 15. Versionado, commits y rollback
 
@@ -1968,7 +1982,8 @@ automática de snapshots documentales tampoco está disponible actualmente.
 - [Declaración del core freeze](freezes/core_data_freeze_2026-08-13.md).
 - [CLI del pipeline](../src/renewables_permitting/pipeline.py).
 - [Configuración de extracción](../src/renewables_permitting/extraction/config.py).
-- [Contrato de evaluación final del holdout](evaluation/FINAL_HOLDOUT_EVALUATION_CONTRACT_V1.md).
+- [Contrato reducido activo de anotación V2](evaluation/FINAL_HOLDOUT_EVALUATION_CONTRACT_V2.md).
+- [Contrato histórico de evaluación V1](evaluation/FINAL_HOLDOUT_EVALUATION_CONTRACT_V1.md).
 - [Revisión y selección](../src/renewables_permitting/extraction/review.py).
 - [Contrato y aplicación de correcciones](../src/renewables_permitting/extraction/corrections.py).
 - [Contrato de las 13 tablas Silver](../src/renewables_permitting/extraction/flat_contract.py).
