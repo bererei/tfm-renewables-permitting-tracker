@@ -34,6 +34,7 @@ from evaluation.final_holdout_v2.contract import (
     TRUTH_METADATA,
     TruthArtifact,
     TruthContractError,
+    _scored,
     load_truth,
 )
 from evaluation.final_holdout_v2.terminology import (
@@ -489,21 +490,23 @@ def validate_document(
         return isolated_truth
 
 
-def _commit_table_frame(
+def _commit_table_frames(
     truth_dir: Path,
-    table: str,
-    replacement: pd.DataFrame,
+    replacements: Mapping[str, pd.DataFrame],
     *,
     after_staging: Callable[[Path], None] | None = None,
 ) -> TruthArtifact:
     truth_dir = Path(truth_dir)
-    if table not in TABLE_SPECS:
-        raise ValueError(f"Unknown V2 truth table: {table}")
+    if not replacements:
+        raise ValueError("At least one V2 truth table replacement is required.")
     current = load_truth(truth_dir)
     if current.manifest is not None or (truth_dir / TRUTH_MANIFEST).exists():
         raise TruthContractError("Frozen truth cannot be edited.")
-    if tuple(replacement.columns) != TABLE_SPECS[table].columns:
-        raise TruthContractError(f"Replacement columns do not match V2 {table}.")
+    for table, replacement in replacements.items():
+        if table not in TABLE_SPECS:
+            raise ValueError(f"Unknown V2 truth table: {table}")
+        if tuple(replacement.columns) != TABLE_SPECS[table].columns:
+            raise TruthContractError(f"Replacement columns do not match V2 {table}.")
     truth_dir = truth_dir.absolute()
     staging = Path(tempfile.mkdtemp(
         prefix=f".{truth_dir.name}.annotation-staging-",
@@ -511,15 +514,45 @@ def _commit_table_frame(
     ))
     try:
         shutil.copytree(truth_dir, staging, dirs_exist_ok=True)
-        staged_table = staging / f"{table}.csv"
-        _write_table(replacement, table, staged_table)
+        for table, replacement in replacements.items():
+            _write_table(replacement, table, staging / f"{table}.csv")
         load_truth(staging)
         if after_staging is not None:
             after_staging(staging)
-        os.replace(staged_table, truth_dir / staged_table.name)
+
+        if len(replacements) == 1:
+            table = next(iter(replacements))
+            os.replace(
+                staging / f"{table}.csv",
+                truth_dir / f"{table}.csv",
+            )
+        else:
+            backup_dir = staging.with_name(f"{staging.name}.original")
+            os.replace(truth_dir, backup_dir)
+            try:
+                os.replace(staging, truth_dir)
+            except BaseException:
+                os.replace(backup_dir, truth_dir)
+                raise
+            else:
+                shutil.rmtree(backup_dir)
     finally:
         shutil.rmtree(staging, ignore_errors=True)
     return load_truth(truth_dir)
+
+
+def _commit_table_frame(
+    truth_dir: Path,
+    table: str,
+    replacement: pd.DataFrame,
+    *,
+    after_staging: Callable[[Path], None] | None = None,
+) -> TruthArtifact:
+    return _commit_table_frames(
+        truth_dir,
+        {table: replacement},
+        after_staging=after_staging,
+    )
 
 
 def _row_frame(table: str, row: Mapping[str, str]) -> pd.DataFrame:
@@ -536,6 +569,29 @@ def _row_frame(table: str, row: Mapping[str, str]) -> pd.DataFrame:
         columns=spec.columns,
         dtype="string",
     )
+
+
+def _replacement_with_row(
+    truth: TruthArtifact,
+    table: str,
+    boe_id: str,
+    new_row: pd.DataFrame,
+    *,
+    original_key: Mapping[str, str] | None,
+) -> pd.DataFrame:
+    frame = truth.tables[table].copy()
+    if original_key is not None:
+        mask = frame["identificador_boe"].astype(str).eq(boe_id)
+        for column in TABLE_SPECS[table].key_columns:
+            if column == "identificador_boe":
+                continue
+            if column not in original_key:
+                raise TruthContractError(f"Missing original key column: {column}")
+            mask &= frame[column].astype(str).eq(str(original_key[column]))
+        if int(mask.sum()) != 1:
+            raise TruthContractError("The V2 row selected for editing is not unique.")
+        frame = frame.loc[~mask].copy()
+    return pd.concat([frame, new_row], ignore_index=True)
 
 
 def upsert_truth_row(
@@ -558,19 +614,13 @@ def upsert_truth_row(
     if table == "evidence_passages" and source_text is not None:
         validate_evidence_literal(str(new_row.iloc[0]["passage_text"]), source_text)
 
-    frame = truth.tables[table].copy()
-    if original_key is not None:
-        mask = frame["identificador_boe"].astype(str).eq(boe_id)
-        for column in TABLE_SPECS[table].key_columns:
-            if column == "identificador_boe":
-                continue
-            if column not in original_key:
-                raise TruthContractError(f"Missing original key column: {column}")
-            mask &= frame[column].astype(str).eq(str(original_key[column]))
-        if int(mask.sum()) != 1:
-            raise TruthContractError("The V2 row selected for editing is not unique.")
-        frame = frame.loc[~mask].copy()
-    replacement = pd.concat([frame, new_row], ignore_index=True)
+    replacement = _replacement_with_row(
+        truth,
+        table,
+        boe_id,
+        new_row,
+        original_key=original_key,
+    )
 
     status = str(
         truth.tables["documents"].loc[
@@ -585,6 +635,98 @@ def upsert_truth_row(
         )
     return _commit_table_frame(
         Path(truth_dir), table, replacement, after_staging=callback
+    )
+
+
+def action_has_scored_evidence(
+    truth: TruthArtifact,
+    boe_id: str,
+    action_key: str,
+) -> bool:
+    """Return whether an action already has contract-scored literal evidence."""
+
+    return not _scored(
+        action_evidence_rows(truth, boe_id, action_key=action_key)
+    ).empty
+
+
+def upsert_action_with_initial_evidence(
+    truth_dir: Path,
+    boe_id: str,
+    action_row: Mapping[str, str],
+    *,
+    evidence_passage: str | None,
+    original_key: Mapping[str, str] | None = None,
+    source_text: str,
+) -> TruthArtifact:
+    """Stage and persist an action and any required first evidence together."""
+
+    truth_dir = Path(truth_dir)
+    truth = load_truth(truth_dir)
+    if truth.tables["documents"]["identificador_boe"].astype(str).eq(boe_id).sum() != 1:
+        raise TruthContractError(f"Unknown V2 truth document: {boe_id}")
+
+    new_action = _row_frame("administrative_actions", action_row)
+    if str(new_action.iloc[0]["identificador_boe"]) != boe_id:
+        raise TruthContractError("An edit cannot move a row to another BOE.")
+    action_key = str(new_action.iloc[0]["action_key"])
+    actions = _replacement_with_row(
+        truth,
+        "administrative_actions",
+        boe_id,
+        new_action,
+        original_key=original_key,
+    )
+
+    raw_passage = "" if evidence_passage is None else str(evidence_passage)
+    passage = (
+        validate_evidence_literal(raw_passage, source_text)
+        if raw_passage.strip()
+        else None
+    )
+    already_supported = action_has_scored_evidence(truth, boe_id, action_key)
+    if not _scored(new_action).empty and not already_supported and passage is None:
+        raise TruthContractError(
+            "Cada actuación primaria puntuada necesita al menos un pasaje literal "
+            "continuo del BOE; proporciona la evidencia en la misma operación."
+        )
+
+    replacements: dict[str, pd.DataFrame] = {
+        "administrative_actions": actions,
+    }
+    if passage is not None:
+        evidence_row = _row_frame(
+            "evidence_passages",
+            {
+                "identificador_boe": boe_id,
+                "owner_type": "administrative_action",
+                "owner_key": action_key,
+                "passage_text": passage,
+                "applicability": str(new_action.iloc[0]["applicability"]),
+                "adjudication": str(new_action.iloc[0]["adjudication"]),
+                "annotation_notes": NA,
+            },
+        )
+        replacements["evidence_passages"] = pd.concat(
+            [truth.tables["evidence_passages"].copy(), evidence_row],
+            ignore_index=True,
+        )
+
+    status = str(
+        truth.tables["documents"].loc[
+            truth.tables["documents"]["identificador_boe"].astype(str).eq(boe_id),
+            "annotation_status",
+        ].iloc[0]
+    )
+    callback = None
+    if status == "complete":
+        callback = lambda staging: validate_document(
+            staging, boe_id, source_text=source_text
+        )
+    return _commit_table_frames(
+        truth_dir,
+        replacements,
+        after_staging=callback,
     )
 
 
@@ -610,6 +752,28 @@ def delete_truth_row(
     if int(mask.sum()) != 1:
         raise TruthContractError("The V2 row selected for deletion is not unique.")
     replacement = frame.loc[~mask].copy()
+    selected = frame.loc[mask].iloc[0]
+    if (
+        table == "evidence_passages"
+        and str(selected["owner_type"]) == "administrative_action"
+        and not _scored(pd.DataFrame([selected])).empty
+    ):
+        action_key = str(selected["owner_key"])
+        actions = truth.tables["administrative_actions"]
+        action = actions.loc[
+            actions["identificador_boe"].astype(str).eq(boe_id)
+            & actions["action_key"].astype(str).eq(action_key)
+        ]
+        remaining = replacement.loc[
+            replacement["identificador_boe"].astype(str).eq(boe_id)
+            & replacement["owner_type"].astype(str).eq("administrative_action")
+            & replacement["owner_key"].astype(str).eq(action_key)
+        ]
+        if not _scored(action).empty and _scored(remaining).empty:
+            raise TruthContractError(
+                "No se puede eliminar la última evidencia literal puntuada de "
+                "una actuación primaria puntuada."
+            )
     status = str(
         truth.tables["documents"].loc[
             truth.tables["documents"]["identificador_boe"].astype(str).eq(boe_id),

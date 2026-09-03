@@ -24,6 +24,7 @@ from evaluation.final_holdout_v1.annotation import (
     validate_evidence_literal,
 )
 from evaluation.final_holdout_v2.annotation import (
+    action_has_scored_evidence,
     action_evidence_rows,
     build_ai_qa_review_package,
     configured_paths,
@@ -34,6 +35,7 @@ from evaluation.final_holdout_v2.annotation import (
     secondary_evidence_rows,
     serialize_affected_assets,
     update_document_scope,
+    upsert_action_with_initial_evidence,
     upsert_truth_row,
     validate_document,
 )
@@ -401,6 +403,14 @@ def _render_entity_form(
         f"v2_{mode}_{table}_{boe_id}_{action_evidence_only}_"
         f"{evidence_owner_key or 'all'}"
     )
+    action_evidence_field = table == "administrative_actions" and (
+        row is None
+        or not action_has_scored_evidence(
+            truth,
+            boe_id,
+            str(row["action_key"]),
+        )
+    )
     with st.form(f"v2_form_{key_prefix}", enter_to_submit=False):
         values: dict[str, object] = {}
         if table == "events":
@@ -691,8 +701,31 @@ def _render_entity_form(
             row,
             key_prefix=key_prefix,
         )
+        if action_evidence_field:
+            evidence_path = canonical_path(
+                "evidence_passage",
+                owner_entity="administrative_action",
+                local_key=local_key,
+            )
+            st.markdown("**Evidencia literal obligatoria**")
+            st.caption(
+                "Cada actuación primaria puntuada necesita al menos un pasaje "
+                "literal continuo del BOE. La actuación y su primera evidencia "
+                "se guardan conjuntamente."
+            )
+            st.caption(f"`{evidence_path}`")
+            values["initial_evidence"] = st.text_area(
+                f"Primera evidencia literal de la actuación · {evidence_path}",
+                height=160,
+                key=f"{key_prefix}_initial_evidence",
+                help=(
+                    "Es obligatorio para una actuación applicable + scored_truth. "
+                    "Debe ser un único pasaje continuo copiado de la fuente local."
+                ),
+            )
         submitted = st.form_submit_button(
-            "Guardar fila", icon=":material/save:"
+            "Guardar actuación" if table == "administrative_actions" else "Guardar fila",
+            icon=":material/save:",
         )
 
     if not submitted:
@@ -817,14 +850,28 @@ def _render_entity_form(
                     str(values["passage_text"]), source_text
                 ),
             )
-        upsert_truth_row(
-            truth_dir,
-            table,
-            boe_id,
-            entity_row,
-            original_key=None if row is None else _original_key(table, row),
-            source_text=source_text,
-        )
+        if table == "administrative_actions":
+            upsert_action_with_initial_evidence(
+                truth_dir,
+                boe_id,
+                entity_row,
+                evidence_passage=(
+                    None
+                    if "initial_evidence" not in values
+                    else str(values["initial_evidence"])
+                ),
+                original_key=None if row is None else _original_key(table, row),
+                source_text=source_text,
+            )
+        else:
+            upsert_truth_row(
+                truth_dir,
+                table,
+                boe_id,
+                entity_row,
+                original_key=None if row is None else _original_key(table, row),
+                source_text=source_text,
+            )
     except (IndexError, OSError, ValueError, TruthContractError) as error:
         st.error(str(error))
     else:

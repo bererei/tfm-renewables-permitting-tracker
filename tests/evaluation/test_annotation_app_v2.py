@@ -13,14 +13,19 @@ import pandas as pd
 import pytest
 from streamlit.testing.v1 import AppTest
 
+import evaluation.final_holdout_v2.annotation as annotation_module
 from evaluation.final_holdout_v2.annotation import (
     SOURCE_DIR_ENV,
     TRUTH_DIR_ENV,
+    action_has_scored_evidence,
     action_evidence_rows,
     build_ai_qa_review_package,
+    delete_truth_row,
     load_annotation_workspace,
+    next_key_for_table,
     secondary_evidence_rows,
     serialize_affected_assets,
+    upsert_action_with_initial_evidence,
     upsert_truth_row,
 )
 from evaluation.final_holdout_v2.contract import (
@@ -169,6 +174,37 @@ def _mark_complete(truth_dir: Path) -> None:
     documents.loc[:, "annotation_status"] = "complete"
     documents.to_csv(truth_dir / "documents.csv", index=False, lineterminator="\n")
     load_truth(truth_dir, require_complete=True)
+
+
+def _workspace_bytes(truth_dir: Path) -> dict[str, bytes]:
+    return {path.name: path.read_bytes() for path in sorted(truth_dir.iterdir())}
+
+
+def _source_text(truth_dir: Path, source_dir: Path) -> str:
+    workspace = load_annotation_workspace(truth_dir, source_dir)
+    source = workspace.source_documents.iloc[0]
+    return f"{source['titulo']}\n{source['texto_limpio']}"
+
+
+def _action_row(
+    action_key: str,
+    *,
+    applicability: str = "applicable",
+    adjudication: str = "scored_truth",
+    affected_assets: str = '["asset_1"]',
+) -> dict[str, str]:
+    return {
+        **_common(),
+        "event_key": "event_1",
+        "action_key": action_key,
+        "expected_action_type": "autorizacion_administrativa_previa",
+        "expected_decision": "autorizado",
+        "expected_is_modification": "false",
+        "temporal_status": "current",
+        "expected_affected_generation_asset_keys_json": affected_assets,
+        "applicability": applicability,
+        "adjudication": adjudication,
+    }
 
 
 def test_affected_assets_are_serialized_from_a_selector_not_manual_json() -> None:
@@ -354,7 +390,11 @@ def test_action_evidence_requires_an_existing_action_in_the_ui(
         for message in app.info
     )
     assert not any(
-        "evidence_passage/administrative_action/" in caption.value
+        element.value.startswith("**Evidencias de `")
+        for element in app.markdown
+    )
+    assert any(
+        caption.value == "`evidence_passage/administrative_action/action_1`"
         for caption in app.caption
     )
 
@@ -419,6 +459,372 @@ def test_action_evidence_still_requires_one_literal_continuous_passage(
             source_text=source_text,
         )
     assert before == {path.name: path.read_bytes() for path in truth_dir.iterdir()}
+
+
+def test_new_scored_action_and_first_evidence_are_saved_together(
+    v2_annotation_workspace: tuple[Path, Path],
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    _mark_complete(truth_dir)
+    truth = load_truth(truth_dir)
+    action_key = next_key_for_table(
+        truth,
+        "administrative_actions",
+        BOE_ID,
+    )
+
+    saved = upsert_action_with_initial_evidence(
+        truth_dir,
+        BOE_ID,
+        _action_row(action_key),
+        evidence_passage=ACTION_EVIDENCE,
+        source_text=_source_text(truth_dir, source_dir),
+    )
+
+    assert action_key == "action_2"
+    assert saved.tables["administrative_actions"]["action_key"].astype(str).eq(
+        action_key
+    ).sum() == 1
+    created_evidence = action_evidence_rows(saved, BOE_ID, action_key=action_key)
+    assert len(created_evidence) == 1
+    assert created_evidence.iloc[0]["owner_key"] == action_key
+    assert created_evidence.iloc[0]["passage_text"] == ACTION_EVIDENCE
+    assert action_has_scored_evidence(saved, BOE_ID, action_key)
+    load_truth(truth_dir, require_complete=True)
+
+
+def test_new_scored_action_without_evidence_is_rejected_before_write(
+    v2_annotation_workspace: tuple[Path, Path],
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    _mark_complete(truth_dir)
+    before = _workspace_bytes(truth_dir)
+
+    with pytest.raises(TruthContractError, match="misma operación"):
+        upsert_action_with_initial_evidence(
+            truth_dir,
+            BOE_ID,
+            _action_row("action_2"),
+            evidence_passage="",
+            source_text=_source_text(truth_dir, source_dir),
+        )
+
+    assert _workspace_bytes(truth_dir) == before
+
+
+@pytest.mark.parametrize(
+    ("passage", "message"),
+    [
+        ("Resumen no literal de la actuación.", "literal"),
+        (f"{ACTION_EVIDENCE} [...] {SECOND_ACTION_EVIDENCE}", "continuous"),
+    ],
+)
+def test_invalid_first_evidence_rejects_action_and_evidence_together(
+    v2_annotation_workspace: tuple[Path, Path],
+    passage: str,
+    message: str,
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    _mark_complete(truth_dir)
+    before = _workspace_bytes(truth_dir)
+
+    with pytest.raises(TruthContractError, match=message):
+        upsert_action_with_initial_evidence(
+            truth_dir,
+            BOE_ID,
+            _action_row("action_2"),
+            evidence_passage=passage,
+            source_text=_source_text(truth_dir, source_dir),
+        )
+
+    assert _workspace_bytes(truth_dir) == before
+
+
+def test_staged_action_validation_failure_preserves_original_workspace_bytes(
+    v2_annotation_workspace: tuple[Path, Path],
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    _mark_complete(truth_dir)
+    before = _workspace_bytes(truth_dir)
+
+    with pytest.raises(TruthContractError, match="affected-generation-asset"):
+        upsert_action_with_initial_evidence(
+            truth_dir,
+            BOE_ID,
+            _action_row("action_2", affected_assets="[]"),
+            evidence_passage=ACTION_EVIDENCE,
+            source_text=_source_text(truth_dir, source_dir),
+        )
+
+    assert _workspace_bytes(truth_dir) == before
+
+
+def test_action_evidence_publish_failure_restores_original_workspace_bytes(
+    v2_annotation_workspace: tuple[Path, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    _mark_complete(truth_dir)
+    before = _workspace_bytes(truth_dir)
+    real_replace = annotation_module.os.replace
+    failed = False
+
+    def fail_candidate_publication(source: object, destination: object) -> None:
+        nonlocal failed
+        source_path = Path(source)
+        destination_path = Path(destination)
+        if (
+            not failed
+            and ".annotation-staging-" in source_path.name
+            and destination_path == truth_dir.absolute()
+        ):
+            failed = True
+            raise OSError("synthetic publication failure")
+        real_replace(source, destination)
+
+    monkeypatch.setattr(annotation_module.os, "replace", fail_candidate_publication)
+
+    with pytest.raises(OSError, match="synthetic publication failure"):
+        upsert_action_with_initial_evidence(
+            truth_dir,
+            BOE_ID,
+            _action_row("action_2"),
+            evidence_passage=ACTION_EVIDENCE,
+            source_text=_source_text(truth_dir, source_dir),
+        )
+
+    assert failed
+    assert _workspace_bytes(truth_dir) == before
+    load_truth(truth_dir, require_complete=True)
+
+
+def test_existing_action_accepts_multiple_distinct_evidence_passages(
+    v2_annotation_workspace: tuple[Path, Path],
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    _mark_complete(truth_dir)
+    source_text = _source_text(truth_dir, source_dir)
+    upsert_action_with_initial_evidence(
+        truth_dir,
+        BOE_ID,
+        _action_row("action_2"),
+        evidence_passage=ACTION_EVIDENCE,
+        source_text=source_text,
+    )
+
+    saved = upsert_truth_row(
+        truth_dir,
+        "evidence_passages",
+        BOE_ID,
+        {
+            **_common(),
+            "owner_type": "administrative_action",
+            "owner_key": "action_2",
+            "passage_text": SECOND_ACTION_EVIDENCE,
+        },
+        source_text=source_text,
+    )
+
+    evidence = action_evidence_rows(saved, BOE_ID, action_key="action_2")
+    assert set(evidence["passage_text"].astype(str)) == {
+        ACTION_EVIDENCE,
+        SECOND_ACTION_EVIDENCE,
+    }
+
+
+def test_deleting_last_scored_action_evidence_fails_closed(
+    v2_annotation_workspace: tuple[Path, Path],
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    _mark_complete(truth_dir)
+    source_text = _source_text(truth_dir, source_dir)
+    upsert_action_with_initial_evidence(
+        truth_dir,
+        BOE_ID,
+        _action_row("action_2"),
+        evidence_passage=ACTION_EVIDENCE,
+        source_text=source_text,
+    )
+    before = _workspace_bytes(truth_dir)
+
+    with pytest.raises(TruthContractError, match="última evidencia"):
+        delete_truth_row(
+            truth_dir,
+            "evidence_passages",
+            BOE_ID,
+            {
+                "owner_type": "administrative_action",
+                "owner_key": "action_2",
+                "passage_text": ACTION_EVIDENCE,
+            },
+            source_text=source_text,
+        )
+
+    assert _workspace_bytes(truth_dir) == before
+
+
+def test_deleting_one_of_multiple_scored_action_evidences_still_succeeds(
+    v2_annotation_workspace: tuple[Path, Path],
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    _mark_complete(truth_dir)
+
+    saved = delete_truth_row(
+        truth_dir,
+        "evidence_passages",
+        BOE_ID,
+        {
+            "owner_type": "administrative_action",
+            "owner_key": "action_1",
+            "passage_text": ACTION_EVIDENCE,
+        },
+        source_text=_source_text(truth_dir, source_dir),
+    )
+
+    evidence = action_evidence_rows(saved, BOE_ID, action_key="action_1")
+    assert evidence["passage_text"].astype(str).tolist() == [SECOND_ACTION_EVIDENCE]
+    load_truth(truth_dir, require_complete=True)
+
+
+def test_non_scored_action_stays_optional_and_scored_transition_is_atomic(
+    v2_annotation_workspace: tuple[Path, Path],
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    _mark_complete(truth_dir)
+    source_text = _source_text(truth_dir, source_dir)
+    non_scored = _action_row(
+        "action_2",
+        applicability="not_applicable",
+        adjudication="excluded_from_scoring",
+    )
+    saved = upsert_action_with_initial_evidence(
+        truth_dir,
+        BOE_ID,
+        non_scored,
+        evidence_passage="",
+        source_text=source_text,
+    )
+    assert action_evidence_rows(saved, BOE_ID, action_key="action_2").empty
+    before_transition = _workspace_bytes(truth_dir)
+
+    with pytest.raises(TruthContractError, match="misma operación"):
+        upsert_action_with_initial_evidence(
+            truth_dir,
+            BOE_ID,
+            _action_row("action_2"),
+            evidence_passage="",
+            original_key={"action_key": "action_2"},
+            source_text=source_text,
+        )
+    assert _workspace_bytes(truth_dir) == before_transition
+
+    transitioned = upsert_action_with_initial_evidence(
+        truth_dir,
+        BOE_ID,
+        _action_row("action_2"),
+        evidence_passage=ACTION_EVIDENCE,
+        original_key={"action_key": "action_2"},
+        source_text=source_text,
+    )
+    assert action_has_scored_evidence(transitioned, BOE_ID, "action_2")
+    load_truth(truth_dir, require_complete=True)
+
+
+def test_new_action_form_shows_required_first_evidence_and_canonical_path(
+    v2_annotation_workspace: tuple[Path, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    monkeypatch.setenv(TRUTH_DIR_ENV, str(truth_dir))
+    monkeypatch.setenv(SOURCE_DIR_ENV, str(source_dir))
+    app = AppTest.from_file(ANNOTATION_APP, default_timeout=30).run()
+    action_mode = next(
+        control
+        for control in app.segmented_control
+        if control.key == f"v2_mode_administrative_actions_{BOE_ID}_all"
+    )
+
+    action_mode.set_value("Añadir").run()
+
+    assert not app.exception
+    assert any(
+        element.value == "**Evidencia literal obligatoria**"
+        for element in app.markdown
+    )
+    assert any(
+        area.label.startswith("Primera evidencia literal de la actuación")
+        and "evidence_passage/administrative_action/action_2" in area.label
+        for area in app.text_area
+    )
+    assert any(
+        "La actuación y su primera evidencia se guardan conjuntamente"
+        in caption.value
+        for caption in app.caption
+    )
+    assert any(
+        caption.value == "`evidence_passage/administrative_action/action_2`"
+        for caption in app.caption
+    )
+    assert any(button.label == "Guardar actuación" for button in app.button)
+
+
+def test_new_scored_action_is_saved_with_evidence_through_streamlit_form(
+    v2_annotation_workspace: tuple[Path, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    _mark_complete(truth_dir)
+    monkeypatch.setenv(TRUTH_DIR_ENV, str(truth_dir))
+    monkeypatch.setenv(SOURCE_DIR_ENV, str(source_dir))
+    app = AppTest.from_file(ANNOTATION_APP, default_timeout=30).run()
+    action_mode = next(
+        control
+        for control in app.segmented_control
+        if control.key == f"v2_mode_administrative_actions_{BOE_ID}_all"
+    )
+    action_mode.set_value("Añadir").run()
+
+    selections = {
+        "Evento · administrative_action/action_2.event_key": "event_1",
+        "Tipo de actuación · administrative_action/action_2.expected_action_type": (
+            "autorizacion_administrativa_previa"
+        ),
+        "Decisión · administrative_action/action_2.expected_decision": "autorizado",
+        "Es modificación · administrative_action/action_2.expected_is_modification": (
+            "false"
+        ),
+        "Temporalidad · administrative_action/action_2.temporal_status": "current",
+        "Aplicabilidad · administrative_action/action_2.applicability": "applicable",
+        "Adjudicación · administrative_action/action_2.adjudication": "scored_truth",
+    }
+    for label, value in selections.items():
+        next(widget for widget in app.selectbox if widget.label == label).set_value(value)
+    next(
+        widget
+        for widget in app.multiselect
+        if widget.label
+        == "Activos afectados · administrative_action/action_2."
+        "expected_affected_generation_asset_keys_json"
+    ).set_value(["asset_1"])
+    next(
+        area
+        for area in app.text_area
+        if area.label.startswith("Primera evidencia literal de la actuación")
+    ).set_value(ACTION_EVIDENCE)
+
+    next(
+        button for button in app.button if button.label == "Guardar actuación"
+    ).click().run()
+
+    assert not app.exception
+    assert not app.error
+    saved = load_truth(truth_dir, require_complete=True)
+    assert saved.tables["administrative_actions"]["action_key"].astype(str).eq(
+        "action_2"
+    ).sum() == 1
+    evidence = action_evidence_rows(saved, BOE_ID, action_key="action_2")
+    assert len(evidence) == 1
+    assert evidence.iloc[0]["passage_text"] == ACTION_EVIDENCE
 
 
 def test_v2_streamlit_surface_is_blind_and_shows_primary_optional_and_paths(
