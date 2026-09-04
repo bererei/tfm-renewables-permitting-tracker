@@ -1809,8 +1809,10 @@ lado su ruta canónica, por ejemplo
 Cada evidencia primaria debe pegarse como pasaje continuo literal de la fuente
 y cada escritura se valida antes del reemplazo atómico de los CSV afectados. Al
 añadir una actuación primaria puntuada, su primera evidencia literal se exige
-en el mismo formulario y ambas filas se validan y guardan conjuntamente; una
-actuación no puntuada conserva el comportamiento opcional del contrato.
+en el mismo formulario y ambas filas se validan y guardan conjuntamente con la
+misma clave, derivada autoritativamente al guardar; los marcadores internos
+como `pending` nunca se persisten. Una actuación no puntuada conserva el
+comportamiento opcional del contrato.
 El BOE actual también puede abrirse en la web oficial mediante un enlace que
 solo actúa tras el clic humano; la aplicación no descarga ni valida esa página.
 El flujo de QA posterior es:

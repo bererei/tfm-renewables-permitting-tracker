@@ -493,6 +493,173 @@ def test_new_scored_action_and_first_evidence_are_saved_together(
     load_truth(truth_dir, require_complete=True)
 
 
+def test_existing_action_1_action_2_add_generates_action_3_for_both_rows(
+    v2_annotation_workspace: tuple[Path, Path],
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    _mark_complete(truth_dir)
+    source_text = _source_text(truth_dir, source_dir)
+    upsert_action_with_initial_evidence(
+        truth_dir,
+        BOE_ID,
+        _action_row("pending"),
+        evidence_passage=ACTION_EVIDENCE,
+        source_text=source_text,
+    )
+
+    saved = upsert_action_with_initial_evidence(
+        truth_dir,
+        BOE_ID,
+        _action_row("pending"),
+        evidence_passage=SECOND_ACTION_EVIDENCE,
+        source_text=source_text,
+    )
+
+    assert saved.tables["administrative_actions"]["action_key"].astype(str).tolist() == [
+        "action_1",
+        "action_2",
+        "action_3",
+    ]
+    evidence = action_evidence_rows(saved, BOE_ID, action_key="action_3")
+    assert len(evidence) == 1
+    assert evidence.iloc[0]["owner_key"] == "action_3"
+    assert evidence.iloc[0]["passage_text"] == SECOND_ACTION_EVIDENCE
+
+
+@pytest.mark.parametrize("placeholder", ["pending", "<NEW_ACTION_KEY>"])
+def test_annotation_write_boundary_rejects_reserved_action_key_placeholders(
+    v2_annotation_workspace: tuple[Path, Path],
+    placeholder: str,
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    before = _workspace_bytes(truth_dir)
+
+    with pytest.raises(TruthContractError, match="placeholder"):
+        upsert_truth_row(
+            truth_dir,
+            "administrative_actions",
+            BOE_ID,
+            _action_row(placeholder),
+            source_text=_source_text(truth_dir, source_dir),
+        )
+
+    assert _workspace_bytes(truth_dir) == before
+
+
+def test_annotation_write_boundary_rejects_pending_evidence_owner_key(
+    v2_annotation_workspace: tuple[Path, Path],
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    before = _workspace_bytes(truth_dir)
+
+    with pytest.raises(TruthContractError, match="placeholder"):
+        upsert_truth_row(
+            truth_dir,
+            "evidence_passages",
+            BOE_ID,
+            {
+                **_common(),
+                "owner_type": "administrative_action",
+                "owner_key": "pending",
+                "passage_text": ACTION_EVIDENCE,
+            },
+            source_text=_source_text(truth_dir, source_dir),
+        )
+
+    assert _workspace_bytes(truth_dir) == before
+
+
+def test_sparse_action_keys_use_existing_max_plus_one_policy(
+    v2_annotation_workspace: tuple[Path, Path],
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    source_text = _source_text(truth_dir, source_dir)
+    upsert_truth_row(
+        truth_dir,
+        "administrative_actions",
+        BOE_ID,
+        _action_row(
+            "action_3",
+            applicability="not_applicable",
+            adjudication="excluded_from_scoring",
+        ),
+        source_text=source_text,
+    )
+
+    saved = upsert_action_with_initial_evidence(
+        truth_dir,
+        BOE_ID,
+        _action_row("pending"),
+        evidence_passage=ACTION_EVIDENCE,
+        source_text=source_text,
+    )
+
+    assert saved.tables["administrative_actions"]["action_key"].astype(str).tolist() == [
+        "action_1",
+        "action_3",
+        "action_4",
+    ]
+    assert action_evidence_rows(saved, BOE_ID, action_key="action_4").shape[0] == 1
+
+
+def test_editing_existing_action_does_not_allocate_a_new_key(
+    v2_annotation_workspace: tuple[Path, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    _mark_complete(truth_dir)
+    truth = load_truth(truth_dir)
+    action = truth.tables["administrative_actions"].iloc[0].to_dict()
+
+    def refuse_allocation(*args: object, **kwargs: object) -> str:
+        raise AssertionError("Editing must not allocate an action key.")
+
+    monkeypatch.setattr(annotation_module, "next_key_for_table", refuse_allocation)
+    saved = upsert_action_with_initial_evidence(
+        truth_dir,
+        BOE_ID,
+        action,
+        evidence_passage=None,
+        original_key={"action_key": "action_1"},
+        source_text=_source_text(truth_dir, source_dir),
+    )
+
+    assert saved.tables["administrative_actions"]["action_key"].astype(str).tolist() == [
+        "action_1"
+    ]
+
+
+def test_multiple_sequential_additions_allocate_action_3_action_4_action_5(
+    v2_annotation_workspace: tuple[Path, Path],
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    _mark_complete(truth_dir)
+    source_text = _source_text(truth_dir, source_dir)
+    upsert_action_with_initial_evidence(
+        truth_dir,
+        BOE_ID,
+        _action_row("pending"),
+        evidence_passage=ACTION_EVIDENCE,
+        source_text=source_text,
+    )
+    for passage in (ACTION_EVIDENCE, SECOND_ACTION_EVIDENCE, ACTION_EVIDENCE):
+        saved = upsert_action_with_initial_evidence(
+            truth_dir,
+            BOE_ID,
+            _action_row("pending"),
+            evidence_passage=passage,
+            source_text=source_text,
+        )
+
+    keys = saved.tables["administrative_actions"]["action_key"].astype(str).tolist()
+    assert keys == ["action_1", "action_2", "action_3", "action_4", "action_5"]
+    assert len(keys) == len(set(keys))
+    for action_key in ("action_3", "action_4", "action_5"):
+        evidence = action_evidence_rows(saved, BOE_ID, action_key=action_key)
+        assert len(evidence) == 1
+        assert evidence.iloc[0]["owner_key"] == action_key
+
+
 def test_new_scored_action_without_evidence_is_rejected_before_write(
     v2_annotation_workspace: tuple[Path, Path],
 ) -> None:
@@ -774,6 +941,13 @@ def test_new_scored_action_is_saved_with_evidence_through_streamlit_form(
 ) -> None:
     truth_dir, source_dir = v2_annotation_workspace
     _mark_complete(truth_dir)
+    upsert_action_with_initial_evidence(
+        truth_dir,
+        BOE_ID,
+        _action_row("pending"),
+        evidence_passage=ACTION_EVIDENCE,
+        source_text=_source_text(truth_dir, source_dir),
+    )
     monkeypatch.setenv(TRUTH_DIR_ENV, str(truth_dir))
     monkeypatch.setenv(SOURCE_DIR_ENV, str(source_dir))
     app = AppTest.from_file(ANNOTATION_APP, default_timeout=30).run()
@@ -785,17 +959,17 @@ def test_new_scored_action_is_saved_with_evidence_through_streamlit_form(
     action_mode.set_value("Añadir").run()
 
     selections = {
-        "Evento · administrative_action/action_2.event_key": "event_1",
-        "Tipo de actuación · administrative_action/action_2.expected_action_type": (
+        "Evento · administrative_action/action_3.event_key": "event_1",
+        "Tipo de actuación · administrative_action/action_3.expected_action_type": (
             "autorizacion_administrativa_previa"
         ),
-        "Decisión · administrative_action/action_2.expected_decision": "autorizado",
-        "Es modificación · administrative_action/action_2.expected_is_modification": (
+        "Decisión · administrative_action/action_3.expected_decision": "autorizado",
+        "Es modificación · administrative_action/action_3.expected_is_modification": (
             "false"
         ),
-        "Temporalidad · administrative_action/action_2.temporal_status": "current",
-        "Aplicabilidad · administrative_action/action_2.applicability": "applicable",
-        "Adjudicación · administrative_action/action_2.adjudication": "scored_truth",
+        "Temporalidad · administrative_action/action_3.temporal_status": "current",
+        "Aplicabilidad · administrative_action/action_3.applicability": "applicable",
+        "Adjudicación · administrative_action/action_3.adjudication": "scored_truth",
     }
     for label, value in selections.items():
         next(widget for widget in app.selectbox if widget.label == label).set_value(value)
@@ -803,7 +977,7 @@ def test_new_scored_action_is_saved_with_evidence_through_streamlit_form(
         widget
         for widget in app.multiselect
         if widget.label
-        == "Activos afectados · administrative_action/action_2."
+        == "Activos afectados · administrative_action/action_3."
         "expected_affected_generation_asset_keys_json"
     ).set_value(["asset_1"])
     next(
@@ -820,9 +994,9 @@ def test_new_scored_action_is_saved_with_evidence_through_streamlit_form(
     assert not app.error
     saved = load_truth(truth_dir, require_complete=True)
     assert saved.tables["administrative_actions"]["action_key"].astype(str).eq(
-        "action_2"
+        "action_3"
     ).sum() == 1
-    evidence = action_evidence_rows(saved, BOE_ID, action_key="action_2")
+    evidence = action_evidence_rows(saved, BOE_ID, action_key="action_3")
     assert len(evidence) == 1
     assert evidence.iloc[0]["passage_text"] == ACTION_EVIDENCE
 

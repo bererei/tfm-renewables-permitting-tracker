@@ -125,6 +125,7 @@ _PRIMARY_QA_TABLES_BEFORE_ACTION_EVIDENCE = (
     "generation_assets",
     "administrative_actions",
 )
+_RESERVED_LOCAL_KEY_VALUES = frozenset({"pending"})
 
 
 @dataclass(frozen=True)
@@ -564,6 +565,18 @@ def _row_frame(table: str, row: Mapping[str, str]) -> pd.DataFrame:
             f"V2 {table} row fields do not match contract; "
             f"missing={missing}, extra={extra}."
         )
+    for column in spec.columns:
+        if not column.endswith("_key"):
+            continue
+        value = str(row[column]).strip()
+        if (
+            value.casefold() in _RESERVED_LOCAL_KEY_VALUES
+            or (value.startswith("<") and value.endswith(">"))
+        ):
+            raise TruthContractError(
+                f"Reserved annotation placeholder cannot be persisted as "
+                f"{table}.{column}: {value!r}."
+            )
     return pd.DataFrame(
         [{column: str(row[column]) for column in spec.columns}],
         columns=spec.columns,
@@ -666,7 +679,14 @@ def upsert_action_with_initial_evidence(
     if truth.tables["documents"]["identificador_boe"].astype(str).eq(boe_id).sum() != 1:
         raise TruthContractError(f"Unknown V2 truth document: {boe_id}")
 
-    new_action = _row_frame("administrative_actions", action_row)
+    action_values = dict(action_row)
+    if original_key is None:
+        action_values["action_key"] = next_key_for_table(
+            truth,
+            "administrative_actions",
+            boe_id,
+        )
+    new_action = _row_frame("administrative_actions", action_values)
     if str(new_action.iloc[0]["identificador_boe"]) != boe_id:
         raise TruthContractError("An edit cannot move a row to another BOE.")
     action_key = str(new_action.iloc[0]["action_key"])
