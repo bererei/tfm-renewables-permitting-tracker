@@ -891,6 +891,40 @@ def upsert_action_with_initial_evidence(
 ) -> TruthArtifact:
     """Stage and persist an action and any required first evidence together."""
 
+    evidence_rows: list[Mapping[str, str]] = []
+    if original_key is not None:
+        truth = load_truth(Path(truth_dir))
+        evidence_rows.extend(
+            row.to_dict()
+            for _, row in action_evidence_rows(
+                truth,
+                boe_id,
+                action_key=str(original_key["action_key"]),
+            ).iterrows()
+        )
+    if evidence_passage is not None and str(evidence_passage).strip():
+        evidence_rows.append({"passage_text": str(evidence_passage)})
+    return upsert_action_with_evidence_set(
+        truth_dir,
+        boe_id,
+        action_row,
+        evidence_rows=evidence_rows,
+        original_key=original_key,
+        source_text=source_text,
+    )
+
+
+def upsert_action_with_evidence_set(
+    truth_dir: Path,
+    boe_id: str,
+    action_row: Mapping[str, str],
+    *,
+    evidence_rows: Sequence[Mapping[str, str]],
+    original_key: Mapping[str, str] | None = None,
+    source_text: str,
+) -> TruthArtifact:
+    """Persist one action and its complete action-evidence set atomically."""
+
     truth_dir = Path(truth_dir)
     truth = load_truth(truth_dir)
     if truth.tables["documents"]["identificador_boe"].astype(str).eq(boe_id).sum() != 1:
@@ -902,6 +936,12 @@ def upsert_action_with_initial_evidence(
             truth,
             "administrative_actions",
             boe_id,
+        )
+    elif str(action_values.get("action_key")) != str(
+        original_key.get("action_key")
+    ):
+        raise TruthContractError(
+            "La clave persistida de una actuación no puede cambiar al editarla."
         )
     new_action = _row_frame("administrative_actions", action_values)
     if str(new_action.iloc[0]["identificador_boe"]) != boe_id:
@@ -915,39 +955,74 @@ def upsert_action_with_initial_evidence(
         original_key=original_key,
     )
 
-    raw_passage = "" if evidence_passage is None else str(evidence_passage)
-    passage = (
-        validate_evidence_literal(raw_passage, source_text)
-        if raw_passage.strip()
-        else None
+    prepared_evidence: list[pd.DataFrame] = []
+    seen_passages: set[str] = set()
+    for candidate in evidence_rows:
+        raw_passage = str(candidate.get("passage_text", ""))
+        if not raw_passage.strip():
+            continue
+        passage = validate_evidence_literal(raw_passage, source_text)
+        if passage in seen_passages:
+            raise TruthContractError(
+                "No se puede guardar dos veces el mismo pasaje de evidencia."
+            )
+        seen_passages.add(passage)
+        prepared_evidence.append(
+            _row_frame(
+                "evidence_passages",
+                {
+                    "identificador_boe": boe_id,
+                    "owner_type": "administrative_action",
+                    "owner_key": action_key,
+                    "passage_text": passage,
+                    "applicability": str(
+                        candidate.get(
+                            "applicability",
+                            new_action.iloc[0]["applicability"],
+                        )
+                    ),
+                    "adjudication": str(
+                        candidate.get(
+                            "adjudication",
+                            new_action.iloc[0]["adjudication"],
+                        )
+                    ),
+                    "annotation_notes": str(
+                        candidate.get("annotation_notes", NA)
+                    ),
+                },
+            )
+        )
+
+    candidate_evidence = (
+        pd.concat(prepared_evidence, ignore_index=True)
+        if prepared_evidence
+        else pd.DataFrame(
+            columns=TABLE_SPECS["evidence_passages"].columns,
+            dtype="string",
+        )
     )
-    already_supported = action_has_scored_evidence(truth, boe_id, action_key)
-    if not _scored(new_action).empty and not already_supported and passage is None:
+    if not _scored(new_action).empty and _scored(candidate_evidence).empty:
         raise TruthContractError(
             "Cada actuación primaria puntuada necesita al menos un pasaje literal "
             "continuo del BOE; proporciona la evidencia en la misma operación."
         )
 
+    current_evidence = truth.tables["evidence_passages"]
+    selected_evidence = (
+        current_evidence["identificador_boe"].astype(str).eq(boe_id)
+        & current_evidence["owner_type"].astype(str).eq(
+            "administrative_action"
+        )
+        & current_evidence["owner_key"].astype(str).eq(action_key)
+    )
     replacements: dict[str, pd.DataFrame] = {
         "administrative_actions": actions,
-    }
-    if passage is not None:
-        evidence_row = _row_frame(
-            "evidence_passages",
-            {
-                "identificador_boe": boe_id,
-                "owner_type": "administrative_action",
-                "owner_key": action_key,
-                "passage_text": passage,
-                "applicability": str(new_action.iloc[0]["applicability"]),
-                "adjudication": str(new_action.iloc[0]["adjudication"]),
-                "annotation_notes": NA,
-            },
-        )
-        replacements["evidence_passages"] = pd.concat(
-            [truth.tables["evidence_passages"].copy(), evidence_row],
+        "evidence_passages": pd.concat(
+            [current_evidence.loc[~selected_evidence].copy(), candidate_evidence],
             ignore_index=True,
-        )
+        ),
+    }
 
     return _commit_table_frames(
         truth_dir,

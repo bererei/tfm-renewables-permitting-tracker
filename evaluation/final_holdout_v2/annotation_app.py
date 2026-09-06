@@ -26,7 +26,6 @@ from evaluation.final_holdout_v1.annotation import (
 )
 from evaluation.final_holdout_v2.annotation import (
     action_deletion_impact,
-    action_has_scored_evidence,
     action_evidence_rows,
     build_ai_qa_review_package,
     configured_paths,
@@ -39,7 +38,7 @@ from evaluation.final_holdout_v2.annotation import (
     secondary_evidence_rows,
     serialize_affected_assets,
     update_document_scope,
-    upsert_action_with_initial_evidence,
+    upsert_action_with_evidence_set,
     upsert_truth_row,
     validate_document,
     validation_error_feedback,
@@ -237,6 +236,18 @@ def _row_options(frame: pd.DataFrame, table: str) -> tuple[list[str], dict[str, 
     return labels, positions
 
 
+def _select_row(
+    frame: pd.DataFrame,
+    table: str,
+    *,
+    label: str,
+    key: str,
+) -> dict[str, object]:
+    labels, positions = _row_options(frame, table)
+    selected = st.selectbox(label, labels, key=key)
+    return frame.iloc[positions[selected]].to_dict()
+
+
 def _original_key(table: str, row: Mapping[str, object]) -> dict[str, str]:
     return {
         column: str(row[column])
@@ -268,6 +279,7 @@ def _display_rows(
         st.info(empty_message)
         return
     visible = frame.drop(columns=["identificador_boe"]).copy()
+    visible.insert(0, "Nº", range(1, len(visible) + 1))
     for column in (
         "names_json",
         "related_asset_keys_json",
@@ -278,6 +290,10 @@ def _display_rows(
                 lambda value: "\n".join(json.loads(str(value)))
             )
     st.dataframe(visible, hide_index=True, height="content")
+    st.caption(
+        "Nº indica la posición en esta tabla. La clave identifica la entidad y "
+        "se conserva aunque se eliminen otras filas."
+    )
 
 
 def _event_select(
@@ -418,14 +434,18 @@ def _render_delete(
     source_text: str,
     *,
     key_suffix: str = "all",
+    selected_row: Mapping[str, object] | None = None,
 ) -> None:
-    labels, positions = _row_options(frame, table)
-    selected = st.selectbox(
-        "Fila que se eliminará",
-        labels,
-        key=f"v2_delete_{table}_{boe_id}_{key_suffix}",
+    row = (
+        _select_row(
+            frame,
+            table,
+            label="Fila que se eliminará",
+            key=f"v2_delete_{table}_{boe_id}_{key_suffix}",
+        )
+        if selected_row is None
+        else dict(selected_row)
     )
-    row = frame.iloc[positions[selected]].to_dict()
     key = _original_key(table, row)
     row_scope = _row_state_scope(table, row)
     path = _row_canonical_path(table, row)
@@ -504,19 +524,19 @@ def _render_entity_form(
     *,
     action_evidence_only: bool = False,
     evidence_owner_key: str | None = None,
+    selected_row: Mapping[str, object] | None = None,
 ) -> None:
-    row: dict[str, object] | None = None
-    if mode == "Editar":
-        labels, positions = _row_options(frame, table)
-        selected = st.selectbox(
-            "Fila que se editará",
-            labels,
+    row = None if selected_row is None else dict(selected_row)
+    if mode == "Editar" and row is None:
+        row = _select_row(
+            frame,
+            table,
+            label="Fila que se editará",
             key=(
                 f"v2_edit_{table}_{boe_id}_{action_evidence_only}_"
                 f"{evidence_owner_key or 'all'}"
             ),
         )
-        row = frame.iloc[positions[selected]].to_dict()
 
     generated = (
         next_key_for_table(truth, table, boe_id)
@@ -534,14 +554,6 @@ def _render_entity_form(
     key_prefix = (
         f"v2_{mode}_{table}_{boe_id}_{action_evidence_only}_"
         f"{evidence_owner_key or 'all'}_{row_scope}"
-    )
-    action_evidence_field = table == "administrative_actions" and (
-        row is None
-        or not action_has_scored_evidence(
-            truth,
-            boe_id,
-            str(row["action_key"]),
-        )
     )
     with st.form(f"v2_form_{key_prefix}", enter_to_submit=False):
         values: dict[str, object] = {}
@@ -574,73 +586,6 @@ def _render_entity_form(
                 current=None if row is None else row["expected_generation_type"],
                 key=f"{key_prefix}_generation_type",
                 allow_na=True,
-            )
-        elif table == "administrative_actions":
-            values["event_key"] = _event_select(
-                truth,
-                boe_id,
-                current=None if row is None else str(row["event_key"]),
-                key=f"{key_prefix}_event",
-                entity=entity,
-                local_key=local_key,
-            )
-            values["action_key"] = local_key
-            values["expected_action_type"] = _select_domain(
-                table,
-                "expected_action_type",
-                ACTION_TYPES,
-                local_key=local_key,
-                current=None if row is None else row["expected_action_type"],
-                key=f"{key_prefix}_action_type",
-                allow_na=True,
-            )
-            values["expected_decision"] = _select_domain(
-                table,
-                "expected_decision",
-                DECISIONS,
-                local_key=local_key,
-                current=None if row is None else row["expected_decision"],
-                key=f"{key_prefix}_decision",
-                allow_na=True,
-            )
-            values["expected_is_modification"] = _select_domain(
-                table,
-                "expected_is_modification",
-                {"true", "false"},
-                local_key=local_key,
-                current=None if row is None else row["expected_is_modification"],
-                key=f"{key_prefix}_modification",
-                allow_na=True,
-            )
-            values["temporal_status"] = _select_domain(
-                table,
-                "temporal_status",
-                TEMPORAL_STATUSES,
-                local_key=local_key,
-                current=None if row is None else row["temporal_status"],
-                key=f"{key_prefix}_temporal_status",
-            )
-            asset_values, asset_labels = _asset_options(truth, boe_id)
-            current_assets = (
-                []
-                if row is None
-                else json.loads(
-                    str(row["expected_affected_generation_asset_keys_json"])
-                )
-            )
-            values["affected_assets"] = st.multiselect(
-                widget_label(
-                    entity,
-                    "expected_affected_generation_asset_keys_json",
-                    local_key=local_key,
-                ),
-                asset_values,
-                default=current_assets,
-                format_func=lambda value: asset_labels[value],
-                help=(
-                    "Selecciona explícitamente todos los activos afectados; "
-                    "la aplicación serializa el contrato y no infiere el único activo."
-                ),
             )
         elif table == "locations":
             values["event_key"] = _event_select(
@@ -833,30 +778,8 @@ def _render_entity_form(
             row,
             key_prefix=key_prefix,
         )
-        if action_evidence_field:
-            evidence_path = canonical_path(
-                "evidence_passage",
-                owner_entity="administrative_action",
-                local_key=local_key,
-            )
-            st.markdown("**Evidencia literal obligatoria**")
-            st.caption(
-                "Cada actuación primaria puntuada necesita al menos un pasaje "
-                "literal continuo del BOE. La actuación y su primera evidencia "
-                "se guardan conjuntamente."
-            )
-            st.caption(f"`{evidence_path}`")
-            values["initial_evidence"] = st.text_area(
-                f"Primera evidencia literal de la actuación · {evidence_path}",
-                height=160,
-                key=f"{key_prefix}_initial_evidence",
-                help=(
-                    "Es obligatorio para una actuación applicable + scored_truth. "
-                    "Debe ser un único pasaje continuo copiado de la fuente local."
-                ),
-            )
         submitted = st.form_submit_button(
-            "Guardar actuación" if table == "administrative_actions" else "Guardar fila",
+            "Guardar fila",
             icon=":material/save:",
         )
 
@@ -881,24 +804,6 @@ def _render_entity_form(
                 names_json=serialize_aliases(str(values["aliases"])),
                 expected_generation_type=_required(
                     values["expected_generation_type"], "el tipo de generación"
-                ),
-            )
-        elif table == "administrative_actions":
-            entity_row.update(
-                event_key=_required(values["event_key"], "el evento"),
-                action_key=str(values["action_key"]),
-                expected_action_type=_required(
-                    values["expected_action_type"], "el tipo de actuación"
-                ),
-                expected_decision=_required(values["expected_decision"], "la decisión"),
-                expected_is_modification=_required(
-                    values["expected_is_modification"], "si es modificación"
-                ),
-                temporal_status=_required(
-                    values["temporal_status"], "la temporalidad"
-                ),
-                expected_affected_generation_asset_keys_json=serialize_affected_assets(
-                    values["affected_assets"]
                 ),
             )
         elif table == "locations":
@@ -982,28 +887,14 @@ def _render_entity_form(
                     str(values["passage_text"]), source_text
                 ),
             )
-        if table == "administrative_actions":
-            saved = upsert_action_with_initial_evidence(
-                truth_dir,
-                boe_id,
-                entity_row,
-                evidence_passage=(
-                    None
-                    if "initial_evidence" not in values
-                    else str(values["initial_evidence"])
-                ),
-                original_key=None if row is None else _original_key(table, row),
-                source_text=source_text,
-            )
-        else:
-            saved = upsert_truth_row(
-                truth_dir,
-                table,
-                boe_id,
-                entity_row,
-                original_key=None if row is None else _original_key(table, row),
-                source_text=source_text,
-            )
+        saved = upsert_truth_row(
+            truth_dir,
+            table,
+            boe_id,
+            entity_row,
+            original_key=None if row is None else _original_key(table, row),
+            source_text=source_text,
+        )
     except (IndexError, OSError, ValueError, TruthContractError) as error:
         _show_validation_error(error, truth, boe_id)
     else:
@@ -1020,7 +911,6 @@ KEYED_TABLES = {
     "generation_assets",
     "associated_components",
     "technical_mentions",
-    "administrative_actions",
     "participants",
     "locations",
 }
@@ -1131,12 +1021,17 @@ def _optional_prerequisite_message(
     return None
 
 
-def _render_action_summary(action: Mapping[str, object]) -> None:
+def _render_action_heading(action: Mapping[str, object]) -> None:
     action_key = str(action["action_key"])
     st.markdown(f"**Actuación administrativa · `{action_key}`**")
     st.caption(
         f"`{canonical_path('administrative_action', local_key=action_key)}`"
     )
+
+
+def _render_action_summary(action: Mapping[str, object]) -> None:
+    _render_action_heading(action)
+    action_key = str(action["action_key"])
     for field in ACTION_SUMMARY_FIELDS:
         value = str(action[field])
         if field == "expected_affected_generation_asset_keys_json":
@@ -1151,44 +1046,403 @@ def _render_action_summary(action: Mapping[str, object]) -> None:
         st.write(value)
 
 
-def _render_action_evidence_workflow(
+def _action_bundle_state_prefix(
+    truth_dir: Path,
+    truth: TruthArtifact,
+    boe_id: str,
+    mode: str,
+    action: Mapping[str, object] | None,
+) -> str:
+    workspace_scope = sha256(
+        str(truth_dir.resolve()).encode("utf-8")
+    ).hexdigest()[:12]
+    row_scope = "new" if action is None else _row_state_scope(
+        "administrative_actions", action
+    )
+    persisted_scope = sha256(
+        json.dumps(
+            {
+                "actions": truth.table_semantic_sha256[
+                    "administrative_actions"
+                ],
+                "evidence": truth.table_semantic_sha256[
+                    "evidence_passages"
+                ],
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ).encode("utf-8")
+    ).hexdigest()[:12]
+    return (
+        f"v2_action_bundle_{workspace_scope}_{boe_id}_{mode}_"
+        f"{row_scope}_{persisted_scope}"
+    )
+
+
+def _new_action_evidence_slot(slot_number: int) -> dict[str, object]:
+    return {
+        "slot_key": f"new_{slot_number}",
+        "passage_text": "",
+        "applicability": None,
+        "adjudication": None,
+        "annotation_notes": NA,
+    }
+
+
+def _action_evidence_draft_state(
+    truth: TruthArtifact,
+    boe_id: str,
+    action_key: str | None,
+    *,
+    state_prefix: str,
+) -> tuple[str, dict[str, object]]:
+    state_key = f"{state_prefix}_evidence_draft"
+    if state_key not in st.session_state:
+        rows = (
+            action_evidence_rows(truth, boe_id, action_key=action_key)
+            if action_key is not None
+            else pd.DataFrame()
+        )
+        slots = [
+            {
+                "slot_key": _row_state_scope(
+                    "evidence_passages", row.to_dict()
+                ),
+                "passage_text": str(row["passage_text"]),
+                "applicability": str(row["applicability"]),
+                "adjudication": str(row["adjudication"]),
+                "annotation_notes": str(row["annotation_notes"]),
+            }
+            for _, row in rows.iterrows()
+        ]
+        next_slot = 1
+        if not slots:
+            slots.append(_new_action_evidence_slot(next_slot))
+            next_slot += 1
+        st.session_state[state_key] = {
+            "slots": slots,
+            "next_slot": next_slot,
+        }
+    state = st.session_state[state_key]
+    if not isinstance(state, dict):
+        raise TruthContractError("El borrador de evidencias no es válido.")
+    return state_key, state
+
+
+def _render_action_bundle_editor(
+    truth_dir: Path,
+    truth: TruthArtifact,
+    boe_id: str,
+    source_text: str,
+    mode: str,
+    action: Mapping[str, object] | None,
+) -> None:
+    table = "administrative_actions"
+    entity = table_entity(table)
+    local_key = (
+        "<nueva_clave>" if action is None else str(action["action_key"])
+    )
+    if action is None:
+        st.caption(
+            "La clave real de la actuación se genera una sola vez dentro de "
+            "la transacción de guardado."
+        )
+    else:
+        st.caption(f"Clave local: `{local_key}`")
+
+    state_prefix = _action_bundle_state_prefix(
+        truth_dir,
+        truth,
+        boe_id,
+        mode,
+        action,
+    )
+    draft_state_key, draft_state = _action_evidence_draft_state(
+        truth,
+        boe_id,
+        None if action is None else local_key,
+        state_prefix=state_prefix,
+    )
+    slots = [dict(slot) for slot in draft_state.get("slots", [])]
+    evidence_path = canonical_path(
+        "evidence_passage",
+        owner_entity="administrative_action",
+        local_key=local_key,
+    )
+
+    remove_slot: str | None = None
+    with st.form(f"{state_prefix}_form", enter_to_submit=False):
+        values: dict[str, object] = {}
+        values["event_key"] = _event_select(
+            truth,
+            boe_id,
+            current=None if action is None else str(action["event_key"]),
+            key=f"{state_prefix}_event",
+            entity=entity,
+            local_key=local_key,
+        )
+        values["expected_action_type"] = _select_domain(
+            table,
+            "expected_action_type",
+            ACTION_TYPES,
+            local_key=local_key,
+            current=(
+                None if action is None else action["expected_action_type"]
+            ),
+            key=f"{state_prefix}_action_type",
+            allow_na=True,
+        )
+        values["expected_decision"] = _select_domain(
+            table,
+            "expected_decision",
+            DECISIONS,
+            local_key=local_key,
+            current=None if action is None else action["expected_decision"],
+            key=f"{state_prefix}_decision",
+            allow_na=True,
+        )
+        values["expected_is_modification"] = _select_domain(
+            table,
+            "expected_is_modification",
+            {"true", "false"},
+            local_key=local_key,
+            current=(
+                None
+                if action is None
+                else action["expected_is_modification"]
+            ),
+            key=f"{state_prefix}_modification",
+            allow_na=True,
+        )
+        values["temporal_status"] = _select_domain(
+            table,
+            "temporal_status",
+            TEMPORAL_STATUSES,
+            local_key=local_key,
+            current=None if action is None else action["temporal_status"],
+            key=f"{state_prefix}_temporal_status",
+        )
+        asset_values, asset_labels = _asset_options(truth, boe_id)
+        values["affected_assets"] = st.multiselect(
+            widget_label(
+                entity,
+                "expected_affected_generation_asset_keys_json",
+                local_key=local_key,
+            ),
+            asset_values,
+            default=(
+                []
+                if action is None
+                else json.loads(
+                    str(
+                        action[
+                            "expected_affected_generation_asset_keys_json"
+                        ]
+                    )
+                )
+            ),
+            format_func=lambda value: asset_labels[value],
+            key=f"{state_prefix}_affected_assets",
+            help=(
+                "Selecciona explícitamente todos los activos afectados; la "
+                "aplicación serializa el contrato y no infiere el único activo."
+            ),
+        )
+        applicability, adjudication, notes = _common_fields(
+            table,
+            local_key,
+            action,
+            key_prefix=state_prefix,
+        )
+
+        st.markdown("**Evidencias literales de esta actuación**")
+        st.caption(
+            "Los pasajes se guardan únicamente al confirmar la actuación. "
+            f"Ruta canónica: `{evidence_path}`"
+        )
+        evidence_values: list[tuple[dict[str, object], str]] = []
+        for position, slot in enumerate(slots, start=1):
+            label = "Evidencia literal de la actuación"
+            if position > 1:
+                label = f"{label} {position}"
+            passage = st.text_area(
+                f"{label} · {evidence_path}",
+                value=str(slot["passage_text"]),
+                height=160,
+                key=f"{state_prefix}_passage_{slot['slot_key']}",
+                help="Pega un único pasaje continuo literal de la fuente local.",
+            )
+            evidence_values.append((slot, passage))
+            if st.form_submit_button(
+                f"Retirar pasaje {position}",
+                icon=":material/remove:",
+                key=f"{state_prefix}_remove_{slot['slot_key']}",
+            ):
+                remove_slot = str(slot["slot_key"])
+
+        add_passage = st.form_submit_button(
+            "Agregar otro pasaje",
+            icon=":material/add:",
+            key=f"{state_prefix}_add_passage",
+        )
+        submitted = st.form_submit_button(
+            "Guardar actuación y evidencias",
+            type="primary",
+            icon=":material/save:",
+            key=f"{state_prefix}_save",
+        )
+
+    if remove_slot is not None:
+        st.session_state[draft_state_key] = {
+            "slots": [
+                slot
+                for slot in slots
+                if str(slot["slot_key"]) != remove_slot
+            ],
+            "next_slot": int(draft_state.get("next_slot", 1)),
+        }
+        st.rerun()
+    if add_passage:
+        next_slot = int(draft_state.get("next_slot", 1))
+        st.session_state[draft_state_key] = {
+            "slots": [*slots, _new_action_evidence_slot(next_slot)],
+            "next_slot": next_slot + 1,
+        }
+        st.rerun()
+    if not submitted:
+        return
+
+    try:
+        action_row = {
+            "identificador_boe": boe_id,
+            "event_key": _required(values["event_key"], "el evento"),
+            "action_key": local_key,
+            "expected_action_type": _required(
+                values["expected_action_type"], "el tipo de actuación"
+            ),
+            "expected_decision": _required(
+                values["expected_decision"], "la decisión"
+            ),
+            "expected_is_modification": _required(
+                values["expected_is_modification"], "si es modificación"
+            ),
+            "temporal_status": _required(
+                values["temporal_status"], "la temporalidad"
+            ),
+            "expected_affected_generation_asset_keys_json": (
+                serialize_affected_assets(values["affected_assets"])
+            ),
+            "applicability": _required(applicability, "la aplicabilidad"),
+            "adjudication": _required(adjudication, "la adjudicación"),
+            "annotation_notes": _explicit_text(notes),
+        }
+        candidate_evidence = [
+            {
+                "passage_text": passage,
+                "applicability": (
+                    action_row["applicability"]
+                    if slot["applicability"] is None
+                    else str(slot["applicability"])
+                ),
+                "adjudication": (
+                    action_row["adjudication"]
+                    if slot["adjudication"] is None
+                    else str(slot["adjudication"])
+                ),
+                "annotation_notes": str(slot["annotation_notes"]),
+            }
+            for slot, passage in evidence_values
+        ]
+        saved = upsert_action_with_evidence_set(
+            truth_dir,
+            boe_id,
+            action_row,
+            evidence_rows=candidate_evidence,
+            original_key=(
+                None
+                if action is None
+                else _original_key("administrative_actions", action)
+            ),
+            source_text=source_text,
+        )
+    except (IndexError, OSError, ValueError, TruthContractError) as error:
+        _show_validation_error(error, truth, boe_id)
+    else:
+        del st.session_state[draft_state_key]
+        _save_mutation_notice(
+            truth,
+            saved,
+            boe_id,
+            "Actuación y evidencias guardadas y validadas conjuntamente.",
+        )
+
+
+def _render_action_editor(
     truth_dir: Path,
     truth: TruthArtifact,
     boe_id: str,
     source_text: str,
 ) -> None:
-    actions = _frame_for_boe(truth, "administrative_actions", boe_id)
-    if actions.empty:
-        st.info(
-            "No hay actuaciones administrativas. Añade primero una actuación "
-            "para poder registrar su evidencia."
+    table = "administrative_actions"
+    actions = _frame_for_boe(truth, table, boe_id)
+    _display_rows(actions)
+    modes = ["Añadir"] if actions.empty else ["Editar", "Añadir", "Eliminar"]
+    mode = str(
+        st.segmented_control(
+            "Operación · Actuación administrativa",
+            modes,
+            default=modes[0],
+            key=f"v2_mode_{table}_{boe_id}_all",
         )
-        return
-    actions = actions.sort_values("action_key", kind="stable")
-    for _, action in actions.iterrows():
-        action_key = str(action["action_key"])
-        evidence_path = canonical_path(
-            "evidence_passage",
-            owner_entity="administrative_action",
-            local_key=action_key,
-        )
+    )
+    if mode == "Añadir":
         with st.container(border=True):
-            _render_action_summary(action)
-            st.markdown(f"**Evidencias de `{action_key}`**")
-            st.caption(f"`{evidence_path}`")
-            _render_table_editor(
+            _render_action_bundle_editor(
                 truth_dir,
                 truth,
-                "evidence_passages",
                 boe_id,
                 source_text,
-                action_evidence_only=True,
-                evidence_owner_key=action_key,
-                empty_message=(
-                    f"Todavía no hay evidencia para {action_key}. Añade al menos "
-                    "un pasaje literal continuo para completar la actuación."
-                ),
+                mode,
+                None,
             )
+        return
+
+    selector_key = (
+        f"v2_edit_{table}_{boe_id}_False_all"
+        if mode == "Editar"
+        else f"v2_delete_{table}_{boe_id}_all"
+    )
+    selected_action = _select_row(
+        actions,
+        table,
+        label=(
+            "Fila que se editará" if mode == "Editar" else "Fila que se eliminará"
+        ),
+        key=selector_key,
+    )
+    with st.container(border=True):
+        if mode == "Eliminar":
+            _render_action_summary(selected_action)
+            _render_delete(
+                truth_dir,
+                truth,
+                table,
+                boe_id,
+                actions,
+                source_text,
+                selected_row=selected_action,
+            )
+            return
+
+        _render_action_heading(selected_action)
+        _render_action_bundle_editor(
+            truth_dir,
+            truth,
+            boe_id,
+            source_text,
+            mode,
+            selected_action,
+        )
 
 
 def _render_scope(
@@ -1465,7 +1719,7 @@ with annotation_column:
             source_text,
         )
 
-    st.subheader("4. Actuaciones administrativas")
+    st.subheader("4. Actuaciones administrativas + evidencias")
     st.caption(
         "Cada actuación primaria se completa aquí junto con sus evidencias "
         "literales obligatorias."
@@ -1479,19 +1733,12 @@ with annotation_column:
             "registrar una actuación y seleccionar sus activos afectados."
         )
     else:
-        _render_table_editor(
+        _render_action_editor(
             workspace.truth_dir,
             workspace.truth,
-            "administrative_actions",
             selected_boe,
             source_text,
         )
-    _render_action_evidence_workflow(
-        workspace.truth_dir,
-        workspace.truth,
-        selected_boe,
-        source_text,
-    )
 
     st.subheader("5. Localizaciones")
     if event_rows.empty:

@@ -31,6 +31,7 @@ from evaluation.final_holdout_v2.annotation import (
     serialize_affected_assets,
     update_document_scope,
     upsert_action_with_initial_evidence,
+    upsert_action_with_evidence_set,
     upsert_truth_row,
     validate_document,
     validation_error_feedback,
@@ -391,6 +392,68 @@ def _action_row(
     }
 
 
+def _fill_new_action_form(app: AppTest) -> None:
+    selections = {
+        "Evento · administrative_action/<nueva_clave>.event_key": "event_1",
+        "Tipo de actuación · administrative_action/<nueva_clave>.expected_action_type": (
+            "autorizacion_administrativa_previa"
+        ),
+        "Decisión · administrative_action/<nueva_clave>.expected_decision": (
+            "autorizado"
+        ),
+        "Es modificación · administrative_action/<nueva_clave>.expected_is_modification": (
+            "false"
+        ),
+        "Temporalidad · administrative_action/<nueva_clave>.temporal_status": (
+            "current"
+        ),
+        "Aplicabilidad · administrative_action/<nueva_clave>.applicability": (
+            "applicable"
+        ),
+        "Adjudicación · administrative_action/<nueva_clave>.adjudication": (
+            "scored_truth"
+        ),
+    }
+    for label, value in selections.items():
+        next(
+            widget for widget in app.selectbox if widget.label == label
+        ).set_value(value)
+    next(
+        widget
+        for widget in app.multiselect
+        if widget.label
+        == "Activos afectados · administrative_action/<nueva_clave>."
+        "expected_affected_generation_asset_keys_json"
+    ).set_value(["asset_1"])
+
+
+def _action_evidence_inputs(app: AppTest, action_key: str) -> list[object]:
+    path = f"evidence_passage/administrative_action/{action_key}"
+    return [
+        widget
+        for widget in app.text_area
+        if widget.label.startswith("Evidencia literal de la actuación")
+        and path in widget.label
+    ]
+
+
+def _keep_only_action_evidence(truth_dir: Path, passage_text: str) -> None:
+    evidence = pd.read_csv(
+        truth_dir / "evidence_passages.csv",
+        dtype="string",
+        keep_default_na=False,
+    )
+    keep = ~evidence["owner_type"].astype(str).eq(
+        "administrative_action"
+    ) | evidence["passage_text"].astype(str).eq(passage_text)
+    evidence.loc[keep].to_csv(
+        truth_dir / "evidence_passages.csv",
+        index=False,
+        lineterminator="\n",
+    )
+    load_truth(truth_dir)
+
+
 def _reset_to_unscoped_empty_truth(truth_dir: Path) -> None:
     for table, spec in TABLE_SPECS.items():
         frame = pd.read_csv(
@@ -602,18 +665,24 @@ def test_action_evidence_requires_an_existing_action_in_the_ui(
 
     assert not app.exception
     assert any(
-        "Añade primero una actuación para poder registrar su evidencia"
-        in message.value
-        for message in app.info
+        control.key == f"v2_mode_administrative_actions_{BOE_ID}_all"
+        and control.options == ["Añadir"]
+        for control in app.segmented_control
     )
     assert not any(
         element.value.startswith("**Evidencias de `")
         for element in app.markdown
     )
     assert any(
-        caption.value == "`evidence_passage/administrative_action/action_1`"
-        for caption in app.caption
+        area.label.startswith("Evidencia literal de la actuación")
+        and "evidence_passage/administrative_action/<nueva_clave>"
+        in area.label
+        for area in app.text_area
     )
+    assert sum(
+        button.label == "Guardar actuación y evidencias"
+        for button in app.button
+    ) == 1
 
 
 def test_primary_dependency_messages_are_explicit(
@@ -639,7 +708,10 @@ def test_primary_dependency_messages_are_explicit(
     assert not app.exception
     assert any("Añade primero un evento" in message for message in messages)
     assert any("Añade primero un activo" in message for message in messages)
-    assert any("Añade primero una actuación" in message for message in messages)
+    assert not any(
+        control.key == f"v2_mode_administrative_actions_{BOE_ID}_all"
+        for control in app.segmented_control
+    )
 
 
 def test_action_evidence_still_requires_one_literal_continuous_passage(
@@ -904,6 +976,108 @@ def test_action_edit_preserves_key_and_evidence_and_downgrades_complete(
         saved, BOE_ID, action_key="action_1"
     ).equals(evidence_before)
     assert saved.tables["documents"].iloc[0]["annotation_status"] == "draft"
+
+
+def test_action_and_complete_evidence_set_are_replaced_in_one_transaction(
+    v2_annotation_workspace: tuple[Path, Path],
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    source_text = _source_text(truth_dir, source_dir)
+    other_boe = "BOE-A-2099-999"
+    for table in TABLE_SPECS:
+        frame = pd.read_csv(
+            truth_dir / f"{table}.csv",
+            dtype="string",
+            keep_default_na=False,
+        )
+        other_rows = frame.loc[
+            frame["identificador_boe"].astype(str).eq(BOE_ID)
+        ].copy()
+        other_rows.loc[:, "identificador_boe"] = other_boe
+        if table == "documents":
+            other_rows.loc[:, "annotation_status"] = "draft"
+        pd.concat([frame, other_rows], ignore_index=True).to_csv(
+            truth_dir / f"{table}.csv",
+            index=False,
+            lineterminator="\n",
+        )
+    before = load_truth(truth_dir)
+    other_before = {
+        table: frame.loc[
+            frame["identificador_boe"].astype(str).eq(other_boe)
+        ].reset_index(drop=True)
+        for table, frame in before.tables.items()
+    }
+    action = before.tables["administrative_actions"].loc[
+        before.tables["administrative_actions"]["identificador_boe"]
+        .astype(str)
+        .eq(BOE_ID)
+    ].iloc[0].to_dict()
+    action["expected_decision"] = "denegado"
+    evidence_metadata = action_evidence_rows(
+        before, BOE_ID, action_key="action_1"
+    ).iloc[0].to_dict()
+
+    saved = upsert_action_with_evidence_set(
+        truth_dir,
+        BOE_ID,
+        action,
+        evidence_rows=[
+            {
+                **evidence_metadata,
+                "passage_text": SECOND_ACTION_EVIDENCE,
+            }
+        ],
+        original_key={"action_key": "action_1"},
+        source_text=source_text,
+    )
+
+    selected_action = saved.tables["administrative_actions"].loc[
+        saved.tables["administrative_actions"]["identificador_boe"]
+        .astype(str)
+        .eq(BOE_ID)
+    ].iloc[0]
+    assert selected_action["action_key"] == "action_1"
+    assert selected_action["expected_decision"] == "denegado"
+    selected_evidence = action_evidence_rows(
+        saved, BOE_ID, action_key="action_1"
+    )
+    assert selected_evidence["passage_text"].astype(str).tolist() == [
+        SECOND_ACTION_EVIDENCE
+    ]
+    assert selected_evidence.iloc[0]["applicability"] == (
+        evidence_metadata["applicability"]
+    )
+    assert selected_evidence.iloc[0]["adjudication"] == (
+        evidence_metadata["adjudication"]
+    )
+    for table, frame in saved.tables.items():
+        other_after = frame.loc[
+            frame["identificador_boe"].astype(str).eq(other_boe)
+        ].reset_index(drop=True)
+        assert other_after.equals(other_before[table])
+
+
+def test_invalid_action_evidence_set_preserves_every_workspace_byte(
+    v2_annotation_workspace: tuple[Path, Path],
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    truth = load_truth(truth_dir)
+    action = truth.tables["administrative_actions"].iloc[0].to_dict()
+    action["expected_decision"] = "denegado"
+    before = _workspace_bytes(truth_dir)
+
+    with pytest.raises(TruthContractError, match="continuous literal"):
+        upsert_action_with_evidence_set(
+            truth_dir,
+            BOE_ID,
+            action,
+            evidence_rows=[{"passage_text": "Paráfrasis inexistente"}],
+            original_key={"action_key": "action_1"},
+            source_text=_source_text(truth_dir, source_dir),
+        )
+
+    assert _workspace_bytes(truth_dir) == before
 
 
 def test_action_delete_removes_only_direct_evidence_and_targets_atomically(
@@ -1843,7 +2017,7 @@ def test_end_to_end_dependency_failures_preserve_bytes(
     assert _workspace_bytes(truth_dir) == before
 
 
-def test_new_action_form_shows_required_first_evidence_and_canonical_path(
+def test_new_action_form_integrates_evidence_and_one_persistence_button(
     v2_annotation_workspace: tuple[Path, Path],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -1861,24 +2035,22 @@ def test_new_action_form_shows_required_first_evidence_and_canonical_path(
 
     assert not app.exception
     assert any(
-        element.value == "**Evidencia literal obligatoria**"
-        for element in app.markdown
-    )
-    assert any(
-        area.label.startswith("Primera evidencia literal de la actuación")
-        and "evidence_passage/administrative_action/action_2" in area.label
+        area.label.startswith("Evidencia literal de la actuación")
+        and "evidence_passage/administrative_action/<nueva_clave>"
+        in area.label
+        and area.value == ""
         for area in app.text_area
     )
     assert any(
-        "La actuación y su primera evidencia se guardan conjuntamente"
+        "La clave real de la actuación se genera una sola vez"
         in caption.value
         for caption in app.caption
     )
-    assert any(
-        caption.value == "`evidence_passage/administrative_action/action_2`"
-        for caption in app.caption
-    )
-    assert any(button.label == "Guardar actuación" for button in app.button)
+    assert not any("Propietario" in widget.label for widget in app.selectbox)
+    assert sum(
+        button.label == "Guardar actuación y evidencias"
+        for button in app.button
+    ) == 1
 
 
 def test_new_scored_action_is_saved_with_evidence_through_streamlit_form(
@@ -1905,17 +2077,17 @@ def test_new_scored_action_is_saved_with_evidence_through_streamlit_form(
     action_mode.set_value("Añadir").run()
 
     selections = {
-        "Evento · administrative_action/action_3.event_key": "event_1",
-        "Tipo de actuación · administrative_action/action_3.expected_action_type": (
+        "Evento · administrative_action/<nueva_clave>.event_key": "event_1",
+        "Tipo de actuación · administrative_action/<nueva_clave>.expected_action_type": (
             "autorizacion_administrativa_previa"
         ),
-        "Decisión · administrative_action/action_3.expected_decision": "autorizado",
-        "Es modificación · administrative_action/action_3.expected_is_modification": (
+        "Decisión · administrative_action/<nueva_clave>.expected_decision": "autorizado",
+        "Es modificación · administrative_action/<nueva_clave>.expected_is_modification": (
             "false"
         ),
-        "Temporalidad · administrative_action/action_3.temporal_status": "current",
-        "Aplicabilidad · administrative_action/action_3.applicability": "applicable",
-        "Adjudicación · administrative_action/action_3.adjudication": "scored_truth",
+        "Temporalidad · administrative_action/<nueva_clave>.temporal_status": "current",
+        "Aplicabilidad · administrative_action/<nueva_clave>.applicability": "applicable",
+        "Adjudicación · administrative_action/<nueva_clave>.adjudication": "scored_truth",
     }
     for label, value in selections.items():
         next(widget for widget in app.selectbox if widget.label == label).set_value(value)
@@ -1923,17 +2095,19 @@ def test_new_scored_action_is_saved_with_evidence_through_streamlit_form(
         widget
         for widget in app.multiselect
         if widget.label
-        == "Activos afectados · administrative_action/action_3."
+        == "Activos afectados · administrative_action/<nueva_clave>."
         "expected_affected_generation_asset_keys_json"
     ).set_value(["asset_1"])
     next(
         area
         for area in app.text_area
-        if area.label.startswith("Primera evidencia literal de la actuación")
+        if area.label.startswith("Evidencia literal de la actuación")
     ).set_value(ACTION_EVIDENCE)
 
     next(
-        button for button in app.button if button.label == "Guardar actuación"
+        button
+        for button in app.button
+        if button.label == "Guardar actuación y evidencias"
     ).click().run()
 
     assert not app.exception
@@ -1946,6 +2120,85 @@ def test_new_scored_action_is_saved_with_evidence_through_streamlit_form(
     evidence = action_evidence_rows(saved, BOE_ID, action_key="action_3")
     assert len(evidence) == 1
     assert evidence.iloc[0]["passage_text"] == ACTION_EVIDENCE
+
+
+def test_new_action_adds_second_draft_passage_without_losing_pending_fields(
+    v2_annotation_workspace: tuple[Path, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    monkeypatch.setenv(TRUTH_DIR_ENV, str(truth_dir))
+    monkeypatch.setenv(SOURCE_DIR_ENV, str(source_dir))
+    app = AppTest.from_file(ANNOTATION_APP, default_timeout=30).run()
+    next(
+        control
+        for control in app.segmented_control
+        if control.key == f"v2_mode_administrative_actions_{BOE_ID}_all"
+    ).set_value("Añadir").run()
+    _fill_new_action_form(app)
+    _action_evidence_inputs(app, "<nueva_clave>")[0].set_value(
+        ACTION_EVIDENCE
+    )
+
+    next(
+        button for button in app.button if button.label == "Agregar otro pasaje"
+    ).click().run()
+
+    assert not app.exception
+    assert next(
+        widget
+        for widget in app.selectbox
+        if widget.label
+        == "Decisión · administrative_action/<nueva_clave>.expected_decision"
+    ).value == "autorizado"
+    passages = _action_evidence_inputs(app, "<nueva_clave>")
+    assert [widget.value for widget in passages] == [ACTION_EVIDENCE, ""]
+    passages[1].set_value(SECOND_ACTION_EVIDENCE)
+    next(
+        button
+        for button in app.button
+        if button.label == "Guardar actuación y evidencias"
+    ).click().run()
+
+    assert not app.exception
+    assert not app.error
+    saved = load_truth(truth_dir)
+    assert saved.tables["administrative_actions"]["action_key"].astype(
+        str
+    ).tolist() == ["action_1", "action_2"]
+    assert action_evidence_rows(
+        saved, BOE_ID, action_key="action_2"
+    )["passage_text"].astype(str).tolist() == [
+        ACTION_EVIDENCE,
+        SECOND_ACTION_EVIDENCE,
+    ]
+
+
+def test_scored_action_without_evidence_is_rejected_without_writing(
+    v2_annotation_workspace: tuple[Path, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    before = _workspace_bytes(truth_dir)
+    monkeypatch.setenv(TRUTH_DIR_ENV, str(truth_dir))
+    monkeypatch.setenv(SOURCE_DIR_ENV, str(source_dir))
+    app = AppTest.from_file(ANNOTATION_APP, default_timeout=30).run()
+    next(
+        control
+        for control in app.segmented_control
+        if control.key == f"v2_mode_administrative_actions_{BOE_ID}_all"
+    ).set_value("Añadir").run()
+    _fill_new_action_form(app)
+
+    next(
+        button
+        for button in app.button
+        if button.label == "Guardar actuación y evidencias"
+    ).click().run()
+
+    assert not app.exception
+    assert any("necesita al menos un pasaje literal" in error.value for error in app.error)
+    assert _workspace_bytes(truth_dir) == before
 
 
 def test_existing_action_edit_is_exposed_and_persists_through_streamlit(
@@ -1979,7 +2232,9 @@ def test_existing_action_edit_is_exposed_and_persists_through_streamlit(
     )
     decision.set_value("denegado")
     next(
-        button for button in app.button if button.label == "Guardar actuación"
+        button
+        for button in app.button
+        if button.label == "Guardar actuación y evidencias"
     ).click().run()
 
     assert not app.exception
@@ -1992,6 +2247,130 @@ def test_existing_action_edit_is_exposed_and_persists_through_streamlit(
     assert action["expected_decision"] == "denegado"
     assert action_evidence_rows(saved, BOE_ID, action_key="action_1").shape[0] == 2
     assert saved.tables["documents"].iloc[0]["annotation_status"] == "draft"
+
+
+def test_edit_action_and_its_only_evidence_are_saved_together(
+    v2_annotation_workspace: tuple[Path, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    _keep_only_action_evidence(truth_dir, ACTION_EVIDENCE)
+    _mark_complete(truth_dir)
+    before = load_truth(truth_dir)
+    evidence_before = action_evidence_rows(
+        before, BOE_ID, action_key="action_1"
+    ).iloc[0]
+    monkeypatch.setenv(TRUTH_DIR_ENV, str(truth_dir))
+    monkeypatch.setenv(SOURCE_DIR_ENV, str(source_dir))
+    app = AppTest.from_file(ANNOTATION_APP, default_timeout=30).run()
+    next(
+        widget
+        for widget in app.selectbox
+        if widget.label
+        == "Decisión · administrative_action/action_1.expected_decision"
+    ).set_value("denegado")
+    evidence_input = _action_evidence_inputs(app, "action_1")
+    assert [widget.value for widget in evidence_input] == [ACTION_EVIDENCE]
+    evidence_input[0].set_value(SECOND_ACTION_EVIDENCE)
+
+    next(
+        button
+        for button in app.button
+        if button.label == "Guardar actuación y evidencias"
+    ).click().run()
+
+    assert not app.exception
+    assert not app.error
+    saved = load_truth(truth_dir)
+    action = saved.tables["administrative_actions"].iloc[0]
+    assert action["action_key"] == "action_1"
+    assert action["expected_decision"] == "denegado"
+    evidence = action_evidence_rows(saved, BOE_ID, action_key="action_1")
+    assert evidence["passage_text"].astype(str).tolist() == [
+        SECOND_ACTION_EVIDENCE
+    ]
+    assert evidence.iloc[0]["applicability"] == evidence_before["applicability"]
+    assert evidence.iloc[0]["adjudication"] == evidence_before["adjudication"]
+    assert saved.tables["documents"].iloc[0]["annotation_status"] == "draft"
+
+
+def test_invalid_integrated_evidence_keeps_action_and_passages_unwritten(
+    v2_annotation_workspace: tuple[Path, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    before = _workspace_bytes(truth_dir)
+    monkeypatch.setenv(TRUTH_DIR_ENV, str(truth_dir))
+    monkeypatch.setenv(SOURCE_DIR_ENV, str(source_dir))
+    app = AppTest.from_file(ANNOTATION_APP, default_timeout=30).run()
+    next(
+        widget
+        for widget in app.selectbox
+        if widget.label
+        == "Decisión · administrative_action/action_1.expected_decision"
+    ).set_value("denegado")
+    inputs = _action_evidence_inputs(app, "action_1")
+    inputs[0].set_value("Paráfrasis inexistente")
+
+    next(
+        button
+        for button in app.button
+        if button.label == "Guardar actuación y evidencias"
+    ).click().run()
+
+    assert not app.exception
+    assert any("No se guardó ningún cambio" in error.value for error in app.error)
+    assert next(
+        widget
+        for widget in app.selectbox
+        if widget.label
+        == "Decisión · administrative_action/action_1.expected_decision"
+    ).value == "denegado"
+    assert _action_evidence_inputs(app, "action_1")[0].value == (
+        "Paráfrasis inexistente"
+    )
+    assert _workspace_bytes(truth_dir) == before
+
+
+def test_removing_only_required_evidence_is_draft_only_and_save_fails_closed(
+    v2_annotation_workspace: tuple[Path, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    _keep_only_action_evidence(truth_dir, ACTION_EVIDENCE)
+    before = _workspace_bytes(truth_dir)
+    monkeypatch.setenv(TRUTH_DIR_ENV, str(truth_dir))
+    monkeypatch.setenv(SOURCE_DIR_ENV, str(source_dir))
+    app = AppTest.from_file(ANNOTATION_APP, default_timeout=30).run()
+    next(
+        widget
+        for widget in app.selectbox
+        if widget.label
+        == "Decisión · administrative_action/action_1.expected_decision"
+    ).set_value("denegado")
+
+    next(
+        button for button in app.button if button.label == "Retirar pasaje 1"
+    ).click().run()
+
+    assert not app.exception
+    assert _action_evidence_inputs(app, "action_1") == []
+    assert next(
+        widget
+        for widget in app.selectbox
+        if widget.label
+        == "Decisión · administrative_action/action_1.expected_decision"
+    ).value == "denegado"
+    assert _workspace_bytes(truth_dir) == before
+    next(
+        button
+        for button in app.button
+        if button.label == "Guardar actuación y evidencias"
+    ).click().run()
+
+    assert not app.exception
+    assert any("necesita al menos un pasaje literal" in error.value for error in app.error)
+    assert _workspace_bytes(truth_dir) == before
 
 
 def test_action_edit_selection_always_rehydrates_the_selected_persisted_row(
@@ -2091,18 +2470,26 @@ def test_action_edit_selection_always_rehydrates_the_selected_persisted_row(
                 "annotation_notes"
             ).value == "Notas persistidas de action_2"
             assert not any(
-                widget.label.startswith("Primera evidencia literal de la actuación")
+                widget.label.startswith("Evidencia literal de la actuación")
+                and widget.value == ""
                 for widget in app.text_area
             )
         elif action_key == "action_3":
             assert any(
-                widget.label.startswith("Primera evidencia literal de la actuación")
+                widget.label.startswith("Evidencia literal de la actuación")
                 and "evidence_passage/administrative_action/action_3"
                 in widget.label
                 for widget in app.text_area
             )
 
-        if position == 1:
+        if position == 0:
+            next(
+                widget
+                for widget in app.selectbox
+                if widget.label
+                == "Decisión · administrative_action/action_1.expected_decision"
+            ).set_value("favorable")
+        elif position == 1:
             decision_widget = next(
                 widget
                 for widget in app.selectbox
@@ -2183,38 +2570,60 @@ def test_action_and_secondary_evidence_editors_rehydrate_compound_key_rows(
     monkeypatch.setenv(SOURCE_DIR_ENV, str(source_dir))
     app = AppTest.from_file(ANNOTATION_APP, default_timeout=30).run()
 
-    for action_key in ("action_1", "action_2", "action_3"):
-        assert any(
-            widget.key
-            == f"v2_mode_evidence_passages_{BOE_ID}_{action_key}"
-            for widget in app.segmented_control
+    expected_passages = {
+        "action_1": [ACTION_EVIDENCE, SECOND_ACTION_EVIDENCE],
+        "action_2": [ACTION_EVIDENCE],
+        "action_3": [""],
+    }
+    for action_key in ("action_1", "action_2", "action_3", "action_1"):
+        action_selector = next(
+            widget
+            for widget in app.selectbox
+            if widget.key
+            == f"v2_edit_administrative_actions_{BOE_ID}_False_all"
         )
+        action_selector.set_value(
+            f"Actuación administrativa · {action_key}"
+        ).run()
+
+        action_headings = [
+            element.value
+            for element in app.markdown
+            if element.value.startswith("**Actuación administrativa · `")
+        ]
+        evidence_headings = [
+            element.value
+            for element in app.markdown
+            if element.value == "**Evidencias literales de esta actuación**"
+        ]
+        assert action_headings == [
+            f"**Actuación administrativa · `{action_key}`**"
+        ]
+        assert evidence_headings == ["**Evidencias literales de esta actuación**"]
         assert any(
-            caption.value
-            == f"`evidence_passage/administrative_action/{action_key}`"
+            f"evidence_passage/administrative_action/{action_key}"
+            in caption.value
             for caption in app.caption
         )
-
-    action_evidence_selector = next(
-        widget
-        for widget in app.selectbox
-        if widget.key
-        == f"v2_edit_evidence_passages_{BOE_ID}_True_action_1"
-    )
-    action_evidence_selector.set_value(
-        next(
-            option
-            for option in action_evidence_selector.options
-            if SECOND_ACTION_EVIDENCE in option
+        passages = [
+            widget.value
+            for widget in app.text_area
+            if widget.label.startswith("Evidencia literal de la actuación")
+            and f"evidence_passage/administrative_action/{action_key}"
+            in widget.label
+        ]
+        assert passages == expected_passages[action_key]
+        assert sum(
+            button.label == "Guardar actuación y evidencias"
+            for button in app.button
+        ) == 1
+        assert not any(
+            widget.key
+            and str(widget.key).startswith(
+                f"v2_mode_evidence_passages_{BOE_ID}_"
+            )
+            for widget in app.segmented_control
         )
-    ).run()
-    assert next(
-        widget
-        for widget in app.text_area
-        if widget.label
-        == "Pasaje continuo literal · "
-        "evidence_passage/administrative_action/action_1"
-    ).value == SECOND_ACTION_EVIDENCE
 
     next(
         widget
@@ -2241,6 +2650,163 @@ def test_action_and_secondary_evidence_editors_rehydrate_compound_key_rows(
     ).value == "Tiene 25 MW de potencia instalada."
 
     assert _workspace_bytes(truth_dir) == before
+
+
+def test_visual_numbers_do_not_replace_sparse_location_keys_or_qa_paths(
+    v2_annotation_workspace: tuple[Path, Path],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    truth_dir, source_dir = v2_annotation_workspace
+    locations = pd.read_csv(
+        truth_dir / "locations.csv",
+        dtype="string",
+        keep_default_na=False,
+    )
+    additions = pd.DataFrame(
+        [
+            {
+                **_common(),
+                "event_key": "event_1",
+                "location_key": location_key,
+                "location_name_raw": location_name,
+                "expected_location_level": "municipio",
+            }
+            for location_key, location_name in (
+                ("location_2", "Villa Dos"),
+                ("location_3", "Villa Tres"),
+                ("location_5", "Villa Cinco"),
+                ("location_6", "Villa Seis"),
+            )
+        ],
+        columns=TABLE_SPECS["locations"].columns,
+        dtype="string",
+    )
+    pd.concat([locations, additions], ignore_index=True).to_csv(
+        truth_dir / "locations.csv",
+        index=False,
+        lineterminator="\n",
+    )
+    _mark_complete(truth_dir)
+    complete = load_truth(truth_dir, require_complete=True)
+    source = load_annotation_workspace(truth_dir, source_dir).source_documents.iloc[0]
+    package = build_ai_qa_review_package(
+        complete,
+        BOE_ID,
+        title=str(source["titulo"]),
+        publication_date="2099-02-01",
+        source_text=str(source["texto_limpio"]),
+    )
+    assert b"location/location_5.location_name_raw" in package
+    assert b"location/location_4" not in package
+
+    monkeypatch.setenv(TRUTH_DIR_ENV, str(truth_dir))
+    monkeypatch.setenv(SOURCE_DIR_ENV, str(source_dir))
+    app = AppTest.from_file(ANNOTATION_APP, default_timeout=30).run()
+
+    location_table = next(
+        frame.value
+        for frame in app.dataframe
+        if "location_key" in frame.value.columns
+    )
+    assert location_table.columns[0] == "Nº"
+    assert location_table["Nº"].tolist() == [1, 2, 3, 4, 5]
+    assert location_table["location_key"].astype(str).tolist() == [
+        "location_1",
+        "location_2",
+        "location_3",
+        "location_5",
+        "location_6",
+    ]
+
+    location_selector = next(
+        widget
+        for widget in app.selectbox
+        if widget.key == f"v2_edit_locations_{BOE_ID}_False_all"
+    )
+    location_selector.set_value("Localización · location_5").run()
+    next(
+        widget
+        for widget in app.text_input
+        if widget.label
+        == "Localización literal · location/location_5.location_name_raw"
+    ).set_value("Villa V2")
+    next(
+        button
+        for button in app.button
+        if button.label == "Guardar fila" and "locations" in str(button.key)
+    ).click().run()
+
+    saved = load_truth(truth_dir)
+    location_names = dict(
+        zip(
+            saved.tables["locations"]["location_key"].astype(str),
+            saved.tables["locations"]["location_name_raw"].astype(str),
+            strict=True,
+        )
+    )
+    assert location_names == {
+        "location_1": "Villa V2",
+        "location_2": "Villa Dos",
+        "location_3": "Villa Tres",
+        "location_5": "Villa V2",
+        "location_6": "Villa Seis",
+    }
+
+    location_mode = next(
+        widget
+        for widget in app.segmented_control
+        if widget.key == f"v2_mode_locations_{BOE_ID}_all"
+    )
+    location_mode.set_value("Eliminar").run()
+    delete_selector = next(
+        widget
+        for widget in app.selectbox
+        if widget.key == f"v2_delete_locations_{BOE_ID}_all"
+    )
+    delete_selector.set_value("Localización · location_3").run()
+    next(
+        widget
+        for widget in app.checkbox
+        if "location/location_3" in widget.label
+    ).set_value(True)
+    next(
+        button
+        for button in app.button
+        if button.label == "Eliminar fila" and "locations" in str(button.key)
+    ).click().run()
+
+    assert not app.exception
+    delete_selector = next(
+        widget
+        for widget in app.selectbox
+        if widget.key == f"v2_delete_locations_{BOE_ID}_all"
+    )
+    assert "Localización · location_3" not in delete_selector.options
+    assert delete_selector.value in delete_selector.options
+    assert next(
+        widget
+        for widget in app.checkbox
+        if "location/" in widget.label
+    ).value is False
+    location_table = next(
+        frame.value
+        for frame in app.dataframe
+        if "location_key" in frame.value.columns
+    )
+    assert location_table["Nº"].tolist() == [1, 2, 3, 4]
+    assert location_table["location_key"].astype(str).tolist() == [
+        "location_1",
+        "location_2",
+        "location_5",
+        "location_6",
+    ]
+    final_truth = load_truth(truth_dir)
+    assert final_truth.tables["events"]["event_key"].astype(str).tolist() == [
+        "event_1"
+    ]
+    assert final_truth.tables["generation_assets"]["asset_key"].astype(
+        str
+    ).tolist() == ["asset_1"]
 
 
 def test_secondary_crud_editors_rehydrate_each_selected_row_without_writes(
@@ -2339,7 +2905,7 @@ def test_crud_operation_and_delete_confirmation_state_are_isolated_by_row(
         widget
         for widget in app.selectbox
         if widget.label
-        == "Decisión · administrative_action/action_4.expected_decision"
+        == "Decisión · administrative_action/<nueva_clave>.expected_decision"
     ).set_value("denegado")
     action_mode = next(
         widget
@@ -2541,7 +3107,7 @@ def test_v2_streamlit_surface_is_blind_and_shows_primary_optional_and_paths(
         "1. Documento",
         "2. Eventos / proyectos publicados",
         "3. Activos de generación",
-        "4. Actuaciones administrativas",
+        "4. Actuaciones administrativas + evidencias",
         "5. Localizaciones",
         "6. Validación y estado de anotación",
     ]
@@ -2563,13 +3129,13 @@ def test_v2_streamlit_surface_is_blind_and_shows_primary_optional_and_paths(
         for element in app.markdown
     )
     assert any(
-        element.value == "**Evidencias de `action_1`**"
+        element.value == "**Evidencias literales de esta actuación**"
         for element in app.markdown
     )
     for field in ("applicability", "adjudication", "annotation_notes"):
         assert any(
-            f"administrative_action/action_1.{field}" in element.value
-            for element in app.markdown
+            f"administrative_action/action_1.{field}" in widget.label
+            for widget in [*app.selectbox, *app.text_area]
         )
     assert any(
         "`applicable` significa que la pregunta de relevancia puede evaluarse"
@@ -2589,6 +3155,19 @@ def test_v2_streamlit_surface_is_blind_and_shows_primary_optional_and_paths(
     )
     assert any(
         "evidence_passage/administrative_action/action_1" in caption.value
+        for caption in app.caption
+    )
+    numbered_tables = [
+        frame.value for frame in app.dataframe if not frame.value.empty
+    ]
+    assert numbered_tables
+    for frame in numbered_tables:
+        assert frame.columns[0] == "Nº"
+        assert frame["Nº"].tolist() == list(range(1, len(frame) + 1))
+    assert any(
+        caption.value
+        == "Nº indica la posición en esta tabla. La clave identifica la entidad "
+        "y se conserva aunque se eliminen otras filas."
         for caption in app.caption
     )
     download = app.main.get("download_button")[0].proto

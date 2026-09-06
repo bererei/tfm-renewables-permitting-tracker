@@ -1792,15 +1792,24 @@ y el contrato versionado. No tiene rutas a predicciones, attempts,
 
 El orden recomendado de anotación primaria es **Documento → Eventos → Activos
 de generación → Actuaciones + evidencias → Localizaciones → Validación**. La
-interfaz muestra cada actuación junto a sus pasajes para que pueda completarse
-antes de pasar a la siguiente.
+sección 4 muestra una tabla resumen y un solo editor para la operación y la
+actuación seleccionadas. Al editar, ese editor reúne los campos de la actuación
+y todos sus pasajes persistidos. **Agregar otro pasaje** o retirar uno solo
+modifica el borrador visible; el único control que escribe es **Guardar
+actuación y evidencias**, que publica conjuntamente el conjunto completo.
+
+Las tablas de entidades incluyen una columna visual `Nº`, consecutiva desde 1,
+además de la clave real. **Nº indica la posición en esta tabla. La clave
+identifica la entidad y se conserva aunque se eliminen otras filas.** El número
+puede recalcularse con las filas visibles; no se guarda, no rellena huecos y no
+se utiliza en relaciones, rutas canónicas ni paquetes de revisión.
 
 El alcance del documento se edita en su formulario propio; no se crean ni se
 eliminan documentos desde esta interfaz. Los editores de eventos, activos,
-actuaciones, evidencias y localizaciones ofrecen **Añadir**, **Editar** y
-**Eliminar** cuando existe alguna fila, muestran la clave local y permiten
-seleccionar inequívocamente la fila. Las claves existentes se preservan al
-editar. El borrado de un evento se bloquea mientras conserve entidades hijas y
+actuaciones y localizaciones ofrecen **Añadir**, **Editar** y **Eliminar**
+cuando existe alguna fila, muestran la clave local y permiten seleccionar
+inequívocamente la fila. Las claves existentes se preservan al editar. El
+borrado de un evento se bloquea mientras conserve entidades hijas y
 el de un activo se bloquea mientras una actuación, componente, target, mención
 técnica o evidencia lo referencie; el mensaje enumera las rutas canónicas que
 deben eliminarse o reasignarse primero.
@@ -1809,10 +1818,11 @@ Al eliminar una actuación, la pantalla muestra antes el número exacto de
 evidencias propias y targets diagnósticos que desaparecerán y exige
 confirmación explícita. La acción y sólo esas dependencias directas se eliminan
 en una transacción; no se borran silenciosamente eventos, activos,
-localizaciones ni componentes. Las evidencias de actuación se pueden añadir,
-editar y eliminar por pasaje. Un pasaje nuevo o editado vuelve a validarse
-contra la fuente local, no se admiten duplicados y no puede eliminarse la
-última evidencia puntuada de una actuación puntuada.
+localizaciones ni componentes. Dentro del editor único, las evidencias de la
+actuación se pueden añadir, editar o retirar antes de guardar. Cada pasaje
+candidato vuelve a validarse contra la fuente local, no se admiten duplicados y
+el guardado se rechaza íntegramente si una actuación puntuada queda sin ninguna
+evidencia puntuada.
 
 Las evidencias gestionadas dentro de cada **Actuación administrativa** son un
 requisito PRIMARY V2 y contienen exclusivamente pasajes cuyo owner es una
@@ -1827,11 +1837,12 @@ española muestra al lado su ruta canónica, por ejemplo
 
 Cada evidencia primaria debe pegarse como pasaje continuo literal de la fuente
 y cada escritura se valida antes del reemplazo atómico de los CSV afectados. Al
-añadir una actuación primaria puntuada, su primera evidencia literal se exige
-en el mismo formulario y ambas filas se validan y guardan conjuntamente con la
-misma clave, derivada autoritativamente al guardar; los marcadores internos
-como `pending` nunca se persisten. Una actuación no puntuada conserva el
-comportamiento opcional del contrato.
+añadir una actuación primaria puntuada se exige al menos un pasaje en el mismo
+formulario; al editar, es posible sustituir incluso la única evidencia válida
+sin publicar un estado intermedio. Actuación y conjunto de evidencias se
+validan y guardan con una sola confirmación y con la misma clave, derivada
+autoritativamente al guardar; los marcadores internos nunca se persisten. Una
+actuación no puntuada conserva el comportamiento opcional del contrato.
 
 Cualquier cambio semántico primario sobre un documento `complete` —incluido el
 alcance, eventos, activos, actuaciones, evidencia de actuación o
