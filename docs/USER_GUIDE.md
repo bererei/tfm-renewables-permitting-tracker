@@ -1791,19 +1791,38 @@ y el contrato versionado. No tiene rutas a predicciones, attempts,
 `current_extractions`, review queue, P0 ni servicios de modelo o red.
 
 El orden recomendado de anotación primaria es **Documento → Eventos → Activos
-de generación → Actuaciones → Evidencias de actuaciones → Localizaciones →
-Validación**. La interfaz muestra cada actuación junto a sus pasajes para que
-pueda completarse antes de pasar a la siguiente.
+de generación → Actuaciones + evidencias → Localizaciones → Validación**. La
+interfaz muestra cada actuación junto a sus pasajes para que pueda completarse
+antes de pasar a la siguiente.
 
-**Evidencias de actuaciones administrativas** es un requisito PRIMARY V2 y
-contiene exclusivamente pasajes cuyo owner es una `administrative_action`.
-Las evidencias de activos, componentes, participantes, localizaciones o
-menciones técnicas son secundarias/diagnósticas. Componentes, targets exactos,
-potencia principal, promotor y esas otras evidencias aparecen solo bajo
-**Opcional / diagnóstico** y no bloquean `complete`. La interfaz genera claves
-locales, serializa alias y usa multiselect para los activos afectados: nunca
-solicita JSON, hashes o IDs de producción. Cada etiqueta española muestra al
-lado su ruta canónica, por ejemplo
+El alcance del documento se edita en su formulario propio; no se crean ni se
+eliminan documentos desde esta interfaz. Los editores de eventos, activos,
+actuaciones, evidencias y localizaciones ofrecen **Añadir**, **Editar** y
+**Eliminar** cuando existe alguna fila, muestran la clave local y permiten
+seleccionar inequívocamente la fila. Las claves existentes se preservan al
+editar. El borrado de un evento se bloquea mientras conserve entidades hijas y
+el de un activo se bloquea mientras una actuación, componente, target, mención
+técnica o evidencia lo referencie; el mensaje enumera las rutas canónicas que
+deben eliminarse o reasignarse primero.
+
+Al eliminar una actuación, la pantalla muestra antes el número exacto de
+evidencias propias y targets diagnósticos que desaparecerán y exige
+confirmación explícita. La acción y sólo esas dependencias directas se eliminan
+en una transacción; no se borran silenciosamente eventos, activos,
+localizaciones ni componentes. Las evidencias de actuación se pueden añadir,
+editar y eliminar por pasaje. Un pasaje nuevo o editado vuelve a validarse
+contra la fuente local, no se admiten duplicados y no puede eliminarse la
+última evidencia puntuada de una actuación puntuada.
+
+Las evidencias gestionadas dentro de cada **Actuación administrativa** son un
+requisito PRIMARY V2 y contienen exclusivamente pasajes cuyo owner es una
+`administrative_action`. Las evidencias de activos, componentes, participantes,
+localizaciones o menciones técnicas son secundarias/diagnósticas. Componentes,
+targets exactos, potencia principal, promotor y esas otras evidencias aparecen
+solo bajo **Opcional / diagnóstico** y no bloquean `complete`. La interfaz
+genera claves locales, serializa alias y usa multiselect para los activos
+afectados: nunca solicita JSON, hashes o IDs de producción. Cada etiqueta
+española muestra al lado su ruta canónica, por ejemplo
 `administrative_action/action_1.expected_decision`.
 
 Cada evidencia primaria debe pegarse como pasaje continuo literal de la fuente
@@ -1813,6 +1832,22 @@ en el mismo formulario y ambas filas se validan y guardan conjuntamente con la
 misma clave, derivada autoritativamente al guardar; los marcadores internos
 como `pending` nunca se persisten. Una actuación no puntuada conserva el
 comportamiento opcional del contrato.
+
+Cualquier cambio semántico primario sobre un documento `complete` —incluido el
+alcance, eventos, activos, actuaciones, evidencia de actuación o
+localizaciones— lo devuelve automáticamente a `draft`. Después del cambio hay
+que ejecutar **Validar documento V2** y **Marcar como complete** de nuevo. Los
+cambios exclusivamente secundarios/diagnósticos no alteran el estado. Los
+errores habituales se presentan en español con sección, clave y ruta canónica;
+el mensaje técnico original del contrato permanece disponible en el detalle
+desplegable.
+
+En el alcance, `scope_applicability=applicable` significa que la pregunta de
+relevancia puede evaluarse, no que el BOE sea relevante. Para una decisión
+humana de no relevancia evaluable se usan
+`scope_applicability=applicable`, `scope_adjudication=scored_truth` y
+`expected_document_scope=not_relevant_for_generation_projects`; la aplicación
+lo explica, pero nunca lo decide automáticamente.
 El BOE actual también puede abrirse en la web oficial mediante un enlace que
 solo actúa tras el clic humano; la aplicación no descarga ni valida esa página.
 El flujo de QA posterior es:

@@ -36,8 +36,10 @@ from evaluation.final_holdout_v2.contract import (
     TruthContractError,
     _scored,
     load_truth,
+    parse_json_list,
 )
 from evaluation.final_holdout_v2.terminology import (
+    canonical_path,
     entity_label,
     field_label,
     qa_path,
@@ -126,6 +128,30 @@ _PRIMARY_QA_TABLES_BEFORE_ACTION_EVIDENCE = (
     "administrative_actions",
 )
 _RESERVED_LOCAL_KEY_VALUES = frozenset({"pending"})
+_PRIMARY_MUTATION_TABLES = frozenset({
+    "events",
+    "generation_assets",
+    "administrative_actions",
+    "locations",
+})
+
+
+@dataclass(frozen=True)
+class ActionDeletionImpact:
+    """Direct rows removed with one administrative action."""
+
+    action_key: str
+    evidence_count: int
+    target_count: int
+
+
+@dataclass(frozen=True)
+class AnnotationValidationFeedback:
+    """Human-facing context for one authoritative contract failure."""
+
+    message: str
+    section: str
+    canonical_path: str | None
 
 
 @dataclass(frozen=True)
@@ -491,11 +517,55 @@ def validate_document(
         return isolated_truth
 
 
+def _semantic_frame(frame: pd.DataFrame, table: str) -> pd.DataFrame:
+    spec = TABLE_SPECS[table]
+    if frame.empty:
+        return frame.loc[:, list(spec.columns)].reset_index(drop=True)
+    return (
+        frame.loc[:, list(spec.columns)]
+        .sort_values(list(spec.key_columns), kind="stable")
+        .reset_index(drop=True)
+        .astype("string")
+    )
+
+
+def _semantic_table_changed(
+    current: pd.DataFrame,
+    candidate: pd.DataFrame,
+    table: str,
+) -> bool:
+    return not _semantic_frame(current, table).equals(
+        _semantic_frame(candidate, table)
+    )
+
+
+def _downgrade_complete_document(
+    current: TruthArtifact,
+    replacements: Mapping[str, pd.DataFrame],
+    boe_id: str,
+) -> dict[str, pd.DataFrame]:
+    prepared = dict(replacements)
+    if not any(
+        _semantic_table_changed(current.tables[table], candidate, table)
+        for table, candidate in prepared.items()
+    ):
+        return prepared
+    documents = prepared.get("documents", current.tables["documents"]).copy()
+    mask = documents["identificador_boe"].astype(str).eq(boe_id)
+    if int(mask.sum()) != 1:
+        raise TruthContractError(f"Unknown V2 truth document: {boe_id}")
+    if str(documents.loc[mask, "annotation_status"].iloc[0]) == "complete":
+        documents.loc[mask, "annotation_status"] = "draft"
+        prepared["documents"] = documents
+    return prepared
+
+
 def _commit_table_frames(
     truth_dir: Path,
     replacements: Mapping[str, pd.DataFrame],
     *,
     after_staging: Callable[[Path], None] | None = None,
+    primary_change_boe_id: str | None = None,
 ) -> TruthArtifact:
     truth_dir = Path(truth_dir)
     if not replacements:
@@ -503,6 +573,12 @@ def _commit_table_frames(
     current = load_truth(truth_dir)
     if current.manifest is not None or (truth_dir / TRUTH_MANIFEST).exists():
         raise TruthContractError("Frozen truth cannot be edited.")
+    if primary_change_boe_id is not None:
+        replacements = _downgrade_complete_document(
+            current,
+            replacements,
+            primary_change_boe_id,
+        )
     for table, replacement in replacements.items():
         if table not in TABLE_SPECS:
             raise ValueError(f"Unknown V2 truth table: {table}")
@@ -548,11 +624,13 @@ def _commit_table_frame(
     replacement: pd.DataFrame,
     *,
     after_staging: Callable[[Path], None] | None = None,
+    primary_change_boe_id: str | None = None,
 ) -> TruthArtifact:
     return _commit_table_frames(
         truth_dir,
         {table: replacement},
         after_staging=after_staging,
+        primary_change_boe_id=primary_change_boe_id,
     )
 
 
@@ -607,6 +685,148 @@ def _replacement_with_row(
     return pd.concat([frame, new_row], ignore_index=True)
 
 
+def _is_primary_row(table: str, row: Mapping[str, object]) -> bool:
+    return table in _PRIMARY_MUTATION_TABLES or (
+        table == "evidence_passages"
+        and str(row["owner_type"]) == "administrative_action"
+    )
+
+
+def _canonical_row_reference(table: str, row: Mapping[str, object]) -> str:
+    if table == "action_targets":
+        return (
+            f"{qa_path(table, row, 'target_type')}="
+            f"{row['target_type']}:{row['target_truth_key']}"
+        )
+    if table == "evidence_passages":
+        return qa_path(table, row, "passage_text")
+    field = next(
+        column
+        for column in TABLE_SPECS[table].columns
+        if column not in {"identificador_boe", *TABLE_SPECS[table].key_columns}
+    )
+    return qa_path(table, row, field).rsplit(".", 1)[0]
+
+
+def deletion_dependencies(
+    truth: TruthArtifact,
+    table: str,
+    boe_id: str,
+    key: Mapping[str, str],
+) -> tuple[str, ...]:
+    """List canonical references that make an event/asset deletion unsafe."""
+
+    references: list[str] = []
+    if table == "events":
+        event_key = str(key.get("event_key", ""))
+        for child_table in (
+            "generation_assets",
+            "associated_components",
+            "technical_mentions",
+            "administrative_actions",
+            "action_targets",
+            "participants",
+            "locations",
+        ):
+            children = truth.tables[child_table]
+            selected = children.loc[
+                children["identificador_boe"].astype(str).eq(boe_id)
+                & children["event_key"].astype(str).eq(event_key)
+            ]
+            references.extend(
+                _canonical_row_reference(child_table, row)
+                for _, row in selected.iterrows()
+            )
+    elif table == "generation_assets":
+        asset_key = str(key.get("asset_key", ""))
+        actions = truth.tables["administrative_actions"]
+        for _, row in actions.loc[
+            actions["identificador_boe"].astype(str).eq(boe_id)
+        ].iterrows():
+            affected = parse_json_list(
+                str(row["expected_affected_generation_asset_keys_json"]),
+                label="expected_affected_generation_asset_keys_json",
+                allow_empty=True,
+            )
+            if asset_key in affected:
+                references.append(
+                    qa_path(
+                        "administrative_actions",
+                        row,
+                        "expected_affected_generation_asset_keys_json",
+                    )
+                )
+        components = truth.tables["associated_components"]
+        for _, row in components.loc[
+            components["identificador_boe"].astype(str).eq(boe_id)
+        ].iterrows():
+            related = parse_json_list(
+                str(row["related_asset_keys_json"]),
+                label="related_asset_keys_json",
+                allow_empty=True,
+            )
+            if asset_key in related:
+                references.append(
+                    qa_path("associated_components", row, "related_asset_keys_json")
+                )
+        for child_table, owner_type in (
+            ("technical_mentions", "generation_asset"),
+            ("evidence_passages", "generation_asset"),
+        ):
+            children = truth.tables[child_table]
+            selected = children.loc[
+                children["identificador_boe"].astype(str).eq(boe_id)
+                & children["owner_type"].astype(str).eq(owner_type)
+                & children["owner_key"].astype(str).eq(asset_key)
+            ]
+            references.extend(
+                _canonical_row_reference(child_table, row)
+                for _, row in selected.iterrows()
+            )
+        targets = truth.tables["action_targets"]
+        selected_targets = targets.loc[
+            targets["identificador_boe"].astype(str).eq(boe_id)
+            & targets["target_type"].astype(str).eq("generation_asset")
+            & targets["target_truth_key"].astype(str).eq(asset_key)
+        ]
+        references.extend(
+            _canonical_row_reference("action_targets", row)
+            for _, row in selected_targets.iterrows()
+        )
+    return tuple(sorted(set(references)))
+
+
+def action_deletion_impact(
+    truth: TruthArtifact,
+    boe_id: str,
+    action_key: str,
+) -> ActionDeletionImpact:
+    actions = truth.tables["administrative_actions"]
+    action_count = int(
+        (
+            actions["identificador_boe"].astype(str).eq(boe_id)
+            & actions["action_key"].astype(str).eq(action_key)
+        ).sum()
+    )
+    if action_count != 1:
+        raise TruthContractError(
+            f"La actuación {action_key} no existe de forma única en {boe_id}."
+        )
+    evidence = action_evidence_rows(truth, boe_id, action_key=action_key)
+    targets = truth.tables["action_targets"]
+    target_count = int(
+        (
+            targets["identificador_boe"].astype(str).eq(boe_id)
+            & targets["action_key"].astype(str).eq(action_key)
+        ).sum()
+    )
+    return ActionDeletionImpact(
+        action_key=action_key,
+        evidence_count=len(evidence),
+        target_count=target_count,
+    )
+
+
 def upsert_truth_row(
     truth_dir: Path,
     table: str,
@@ -635,19 +855,16 @@ def upsert_truth_row(
         original_key=original_key,
     )
 
-    status = str(
-        truth.tables["documents"].loc[
-            truth.tables["documents"]["identificador_boe"].astype(str).eq(boe_id),
-            "annotation_status",
-        ].iloc[0]
+    primary_change_boe_id = (
+        boe_id
+        if _is_primary_row(table, new_row.iloc[0].to_dict())
+        else None
     )
-    callback = None
-    if status == "complete":
-        callback = lambda staging: validate_document(
-            staging, boe_id, source_text=source_text
-        )
     return _commit_table_frame(
-        Path(truth_dir), table, replacement, after_staging=callback
+        Path(truth_dir),
+        table,
+        replacement,
+        primary_change_boe_id=primary_change_boe_id,
     )
 
 
@@ -732,21 +949,10 @@ def upsert_action_with_initial_evidence(
             ignore_index=True,
         )
 
-    status = str(
-        truth.tables["documents"].loc[
-            truth.tables["documents"]["identificador_boe"].astype(str).eq(boe_id),
-            "annotation_status",
-        ].iloc[0]
-    )
-    callback = None
-    if status == "complete":
-        callback = lambda staging: validate_document(
-            staging, boe_id, source_text=source_text
-        )
     return _commit_table_frames(
         truth_dir,
         replacements,
-        after_staging=callback,
+        primary_change_boe_id=boe_id,
     )
 
 
@@ -760,6 +966,15 @@ def delete_truth_row(
 ) -> TruthArtifact:
     if table not in EDITABLE_TABLES:
         raise ValueError(f"Table is not entity-editable: {table}")
+    if table == "administrative_actions":
+        action_key = key.get("action_key")
+        if action_key is None:
+            raise TruthContractError("Missing row key column: action_key")
+        return delete_administrative_action(
+            truth_dir,
+            boe_id,
+            str(action_key),
+        )
     truth = load_truth(Path(truth_dir))
     frame = truth.tables[table].copy()
     mask = frame["identificador_boe"].astype(str).eq(boe_id)
@@ -771,6 +986,16 @@ def delete_truth_row(
         mask &= frame[column].astype(str).eq(str(key[column]))
     if int(mask.sum()) != 1:
         raise TruthContractError("The V2 row selected for deletion is not unique.")
+    dependencies = deletion_dependencies(truth, table, boe_id, key)
+    if dependencies:
+        entity = table_entity(table)
+        key_field = table_key_field(table)
+        local_key = None if key_field is None else str(key[key_field])
+        target = canonical_path(entity, local_key=local_key)
+        raise TruthContractError(
+            f"No se puede eliminar {target}; primero elimina o reasigna estas "
+            f"referencias: {', '.join(dependencies)}."
+        )
     replacement = frame.loc[~mask].copy()
     selected = frame.loc[mask].iloc[0]
     if (
@@ -794,19 +1019,52 @@ def delete_truth_row(
                 "No se puede eliminar la última evidencia literal puntuada de "
                 "una actuación primaria puntuada."
             )
-    status = str(
-        truth.tables["documents"].loc[
-            truth.tables["documents"]["identificador_boe"].astype(str).eq(boe_id),
-            "annotation_status",
-        ].iloc[0]
+    primary_change_boe_id = (
+        boe_id if _is_primary_row(table, selected.to_dict()) else None
     )
-    callback = None
-    if status == "complete":
-        callback = lambda staging: validate_document(
-            staging, boe_id, source_text=source_text
-        )
     return _commit_table_frame(
-        Path(truth_dir), table, replacement, after_staging=callback
+        Path(truth_dir),
+        table,
+        replacement,
+        primary_change_boe_id=primary_change_boe_id,
+    )
+
+
+def delete_administrative_action(
+    truth_dir: Path,
+    boe_id: str,
+    action_key: str,
+) -> TruthArtifact:
+    """Delete one action and only its direct evidence/target children atomically."""
+
+    truth_dir = Path(truth_dir)
+    truth = load_truth(truth_dir)
+    action_deletion_impact(truth, boe_id, action_key)
+
+    actions = truth.tables["administrative_actions"]
+    action_mask = (
+        actions["identificador_boe"].astype(str).eq(boe_id)
+        & actions["action_key"].astype(str).eq(action_key)
+    )
+    evidence = truth.tables["evidence_passages"]
+    evidence_mask = (
+        evidence["identificador_boe"].astype(str).eq(boe_id)
+        & evidence["owner_type"].astype(str).eq("administrative_action")
+        & evidence["owner_key"].astype(str).eq(action_key)
+    )
+    targets = truth.tables["action_targets"]
+    target_mask = (
+        targets["identificador_boe"].astype(str).eq(boe_id)
+        & targets["action_key"].astype(str).eq(action_key)
+    )
+    return _commit_table_frames(
+        truth_dir,
+        {
+            "administrative_actions": actions.loc[~action_mask].copy(),
+            "evidence_passages": evidence.loc[~evidence_mask].copy(),
+            "action_targets": targets.loc[~target_mask].copy(),
+        },
+        primary_change_boe_id=boe_id,
     )
 
 
@@ -825,18 +1083,318 @@ def update_document_scope(
     mask = documents["identificador_boe"].astype(str).eq(boe_id)
     if int(mask.sum()) != 1:
         raise TruthContractError(f"Unknown V2 truth document: {boe_id}")
-    documents.loc[mask, "scope_applicability"] = scope_applicability
-    documents.loc[mask, "scope_adjudication"] = scope_adjudication
-    documents.loc[mask, "expected_document_scope"] = expected_document_scope
-    documents.loc[mask, "annotation_notes"] = annotation_notes.strip() or NA
-    documents.loc[mask, "reviewed_on"] = datetime.now(timezone.utc).date().isoformat()
-    callback = None
-    if str(documents.loc[mask, "annotation_status"].iloc[0]) == "complete":
-        callback = lambda staging: validate_document(
-            staging, boe_id, source_text=source_text
+    updates = {
+        "scope_applicability": scope_applicability,
+        "scope_adjudication": scope_adjudication,
+        "expected_document_scope": expected_document_scope,
+        "annotation_notes": annotation_notes.strip() or NA,
+    }
+    changed = any(
+        str(documents.loc[mask, column].iloc[0]) != value
+        for column, value in updates.items()
+    )
+    for column, value in updates.items():
+        documents.loc[mask, column] = value
+    if changed:
+        documents.loc[mask, "reviewed_on"] = (
+            datetime.now(timezone.utc).date().isoformat()
         )
     return _commit_table_frame(
-        Path(truth_dir), "documents", documents, after_staging=callback
+        Path(truth_dir),
+        "documents",
+        documents,
+        primary_change_boe_id=boe_id,
+    )
+
+
+def _first_incomplete_event(
+    truth: TruthArtifact,
+    boe_id: str,
+    child_table: str,
+) -> str | None:
+    events = _scored(_selected_rows(truth, "events", boe_id))
+    children = _scored(_selected_rows(truth, child_table, boe_id))
+    for event_key in events["event_key"].astype(str):
+        if children.loc[
+            children["event_key"].astype(str).eq(event_key)
+        ].empty:
+            return event_key
+    return None
+
+
+def _first_incomplete_action(
+    truth: TruthArtifact,
+    boe_id: str,
+    *,
+    field: str | None = None,
+) -> str | None:
+    actions = _scored(_selected_rows(truth, "administrative_actions", boe_id))
+    if field is not None:
+        if field == "expected_affected_generation_asset_keys_json":
+            actions = actions.loc[
+                actions[field].astype(str).map(
+                    lambda value: not parse_json_list(
+                        value,
+                        label=field,
+                        allow_empty=True,
+                    )
+                )
+            ]
+        else:
+            actions = actions.loc[actions[field].astype(str).eq(NA)]
+    else:
+        evidence = _scored(action_evidence_rows(truth, boe_id))
+        supported = set(evidence["owner_key"].astype(str))
+        actions = actions.loc[
+            ~actions["action_key"].astype(str).isin(supported)
+        ]
+    if actions.empty:
+        return None
+    return str(actions.iloc[0]["action_key"])
+
+
+def validation_error_feedback(
+    error: BaseException,
+    truth: TruthArtifact,
+    boe_id: str,
+) -> AnnotationValidationFeedback:
+    """Translate common validator failures without replacing the validator."""
+
+    raw = str(error)
+    if raw.startswith((
+        "No se puede ",
+        "Selecciona ",
+        "Cada actuación ",
+        "La actuación ",
+        "Completa y valida ",
+        "Confirma ",
+    )):
+        return AnnotationValidationFeedback(
+            message=raw,
+            section="Sección actual",
+            canonical_path=None,
+        )
+    if raw in {
+        "Evidence passage cannot be empty or __NA__.",
+        "Evidence must be one continuous source passage.",
+        "Evidence is not a continuous literal passage from this BOE source.",
+    }:
+        return AnnotationValidationFeedback(
+            message=(
+                "La evidencia debe ser un único pasaje continuo y literal copiado "
+                "de la fuente local. No se guardó ningún cambio."
+            ),
+            section=(
+                "4. Actuaciones administrativas o 7. Opcional / diagnóstico"
+            ),
+            canonical_path=None,
+        )
+    if "contains duplicate truth keys" in raw:
+        return AnnotationValidationFeedback(
+            message=(
+                "La fila ya existe con la misma clave canónica. Selecciona Editar "
+                "para modificarla o introduce una evidencia distinta."
+            ),
+            section="Sección actual",
+            canonical_path=None,
+        )
+    if raw == "An administrative action references an unknown affected asset.":
+        return AnnotationValidationFeedback(
+            message=(
+                "La actuación referencia un activo que ya no existe. Selecciona "
+                "los activos afectados en 4. Actuaciones administrativas."
+            ),
+            section="4. Actuaciones administrativas",
+            canonical_path=None,
+        )
+    if raw == "An action and its affected assets must belong to the same event.":
+        return AnnotationValidationFeedback(
+            message=(
+                "La actuación y todos sus activos afectados deben pertenecer al "
+                "mismo evento. Revisa el evento y el multiselect de activos en "
+                "4. Actuaciones administrativas."
+            ),
+            section="4. Actuaciones administrativas",
+            canonical_path=None,
+        )
+    if raw == "Scored administrative-action evidence requires a scored action.":
+        return AnnotationValidationFeedback(
+            message=(
+                "Antes de dejar una actuación fuera de puntuación, revisa sus "
+                "evidencias puntuadas en 4. Actuaciones administrativas."
+            ),
+            section="4. Actuaciones administrativas",
+            canonical_path=None,
+        )
+    if raw == "Every scored V2 event needs a scored generation asset.":
+        event_key = _first_incomplete_event(
+            truth, boe_id, "generation_assets"
+        ) or "evento seleccionado"
+        path = (
+            canonical_path("event", local_key=event_key)
+            if event_key.startswith("event_")
+            else None
+        )
+        return AnnotationValidationFeedback(
+            message=(
+                f"El evento {event_key} necesita al menos un activo de generación "
+                "puntuable. Revísalo en 3. Activos de generación."
+            ),
+            section="3. Activos de generación",
+            canonical_path=path,
+        )
+    if raw == "Every scored V2 event needs a scored administrative action.":
+        event_key = _first_incomplete_event(
+            truth, boe_id, "administrative_actions"
+        ) or "evento seleccionado"
+        path = (
+            canonical_path("event", local_key=event_key)
+            if event_key.startswith("event_")
+            else None
+        )
+        return AnnotationValidationFeedback(
+            message=(
+                f"El evento {event_key} necesita al menos una actuación "
+                "administrativa puntuable. Revísalo en 4. Actuaciones administrativas."
+            ),
+            section="4. Actuaciones administrativas",
+            canonical_path=path,
+        )
+    if raw == "Every scored V2 action needs scored action-specific evidence.":
+        action_key = _first_incomplete_action(truth, boe_id) or "actuación seleccionada"
+        path = (
+            canonical_path(
+                "evidence_passage",
+                owner_entity="administrative_action",
+                local_key=action_key,
+            )
+            if action_key.startswith("action_")
+            else None
+        )
+        return AnnotationValidationFeedback(
+            message=(
+                f"La actuación {action_key} necesita al menos una evidencia literal "
+                "de actuación antes de completar el documento. Revísala en "
+                "4. Actuaciones administrativas."
+            ),
+            section="4. Actuaciones administrativas",
+            canonical_path=path,
+        )
+    action_fields = {
+        "expected_action_type": "el tipo de actuación",
+        "expected_decision": "la decisión",
+        "expected_is_modification": "si es modificación",
+    }
+    for field, label in action_fields.items():
+        if raw == f"Every scored V2 action needs {field}.":
+            action_key = _first_incomplete_action(
+                truth, boe_id, field=field
+            ) or "actuación seleccionada"
+            path = (
+                canonical_path(
+                    "administrative_action",
+                    local_key=action_key,
+                    field=field,
+                )
+                if action_key.startswith("action_")
+                else None
+            )
+            return AnnotationValidationFeedback(
+                message=(
+                    f"La actuación {action_key} necesita indicar {label}. "
+                    "Revísala en 4. Actuaciones administrativas."
+                ),
+                section="4. Actuaciones administrativas",
+                canonical_path=path,
+            )
+    if raw == (
+        "Every scored V2 action needs explicit affected-generation-asset attribution."
+    ):
+        field = "expected_affected_generation_asset_keys_json"
+        action_key = _first_incomplete_action(
+            truth, boe_id, field=field
+        ) or "actuación seleccionada"
+        path = (
+            canonical_path(
+                "administrative_action",
+                local_key=action_key,
+                field=field,
+            )
+            if action_key.startswith("action_")
+            else None
+        )
+        return AnnotationValidationFeedback(
+            message=(
+                f"La actuación {action_key} necesita seleccionar explícitamente sus "
+                "activos de generación afectados. Revísala en 4. Actuaciones "
+                "administrativas."
+            ),
+            section="4. Actuaciones administrativas",
+            canonical_path=path,
+        )
+    if raw == (
+        "Every scored V2 action needs current, historical or explicit ambiguity."
+    ):
+        actions = _scored(_selected_rows(truth, "administrative_actions", boe_id))
+        invalid = actions.loc[actions["temporal_status"].astype(str).eq("not_applicable")]
+        action_key = (
+            str(invalid.iloc[0]["action_key"])
+            if not invalid.empty
+            else "actuación seleccionada"
+        )
+        path = (
+            canonical_path(
+                "administrative_action",
+                local_key=action_key,
+                field="temporal_status",
+            )
+            if action_key.startswith("action_")
+            else None
+        )
+        return AnnotationValidationFeedback(
+            message=(
+                f"La actuación {action_key} necesita una temporalidad current, "
+                "historical_antecedent o ambigua explícita. Revísala en "
+                "4. Actuaciones administrativas."
+            ),
+            section="4. Actuaciones administrativas",
+            canonical_path=path,
+        )
+    if raw == "A project-specific V2 document needs at least one scored event.":
+        return AnnotationValidationFeedback(
+            message=(
+                "El documento está marcado como específico de proyecto, pero necesita "
+                "al menos un evento puntuable. Revísalo en 2. Eventos / proyectos "
+                "publicados."
+            ),
+            section="2. Eventos / proyectos publicados",
+            canonical_path="document.expected_document_scope",
+        )
+    if raw == "A complete V2 document requires scored scope.":
+        return AnnotationValidationFeedback(
+            message=(
+                "Completa la evaluación del alcance en 1. Documento: aplicabilidad "
+                "`applicable`, adjudicación `scored_truth` y un alcance explícito."
+            ),
+            section="1. Documento",
+            canonical_path="document.expected_document_scope",
+        )
+    if raw == "A complete non-relevant document cannot contain primary scored entities.":
+        return AnnotationValidationFeedback(
+            message=(
+                "El documento se ha marcado como no relevante, pero todavía contiene "
+                "entidades primarias puntuables. Revísalas antes de completar."
+            ),
+            section="1–6. Verdad primaria",
+            canonical_path="document.expected_document_scope",
+        )
+    return AnnotationValidationFeedback(
+        message=(
+            "No se pudo validar el cambio. Revisa la entidad y sus relaciones en la "
+            "sección actual."
+        ),
+        section="Sección actual",
+        canonical_path=None,
     )
 
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import sys
+from hashlib import sha256
 from pathlib import Path
 from typing import Mapping, Sequence
 
@@ -24,11 +25,14 @@ from evaluation.final_holdout_v1.annotation import (
     validate_evidence_literal,
 )
 from evaluation.final_holdout_v2.annotation import (
+    action_deletion_impact,
     action_has_scored_evidence,
     action_evidence_rows,
     build_ai_qa_review_package,
     configured_paths,
+    delete_administrative_action,
     delete_truth_row,
+    deletion_dependencies,
     load_annotation_workspace,
     mark_document_complete,
     next_key_for_table,
@@ -38,6 +42,7 @@ from evaluation.final_holdout_v2.annotation import (
     upsert_action_with_initial_evidence,
     upsert_truth_row,
     validate_document,
+    validation_error_feedback,
 )
 from evaluation.final_holdout_v2.contract import (
     ACTION_TYPES,
@@ -60,6 +65,7 @@ from evaluation.final_holdout_v2.terminology import (
     canonical_path,
     entity_label,
     field_label,
+    qa_path,
     table_key_field,
     table_entity,
     widget_label,
@@ -79,6 +85,9 @@ ACTION_SUMMARY_FIELDS = (
     "expected_is_modification",
     "temporal_status",
     "expected_affected_generation_asset_keys_json",
+    "applicability",
+    "adjudication",
+    "annotation_notes",
 )
 
 
@@ -117,6 +126,7 @@ def _select_domain(
     key: str,
     allow_na: bool = False,
     row: Mapping[str, object] | None = None,
+    help: str | None = None,
 ) -> str | None:
     entity = table_entity(table)
     options = _domain_options(domain, allow_na=allow_na)
@@ -126,6 +136,7 @@ def _select_domain(
         index=_index_or_none(options, current),
         placeholder="Selecciona una opción del contrato",
         key=key,
+        help=help,
     )
 
 
@@ -206,15 +217,21 @@ def _frame_for_boe(truth: TruthArtifact, table: str, boe_id: str) -> pd.DataFram
 
 
 def _row_options(frame: pd.DataFrame, table: str) -> tuple[list[str], dict[str, int]]:
-    keys = [
-        column
-        for column in TABLE_SPECS[table].key_columns
-        if column != "identificador_boe"
-    ]
+    entity = table_entity(table)
     labels: list[str] = []
     positions: dict[str, int] = {}
     for position, (_, row) in enumerate(frame.iterrows()):
-        label = " · ".join(f"{column}={row[column]}" for column in keys)
+        if table == "evidence_passages":
+            path = qa_path(table, row, "passage_text")
+            passage = str(row["passage_text"]).replace("\n", " ")
+            label = f"Evidencia {position + 1} · {path} · {passage[:90]}"
+        elif table == "action_targets":
+            path = qa_path(table, row, "target_type")
+            label = f"{path} · {row['target_type']}:{row['target_truth_key']}"
+        else:
+            key_field = table_key_field(table)
+            local_key = None if key_field is None else str(row[key_field])
+            label = f"{entity_label(entity)} · {local_key}"
         labels.append(label)
         positions[label] = position
     return labels, positions
@@ -226,6 +243,20 @@ def _original_key(table: str, row: Mapping[str, object]) -> dict[str, str]:
         for column in TABLE_SPECS[table].key_columns
         if column != "identificador_boe"
     }
+
+
+def _row_state_scope(table: str, row: Mapping[str, object]) -> str:
+    key = _original_key(table, row)
+    if len(key) == 1:
+        column, value = next(iter(key.items()))
+        return f"{column}_{value}"
+    canonical_key = json.dumps(
+        key,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    return f"row_{sha256(canonical_key.encode('utf-8')).hexdigest()[:16]}"
 
 
 def _display_rows(
@@ -318,13 +349,69 @@ def _save_notice(message: str) -> None:
     st.rerun()
 
 
+def _document_status(truth: TruthArtifact, boe_id: str) -> str:
+    documents = truth.tables["documents"]
+    return str(
+        documents.loc[
+            documents["identificador_boe"].astype(str).eq(boe_id),
+            "annotation_status",
+        ].iloc[0]
+    )
+
+
+def _save_mutation_notice(
+    before: TruthArtifact,
+    after: TruthArtifact,
+    boe_id: str,
+    default: str,
+) -> None:
+    if (
+        _document_status(before, boe_id) == "complete"
+        and _document_status(after, boe_id) == "draft"
+    ):
+        _save_notice(
+            "Se ha modificado información primaria. El documento vuelve a "
+            "borrador y debe validarse de nuevo."
+        )
+        return
+    _save_notice(default)
+
+
+def _show_validation_error(
+    error: BaseException,
+    truth: TruthArtifact,
+    boe_id: str,
+) -> None:
+    feedback = validation_error_feedback(error, truth, boe_id)
+    st.error(feedback.message, icon=":material/error:")
+    if feedback.canonical_path is not None:
+        st.caption(
+            f"Sección: {feedback.section} · `{feedback.canonical_path}`"
+        )
+    with st.expander("Detalle técnico de validación", icon=":material/code:"):
+        st.code(str(error), language=None)
+
+
 def _navigate_to(boe_id: str) -> None:
     st.session_state["v2_current_boe"] = boe_id
     st.session_state["v2_direct_boe"] = boe_id
 
 
+def _row_canonical_path(table: str, row: Mapping[str, object]) -> str:
+    if table == "evidence_passages":
+        return qa_path(table, row, "passage_text")
+    if table == "action_targets":
+        return qa_path(table, row, "target_type")
+    entity = table_entity(table)
+    key_field = table_key_field(table)
+    if key_field is None:
+        return entity
+    return canonical_path(entity, local_key=str(row[key_field]))
+
+
 def _render_delete(
     truth_dir: Path,
+    truth: TruthArtifact,
     table: str,
     boe_id: str,
     frame: pd.DataFrame,
@@ -339,27 +426,71 @@ def _render_delete(
         key=f"v2_delete_{table}_{boe_id}_{key_suffix}",
     )
     row = frame.iloc[positions[selected]].to_dict()
-    with st.form(f"v2_delete_form_{table}_{boe_id}_{key_suffix}"):
-        confirmed = st.checkbox("Confirmo la eliminación de esta fila")
+    key = _original_key(table, row)
+    row_scope = _row_state_scope(table, row)
+    path = _row_canonical_path(table, row)
+    dependencies = deletion_dependencies(truth, table, boe_id, key)
+    if table == "administrative_actions":
+        impact = action_deletion_impact(
+            truth,
+            boe_id,
+            str(row["action_key"]),
+        )
+        st.warning(
+            f"Se eliminará `{path}` junto con {impact.evidence_count} pasaje(s) "
+            f"de evidencia de esa actuación y {impact.target_count} target(s) "
+            "diagnóstico(s). No se eliminarán otras entidades."
+        )
+    elif dependencies:
+        st.warning(
+            f"No se puede eliminar `{path}` mientras tenga referencias. "
+            "Elimina o reasigna primero los objetos indicados."
+        )
+        for reference in dependencies:
+            st.markdown(f"- `{reference}`")
+    with st.form(
+        f"v2_delete_form_{table}_{boe_id}_{key_suffix}_{row_scope}"
+    ):
+        confirmed = st.checkbox(
+            f"Confirmo la eliminación de {path}"
+            + (
+                " y de sus dependencias directas indicadas"
+                if table == "administrative_actions"
+                else ""
+            ),
+            key=(
+                f"v2_delete_confirm_{table}_{boe_id}_{key_suffix}_{row_scope}"
+            ),
+        )
         submitted = st.form_submit_button(
-            "Eliminar fila", icon=":material/delete:"
+            "Eliminar fila",
+            icon=":material/delete:",
+            disabled=bool(dependencies),
         )
     if submitted:
         if not confirmed:
             st.error("Confirma explícitamente la eliminación.")
             return
         try:
-            delete_truth_row(
-                truth_dir,
-                table,
-                boe_id,
-                _original_key(table, row),
-                source_text=source_text,
+            saved = (
+                delete_administrative_action(
+                    truth_dir,
+                    boe_id,
+                    str(row["action_key"]),
+                )
+                if table == "administrative_actions"
+                else delete_truth_row(
+                    truth_dir,
+                    table,
+                    boe_id,
+                    key,
+                    source_text=source_text,
+                )
             )
         except (OSError, ValueError, TruthContractError) as error:
-            st.error(str(error))
+            _show_validation_error(error, truth, boe_id)
         else:
-            _save_notice("Fila eliminada.")
+            _save_mutation_notice(truth, saved, boe_id, "Fila eliminada.")
 
 
 def _render_entity_form(
@@ -399,9 +530,10 @@ def _render_entity_form(
         st.caption(f"Clave local: `{local_key}`")
 
     entity = table_entity(table)
+    row_scope = "new" if row is None else _row_state_scope(table, row)
     key_prefix = (
         f"v2_{mode}_{table}_{boe_id}_{action_evidence_only}_"
-        f"{evidence_owner_key or 'all'}"
+        f"{evidence_owner_key or 'all'}_{row_scope}"
     )
     action_evidence_field = table == "administrative_actions" and (
         row is None
@@ -851,7 +983,7 @@ def _render_entity_form(
                 ),
             )
         if table == "administrative_actions":
-            upsert_action_with_initial_evidence(
+            saved = upsert_action_with_initial_evidence(
                 truth_dir,
                 boe_id,
                 entity_row,
@@ -864,7 +996,7 @@ def _render_entity_form(
                 source_text=source_text,
             )
         else:
-            upsert_truth_row(
+            saved = upsert_truth_row(
                 truth_dir,
                 table,
                 boe_id,
@@ -873,9 +1005,14 @@ def _render_entity_form(
                 source_text=source_text,
             )
     except (IndexError, OSError, ValueError, TruthContractError) as error:
-        st.error(str(error))
+        _show_validation_error(error, truth, boe_id)
     else:
-        _save_notice("Fila guardada y validada.")
+        _save_mutation_notice(
+            truth,
+            saved,
+            boe_id,
+            "Fila guardada y validada.",
+        )
 
 
 KEYED_TABLES = {
@@ -929,7 +1066,7 @@ def _render_table_editor(
     _display_rows(frame, empty_message=empty_message)
     modes = ["Añadir"] if frame.empty else ["Editar", "Añadir", "Eliminar"]
     mode = st.segmented_control(
-        "Operación",
+        f"Operación · {entity_label(table_entity(table))}",
         modes,
         default=modes[0],
         key=f"v2_mode_{table}_{boe_id}_{editor_scope}",
@@ -937,6 +1074,7 @@ def _render_table_editor(
     if mode == "Eliminar":
         _render_delete(
             truth_dir,
+            truth,
             table,
             boe_id,
             frame,
@@ -955,6 +1093,42 @@ def _render_table_editor(
             action_evidence_only=action_evidence_only,
             evidence_owner_key=evidence_owner_key,
         )
+
+
+def _optional_prerequisite_message(
+    truth: TruthArtifact,
+    table: str,
+    boe_id: str,
+) -> str | None:
+    if not _frame_for_boe(truth, table, boe_id).empty:
+        return None
+    if table in {"associated_components", "participants"}:
+        if _frame_for_boe(truth, "events", boe_id).empty:
+            return "Añade primero un evento para habilitar esta dimensión."
+    elif table == "technical_mentions":
+        if not entity_choices(truth, boe_id, purpose="technical_owner"):
+            return (
+                "Añade primero un activo de generación o componente asociado "
+                "para registrar una mención técnica."
+            )
+    elif table == "action_targets":
+        if _frame_for_boe(truth, "administrative_actions", boe_id).empty:
+            return "Añade primero una actuación administrativa."
+        if not entity_choices(truth, boe_id, purpose="action_target"):
+            return "Añade primero una entidad que pueda ser objetivo de la actuación."
+    elif table == "evidence_passages":
+        choices = entity_choices(truth, boe_id, purpose="evidence_owner")
+        secondary = [
+            choice
+            for choice in choices
+            if choice.owner_type != "administrative_action"
+        ]
+        if not secondary:
+            return (
+                "Añade primero una entidad secundaria compatible para registrar "
+                "evidencia diagnóstica."
+            )
+    return None
 
 
 def _render_action_summary(action: Mapping[str, object]) -> None:
@@ -1024,6 +1198,13 @@ def _render_scope(
     source_text: str,
 ) -> None:
     document = _frame_for_boe(truth, "documents", boe_id).iloc[0]
+    st.info(
+        "`applicable` significa que la pregunta de relevancia puede evaluarse; "
+        "no significa que el BOE sea relevante. Para un BOE claramente no "
+        "relevante usa: aplicabilidad `applicable`, adjudicación `scored_truth` "
+        "y alcance `not_relevant_for_generation_projects`.",
+        icon=":material/info:",
+    )
     with st.form(f"v2_scope_{boe_id}"):
         applicability = _select_domain(
             "documents",
@@ -1032,6 +1213,10 @@ def _render_scope(
             local_key=None,
             current=document["scope_applicability"],
             key=f"v2_scope_applicability_{boe_id}",
+            help=(
+                "Indica si la pregunta de relevancia puede evaluarse con la fuente. "
+                "`applicable` no afirma que el BOE sea relevante."
+            ),
         )
         adjudication = _select_domain(
             "documents",
@@ -1040,6 +1225,10 @@ def _render_scope(
             local_key=None,
             current=document["scope_adjudication"],
             key=f"v2_scope_adjudication_{boe_id}",
+            help=(
+                "Usa `scored_truth` cuando la persona revisora adopta una decisión "
+                "de alcance evaluable."
+            ),
         )
         scope = _select_domain(
             "documents",
@@ -1049,6 +1238,10 @@ def _render_scope(
             current=document["expected_document_scope"],
             key=f"v2_scope_value_{boe_id}",
             allow_na=True,
+            help=(
+                "Aquí se decide si el BOE es específico de proyectos de generación "
+                "o no relevante; no se deduce de `scope_applicability`."
+            ),
         )
         notes = st.text_area(
             widget_label("document", "annotation_notes"),
@@ -1059,7 +1252,7 @@ def _render_scope(
         )
     if submitted:
         try:
-            update_document_scope(
+            saved = update_document_scope(
                 truth_dir,
                 boe_id,
                 scope_applicability=_required(applicability, "la aplicabilidad"),
@@ -1069,13 +1262,19 @@ def _render_scope(
                 source_text=source_text,
             )
         except (OSError, ValueError, TruthContractError) as error:
-            st.error(str(error))
+            _show_validation_error(error, truth, boe_id)
         else:
-            _save_notice("Alcance V2 guardado.")
+            _save_mutation_notice(
+                truth,
+                saved,
+                boe_id,
+                "Alcance V2 guardado.",
+            )
 
 
 def _render_completion(
     truth_dir: Path,
+    truth: TruthArtifact,
     boe_id: str,
     source_text: str,
 ) -> None:
@@ -1092,7 +1291,7 @@ def _render_completion(
             try:
                 validate_document(truth_dir, boe_id, source_text=source_text)
             except (OSError, ValueError, TruthContractError) as error:
-                st.error(str(error))
+                _show_validation_error(error, truth, boe_id)
             else:
                 st.success("El documento satisface la completitud primaria V2.")
         if st.button(
@@ -1104,7 +1303,7 @@ def _render_completion(
             try:
                 mark_document_complete(truth_dir, boe_id, source_text=source_text)
             except (OSError, ValueError, TruthContractError) as error:
-                st.error(str(error))
+                _show_validation_error(error, truth, boe_id)
             else:
                 _save_notice("Documento revalidado y marcado como complete en V2.")
 
@@ -1267,6 +1466,10 @@ with annotation_column:
         )
 
     st.subheader("4. Actuaciones administrativas")
+    st.caption(
+        "Cada actuación primaria se completa aquí junto con sus evidencias "
+        "literales obligatorias."
+    )
     asset_rows = _frame_for_boe(
         workspace.truth, "generation_assets", selected_boe
     )
@@ -1283,13 +1486,6 @@ with annotation_column:
             selected_boe,
             source_text,
         )
-
-    st.subheader("5. Evidencias de actuaciones administrativas")
-    st.caption(
-        "Cada actuación primaria debe tener al menos un pasaje literal continuo "
-        "del BOE que respalde esa actuación. Las evidencias de otros tipos de "
-        "entidad son opcionales/diagnósticas en V2."
-    )
     _render_action_evidence_workflow(
         workspace.truth_dir,
         workspace.truth,
@@ -1297,7 +1493,7 @@ with annotation_column:
         source_text,
     )
 
-    st.subheader("6. Localizaciones")
+    st.subheader("5. Localizaciones")
     if event_rows.empty:
         st.info(
             "No hay eventos. Añade primero un evento para poder registrar "
@@ -1312,10 +1508,19 @@ with annotation_column:
             source_text,
         )
 
-    st.subheader("7. Validación y estado de anotación")
-    _render_completion(workspace.truth_dir, selected_boe, source_text)
+    st.subheader("6. Validación y estado de anotación")
+    st.caption(
+        "Cualquier cambio primario sobre un documento complete lo devuelve a draft. "
+        "Después debes validarlo y marcarlo complete de nuevo."
+    )
+    _render_completion(
+        workspace.truth_dir,
+        workspace.truth,
+        selected_boe,
+        source_text,
+    )
 
-    with st.expander("8. Opcional / diagnóstico", expanded=False):
+    with st.expander("7. Opcional / diagnóstico", expanded=False):
         st.caption(
             "Estos campos no son necesarios para completar el ground truth V2 "
             "y no forman parte del núcleo de métricas primarias."
@@ -1330,11 +1535,19 @@ with annotation_column:
             ),
             key=f"v2_secondary_table_{selected_boe}",
         )
-        _render_table_editor(
-            workspace.truth_dir,
+        prerequisite = _optional_prerequisite_message(
             workspace.truth,
             secondary_table,
             selected_boe,
-            source_text,
-            action_evidence_only=False,
         )
+        if prerequisite is not None:
+            st.info(prerequisite)
+        else:
+            _render_table_editor(
+                workspace.truth_dir,
+                workspace.truth,
+                secondary_table,
+                selected_boe,
+                source_text,
+                action_evidence_only=False,
+            )
