@@ -3,6 +3,7 @@ from __future__ import annotations
 import copy
 import json
 import shutil
+from dataclasses import replace
 from pathlib import Path
 
 import pandas as pd
@@ -19,6 +20,7 @@ from evaluation.final_holdout_v2.evaluator_freeze import evaluator_declaration, 
 from evaluation.final_holdout_v2.predictions import EvaluationError
 from v2b_fixtures import BOE, OTHER, make_case, publish_case
 from test_final_holdout_v1 import _refresh_snapshot_artifact, _rewrite_prediction_payload
+from test_primary_execution import case as primary_case
 
 
 @pytest.fixture
@@ -96,7 +98,7 @@ def test_evaluator_identity_relative_code_configuration_and_contract(tmp_path):
         shutil.copyfile(root / name, replica / name)
     original = evaluator_declaration()
     assert evaluator_declaration(repo_root=replica) == original
-    for relative in ("evaluation/final_holdout_v2/scoring.py", "evaluation/final_holdout_v2/scoring_rules.json",
+    for relative in ("evaluation/final_holdout_v2/evaluator.py", "evaluation/final_holdout_v2/scoring.py", "evaluation/final_holdout_v2/scoring_rules.json",
                      "evaluation/final_holdout_v2/contract.json", "evaluation/final_holdout_v1/matching.py",
                      "src/renewables_permitting/gold.py", "uv.lock"):
         file = replica / relative
@@ -367,6 +369,123 @@ def test_cli_help_does_not_execute(command, capsys):
         main([command, "--help"])
     assert result.value.code == 0
     assert "usage:" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("attempts,requests,accepted", [
+    ([("model", "ok")], 1, True),
+    ([("model", "ok")], 0, False),
+    ([("model", "error")], 0, True),
+    ([("model", "ok"), ("model", "ok"), ("model", "error")], 2, True),
+    ([("model", "ok"), ("model", "ok"), ("model", "error")], 1, False),
+    ([("deterministic", "ok"), ("deterministic", "error")], 0, True),
+    ([("model", "ok"), ("deterministic", "ok")], 1, True),
+    ([("model", "ok")] * 3 + [("model", "error")] * 4, 3, True),
+    ([("model", "error")] * 3, 0, True),
+    ([("model", "ok"), ("model", "error")], 5, True),
+], ids=["success", "unreported_success", "unreported_error", "two_success_one_error",
+        "insufficient_for_successes", "non_model", "mixed_origins", "several_errors",
+        "only_errors", "reported_retries"])
+def test_requests_guard_matrix(published, monkeypatch, attempts, requests, accepted):
+    """Isolate the usage gate; full primary validation is covered below."""
+    snapshot = module.load_prediction_snapshot(published["predictions_dir"])
+    frame = pd.DataFrame(attempts, columns=["attempt_origin", "extraction_status"])
+    candidate = replace(snapshot, attempts=frame)
+    before_frame = frame.copy(deep=True)
+    path = published["execution_record_path"]
+    record = json.loads(path.read_text())
+    record["model_usage"]["requests"] = requests
+    path.write_text(json.dumps(record))
+    before_record = path.read_bytes()
+    monkeypatch.setattr(module, "load_prediction_snapshot", lambda *args: candidate)
+    monkeypatch.setattr(module, "validate_primary_predictions", lambda *args: None)
+
+    class ReachedScoring(Exception):
+        pass
+
+    def stop_before_scoring(*args):
+        raise ReachedScoring
+
+    monkeypatch.setattr(module, "evaluate_frames", stop_before_scoring)
+    if accepted:
+        with pytest.raises(ReachedScoring):
+            evaluate(**published)
+    else:
+        with pytest.raises(EvaluationError, match="Fewer recorded model requests than successful model-origin attempts"):
+            evaluate(**published)
+    assert path.read_bytes() == before_record
+    pd.testing.assert_frame_equal(frame, before_frame)
+    assert not published["output_dir"].exists()
+
+
+def test_requests_guard_preserves_pre_fix_scientific_results(published):
+    # Captured before changing the guard, from the same invented published fixture.
+    baseline = json.loads((Path(__file__).parent / "fixtures/v2b_usage_guard_pre_fix.json").read_text())
+    result = evaluate(**published)
+    assert result.metrics == baseline["metrics"]
+    actual = {name: module._frame_identity(pd.read_parquet(result.output_dir / f"{name}.parquet"))
+              for name in sorted(module.REPORT_TABLES)}
+    assert actual == baseline["semantic_table_sha256"]
+    assert (result.output_dir / "execution_record.json").read_bytes() == published["execution_record_path"].read_bytes()
+    assert evaluator_declaration()["evaluator_identity"] != baseline["evaluator_identity"]
+
+
+def test_requests_guard_accepts_preserved_transport_error(primary_case, monkeypatch, tmp_path):
+    """Real PydanticAI graph + frozen runner, local fake model and no network."""
+    from pydantic_ai import Agent
+    from pydantic_ai.exceptions import ModelHTTPError
+    from pydantic_ai.models.function import FunctionModel
+    from pydantic_ai.output import NativeOutput
+    from renewables_permitting import pipeline
+    from renewables_permitting.extraction.config import AGENT_RETRIES
+    from renewables_permitting.extraction.instructions import AGENT_INSTRUCTIONS
+    from renewables_permitting.extraction.models import BOEAIExtraction
+    from evaluation.final_holdout_v2.predictions import load_prediction_snapshot, validate_primary_predictions
+    from test_primary_execution import FakeAgent, prepare, run, finalize
+
+    case = primary_case
+    failed_boe = case.documents.iloc[1].identificador
+    fake_invocations = []
+
+    async def fail_before_response(messages, info):
+        fake_invocations.append("synthetic_503")
+        raise ModelHTTPError(status_code=503, model_name="synthetic-function-model", body="Synthetic transport failure")
+
+    local_agent = Agent(FunctionModel(fail_before_response), output_type=NativeOutput(BOEAIExtraction),
+                        instructions=AGENT_INSTRUCTIONS, retries=AGENT_RETRIES)
+    successful_fake = FakeAgent(case)
+
+    class SelectiveAgent:
+        async def run(self, prompt, **kwargs):
+            target = local_agent if prompt.split("BOE_ID: ")[1].splitlines()[0] == failed_boe else successful_fake
+            return await target.run(prompt, **kwargs)
+
+    monkeypatch.setattr(pipeline, "build_boe_extraction_agent", SelectiveAgent)
+    prepare(case)
+    status = run(case)
+    assert status["counts"]["TERMINAL_ERROR"] == 1
+    provenance = finalize(case)
+    snapshot_dir = case.root / "primary/extraction"
+    snapshot = load_prediction_snapshot(snapshot_dir)
+    validate_primary_predictions(snapshot, case.truth)
+    failed = snapshot.attempts.loc[snapshot.attempts.identificador_boe.eq(failed_boe)].iloc[0]
+    assert failed.attempt_origin == "model" and failed.extraction_status == "error"
+    assert failed.usage_requests == 0 and len(fake_invocations) == 2
+    assert len(snapshot.attempts) == 3 and len(snapshot.current_extractions) == 2
+    record_path = case.root / "finalization/execution_record.json"
+    before_record = record_path.read_bytes()
+    record = json.loads(before_record)
+    assert record["model_usage"]["requests"] == 2
+    assert provenance["document_executions_started"] == 3
+    # Controller compatibility diagnostic retains the historical bound; it is not
+    # the corrected evaluator's admissibility gate and is deliberately unchanged.
+    assert provenance["frozen_evaluator_usage_guard_satisfied"] is False
+    before = inventory(case.root)
+    result = evaluate(truth_dir=case.args["truth_dir"], evaluator_dir=case.args["evaluator_dir"],
+                      predictions_dir=snapshot_dir, execution_record_path=record_path,
+                      output_dir=tmp_path / "accepted_report")
+    assert inventory(case.root) == before
+    assert (result.output_dir / "execution_record.json").read_bytes() == before_record
+    validate_evaluation(result.output_dir)
 
 
 @pytest.mark.parametrize("kind", ["document_digest", "row_count", "extra_artifact", "duplicate_artifact_file"])

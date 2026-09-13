@@ -70,32 +70,44 @@ and manifest SHA-256 is
 Its truth binding is the verified V2 truth/manifest identity documented in the
 primary procedure. Do not reseal or overwrite either artifact.
 
-The closure audit identified a **PRE-GEMINI BLOCKER** in this evaluator's
-`evaluate` usage guard: it counts terminal model-origin errors toward a minimum
-request count that PydanticAI does not guarantee. A local synthetic 503 sequence
-reproduces a valid primary record rejected before scoring. The proposed bounded
-correction is to count only successful model-origin attempts in that lower bound;
-no matching, scoring, metric, truth, temporal or P0 rule changes. This is a
-diagnosis only; evaluator code and the frozen artifact remain unchanged. See
-the usage section of [PRIMARY_EXECUTION_V2.md](PRIMARY_EXECUTION_V2.md).
+The controller was subsequently committed at
+`10e1ada589731e00cd5d5ec3f61694aab0c668d3`, the clean starting point of the
+bounded usage-guard fix. `evaluate` now requires reported requests to cover only
+attempts with `attempt_origin == "model"` and `extraction_status == "ok"`.
+The primary domain remains `model`/`deterministic`, with `ok`/`error` statuses;
+other origins and invalid statuses still fail the existing lineage guards.
+Terminal transport errors can report zero and remain evaluable. PydanticAI
+usage is preserved, never estimated or replaced by document/attempt counts;
+it is not an exhaustive count of HTTP invocations. Matching, scoring,
+denominators, metrics, truth, temporal rules and P0 are unchanged.
 
-The remaining sequence is controller review → approved controller commit/push
-→ separately approved usage-guard fix/commit and a new evaluator freeze
-→ verified detached productive environment → API key → prepared-run review
-→ separately authorized primary execution. The controller remains outside this
-frozen package; see [PRIMARY_EXECUTION_V2.md](PRIMARY_EXECUTION_V2.md).
+The old freeze remains byte-identical and validates against archived committed
+code from `10e1ada...`. It correctly rejects the changed checkout. The sole
+changed input to `evaluator_identity` is `evaluation/final_holdout_v2/evaluator.py`;
+the current code identity is
+`a617ef6155cfcd8c403b0c55542cb753fac22f7893f57f3861af665ae23dda5b`.
+This is a code declaration, **not a new frozen artifact or manifest**.
+
+Next: human review → approved fix commit/push → new evaluator freeze in a new
+destination → verify its identity/manifest and declare the old freeze superseded
+→ verified detached productive environment → API-key presence → preparation
+→ human preflight review → only then `run-primary`. No subsequent gate is
+executed by this implementation. The controller remains unchanged; its
+historical usage-bound diagnostic is explained in
+[PRIMARY_EXECUTION_V2.md](PRIMARY_EXECUTION_V2.md).
 Preserve all primary errors and original outputs before any human semantic
 intervention. Additional attempts cannot replace the first execution.
-The commands below verify the existing artifact. After the approved fix/freeze,
-use the new evaluator path/identity/manifest for real preparation and evaluation;
-never overwrite the current freeze or reseal it after inspecting predictions.
+The command below is for the new artifact after approval and publication; its
+path and manifest do not exist yet. Use those new verified pins for preparation
+and evaluation. The old freeze must be methodologically superseded before Gemini,
+never overwritten or resealed after inspecting predictions.
 
 ```bash
 UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
 uv run python -m evaluation.final_holdout_v2.cli validate-evaluator \
-  --evaluator runs/final_holdout_p2_v1_evaluator_v2_frozen \
-  --expected-evaluator-identity 956213df2a1669814f82491809d776998346d9e54cb1fdc8d9a5434e8dd26f77 \
-  --expected-manifest-sha256 6d7193d555445d7514b918a31fc30ea57b905e0382912870add2da075c1fdd55
+  --evaluator <NEW_FROZEN_EVALUATOR_DIRECTORY> \
+  --expected-evaluator-identity <NEW_VERIFIED_EVALUATOR_ID> \
+  --expected-manifest-sha256 <NEW_VERIFIED_EVALUATOR_MANIFEST_SHA256>
 ```
 
 The evaluator identity covers relative Python/JSON/CSV files under both isolated
@@ -125,9 +137,9 @@ UV_OFFLINE=1 uv run python -m evaluation.final_holdout_v2.cli \
 UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
 uv run python -m evaluation.final_holdout_v2.cli evaluate \
   --truth runs/final_holdout_p2_v1_truth_v2_frozen \
-  --evaluator runs/final_holdout_p2_v1_evaluator_v2_frozen \
-  --expected-evaluator-identity 956213df2a1669814f82491809d776998346d9e54cb1fdc8d9a5434e8dd26f77 \
-  --expected-evaluator-manifest-sha256 6d7193d555445d7514b918a31fc30ea57b905e0382912870add2da075c1fdd55 \
+  --evaluator <NEW_FROZEN_EVALUATOR_DIRECTORY> \
+  --expected-evaluator-identity <NEW_VERIFIED_EVALUATOR_ID> \
+  --expected-evaluator-manifest-sha256 <NEW_VERIFIED_EVALUATOR_MANIFEST_SHA256> \
   --predictions <FROZEN_PRIMARY_EXTRACTION_DIRECTORY> \
   --execution-record <ACTUAL_EXECUTION_RECORD_JSON> \
   --output <NEW_V2_EVALUATION_DIRECTORY>
@@ -146,9 +158,11 @@ have different units/denominators. Neither is a global system accuracy.
 
 ## Validation scope
 
-Run focused V2-B tests, `tests/evaluation`,
-`tests/extraction/test_historical_antecedents.py`, then one final full repository
-suite, using the documented offline pytest environment. Tests cover the
+For the usage-guard block, run focused guard tests, affected V2-B tests,
+`tests/evaluation`, the pertinent controller record/provenance tests, then one
+final full repository suite, using the documented offline pytest environment.
+The original implementation's validation is retained in the historical record
+below. Tests cover the
 requested entity/action/location errors, ambiguity, temporal/P0 confusion,
 effective targets against Gold, complete event sets, missing fields, provenance,
 freeze/report corruption, no-overwrite/partial publication and row-order
@@ -200,3 +214,58 @@ Documents updated: this implementation/runbook record, the V2 evaluation
 contract, `docs/USER_GUIDE.md` and `docs/TFM_CLOSEOUT.md`.
 Reason: publish the methodology and actual validation evidence before model
 execution, preserving the immutable annotation declaration and V1 history.
+
+### Bounded usage-guard fix — 2026-09-13
+
+Starting state: clean `tfm-evaluation@10e1ada589731e00cd5d5ec3f61694aab0c668d3`,
+equal to the local tracking ref, with 1,773 passing tests as the prior baseline.
+The only executable change is the successful-model-attempt filter in
+`evaluate`; the V1 schema remains 21 properties and 21 required fields.
+
+Before modifying code, the existing `published` fixture was evaluated with the
+old implementation. `tests/evaluation/fixtures/v2b_usage_guard_pre_fix.json`
+stores the resulting metrics and semantic hashes of all 12 scientific tables,
+with the source commit and evaluator identity. It contains invented BOE-2099
+test evidence only. The regression compares every metric and all table hashes,
+including matching, TP/FP/FN, denominators, attribution, evidence and P0. A
+separate local `FunctionModel` test raises 503 twice before response accounting,
+preserves the terminal error through the unchanged controller and runner,
+passes the real V2 primary validation/scoring/publication, and verifies the
+execution record is copied byte-for-byte with its two reported requests.
+
+Use the same offline pytest prefix above. The ordered command/result ledger is:
+
+| Scope / execution | Actual result |
+| --- | --- |
+| `tests/evaluation/test_evaluator_v2b.py -k requests_guard` | **12 passed, 77 deselected, 22.75 s** |
+| `tests/evaluation/test_evaluator_v2b.py tests/evaluation/test_scoring_v2b.py` | **165 passed, 87.28 s** |
+| `tests/evaluation` | **434 passed, 357.91 s** |
+| `tests/evaluation/test_primary_execution.py -k 'complete_primary_roundtrip or zero_reported_usage or finalization or final_seal or final_journal'` | **8 passed, 71 deselected, 51.56 s** |
+| Empty scope: one final complete repository suite after the fix | **1,785 passed, 669.67 s (0:11:09), exit 0** |
+
+Acceptance: **READY FOR REFREEZE**, pending human review and approved fix
+commit/push before publishing anything. All five test stages ran in the required
+order; the full suite ran once and adds 12 tests to the 1,773-test reference.
+`git diff --check` and the new synthetic fixture's whitespace check pass.
+No real freeze, evaluation, prediction inspection, model/provider call, run or
+worktree creation, commit or push is performed by this block.
+
+Additional checks: the real protected inventory contains 11 working-truth,
+13 frozen-truth and two historical-evaluator files. The old evaluator passes
+its unchanged validator when imported from a temporary source archive created
+with `git archive 10e1ada... evaluation src config pyproject.toml uv.lock`.
+That archive is not a worktree or a new freeze. Its validator checks the original
+artifact's identity and manifest against the approved expectations. The changed
+checkout deliberately rejects that historical freeze. Comparing declarations
+shows exactly one changed source hash (`evaluation/final_holdout_v2/evaluator.py`)
+and identical scoring configuration. The four affected public CLI help commands
+verify the documented flags without executing preparation, evaluation or freeze.
+
+Documentation impact: corrected usage admissibility and the mandatory new-freeze
+gate. Documents reviewed: AGENTS, closeout, user guide, primary procedure,
+V2-B runbook, prediction/record validators, production runner/configuration and
+locked PydanticAI request accounting. Documents updated: the four operational
+documents (TFM_CLOSEOUT, USER_GUIDE, PRIMARY_EXECUTION_V2 and this runbook).
+Reason: distinguish reported usage from document starts/incidents, document the
+unchanged controller's historical diagnostic, preserve the old freeze and keep
+all future commands bound to the new artifact only after approval/publication.

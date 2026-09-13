@@ -111,8 +111,13 @@ def evaluate(*, truth_dir: Path, predictions_dir: Path, execution_record_path: P
         raise EvaluationError("Evaluator must have been frozen before primary extraction started.")
     if any(type(v) is not int for v in record["model_usage"].values()):
         raise EvaluationError("Execution model usage must contain integers, not booleans.")
-    if record["model_usage"]["requests"] < int(snapshot.attempts["attempt_origin"].eq("model").sum()):
-        raise EvaluationError("Fewer recorded model requests than model-origin attempts.")
+    # A terminal transport error may precede PydanticAI's usage increment.
+    successful_model_attempts = int((
+        snapshot.attempts["attempt_origin"].eq("model")
+        & snapshot.attempts["extraction_status"].eq("ok")
+    ).sum())
+    if record["model_usage"]["requests"] < successful_model_attempts:
+        raise EvaluationError("Fewer recorded model requests than successful model-origin attempts.")
     metrics, frames = evaluate_frames(truth, snapshot)
     provenance = {
         **binding, "truth_contract_version": CONTRACT_VERSION,

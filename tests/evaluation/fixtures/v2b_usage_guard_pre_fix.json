@@ -1,0 +1,258 @@
+{
+  "evaluator_identity": "956213df2a1669814f82491809d776998346d9e54cb1fdc8d9a5434e8dd26f77",
+  "fixture": "published in test_evaluator_v2b.py: two synthetic BOE-2099 documents, current/historical actions and P0 warning",
+  "metrics": {
+    "action_asset_pairs": {
+      "aggregation": "micro",
+      "f1": 0.6666666666666666,
+      "f1_denominator": 1.5,
+      "fn": 0,
+      "fp": 1,
+      "precision": 0.5,
+      "precision_denominator": 2,
+      "recall": 1.0,
+      "recall_denominator": 1,
+      "tp": 1,
+      "undefined_reasons": {
+        "f1": null,
+        "precision": null,
+        "recall": null
+      }
+    },
+    "action_evidence_support": {
+      "denominator": 1,
+      "numerator": 1,
+      "support_rate": 1.0,
+      "supported": 1,
+      "undefined_reason": null
+    },
+    "affected_assets_exact_set": {
+      "accuracy": 1.0,
+      "aggregation": "micro_over_applicable_matched_pairs",
+      "correct": 1,
+      "denominator": 1,
+      "excluded": 1,
+      "numerator": 1,
+      "undefined_reason": null
+    },
+    "aggregation_policy": "corpus micro; no macro or global accuracy",
+    "counts": {
+      "documents": 2,
+      "predicted": {
+        "administrative_action": 2,
+        "event": 1,
+        "generation_asset": 1,
+        "location": 1
+      },
+      "truth": {
+        "administrative_action": 3,
+        "event": 1,
+        "generation_asset": 1,
+        "location": 1
+      },
+      "unresolved_attribution_actions": 0
+    },
+    "document_scope": {
+      "accuracy": 1.0,
+      "aggregation": "micro_document_level",
+      "confusion_matrix": {
+        "generation_project_specific": {
+          "generation_project_specific": 1,
+          "missing": 0,
+          "not_relevant_for_generation_projects": 0
+        },
+        "not_relevant_for_generation_projects": {
+          "generation_project_specific": 0,
+          "missing": 0,
+          "not_relevant_for_generation_projects": 1
+        }
+      },
+      "correct": 2,
+      "denominator": 2,
+      "excluded": 0,
+      "numerator": 2,
+      "undefined_reason": null
+    },
+    "entity_detection": {
+      "administrative_action": {
+        "aggregation": "micro",
+        "ambiguous_predicted": 0,
+        "ambiguous_temporal_truth": 0,
+        "ambiguous_truth": 0,
+        "excluded_predicted": 0,
+        "excluded_truth": 0,
+        "f1": 0.6666666666666666,
+        "f1_denominator": 1.5,
+        "fn": 0,
+        "fp": 1,
+        "historical_contamination_fp": 1,
+        "historical_not_extracted": 1,
+        "other_fp": 0,
+        "precision": 0.5,
+        "precision_denominator": 2,
+        "recall": 1.0,
+        "recall_denominator": 1,
+        "tp": 1,
+        "undefined_reasons": {
+          "f1": null,
+          "precision": null,
+          "recall": null
+        }
+      },
+      "event": {
+        "aggregation": "micro",
+        "ambiguous_predicted": 0,
+        "ambiguous_truth": 0,
+        "excluded_predicted": 0,
+        "excluded_truth": 0,
+        "f1": 1.0,
+        "f1_denominator": 2.0,
+        "fn": 0,
+        "fp": 0,
+        "precision": 1.0,
+        "precision_denominator": 1,
+        "recall": 1.0,
+        "recall_denominator": 1,
+        "tp": 1,
+        "undefined_reasons": {
+          "f1": null,
+          "precision": null,
+          "recall": null
+        }
+      },
+      "generation_asset": {
+        "aggregation": "micro",
+        "ambiguous_predicted": 0,
+        "ambiguous_truth": 0,
+        "excluded_predicted": 0,
+        "excluded_truth": 0,
+        "f1": 1.0,
+        "f1_denominator": 2.0,
+        "fn": 0,
+        "fp": 0,
+        "precision": 1.0,
+        "precision_denominator": 1,
+        "recall": 1.0,
+        "recall_denominator": 1,
+        "tp": 1,
+        "undefined_reasons": {
+          "f1": null,
+          "precision": null,
+          "recall": null
+        }
+      },
+      "location": {
+        "aggregation": "micro",
+        "ambiguous_predicted": 0,
+        "ambiguous_truth": 0,
+        "excluded_predicted": 0,
+        "excluded_truth": 0,
+        "f1": 1.0,
+        "f1_denominator": 2.0,
+        "fn": 0,
+        "fp": 0,
+        "precision": 1.0,
+        "precision_denominator": 1,
+        "recall": 1.0,
+        "recall_denominator": 1,
+        "tp": 1,
+        "undefined_reasons": {
+          "f1": null,
+          "precision": null,
+          "recall": null
+        }
+      }
+    },
+    "field_accuracy": {
+      "expected_action_type": {
+        "accuracy": 1.0,
+        "aggregation": "micro_over_applicable_matched_pairs",
+        "correct": 1,
+        "denominator": 1,
+        "excluded": 0,
+        "numerator": 1,
+        "undefined_reason": null
+      },
+      "expected_decision": {
+        "accuracy": 1.0,
+        "aggregation": "micro_over_applicable_matched_pairs",
+        "correct": 1,
+        "denominator": 1,
+        "excluded": 0,
+        "numerator": 1,
+        "undefined_reason": null
+      },
+      "expected_generation_type": {
+        "accuracy": 1.0,
+        "aggregation": "micro_over_applicable_matched_pairs",
+        "correct": 1,
+        "denominator": 1,
+        "excluded": 0,
+        "numerator": 1,
+        "undefined_reason": null
+      },
+      "expected_is_modification": {
+        "accuracy": 1.0,
+        "aggregation": "micro_over_applicable_matched_pairs",
+        "correct": 1,
+        "denominator": 1,
+        "excluded": 0,
+        "numerator": 1,
+        "undefined_reason": null
+      },
+      "expected_location_level": {
+        "accuracy": 1.0,
+        "aggregation": "micro_over_applicable_matched_pairs",
+        "correct": 1,
+        "denominator": 1,
+        "excluded": 0,
+        "numerator": 1,
+        "undefined_reason": null
+      }
+    },
+    "p0": {
+      "adjudicated_denominator": 2,
+      "aggregation": "micro",
+      "ambiguous_temporal_truth": 0,
+      "excluded": 0,
+      "f1": 1.0,
+      "f1_denominator": 2.0,
+      "false_warning_rate": {
+        "denominator": 1,
+        "numerator": 0,
+        "rate": 0.0,
+        "undefined_reason": null
+      },
+      "fn": 0,
+      "fp": 0,
+      "missing_extraction_not_p0_fn": 1,
+      "precision": 1.0,
+      "precision_denominator": 1,
+      "recall": 1.0,
+      "recall_denominator": 1,
+      "tn": 1,
+      "tp": 1,
+      "unadjudicated": 0,
+      "undefined_reasons": {
+        "f1": null,
+        "precision": null,
+        "recall": null
+      }
+    }
+  },
+  "semantic_table_sha256": {
+    "action_asset_pairs": "4d95088e130572f0de85a5eda0e26f13c5cb97359e8a2afee177d83d8a0125fb",
+    "affected_asset_sets": "bc9696820cf2cd9d201aec0599f3bce17c142b4ff2931851d46057b4e69e39d1",
+    "candidate_pairs": "445d2efe9876fc45920732fd49aaff9c62d621916f6cbaa6545ff40b3059bdec",
+    "document_results": "dc39bb04695443acf81f33b1d0112a81a4d4aa6b8cf023a62445455840cb3667",
+    "entity_matches": "67b1b50993050db6960b5b163330a1a6c91181fc4bb09f9464d69e374e7fb2b7",
+    "entity_results": "2d36a02e2fe6dbee4b420156c73697736cbc15e5809d333263eac0b8c0ce8f80",
+    "error_inventory": "602b2d368549a377b34abf1fcd60750310c828b05cc8faedd2c2d960440cc720",
+    "evidence_results": "20726e89e753f6b071aa152796abbc541ce14c390fab1459ddf37a3e0fd515d7",
+    "field_results": "60a8a5e605acc5e7c8dd035d9e7535af3e797d42c2a148bcdf30f859f2b2e063",
+    "p0_results": "29df7a8e1bc9052632419871ae7bc11d05a01dac593c7c4ab163db7cf2403928",
+    "unmatched_predictions": "3f5f8fdc2f55c7eb2f2b6d990067e3369b0da47f6ddb5bf0f18149bb120d6483",
+    "unmatched_truth": "25e214a4ace1be56fc3eda2702766cb989b0ed8231b030f4e951fda96ee58a79"
+  },
+  "source_commit": "10e1ada589731e00cd5d5ec3f61694aab0c668d3"
+}

@@ -174,10 +174,10 @@ count of HTTP calls. Incidents and per-document exit codes are separate again.
 Internal retries are exclusively production behavior; no provider internals are
 instrumented. An unsuccessful HTTP invocation can be absent from reported usage.
 
-**PRE-GEMINI BLOCKER, confirmed by the closure audit:**
-`evaluation/final_holdout_v2/evaluator.py`, function `evaluate`, rejects when
+**Historical defect, corrected by the bounded usage-guard block:**
+`evaluation/final_holdout_v2/evaluator.py`, function `evaluate`, previously rejected when
 `record["model_usage"]["requests"] < int(snapshot.attempts["attempt_origin"].eq("model").sum())`.
-It compares reported usage against all model-origin documentary attempts,
+It compared reported usage against all model-origin documentary attempts,
 including terminal errors. V1 `evaluate` contains the analogous condition, but
 V2 does not call that function: V2 owns the guard diagnosed here.
 
@@ -200,26 +200,31 @@ model-origin attempts. The actual V2 `evaluate` rejected with
 scoring or publishing a report. Network was blocked and all inputs/outputs were
 temporary synthetic artifacts.
 
-Consequently, a valid 48-document run with 47 single-response model successes
+With that old guard, a valid 48-document run with 47 single-response model successes
 and one zero-usage error would be preserved and finalized, but rejected before
 evaluation (`47 < 48`). Additional reported retries elsewhere can mask that
 inequality; the existence of an error alone does not imply rejection.
 The same `evaluate` also requires the evaluator freeze timestamp to precede
 primary extraction. Fixing and refreezing only after that run would therefore
 fail the existing temporal gate as well; the correction must precede Gemini.
-Provenance's `frozen_evaluator_usage_guard_satisfied` exposes the current guard
-without changing usage, discarding errors or repeating documents.
-
-Proposed minimal correction, **not implemented**: apply the lower bound only
+The implemented correction applies the lower bound only
 to attempts where `attempt_origin == "model"` and `extraction_status == "ok"`.
 Successful model attempts return a response and reach the usage increment;
-terminal errors may legitimately report zero. Preserve all existing integer,
-non-negativity, token-consistency and primary-lineage checks. Add regression
-coverage for zero-usage terminal errors and zero-usage successes, then review
-and commit the evaluator fix separately and publish a new evaluator freeze
-before Gemini. Matching, scoring, denominators, metrics, truth, temporal rules
-and P0 remain outside that correction. No evaluator code or real freeze is
-changed by this diagnostic block.
+terminal errors may legitimately report zero. Existing integer, non-negativity,
+token-consistency and primary-lineage checks are unchanged. The allowed primary
+origins remain `model` and `deterministic`; statuses remain `ok` and `error`.
+Non-model attempts do not increase the request minimum; unsupported origins
+still fail primary lineage validation. Two successes plus one terminal error
+now admit two requests and reject one. No usage is rewritten, and no error is
+discarded. Matching, scoring, denominators, metrics, truth, temporal rules and
+P0 remain unchanged. Review/commit/push and the new evaluator freeze are pending.
+
+The controller is unchanged, as required by this block. Its provenance field
+`frozen_evaluator_usage_guard_satisfied` retains the **historical all-model-attempt
+bound**. A false value is not a rejection by the corrected evaluator and must
+not be used to decide its admissibility. The evaluator does not consume that
+diagnostic; it validates the actual record and snapshot using the new bound.
+Reported usage, document starts and incidents remain separate quantities.
 
 The record references and hashes the separate provenance in
 `incident_retry_notes`. Provenance contains the verified system/environment,
@@ -233,13 +238,13 @@ subprocess's actual code (including review-required code 4) is preserved.
 
 ## Future commands — not authorization to execute
 
-First: human review → approved controller commit/push → separately approved
-usage-guard fix/commit and new evaluator freeze → separately prepare and
-verify the detached system worktree and its own locked `.venv` → make the API key
-available. No real worktree or primary run is created by implementation tests.
-The preparation example below records the currently verified evaluator pins.
-After the separate fix/freeze, replace its evaluator path, identity and manifest
-expectation with the newly verified values before preparing a real run.
+The controller is committed at `10e1ada589731e00cd5d5ec3f61694aab0c668d3`.
+Next: human review → approved guard-fix commit/push → new evaluator freeze at a
+new destination → verify the new identity/manifest → declare the old freeze
+superseded → prepare/verify the detached system worktree and its own locked
+`.venv` → check API-key presence → preparation → human preflight review → only
+then `run-primary`. No real worktree, run or new freeze is created by this block.
+Replace the evaluator placeholders below with the newly verified values.
 
 Run these commands from the committed evaluation repository. Supply the actual
 worktree location explicitly; preparation checks detached HEAD, cleanliness,
@@ -257,15 +262,15 @@ env -u PYTHONPATH PYTHONDONTWRITEBYTECODE=1 \
 .venv/bin/python -m evaluation.primary_execution.cli prepare-primary-run \
   --system-root "$SYSTEM_ROOT" \
   --truth "$REPO/runs/final_holdout_p2_v1_truth_v2_frozen" \
-  --evaluator "$REPO/runs/final_holdout_p2_v1_evaluator_v2_frozen" \
+  --evaluator "<NEW_FROZEN_EVALUATOR_DIRECTORY>" \
   --source "$REPO/runs/final-corpus-preflight-20220101-20260820-v2/source" \
   --run-root "$RUN_ROOT" \
   --expected-system-commit 282de815bea4e248bdcba2c655e3ee078cb58a49 \
   --expected-config-id 4b54b89dbfe8640e \
   --expected-truth-id e3f300253db94931345e9bbbc489cd810802f94339c3b6a0d751f98b32383b54 \
   --expected-truth-manifest 4f32dc8f89fff8ae1b80f7fb5f94e9168d131f4dea3d0d025640e869c07c148c \
-  --expected-evaluator-id 956213df2a1669814f82491809d776998346d9e54cb1fdc8d9a5434e8dd26f77 \
-  --expected-evaluator-manifest 6d7193d555445d7514b918a31fc30ea57b905e0382912870add2da075c1fdd55
+  --expected-evaluator-id "<NEW_VERIFIED_EVALUATOR_ID>" \
+  --expected-evaluator-manifest "<NEW_VERIFIED_EVALUATOR_MANIFEST_SHA256>"
 
 env -u PYTHONPATH PYTHONDONTWRITEBYTECODE=1 \
 .venv/bin/python -m evaluation.primary_execution.cli primary-status --run-root "$RUN_ROOT"
@@ -311,8 +316,8 @@ env -u PYTHONPATH PYTHONDONTWRITEBYTECODE=1 \
 ```
 
 The later evaluator inputs are `$RUN_ROOT/primary/extraction` and
-`$RUN_ROOT/finalization/execution_record.json`, with the existing truth/evaluator
-pins. `finalize-primary` never invokes scoring. Validation/evaluation remains a
+`$RUN_ROOT/finalization/execution_record.json`, with the unchanged truth pins and
+the new verified evaluator pins. `finalize-primary` never invokes scoring. Validation/evaluation remains a
 separate gate, using the commands in USER_GUIDE and the V2-B runbook.
 
 ## Verification and documentation impact
@@ -361,9 +366,9 @@ correction separately. The later closure request explicitly authorized one new
 complete suite from that corrected state: **1,773 passed in 661.26 s**, exit 0.
 No controller, production, evaluator or test code changed in this closure;
 only the affected documentation was updated. Acceptance is **READY FOR CONTROLLER
-COMMIT**, with human authorization still required. Gemini remains blocked by
-the separately diagnosed evaluator usage guard; its proposed fix is not
-implemented and no real evaluator is refrozen here.
+COMMIT** at that checkpoint. The controller was subsequently committed in
+`10e1ada...`; the guard correction is now implemented as documented above, with
+review/commit/push and a new real evaluator freeze still pending.
 
 Documentation impact: new operational CLI, run layout, continuation/finalization
 and actual evaluator-freeze status. Documents reviewed: AGENTS, TFM_CLOSEOUT,

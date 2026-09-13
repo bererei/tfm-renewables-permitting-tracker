@@ -1772,10 +1772,11 @@ exportación para QA. El bloque P0 posterior añade publicación y verificación
 inmutables del truth V2. El truth final ya está congelado en
 `runs/final_holdout_p2_v1_truth_v2_frozen`. **V2-B implementa matching, métricas,
 evaluación offline y publicación del evaluador**. El evaluador real ya está
-congelado y verificado en `runs/final_holdout_p2_v1_evaluator_v2_frozen`.
-El gate previo a Gemini es ahora la revisión del controlador operativo externo,
-su commit/push autorizado, la corrección separada del guard de uso y un nuevo
-freeze del evaluador, el worktree productivo detached, la API key y la
+congelado en `runs/final_holdout_p2_v1_evaluator_v2_frozen`, preservado como
+artefacto histórico verificable contra su código anterior. El controlador ya
+está comprometido en `10e1ada...`; el fix del guard de uso está implementado y
+pendiente de revisión/commit/push y un nuevo freeze del evaluador. Después
+siguen el worktree productivo detached, la carga explícita de la API key y la
 revisión del preflight materializado. La ejecución real sigue sin autorizarse
 por el mero hecho de disponer de estas herramientas.
 
@@ -1973,20 +1974,27 @@ sin necesitar las rutas originales. Los archivos congelados no se editan:
 los hashes detectan modificaciones y la frontera de escritura de anotación los
 rechaza; no se trata de un bloqueo de permisos del sistema de archivos.
 
-#### Verificar el evaluador V2-B ya congelado
+#### Verificar el evaluador y preservar el freeze anterior
 
 El único truth para el scoring final es el frozen anterior, con identidad
 `e3f300253db94931345e9bbbc489cd810802f94339c3b6a0d751f98b32383b54` y 48 BOE.
 El working nunca se acepta para `evaluate`.
 
 El freeze real existe desde `2026-09-13T11:17:43.423742+00:00`.
-No lo regeneres ni sobrescribas. La verificación de sus identidades reales es:
+Su identidad histórica es
+`956213df2a1669814f82491809d776998346d9e54cb1fdc8d9a5434e8dd26f77`
+y el SHA-256 del manifest es
+`6d7193d555445d7514b918a31fc30ea57b905e0382912870add2da075c1fdd55`.
+No lo regeneres ni sobrescribas. Sigue validando contra el código archivado de
+`10e1ada...`; el checkout corregido lo rechaza por identidad distinta, como debe.
+Después de revisión y commit/push se publicará un nuevo freeze en otro destino.
+Solo cuando exista, verifica los valores registrados de ese nuevo artefacto:
 
 ```bash
 UV_OFFLINE=1 uv run python -m evaluation.final_holdout_v2.cli validate-evaluator \
-  --evaluator runs/final_holdout_p2_v1_evaluator_v2_frozen \
-  --expected-evaluator-identity 956213df2a1669814f82491809d776998346d9e54cb1fdc8d9a5434e8dd26f77 \
-  --expected-manifest-sha256 6d7193d555445d7514b918a31fc30ea57b905e0382912870add2da075c1fdd55
+  --evaluator <NUEVO_DIRECTORIO_EVALUADOR_FROZEN> \
+  --expected-evaluator-identity <NUEVA_IDENTIDAD_EVALUADOR_VERIFICADA> \
+  --expected-manifest-sha256 <NUEVO_SHA256_MANIFEST_EVALUADOR_VERIFICADO>
 ```
 
 La identidad cubre versiones, reglas y hashes de fuentes relativos al repositorio,
@@ -2009,10 +2017,10 @@ comando completo de `prepare-primary-run`, con las rutas e identidades reales,
 y la prueba de equivalencia del procedimiento por documento. La preparación
 verifica los 48 BOE y sus hashes, y crea metadata, scopes y journal; no llama al
 modelo. Debe revisarse ese preflight materializado antes de autorizar el run.
-Antes de preparar el run real debe cerrarse el bloqueo del guard de uso descrito
-abajo y sustituirse la referencia al evaluador por la nueva identidad y manifest
-verificados tras su fix/freeze separado. Los hashes actuales documentan el
-artefacto existente; esta verificación no lo modifica.
+Antes de preparar el run real deben aprobarse y comprometerse el fix ya
+implementado, publicarse y verificarse un nuevo evaluator frozen y declararse
+supersedido el anterior. El ejemplo de preparación exige los nuevos valores;
+los hashes históricos identifican el artefacto conservado, no el futuro freeze.
 
 Desde el checkout de evaluación ya revisado y comprometido:
 
@@ -2074,17 +2082,21 @@ La finalización no ejecuta la evaluación.
 
 La contabilidad separa el uso reportado por producción, los documentos iniciados
 y las incidencias. Un fallo HTTP puede no figurar en `RunUsage.requests`; no se
-estima ni se corrige el contador. Si queda por debajo del número de intentos de
-origen modelo, el guard del evaluador congelado rechazará posteriormente el
-record. El cierre reprodujo el rechazo con dos éxitos y un error sintético con
-cero uso reportado: `2 < 3`. Se clasifica **PRE-GEMINI BLOCKER**: una ejecución
-primaria válida podría quedar sin evaluar. La propuesta mínima pendiente es
-restringir el mínimo de requests a los intentos de modelo exitosos, conservando
-errores, contadores y todas las reglas científicas. Requiere aprobación,
-implementación y commit separados, y un nuevo freeze del evaluador antes de
-Gemini. `frozen_evaluator_usage_guard_satisfied=false` conserva visible el guard
-actual en provenance; no lo corrige ni lo omite. El diagnóstico completo está
-en el procedimiento primario.
+estima ni se corrige el contador, que no representa todas las llamadas HTTP
+iniciadas. El guard corregido exige requests únicamente para los intentos
+`attempt_origin=model` y `extraction_status=ok`. Los errores terminales y los
+intentos no-model no aumentan ese mínimo. Dos éxitos y un error admiten dos
+requests; una sola request sigue rechazándose. Los errores se preservan y se
+evalúan bajo las mismas reglas científicas; el execution record conserva sus
+21 propiedades/required y el uso reportado original.
+
+El controlador no cambia: `frozen_evaluator_usage_guard_satisfied` conserva su
+comprobación histórica contra todos los intentos de modelo. Puede valer `false`
+aunque el evaluador corregido admita el record; no es el gate de admisibilidad
+actual y V2 no consume ese indicador. La corrección del evaluador necesita
+revisión/commit/push y un nuevo freeze antes de Gemini. El freeze anterior se
+conserva intacto y deberá declararse metodológicamente supersedido antes de la
+ejecución. El procedimiento primario documenta el detalle y las pruebas.
 
 #### Evaluar únicamente predicciones primarias autorizadas y congeladas
 
@@ -2101,9 +2113,9 @@ UV_OFFLINE=1 uv run python -m evaluation.final_holdout_v2.cli \
 UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
 uv run python -m evaluation.final_holdout_v2.cli evaluate \
   --truth runs/final_holdout_p2_v1_truth_v2_frozen \
-  --evaluator runs/final_holdout_p2_v1_evaluator_v2_frozen \
-  --expected-evaluator-identity 956213df2a1669814f82491809d776998346d9e54cb1fdc8d9a5434e8dd26f77 \
-  --expected-evaluator-manifest-sha256 6d7193d555445d7514b918a31fc30ea57b905e0382912870add2da075c1fdd55 \
+  --evaluator <NUEVO_DIRECTORIO_EVALUADOR_FROZEN> \
+  --expected-evaluator-identity <NUEVA_IDENTIDAD_EVALUADOR_VERIFICADA> \
+  --expected-evaluator-manifest-sha256 <NUEVO_SHA256_MANIFEST_EVALUADOR_VERIFICADO> \
   --predictions <DIRECTORIO_EXTRACCION_PRIMARIA_CONGELADA> \
   --execution-record <REGISTRO_EJECUCION_REAL_JSON> \
   --output <NUEVO_DIRECTORIO_RESULTADOS_V2>

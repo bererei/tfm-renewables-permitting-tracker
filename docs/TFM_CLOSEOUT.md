@@ -30,7 +30,7 @@ they are not authorization to resume product development or P2 extraction.
   expansion.** Existing functional/data freezes remain effective.
 
 Current phase: **evaluation and written-TFM closeout**. The audited checkout is
-`tfm-evaluation@a0cbe5f2f59b5eb48f34684d7f6b3c94273477ff`, initially clean and equal
+`tfm-evaluation@10e1ada589731e00cd5d5ec3f61694aab0c668d3`, initially clean and equal
 to the local `origin/tfm-evaluation` tracking ref (no remote fetch). The system
 under evaluation remains `tfm-final@282de815bea4e248bdcba2c655e3ee078cb58a49`.
 Production code, runtime configuration and lockfile have no diff against that
@@ -45,10 +45,10 @@ frozen system in the audited checkout.
 | Holdout selection | DONE | 48 unique documents, six year/series strata of eight, seed `20260821`; zero overlap with the 479-document development registry or 104-document W14 corpus. |
 | V2 human annotation | DONE | Read-only `validate-truth --require-complete` passes: 48 complete, zero draft; source membership/hashes match the selection; 30 events, 37 assets, 81 actions, 111 locations; all 108 evidence passages pass existing literal validation. No structural correction identified. |
 | V2 truth freeze | DONE | The sole final truth is `runs/final_holdout_p2_v1_truth_v2_frozen`; read-only loader confirms 48 documents and the exact truth/manifest identities below. No annotation or freeze files are edited in V2-B. |
-| V2-B evaluator | FROZEN / VERIFIED | The actual frozen artifact is `runs/final_holdout_p2_v1_evaluator_v2_frozen`; its code/rules identity, truth binding and physical manifest hash verify against the current checkout. Identities below. |
-| Primary operational controller | IMPLEMENTED / REVIEW PENDING | External `evaluation/primary_execution/` supplies durable document receipts, append-only journal, fail-closed continuation and offline standard-snapshot publication. Review/commit/push, detached system environment, API key and materialized preflight review precede real execution. |
-| Evaluator usage guard | PRE-GEMINI BLOCKER | A valid terminal transport error can report zero requests. V2 currently rejects reported requests below all model-origin attempts; a synthetic 503 case reproduces rejection before scoring. Separate guard fix/commit and new evaluator freeze are required before Gemini. Diagnosis only; no evaluator code/freeze changed. |
-| Final experiment | PENDING | Truth and current evaluator freezes are verified. Execution additionally requires resolving the usage guard and freezing the corrected evaluator, the reviewed durable protocol, an injected API key and explicit authorization. No real predictions or final metrics are inspected/produced by controller development. |
+| V2-B evaluator | HISTORICAL FREEZE PRESERVED / REFREEZE PENDING | `runs/final_holdout_p2_v1_evaluator_v2_frozen` is byte-identical and validates against archived `10e1ada...` code. It correctly rejects the corrected checkout; a new freeze at a new destination is required after fix review/commit/push. Identities below. |
+| Primary operational controller | COMMITTED | External `evaluation/primary_execution/` is closed in `10e1ada...`; it remains unchanged during the guard fix. Detached environment, explicit API-key injection, preparation and human preflight review precede real execution. |
+| Evaluator usage guard | READY FOR REFREEZE / HUMAN REVIEW PENDING | Minimum reported requests now counts only successful model-origin attempts. Zero-usage terminal errors remain preserved/evaluable; usage is never estimated. All 1,785 tests pass; scientific behavior is unchanged. Review/commit/push must precede the new freeze. |
+| Final experiment | PENDING | Requires fix review/commit/push, a new verified evaluator freeze and supersession of the old one before Gemini, followed by detached environment, injected API key, preparation and human preflight approval. No real predictions or final metrics are inspected/produced by this fix. |
 | Written TFM | PARTIAL | `docs/tfm_report/` contains a LaTeX template, placeholder chapters/resumen, two objective notes and five bibliography entries. Technical Markdown is reusable; the scientific narrative/results are not written. |
 | Delivery reproducibility | PARTIAL | Python 3.10, `uv.lock`, CLI, source/Gold hashes and versioned human inputs exist; final execution record, evaluator identity, distributable external artifacts and delivery acceptance remain. |
 
@@ -127,12 +127,30 @@ of 22 was a reporting error. The ignored main-checkout `.env` declares
 `GOOGLE_API_KEY`, but neither primary command loads it automatically. A launch
 with explicit `uv --env-file` safely supplies the inherited environment; the
 documented procedure was checked using a temporary fake key only.
-The usage guard is now an explicit **PRE-GEMINI BLOCKER**, not a limitation to
-defer until after extraction: two synthetic successes and one zero-usage error
-produce a valid primary snapshot/record rejected by V2 (`2 < 3`). The proposed
-minimal successful-attempt lower bound needs separate approval, tests, commit
-and a new evaluator freeze before preparing the real run. All scientific
-scoring rules and the existing frozen artifacts remain unchanged in this audit.
+That closure classified the old usage guard as a **PRE-GEMINI BLOCKER**:
+two synthetic successes and one zero-usage error produced a valid primary
+snapshot/record rejected by V2 (`2 < 3`). The approved bounded correction is now
+implemented: only successful model-origin attempts count toward the minimum.
+The new code declaration is
+`a617ef6155cfcd8c403b0c55542cb753fac22f7893f57f3861af665ae23dda5b`;
+the only changed identity input is `evaluation/final_holdout_v2/evaluator.py`.
+No new evaluator freeze/manifest exists. Review/commit/push, a new freeze in a
+new destination, verification and formal supersession of the old freeze remain
+mandatory before Gemini. The unchanged controller's historical usage-bound
+diagnostic is not the corrected evaluator's admissibility gate; see the primary
+procedure. The API key already exists in `.env` and needs explicit loading at
+the authorized execution gate, not a development fix.
+
+Usage-guard closing verification: **12 focused tests** pass (22.75 s), **165
+V2-B tests** (87.28 s), **434 evaluation tests** (357.91 s), **8 pertinent
+controller tests** (51.56 s), then **1,785 tests in one complete suite**
+(669.67 s / 0:11:09), all exit 0 and in that order. The pre-fix synthetic
+reference reproduces every metric and all 12 scientific-table identities.
+Reported usage and terminal errors are preserved. All 26 protected files are
+byte-identical; production, controller, V1, scoring rules and truth contracts
+have no diff. `git diff --check` passes. Exact commands and archive verification
+are recorded in `docs/evaluation/V2_B_EVALUATOR.md`. No real refreeze or other
+subsequent gate has been executed.
 
 ### Critical path and human gates
 
@@ -144,7 +162,7 @@ conditional on the human gates, not permission to execute its next block.
 | --- | --- | --- | --- |
 | 13 Sep | P0 / REQUIRED | Preserve and verify the completed V2 truth freeze | DONE: read-only verification matches the approved truth and manifest IDs. Working is not a scoring input. |
 | 13 Sep | P0 / REQUIRED | Record approved semantics and annotation provenance before V2-B | Current-only extraction and P0 semantics are approved and documented in the V2 contract. The remaining documentary gate records the actual blind-annotation/QA history. Preserve human annotations and production behavior. |
-| 13–14 Sep | P0 / REQUIRED | Review the durable primary controller | Next: controller review → approved commit/push → separately approved usage-guard fix/commit and new evaluator freeze → prepare/verify detached system worktree → API key injection → materialized preparation → human preflight review → separately authorized `run-primary`. |
+| 13–14 Sep | P0 / REQUIRED | Review the bounded evaluator usage fix | Controller committed. Next: human review → fix commit/push → new evaluator freeze in a new destination → verify identity/manifest → supersede old freeze → prepare/verify detached system worktree → API-key presence → preparation → human preflight review → only then `run-primary`. |
 | 15 Sep | P0 / REQUIRED | TECHNICAL EVALUATION FREEZE | Only after explicit execution authorization: frozen system on exactly 48 BOEs, durable original outputs, execution record, frozen evaluator, metrics, integrity checks and error inventory. No tuning or opportunistic matching changes. |
 | 16 Sep | P0 / REQUIRED | Results and scientific analysis | Use frozen metrics to produce the small final table/figure set, error taxonomy, representative cases, Results and Discussion. |
 | 17 Sep | P0 / REQUIRED | Complete manuscript content | Finish methods, limitations, conclusions, future work, reproducibility and references; reconcile objectives with results; integrate screenshots and artifact identities. |
@@ -192,10 +210,10 @@ new extraction variables/sources, holdout expansion, model tuning, persistent
 reporting, daily automation/scheduler, new administrative features, cosmetic
 Streamlit work, complex deployment and nonessential refactors/architecture.
 
-Schedule risk remains high: the primary controller needs review, the primary
+Schedule risk remains high: the bounded evaluator fix needs review, the primary
 experiment remains a separate authorized gate, and the manuscript is largely
-unwritten. Next: human controller review → approved commit/push → separately
-approved usage-guard fix/commit and new evaluator freeze → detached system
+unwritten. Next: human fix review → approved commit/push → new evaluator freeze,
+identity/manifest verification and old-freeze supersession → detached system
 environment and API key injection → prepared-run review → only then authorization
 for Gemini on the 48 BOEs. This block executes none of those real gates.
 If the 14 September operational gate fails,
