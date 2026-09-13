@@ -1,0 +1,45 @@
+{
+  "scoring_version": "final_holdout_scoring_v2_b_1",
+  "truth_contract_version": "final_holdout_evaluation_contract_v2",
+  "status": "implemented_pending_human_review_and_evaluator_freeze",
+  "normalization": {
+    "names": "NFKD; casefold; remove Mn; non-alphanumeric to spaces; collapse spaces; preserve word order",
+    "evidence": "NFKC; casefold; collapse spaces; preserve punctuation; split literal [...]"
+  },
+  "matching": {
+    "assignment": "only edges in all maximum-cardinality one-to-one matchings",
+    "assets": "same BOE and exact normalized alias intersection; generation type not used",
+    "events": "same BOE; equal nonempty complete asset sets; every asset on both sides must already be matched; no dropped extras",
+    "actions": "same BOE and matched event; any predicted evidence fragment contained in an accepted passage of that action; no attributes or targets used",
+    "locations": "same matched event and exact normalized raw name; no level or INE used",
+    "unresolved": "scored unresolved predictions FP and expected positive truth FN; never choose a tie",
+    "excluded": "non-applicable/non-scored truth excluded; predictions forced to excluded truth or connected only to excluded truth excluded; mixed ambiguity remains penalized"
+  },
+  "temporal": {
+    "positive": "current only",
+    "historical": "matched prediction is one historical_contamination_fp; omitted truth is not FN",
+    "ambiguous": "excluded from action extraction, attribution and P0; reported explicitly",
+    "temporal_accuracy": false
+  },
+  "attribution": {
+    "generation_asset": "direct reference",
+    "event": "all generation assets in the predicted event",
+    "associated_component": "explicit related_generation_asset_refs only, as Gold",
+    "unresolved": "unknown references and components with no links reported; no invented assets; unmapped predicted assets retained as distinct prediction identities",
+    "exact_set": "applicable matched current actions only; unresolved targets make set incorrect",
+    "pairs": "current truth pairs globally; historical and unmatched predicted action pairs FP; absent current actions contribute all FN; excluded actions excluded"
+  },
+  "document_scope": "explicit extraction_json.document_scope; failed/uncertain/missing is missing, incorrect on scored truth; no truth-based derivation",
+  "evidence_support": "nonempty and ALL predicted fragments contained in owner-specific accepted truth passages, conditional on current action matching",
+  "p0": "original review_queue before human intervention; historical warning TP/no warning FN; current warning FP/no warning TN; omitted history never FN; unresolved warnings unadjudicated",
+  "metrics": {
+    "aggregation": "corpus micro; no macro or global system accuracy",
+    "attributes": "only applicable correctly matched pairs; action fields current only; expected NA excluded; missing prediction incorrect",
+    "zero_denominators": "JSON null with reason; F1 null when precision or recall undefined; F1 zero when both defined and zero",
+    "false_warning_rate": "FP / (FP + TN) over adjudicable extracted current actions"
+  },
+  "primary_entities": ["event", "generation_asset", "administrative_action", "location"],
+  "excluded_metrics": ["power", "promoter", "participant", "component", "technical_mention", "exact_action_target", "non_action_evidence", "environmental_outcome", "next_milestone", "hybridisation_relation", "temporal_accuracy", "global_accuracy"],
+  "execution_record": "reuse final_holdout_execution_record_v1 schema; no V1 scoring",
+  "publication": "frozen truth and evaluator required; new output only; sibling staging; single writer; input integrity checked before publication"
+}

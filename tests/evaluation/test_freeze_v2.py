@@ -381,7 +381,7 @@ def test_cli_publication_and_readonly_verification(inputs, tmp_path, capsys):
     ]) == 0
     published = json.loads(capsys.readouterr().out)
     assert published["frozen_truth_intact"] is True
-    assert published["evaluator_implemented"] is False
+    assert published["evaluator_implemented"] is True
     before = _bytes(output)
     assert main([
         "validate-frozen-truth", "--truth", str(output),

@@ -1769,9 +1769,10 @@ anotación final activa usa el contrato reducido
 
 La fase V2-A implementa contrato, migración no destructiva, anotación ciega y
 exportación para QA. El bloque P0 posterior añade publicación y verificación
-inmutables del truth V2. **Todavía no implementa evaluator, matching ni
-métricas**; esas funciones pertenecen a V2-B y deben cerrarse antes de ejecutar
-el sistema evaluado. El freeze real sigue pendiente de autorización.
+inmutables del truth V2. El truth final ya está congelado en
+`runs/final_holdout_p2_v1_truth_v2_frozen`. **V2-B implementa matching, métricas,
+evaluación offline y publicación del evaluador**, pendientes de revisión humana
+y freeze real del evaluador antes de autorizar la ejecución del sistema.
 
 #### Interfaz local de anotación humana ciega
 
@@ -1899,9 +1900,8 @@ uv run python -m evaluation.final_holdout_v2.cli migrate-v1-truth \
   --output <NEW_V2_TRUTH_WORKSPACE>
 ```
 
-No ejecutes la migración sobre el workspace real hasta que exista autorización
-humana posterior al review/commit de V2-A. Tampoco existe todavía un comando
-V2 de evaluación. El alcance, completitud, terminología y frontera
+La migración es un procedimiento previo a la anotación; no se repite sobre el
+truth final congelado. El alcance, completitud, terminología y metodología
 V2-B están en
 [`evaluation/FINAL_HOLDOUT_EVALUATION_CONTRACT_V2.md`](evaluation/FINAL_HOLDOUT_EVALUATION_CONTRACT_V2.md).
 
@@ -1916,16 +1916,16 @@ existe un campo categórico equivalente en producción ni se define su accuracy.
 
 P0 solo recibe actuaciones extraídas: antecedente con/sin warning = TP/FN de
 P0; actuación actual con/sin warning = FP/TN de P0. Un antecedente omitido nunca
-es FN de P0. Los warnings sin adjudicación segura se informarán como
-`unadjudicated`; la futura false warning rate será `FP / (FP + TN)` sobre
-actuaciones actuales extraídas/emparejadas y adjudicables. El scoring permanece
-pendiente de V2-B; esta decisión no cambia las anotaciones.
+es FN de P0. Los warnings sin adjudicación segura se informan como
+`unadjudicated`; la false warning rate es `FP / (FP + TN)` sobre
+actuaciones actuales extraídas/emparejadas y adjudicables. Los denominadores
+cero producen `null` con motivo; no existe accuracy temporal ni global.
 
 #### Publicar y verificar ground truth V2
 
-La publicación requiere revisión de la implementación, commit/push aprobados y
-autorización separada del freeze real. **El siguiente ejemplo real no se ha
-ejecutado durante el desarrollo.**
+El siguiente comando documenta la publicación ya completada del truth. **No
+debe repetirse sobre el destino existente**. Durante el desarrollo V2-B solo
+se ha verificado su integridad en lectura.
 
 ```bash
 UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
@@ -1954,11 +1954,12 @@ Comprobación posterior exclusivamente de lectura:
 ```bash
 UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
 uv run python -m evaluation.final_holdout_v2.cli validate-frozen-truth \
-  --truth runs/final_holdout_p2_v1_truth_v2_frozen
+  --truth runs/final_holdout_p2_v1_truth_v2_frozen \
+  --expected-manifest-sha256 4f32dc8f89fff8ae1b80f7fb5f94e9168d131f4dea3d0d025640e869c07c148c
 ```
 
 La salida incluye `frozen_truth_intact`, `truth_artifact_id`, `document_count`,
-`manifest_sha256` y `evaluator_implemented=false`. Guarda el hash del manifest
+`manifest_sha256` y `evaluator_implemented=true`. Guarda el hash del manifest
 en el registro aprobado y úsalo después con
 `--expected-manifest-sha256 <SHA256>` para verificar esa publicación exacta.
 El loader `load_truth(..., require_frozen=True)` rechaza un working y valida
@@ -1966,6 +1967,100 @@ schema, inventario, hashes físicos/semánticos, provenance y selección congela
 sin necesitar las rutas originales. Los archivos congelados no se editan:
 los hashes detectan modificaciones y la frontera de escritura de anotación los
 rechaza; no se trata de un bloqueo de permisos del sistema de archivos.
+
+#### Congelar el evaluador V2-B antes de la ejecución primaria
+
+El único truth para el scoring final es el frozen anterior, con identidad
+`e3f300253db94931345e9bbbc489cd810802f94339c3b6a0d751f98b32383b54` y 48 BOE.
+El working nunca se acepta para `evaluate`.
+
+Después de revisión humana y commit/push aprobados, y con autorización separada
+para el freeze real, se podrá ejecutar:
+
+```bash
+UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
+uv run python -m evaluation.final_holdout_v2.cli freeze-evaluator \
+  --truth runs/final_holdout_p2_v1_truth_v2_frozen \
+  --expected-truth-artifact-id e3f300253db94931345e9bbbc489cd810802f94339c3b6a0d751f98b32383b54 \
+  --expected-truth-manifest-sha256 4f32dc8f89fff8ae1b80f7fb5f94e9168d131f4dea3d0d025640e869c07c148c \
+  --output runs/final_holdout_p2_v2b_evaluator_frozen
+```
+
+Este freeze real **no se ejecuta durante la implementación**. El comando exige
+un destino nuevo, verifica el truth y publica manifest/reglas con su identidad
+de código/configuración. Conserva el `evaluator_identity` y `manifest_sha256`
+devueltos fuera del artefacto y valida ambos:
+
+```bash
+UV_OFFLINE=1 uv run python -m evaluation.final_holdout_v2.cli validate-evaluator \
+  --evaluator runs/final_holdout_p2_v2b_evaluator_frozen \
+  --expected-evaluator-identity <EVALUATOR_ID_REGISTRADO> \
+  --expected-manifest-sha256 <SHA256_MANIFEST_EVALUADOR_REGISTRADO>
+```
+
+La identidad cubre versiones, reglas y hashes de fuentes relativos al repositorio,
+incluido el código V1 reutilizado y el código productivo de referencia. No
+contiene predicciones, resultados, timestamps ni rutas absolutas. La verificación
+rechaza cambios de código/configuración. `contract.json` conserva el estado
+histórico V2-A porque forma parte del sello de anotación: el estado y las reglas
+V2-B se declaran en `scoring_rules.json` sin cambiar el truth.
+
+#### Evaluar únicamente predicciones primarias autorizadas y congeladas
+
+Solo después del freeze del evaluador y su validación podrá autorizarse la
+ejecución primaria de Gemini sobre los 48 BOE. El evaluador no ejecuta Gemini.
+La ejecución real debe registrar el argv, fechas, uso y hashes efectivos con
+el template/schema de `evaluation/final_holdout_v1/execution_record.*.json`.
+Se reutiliza esa versión de provenance; las métricas son V2.
+
+```bash
+UV_OFFLINE=1 uv run python -m evaluation.final_holdout_v2.cli \
+  validate-execution-record --record <REGISTRO_EJECUCION_REAL_JSON>
+
+UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
+uv run python -m evaluation.final_holdout_v2.cli evaluate \
+  --truth runs/final_holdout_p2_v1_truth_v2_frozen \
+  --evaluator runs/final_holdout_p2_v2b_evaluator_frozen \
+  --expected-evaluator-identity <EVALUATOR_ID_REGISTRADO> \
+  --expected-evaluator-manifest-sha256 <SHA256_MANIFEST_EVALUADOR_REGISTRADO> \
+  --predictions <DIRECTORIO_EXTRACCION_PRIMARIA_CONGELADA> \
+  --execution-record <REGISTRO_EJECUCION_REAL_JSON> \
+  --output <NUEVO_DIRECTORIO_RESULTADOS_V2>
+
+UV_OFFLINE=1 uv run python -m evaluation.final_holdout_v2.cli validate-evaluation \
+  --evaluation <DIRECTORIO_RESULTADOS_V2> \
+  --expected-manifest-sha256 <SHA256_MANIFEST_RESULTADOS_REGISTRADO>
+```
+
+Estos comandos de evaluación real no se ejecutan en desarrollo. `evaluate`
+exige el truth vinculado al evaluador congelado, universo documental exacto,
+hashes y un intento primario nuevo por documento. Rechaza duplicados, intentos
+heredados, intervenciones humanas CURRENT/ANTECEDENT y drift de la selección.
+La fecha del freeze del evaluador debe preceder al inicio de la extracción.
+Reintentos posteriores conservan el intento primario y no se mezclan con él.
+
+La salida contiene `evaluation_summary.json`, doce tablas Parquet tipadas
+(documentos, candidatos, matches/unmatched, atributos, sets/pares de atribución,
+evidencia, P0 e inventario de errores), las copias de tres registros de provenance
+y un manifest. Los archivos se validan en staging, incluido round trip Parquet,
+antes de publicar; no se sobrescriben outputs ni se modifican inputs. Se exige
+un único escritor por destino. `validate-evaluation` comprueba hashes e identidad
+semántica del informe sin leer las predicciones originales.
+
+El matching usa alias exactos normalizados, conjuntos completos de activos para
+eventos, evidencia de su propia actuación y nombres de localización. Los tipos,
+decisiones, modificación, atribución y niveles se puntúan después. Los empates
+no resueltos quedan visibles. La atribución reproduce los targets de Gold:
+evento → todos sus activos; activo → él mismo; componente → vínculos explícitos.
+Los activos predichos sin match se conservan; los targets sin resolución se
+declaran sin inventar activos. Exact-set es condicional a actuaciones actuales
+emparejadas; las métricas de pares incluyen errores de detección. El soporte de
+evidencia exige todos los fragmentos respaldados por pasajes aceptados del owner,
+y es una comprobación documental condicionada por el matching.
+
+Consulta las reglas, exclusiones y límites en el
+[contrato V2](evaluation/FINAL_HOLDOUT_EVALUATION_CONTRACT_V2.md) y el
+[procedimiento V2-B](evaluation/V2_B_EVALUATOR.md).
 
 ## 15. Versionado, commits y rollback
 

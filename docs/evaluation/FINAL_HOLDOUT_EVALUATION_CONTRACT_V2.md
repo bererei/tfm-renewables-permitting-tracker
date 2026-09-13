@@ -1,8 +1,14 @@
-# Final holdout evaluation contract V2 — annotation and truth publication
+# Final holdout evaluation contract V2 — annotation, publication and V2-B scoring
 
-Status: **annotation and immutable truth-publication tooling implemented;
-evaluator, matching and metrics not implemented**. The real V2 truth freeze
-has not been executed; implementation awaits human review.
+Status: **V2 truth frozen; V2-B implemented, pending human review and evaluator
+freeze**. V2-B development uses synthetic predictions only. No final system
+predictions or metrics have been inspected or produced in this block.
+
+The sole final evaluation truth is `runs/final_holdout_p2_v1_truth_v2_frozen`
+(48 documents), with `truth_artifact_id`
+`e3f300253db94931345e9bbbc489cd810802f94339c3b6a0d751f98b32383b54`
+and manifest SHA-256
+`4f32dc8f89fff8ae1b80f7fb5f94e9168d131f4dea3d0d025640e869c07c148c`.
 
 Contract identifier: `final_holdout_evaluation_contract_v2`.
 
@@ -44,6 +50,14 @@ Phase V2-A does **not** contain:
 
 Those capabilities belong to Phase V2-B and must be reviewed and frozen before
 the system under evaluation is executed.
+
+V2-B now implements those evaluation capabilities, except extraction/model
+execution, which remains outside the evaluator. The machine-readable scoring
+declaration is `evaluation/final_holdout_v2/scoring_rules.json`.
+`contract.json` remains byte-identical to the annotation declaration bound by
+the frozen truth manifest. Its historical `evaluator_status` describes V2-A;
+it is superseded for tooling status by this section and the V2-B declaration.
+Changing that annotation declaration would invalidate the existing truth freeze.
 
 The separately authorized P0 truth-publication block adds `freeze-truth` and
 `validate-frozen-truth` before V2-B. It preserves the annotation schema, V1 and
@@ -145,8 +159,8 @@ is changed or required to be repeated by this decision.
 
 `temporal_status` is a **truth adjudication variable**, not a categorical model
 output. Production `AdministrativeAction` has no equivalent output field, so
-V2 defines **no categorical temporal-status accuracy**. The detailed matching,
-handling of ambiguous truth and scoring implementation remain a later V2-B gate.
+V2 defines **no categorical temporal-status accuracy**. Section 11 defines the
+implemented matching, ambiguity handling and scoring rules.
 
 P0 is an alarm applied to an already extracted action. For a safely adjudicable
 extracted action, before any later human CURRENT/ANTECEDENT intervention:
@@ -163,10 +177,10 @@ action. A historical prediction is an extraction FP even when its P0 warning is
 a detector TP; the two evaluations measure different behavior. Warnings that
 cannot be safely linked to adjudicable truth are reported as `unadjudicated`,
 never forced into TP/FP/FN/TN. Ambiguous temporal truth is reported separately.
-The future P0 false warning rate is `FP / (FP + TN)` over extracted/matched,
+The P0 false warning rate is `FP / (FP + TN)` over extracted/matched,
 adjudicable **current** actions. It is distinct from the rate of all warnings
-over all extracted actions. Zero-denominator handling remains to be frozen with
-V2-B. No metric or scoring implementation is added by this decision.
+over all extracted actions. The subsequent V2-B implementation and explicit
+zero-denominator convention are defined in section 11.
 
 ### Location
 
@@ -396,8 +410,10 @@ as working truth. The existing annotation write boundary rejects frozen truth.
 Verification needs no original source directory: documentary validation was
 performed before publication and the validated bytes are hash-bound.
 
-CLI examples, **only after implementation review, approved commit/push and
-separate authorization for the real freeze**; not executed during development:
+The publication command below documents the already completed truth freeze;
+**do not repeat it on the existing destination**. V2-B development only verifies
+that frozen truth read-only. A new real truth publication would require a
+separate authorization and a new destination.
 
 ```bash
 UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
@@ -413,24 +429,203 @@ uv run python -m evaluation.final_holdout_v2.cli validate-frozen-truth \
 ```
 
 Both commands report the truth ID, count, manifest physical SHA-256,
-`frozen_truth_intact=true` and `evaluator_implemented=false`. Preserve the
-printed manifest hash in the approved execution record. Later verification
+`frozen_truth_intact=true` and `evaluator_implemented=true`. Preserve the
+printed manifest hash in an approved external record. Later verification
 can bind that external reference with `--expected-manifest-sha256 <SHA256>`.
 Checksums detect drift; an independently preserved manifest hash also detects
 coordinated rewriting of publication metadata and its internal checksum.
 This is verified artifact immutability, not filesystem write protection or a
 digital signature. The verification command never writes to the truth.
 
-## 11. Remaining V2-B gate
+## 11. V2-B matching and scoring — defined before prediction exposure
 
-Before any system prediction is executed, Phase V2-B must separately implement,
-test, review and freeze:
+Version: `final_holdout_scoring_v2_b_1`. All rules below are corpus-independent.
+There is no fuzzy matching, external geographic knowledge, LLM, adjudication
+at scoring time, macro average or global system accuracy.
 
-- deterministic primary-entity matching;
-- effective action-attribution scoring;
-- the approved reduced primary metrics and explicit diagnostic exclusions;
-- P0 scoring;
-- prediction-isolation checks;
-- immutable evaluation artifacts consuming the already frozen V2 truth.
+| Entity | Candidate identity | Scoring after matching |
+| --- | --- | --- |
+| Generation asset | Within the same BOE, intersection of exact normalized aliases | Entity TP/FP/FN; `expected_generation_type` accuracy on applicable matched pairs |
+| Event | Equal, nonempty **complete** sets of already matched assets in the same BOE | Entity TP/FP/FN; an unmatched truth asset or any extra/unmatched prediction asset prevents a match; split/merge remains visible |
+| Administrative action | Same BOE, matched event, and at least one predicted evidence fragment contained in an accepted passage of that action | Current-only entity detection, current action attributes, attribution, evidence support; temporal contamination and P0 separately |
+| Administrative location | Matched event and exact normalized `location_name_raw` | Entity TP/FP/FN and applicable matched `expected_location_level` accuracy; level, INE codes and geography do not participate in matching |
 
-V2-A must never be described as an executable final evaluation.
+Name normalization reuses V1: Unicode NFKD, casefold, removal of `Mn`
+diacritics, non-alphanumeric characters replaced with spaces, collapsed spaces,
+**word order preserved**. V1's normalization docstring saying “order independent”
+is inaccurate about words; its actual code preserves them. V1 is not edited.
+
+Every assignment uses only edges present in **all maximum-cardinality 1:1
+matchings**. No tie is resolved by attribute values, target sets, input order,
+or arbitrary preference. Ambiguous scored truth stays FN when it is an expected
+positive; unresolved predictions stay FP. Asset type is never a matching key;
+action type, decision, modification and affected assets are never action keys.
+Candidate edges and unresolved identities are published for audit.
+
+Non-applicable or non-scored truth rows are excluded. A prediction forced to
+such a row, or in a remaining candidate component containing only excluded
+truth, is excluded from the relevant entity denominator. A mixed component with
+scored truth remains unresolved and penalized. Predictions beneath an excluded
+event are excluded from action/location scoring. Exclusion does not turn an
+uncertain entity into a confirmed match. The frozen V2 loader requires every
+completed document scope to be scored; there is no excluded-document denominator
+in the final interface.
+
+### Actions, temporal contamination and evidence
+
+Action candidates include current and historical truth on equal terms; neither
+status nor scored attributes breaks a tie. Accepted scored passages belonging
+to that **action owner** alone may anchor a scored action. Unscored owner
+passages may shield an excluded entity but cannot anchor a scored action.
+
+Matched current actions are TP; unmatched current truth is FN. Matched historical
+predictions contribute exactly one primary FP and one
+`historical_contamination_fp`. Every other unresolved prediction contributes
+one `other_fp`. Omitted history is reported as `historical_not_extracted`, never
+FN. Temporally ambiguous truth and predictions assigned exclusively to it are
+excluded from primary action extraction, action attributes, attribution and P0;
+their counts remain explicit. A current/historical matching tie remains generic
+FP/FN without guessing a historical-contamination label.
+
+Action type, decision and modification accuracies apply only to matched current
+actions. An absent prediction is incorrect where truth expects a value;
+`is_modification` is not defaulted to false by the evaluator. Expected `__NA__`
+excludes that field only. Generation and location fields follow the same
+applicable-pair rule. Counts include correct, denominator, excluded and accuracy.
+
+Evidence uses V1's literal functions: NFKC, casefold and whitespace collapse,
+preserving punctuation. Literal `[...]` separates fragments. Candidate matching
+requires **any** nonempty fragment to lie within an accepted owner passage;
+`evidence_supported` requires a nonempty set and **all** fragments to lie within
+one or more accepted passages of that same action. Empty evidence cannot anchor
+a match and produces detection errors; the support predicate itself is false.
+The published support rate is conditional on matched current actions, with
+`supported` and denominator. It measures documentary support, **not independent
+semantic understanding**, because evidence also participates in matching.
+
+### Effective action-to-generation attribution
+
+The production reference is `gold._action_project_attributions` and
+`gold.build_project_events`. V2 projects their existing target semantics to
+local generation-asset identities before cross-publication grouping:
+
+- direct asset target → that predicted asset;
+- event target → all predicted generation assets in the event;
+- component target → only its explicit `related_generation_asset_refs`.
+
+No component matching against secondary human truth is required. A known
+component without generation links produces an empty set in Gold; V2 likewise
+creates no asset and records `no_explicit_generation_links`. Missing/unknown
+targets or parent references are reported in `unresolved_targets_json`; no
+parent or synthetic asset is inferred. An actually predicted generation asset
+without an asset match is retained with its distinct `prediction:` identity;
+resolved assets use `truth:` identities. Sets remove duplicate references only.
+
+Exact-set accuracy is conditional on matched current actions: projected set
+equals `expected_affected_generation_asset_keys_json` and no unresolved target
+remains. Pair scoring is corpus micro over **(action, generation asset)**:
+intersection TP, extra predicted assets FP, absent expected assets FN. An omitted
+or unmatched current action contributes every expected pair as FN. Historical
+and unmatched predicted actions contribute each projected pair as FP; their
+truth pairs never add historical FN. Excluded actions do not contribute pairs.
+An unresolved target that establishes no generation asset creates no invented
+pair FP; it remains an attribution diagnostic and cannot pass exact-set. Such
+an action can still be an entity FP. The pair and entity denominators therefore
+measure different units and are not interchangeable.
+
+### Document scope and P0
+
+Scope uses the explicit `extraction_json.document_scope` produced by the frozen
+system. The cached attempt scope, when present, must agree. Failed attempts and
+uncertain/missing scope contribute a `missing` prediction, counted incorrect
+on a scored document. The confusion matrix has the two truth classes and a
+third prediction column `missing`; no truth-based scope inference occurs.
+
+P0 reads the original `possible_historical_antecedent` review-queue findings,
+before human CURRENT/ANTECEDENT interventions. Each warning must identify the
+same BOE and frozen positional event/action indices. Repeated alarms for one
+action count once. Unresolvable finding IDs, warnings for nonexistent or
+unmatched actions, and warnings against excluded/temporally ambiguous truth are
+`unadjudicated` and never enter TP/FP/FN/TN. Historical omitted truth is reported
+as `missing_extraction_not_p0_fn`.
+
+On safely matched extracted actions: historical warning/no warning = TP/FN;
+current warning/no warning = FP/TN. An extraction historical FP may simultaneously
+be a P0 TP. False warning rate is `FP / (FP + TN)` over adjudicable extracted
+current actions, with its own numerator, denominator and undefined reason.
+
+### Metrics, denominators and ordering
+
+One helper defines micro precision `TP/(TP+FP)`, recall `TP/(TP+FN)` and
+`F1=2PR/(P+R)`. Each ratio includes its denominator. Precision or recall with a
+zero denominator is JSON `null` with `zero_denominator`; F1 is `null` when either
+is undefined. When both are defined and zero, F1 is explicitly zero. Its
+`f1_denominator` is `P+R` when defined, otherwise null. Accuracy/support/false
+warning rates with no applicable observations are likewise null with a reason.
+
+Entity results are summed across documents before ratios. Attribute accuracies
+are micro over applicable matched pairs, not conditional document averages.
+Per-document entity TP/FP/FN totals are counts for drill-down, not a combined
+system metric. Secondary entity detection, exact targets, power, participants,
+non-action evidence and all other out-of-scope fields are not scored.
+
+Relational CSV/Parquet row order has no effect on matching, metrics or sorted
+report tables. Frozen production JSON array indices identify events, actions
+and locations and must remain intact to retain the original P0 references;
+reordering nested prediction arrays is not a relational row shuffle. Physically
+different input artifacts retain their different physical provenance hashes.
+
+## 12. Evaluator freeze, provenance and reports
+
+`freeze-evaluator` requires verified frozen truth and explicit expected truth ID
+and manifest hash. It binds that truth to a new evaluator artifact containing
+`manifest.json` and the exact `scoring_rules.json`. Its evaluator identity covers
+the scoring configuration, contract/version, relative code/configuration file
+hashes, production Python reference code, `pyproject.toml` and `uv.lock`. It
+contains no absolute paths, timestamps, metrics or prediction inputs. The
+manifest separately records UTC creation time and truth/selection/source hashes.
+`validate-evaluator` verifies the copied rules, manifest integrity and current
+checkout against the declaration; optional external hashes pin the exact seal.
+
+V1 has immutable **truth/result publication**, not a standalone evaluator-freeze
+command. V2 adapts its staging/hash pattern and implements the missing evaluator
+seal separately. It does not call V1 scoring or alter V1 files.
+
+`evaluate` requires this evaluator freeze, its bound frozen truth, explicit
+predictions, an execution record and a new output directory. The unchanged V1
+execution-record schema/template is deliberately reused: its version describes
+run provenance, not scoring. Validation pins the frozen system/config/model,
+source and selection IDs, snapshot identity, UTC run/freeze times and model
+usage. The evaluator freeze must precede extraction start. One fresh primary
+attempt per document is required; duplicate IDs, incompatible lineage, inherited
+attempts, retries as additional primary attempts, current-payload drift and
+holdout manual/historical corrections or reviews are rejected. Source hashes
+are recomputed from canonical source contents; manifest document identity,
+artifact hashes/row counts and review identity are checked. No production
+canonicalisation or P0 detector is rerun for scoring.
+
+Outputs are `evaluation_summary.json`, twelve typed Parquet tables
+(`document_results`, `entity_results`, `candidate_pairs`, `entity_matches`,
+`unmatched_truth`, `unmatched_predictions`, `field_results`,
+`affected_asset_sets`, `action_asset_pairs`, `evidence_results`, `p0_results`,
+`error_inventory`), exact copies of truth/evaluator manifests and the execution
+record, plus a report `manifest.json`. Summary contains primary metrics, counts,
+denominators, scoring configuration, UTC time and all input identities.
+Matches include explicit excluded/historical outcomes; consumers must use
+`outcome`, not assume every structural match is an extraction TP.
+
+Every table is deterministically ordered with a stable empty schema and checked
+through a Parquet round trip. Semantic report identity excludes report-creation
+time and paths; physical file hashes include all bytes. `validate-evaluation`
+checks output bytes, copied provenance and semantic identity without loading the
+original inputs. It is an integrity verifier, not a second scoring run or a
+digital signature. External manifest hashes detect a resealed artifact.
+
+Both publications use a sibling staging directory and reject existing or nested
+input destinations. Inputs/code are checked again before rename; failures clean
+staging and do not restore or rewrite source inputs. A single writer per
+destination remains the convention; no cross-process exclusion is claimed.
+
+Operational commands and remaining gates are in
+[`V2_B_EVALUATOR.md`](V2_B_EVALUATOR.md) and the User Guide. The real evaluator
+freeze and final experiment have **not** been executed during implementation.
