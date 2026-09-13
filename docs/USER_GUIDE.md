@@ -1771,8 +1771,13 @@ La fase V2-A implementa contrato, migración no destructiva, anotación ciega y
 exportación para QA. El bloque P0 posterior añade publicación y verificación
 inmutables del truth V2. El truth final ya está congelado en
 `runs/final_holdout_p2_v1_truth_v2_frozen`. **V2-B implementa matching, métricas,
-evaluación offline y publicación del evaluador**, pendientes de revisión humana
-y freeze real del evaluador antes de autorizar la ejecución del sistema.
+evaluación offline y publicación del evaluador**. El evaluador real ya está
+congelado y verificado en `runs/final_holdout_p2_v1_evaluator_v2_frozen`.
+El gate previo a Gemini es ahora la revisión del controlador operativo externo,
+su commit/push autorizado, la corrección separada del guard de uso y un nuevo
+freeze del evaluador, el worktree productivo detached, la API key y la
+revisión del preflight materializado. La ejecución real sigue sin autorizarse
+por el mero hecho de disponer de estas herramientas.
 
 #### Interfaz local de anotación humana ciega
 
@@ -1968,34 +1973,20 @@ sin necesitar las rutas originales. Los archivos congelados no se editan:
 los hashes detectan modificaciones y la frontera de escritura de anotación los
 rechaza; no se trata de un bloqueo de permisos del sistema de archivos.
 
-#### Congelar el evaluador V2-B antes de la ejecución primaria
+#### Verificar el evaluador V2-B ya congelado
 
 El único truth para el scoring final es el frozen anterior, con identidad
 `e3f300253db94931345e9bbbc489cd810802f94339c3b6a0d751f98b32383b54` y 48 BOE.
 El working nunca se acepta para `evaluate`.
 
-Después de revisión humana y commit/push aprobados, y con autorización separada
-para el freeze real, se podrá ejecutar:
-
-```bash
-UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
-uv run python -m evaluation.final_holdout_v2.cli freeze-evaluator \
-  --truth runs/final_holdout_p2_v1_truth_v2_frozen \
-  --expected-truth-artifact-id e3f300253db94931345e9bbbc489cd810802f94339c3b6a0d751f98b32383b54 \
-  --expected-truth-manifest-sha256 4f32dc8f89fff8ae1b80f7fb5f94e9168d131f4dea3d0d025640e869c07c148c \
-  --output runs/final_holdout_p2_v2b_evaluator_frozen
-```
-
-Este freeze real **no se ejecuta durante la implementación**. El comando exige
-un destino nuevo, verifica el truth y publica manifest/reglas con su identidad
-de código/configuración. Conserva el `evaluator_identity` y `manifest_sha256`
-devueltos fuera del artefacto y valida ambos:
+El freeze real existe desde `2026-09-13T11:17:43.423742+00:00`.
+No lo regeneres ni sobrescribas. La verificación de sus identidades reales es:
 
 ```bash
 UV_OFFLINE=1 uv run python -m evaluation.final_holdout_v2.cli validate-evaluator \
-  --evaluator runs/final_holdout_p2_v2b_evaluator_frozen \
-  --expected-evaluator-identity <EVALUATOR_ID_REGISTRADO> \
-  --expected-manifest-sha256 <SHA256_MANIFEST_EVALUADOR_REGISTRADO>
+  --evaluator runs/final_holdout_p2_v1_evaluator_v2_frozen \
+  --expected-evaluator-identity 956213df2a1669814f82491809d776998346d9e54cb1fdc8d9a5434e8dd26f77 \
+  --expected-manifest-sha256 6d7193d555445d7514b918a31fc30ea57b905e0382912870add2da075c1fdd55
 ```
 
 La identidad cubre versiones, reglas y hashes de fuentes relativos al repositorio,
@@ -2004,6 +1995,96 @@ contiene predicciones, resultados, timestamps ni rutas absolutas. La verificaci�
 rechaza cambios de código/configuración. `contract.json` conserva el estado
 histórico V2-A porque forma parte del sello de anotación: el estado y las reglas
 V2-B se declaran en `scoring_rules.json` sin cambiar el truth.
+
+#### Preparar y conservar la ejecución primaria
+
+El controlador vive en `evaluation/primary_execution/`, fuera de los paquetes
+incluidos en el freeze del evaluador. Requiere un worktree productivo separado,
+limpio y detached en el commit congelado, con su propia `.venv` sincronizada
+con `uv.lock`. Rechaza `PYTHONPATH` y verifica los imports productivos mediante
+el Python del worktree con `-I -B`; nunca cambia la configuración del extractor.
+
+El [procedimiento primario](evaluation/PRIMARY_EXECUTION_V2.md) contiene el
+comando completo de `prepare-primary-run`, con las rutas e identidades reales,
+y la prueba de equivalencia del procedimiento por documento. La preparación
+verifica los 48 BOE y sus hashes, y crea metadata, scopes y journal; no llama al
+modelo. Debe revisarse ese preflight materializado antes de autorizar el run.
+Antes de preparar el run real debe cerrarse el bloqueo del guard de uso descrito
+abajo y sustituirse la referencia al evaluador por la nueva identidad y manifest
+verificados tras su fix/freeze separado. Los hashes actuales documentan el
+artefacto existente; esta verificación no lo modifica.
+
+Desde el checkout de evaluación ya revisado y comprometido:
+
+```bash
+env -u PYTHONPATH PYTHONDONTWRITEBYTECODE=1 \
+.venv/bin/python -m evaluation.primary_execution.cli prepare-primary-run --help
+
+RUN_ROOT="$PWD/runs/final-holdout-v2-primary-001"
+
+env -u PYTHONPATH PYTHONDONTWRITEBYTECODE=1 \
+.venv/bin/python -m evaluation.primary_execution.cli primary-status --run-root "$RUN_ROOT"
+
+# Solo después de la autorización explícita del preflight materializado:
+env -u PYTHONPATH PYTHONDONTWRITEBYTECODE=1 \
+.venv/bin/python -m evaluation.primary_execution.cli run-primary --run-root "$RUN_ROOT"
+
+# Offline, una vez terminados todos los documentos:
+env -u PYTHONPATH PYTHONDONTWRITEBYTECODE=1 \
+.venv/bin/python -m evaluation.primary_execution.cli finalize-primary --run-root "$RUN_ROOT"
+```
+
+`run-primary` exige presencia de `GOOGLE_API_KEY` o `GEMINI_API_KEY` antes del
+primer `DOCUMENT_STARTED`. Usa el procedimiento de entrada de secretos de la
+sección 10.2; el controlador no imprime ni guarda el valor. Ninguno de los dos
+comandos carga `.env` automáticamente. El archivo ignorado del checkout
+principal tampoco aparece automáticamente en un worktree detached.
+Si la clave ya está en `$REPO/.env`, puede inyectarse al lanzar desde el checkout
+de evaluación, sin copiar el archivo al worktree:
+
+```bash
+# Futuro: solo tras el fix/refreeze del evaluador y autorización del preflight.
+REPO=/home/bgonzale/CiDaeN/15_TrabajoFinMaster/tfm-renewables-permitting-tracker
+cd "$REPO"
+env -u PYTHONPATH PYTHONDONTWRITEBYTECODE=1 \
+uv run --offline --no-sync --no-python-downloads --env-file "$REPO/.env" \
+  "$REPO/.venv/bin/python" -m evaluation.primary_execution.cli run-primary \
+  --run-root "$REPO/runs/final-holdout-v2-primary-001"
+```
+
+`uv` carga las variables en memoria y el worker las hereda al cambiar al worktree
+productivo. No se imprime el entorno ni se incluye la clave en argv, logs o
+manifests. El cierre comprobó solo la declaración `GOOGLE_API_KEY` en `.env`, sin
+mostrar ni cargar su valor; la prueba del lanzamiento usó un archivo temporal
+con una clave ficticia, sin proveedor ni autenticación.
+
+El controlador no crea retries
+adicionales: continúa solo documentos `PENDING` y salta éxitos y errores
+terminales. Un `STARTED` sin recibo durable recuperable pasa a `INDETERMINATE` y
+detiene la continuación completa. No borres journal, errores ni staging para
+volver a intentarlo. Repetir el comando tras una incidencia exige comprobar
+primero `primary-status`; cualquier caso indeterminado requiere una decisión
+humana posterior explícita.
+
+Los outputs individuales, stdout/stderr, códigos de salida y recibos quedan en
+`documents/<ordinal>-<boe_id>/`. La publicación final usa
+`primary/extraction/` y `finalization/execution_record.json`, con provenance y
+manifest separados. Los destinos existentes se verifican, nunca se sobrescriben.
+La finalización no ejecuta la evaluación.
+
+La contabilidad separa el uso reportado por producción, los documentos iniciados
+y las incidencias. Un fallo HTTP puede no figurar en `RunUsage.requests`; no se
+estima ni se corrige el contador. Si queda por debajo del número de intentos de
+origen modelo, el guard del evaluador congelado rechazará posteriormente el
+record. El cierre reprodujo el rechazo con dos éxitos y un error sintético con
+cero uso reportado: `2 < 3`. Se clasifica **PRE-GEMINI BLOCKER**: una ejecución
+primaria válida podría quedar sin evaluar. La propuesta mínima pendiente es
+restringir el mínimo de requests a los intentos de modelo exitosos, conservando
+errores, contadores y todas las reglas científicas. Requiere aprobación,
+implementación y commit separados, y un nuevo freeze del evaluador antes de
+Gemini. `frozen_evaluator_usage_guard_satisfied=false` conserva visible el guard
+actual en provenance; no lo corrige ni lo omite. El diagnóstico completo está
+en el procedimiento primario.
 
 #### Evaluar únicamente predicciones primarias autorizadas y congeladas
 
@@ -2020,9 +2101,9 @@ UV_OFFLINE=1 uv run python -m evaluation.final_holdout_v2.cli \
 UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
 uv run python -m evaluation.final_holdout_v2.cli evaluate \
   --truth runs/final_holdout_p2_v1_truth_v2_frozen \
-  --evaluator runs/final_holdout_p2_v2b_evaluator_frozen \
-  --expected-evaluator-identity <EVALUATOR_ID_REGISTRADO> \
-  --expected-evaluator-manifest-sha256 <SHA256_MANIFEST_EVALUADOR_REGISTRADO> \
+  --evaluator runs/final_holdout_p2_v1_evaluator_v2_frozen \
+  --expected-evaluator-identity 956213df2a1669814f82491809d776998346d9e54cb1fdc8d9a5434e8dd26f77 \
+  --expected-evaluator-manifest-sha256 6d7193d555445d7514b918a31fc30ea57b905e0382912870add2da075c1fdd55 \
   --predictions <DIRECTORIO_EXTRACCION_PRIMARIA_CONGELADA> \
   --execution-record <REGISTRO_EJECUCION_REAL_JSON> \
   --output <NUEVO_DIRECTORIO_RESULTADOS_V2>

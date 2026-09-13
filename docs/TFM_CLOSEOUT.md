@@ -30,7 +30,7 @@ they are not authorization to resume product development or P2 extraction.
   expansion.** Existing functional/data freezes remain effective.
 
 Current phase: **evaluation and written-TFM closeout**. The audited checkout is
-`tfm-evaluation@0f4de38ec0899606747730c11c75fdacc6bf3b8e`, initially clean and equal
+`tfm-evaluation@a0cbe5f2f59b5eb48f34684d7f6b3c94273477ff`, initially clean and equal
 to the local `origin/tfm-evaluation` tracking ref (no remote fetch). The system
 under evaluation remains `tfm-final@282de815bea4e248bdcba2c655e3ee078cb58a49`.
 Production code, runtime configuration and lockfile have no diff against that
@@ -45,8 +45,10 @@ frozen system in the audited checkout.
 | Holdout selection | DONE | 48 unique documents, six year/series strata of eight, seed `20260821`; zero overlap with the 479-document development registry or 104-document W14 corpus. |
 | V2 human annotation | DONE | Read-only `validate-truth --require-complete` passes: 48 complete, zero draft; source membership/hashes match the selection; 30 events, 37 assets, 81 actions, 111 locations; all 108 evidence passages pass existing literal validation. No structural correction identified. |
 | V2 truth freeze | DONE | The sole final truth is `runs/final_holdout_p2_v1_truth_v2_frozen`; read-only loader confirms 48 documents and the exact truth/manifest identities below. No annotation or freeze files are edited in V2-B. |
-| V2-B evaluator | IMPLEMENTED / REVIEW PENDING | Deterministic matching, current-only metrics, attribution, evidence/P0, provenance, evaluator freeze and immutable reports are implemented and tested with synthetic fixtures. Real evaluator freeze remains a separate human gate. |
-| Final experiment | PENDING | The truth manifest exists. Evaluator review/commit/push/freeze/verification must precede separately authorized primary execution. No prediction contents or final metrics were inspected or produced in this block. |
+| V2-B evaluator | FROZEN / VERIFIED | The actual frozen artifact is `runs/final_holdout_p2_v1_evaluator_v2_frozen`; its code/rules identity, truth binding and physical manifest hash verify against the current checkout. Identities below. |
+| Primary operational controller | IMPLEMENTED / REVIEW PENDING | External `evaluation/primary_execution/` supplies durable document receipts, append-only journal, fail-closed continuation and offline standard-snapshot publication. Review/commit/push, detached system environment, API key and materialized preflight review precede real execution. |
+| Evaluator usage guard | PRE-GEMINI BLOCKER | A valid terminal transport error can report zero requests. V2 currently rejects reported requests below all model-origin attempts; a synthetic 503 case reproduces rejection before scoring. Separate guard fix/commit and new evaluator freeze are required before Gemini. Diagnosis only; no evaluator code/freeze changed. |
+| Final experiment | PENDING | Truth and current evaluator freezes are verified. Execution additionally requires resolving the usage guard and freezing the corrected evaluator, the reviewed durable protocol, an injected API key and explicit authorization. No real predictions or final metrics are inspected/produced by controller development. |
 | Written TFM | PARTIAL | `docs/tfm_report/` contains a LaTeX template, placeholder chapters/resumen, two objective notes and five bibliography entries. Technical Markdown is reusable; the scientific narrative/results are not written. |
 | Delivery reproducibility | PARTIAL | Python 3.10, `uv.lock`, CLI, source/Gold hashes and versioned human inputs exist; final execution record, evaluator identity, distributable external artifacts and delivery acceptance remain. |
 
@@ -79,9 +81,15 @@ V2-B implements `final_holdout_scoring_v2_b_1` and
 `scoring_rules.json` preserves the annotation `contract.json` bound by the
 truth freeze. Code/rule/contract identities, explicit truth binding and
 timestamps are recorded independently; evaluator semantic identity includes no
-prediction, metric, absolute path or timestamp. The real evaluator has not been
-frozen. See `docs/evaluation/V2_B_EVALUATOR.md` for the inspection record,
-artifact boundaries and future commands.
+prediction, metric, absolute path or timestamp. The real evaluator is frozen at
+`runs/final_holdout_p2_v1_evaluator_v2_frozen`, created
+`2026-09-13T11:17:43.423742+00:00`, with identity
+`956213df2a1669814f82491809d776998346d9e54cb1fdc8d9a5434e8dd26f77`
+and manifest SHA-256
+`6d7193d555445d7514b918a31fc30ea57b905e0382912870add2da075c1fdd55`.
+Both were verified before controller implementation. The controller deliberately
+lives outside the packages hashed by that freeze; no seal is changed. See
+`docs/evaluation/PRIMARY_EXECUTION_V2.md` for execution, recovery and provenance.
 
 V2-B closing verification, 2026-09-13: **153 focused V2-B tests** pass in
 82.34 s; **343 evaluation tests** in 217.31 s; **15 existing P0 historical
@@ -90,8 +98,41 @@ in 547.32 s. This adds 153 tests to the previous 1,541-test reference.
 `git diff --check` passes. Test writes use invented BOE-2099 fixtures and
 temporary directories; no real prediction is read and no real evaluator freeze
 or evaluation is executed. The exact verification commands are recorded in
-`docs/evaluation/V2_B_EVALUATOR.md`. Human review, commit/push and the real
-evaluator freeze remain pending, with no methodological decision left open.
+`docs/evaluation/V2_B_EVALUATOR.md`. Those implementation-closing gates were
+subsequently completed for the evaluator; its actual freeze is recorded above.
+Controller review and the real primary experiment remain pending.
+
+Primary-controller verification, 2026-09-13: the new synthetic suite contains
+**79 tests**. Existing evaluation tests pass (**343**, 219.33 s), as do the
+pertinent production tests (**986**, 146.18 s). The explicitly requested single
+complete suite finished with **1 failed, 1,772 passed** in 682.47 s: a new test
+fixture retained the frozen runner's last-document `debug_state`, breaking an
+existing import-boundary assertion. Only the new fixture was corrected to
+restore that diagnostic; production and controller code were unchanged after
+the complete run. The ordered follow-up passes **80 tests** in 154.82 s (the
+79 controller tests followed by the affected import regression). The exact
+command/result ledger is in `docs/evaluation/PRIMARY_EXECUTION_V2.md`; that
+initial block did not perform a second full run. The subsequent verification
+request explicitly authorized one new complete suite after the fixture fix:
+**1,773 passed in 661.26 s (0:11:01), exit 0**. No code or tests changed during
+this closure. Controller acceptance: **READY FOR CONTROLLER COMMIT**, subject to
+human authorization; the separate evaluator usage blocker still prohibits Gemini.
+Before/after inventories and SHA-256 match for all **26 protected files**
+(11 working truth, 13 frozen truth, 2 frozen evaluator). No real primary run,
+system worktree, model call or evaluation was created during this block.
+
+The subsequent closure audit confirms 21 execution-record properties and 21
+required fields, identical to the V1 validator reused by V2; the earlier count
+of 22 was a reporting error. The ignored main-checkout `.env` declares
+`GOOGLE_API_KEY`, but neither primary command loads it automatically. A launch
+with explicit `uv --env-file` safely supplies the inherited environment; the
+documented procedure was checked using a temporary fake key only.
+The usage guard is now an explicit **PRE-GEMINI BLOCKER**, not a limitation to
+defer until after extraction: two synthetic successes and one zero-usage error
+produce a valid primary snapshot/record rejected by V2 (`2 < 3`). The proposed
+minimal successful-attempt lower bound needs separate approval, tests, commit
+and a new evaluator freeze before preparing the real run. All scientific
+scoring rules and the existing frozen artifacts remain unchanged in this audit.
 
 ### Critical path and human gates
 
@@ -103,7 +144,7 @@ conditional on the human gates, not permission to execute its next block.
 | --- | --- | --- | --- |
 | 13 Sep | P0 / REQUIRED | Preserve and verify the completed V2 truth freeze | DONE: read-only verification matches the approved truth and manifest IDs. Working is not a scoring input. |
 | 13 Sep | P0 / REQUIRED | Record approved semantics and annotation provenance before V2-B | Current-only extraction and P0 semantics are approved and documented in the V2 contract. The remaining documentary gate records the actual blind-annotation/QA history. Preserve human annotations and production behavior. |
-| 13–14 Sep | P0 / REQUIRED | Review and freeze implemented V2-B | Deterministic matching, reduced metrics, sets/pairs, P0, exclusions, provenance and immutable publication implemented with synthetic tests. Next: human review → approved commit/push → separately authorized real evaluator freeze → verify freeze. No real scoring or model execution in this block. |
+| 13–14 Sep | P0 / REQUIRED | Review the durable primary controller | Next: controller review → approved commit/push → separately approved usage-guard fix/commit and new evaluator freeze → prepare/verify detached system worktree → API key injection → materialized preparation → human preflight review → separately authorized `run-primary`. |
 | 15 Sep | P0 / REQUIRED | TECHNICAL EVALUATION FREEZE | Only after explicit execution authorization: frozen system on exactly 48 BOEs, durable original outputs, execution record, frozen evaluator, metrics, integrity checks and error inventory. No tuning or opportunistic matching changes. |
 | 16 Sep | P0 / REQUIRED | Results and scientific analysis | Use frozen metrics to produce the small final table/figure set, error taxonomy, representative cases, Results and Discussion. |
 | 17 Sep | P0 / REQUIRED | Complete manuscript content | Finish methods, limitations, conclusions, future work, reproducibility and references; reconcile objectives with results; integrate screenshots and artifact identities. |
@@ -151,12 +192,13 @@ new extraction variables/sources, holdout expansion, model tuning, persistent
 reporting, daily automation/scheduler, new administrative features, cosmetic
 Streamlit work, complex deployment and nonessential refactors/architecture.
 
-Schedule risk remains high: V2-B needs human review and evaluator freeze, the
-primary experiment remains a separate authorized gate, and the manuscript is
-largely unwritten. The next step for this P0 block is human review → approved
-commit/push → real V2-B evaluator freeze → freeze validation → only then
-authorization for Gemini on the 48 BOEs. This block executes none of those gates.
-If the 14 September evaluator gate fails,
+Schedule risk remains high: the primary controller needs review, the primary
+experiment remains a separate authorized gate, and the manuscript is largely
+unwritten. Next: human controller review → approved commit/push → separately
+approved usage-guard fix/commit and new evaluator freeze → detached system
+environment and API key injection → prepared-run review → only then authorization
+for Gemini on the 48 BOEs. This block executes none of those real gates.
+If the 14 September operational gate fails,
 do not inspect predictions or call Gemini to save time. Escalate the milestone
 conflict to the human reviewer; do not silently spend 16–18 September on
 functional software work or weaken scientific safeguards.

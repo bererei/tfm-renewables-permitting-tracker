@@ -59,34 +59,43 @@ source hashes. No fixture is derived from final predictions.
 
 ## Ordered human gates
 
-1. Review implementation, methodology, exclusions, tests and documentation.
-2. Explicitly approve and perform commit/push on `tfm-evaluation`.
-3. Separately authorize the real V2-B evaluator freeze against the already frozen
-   truth; record the returned evaluator identity and physical manifest hash.
-4. Validate that freeze from the same committed checkout using the recorded
-   expectations. Code/rule drift is a rejection, not a reason to update a seal.
-5. Only then authorize the frozen system's primary execution on the 48 BOEs.
-   Preserve original attempts, source, queue, manifests, usage and logs before
-   any human CURRENT/ANTECEDENT intervention. Additional retry attempts cannot
-   replace or be merged into this primary evaluation.
+Evaluator review/commit and the separate real freeze have since completed.
+The controller implementation preflight verified `tfm-evaluation` at
+`a0cbe5f2f59b5eb48f34684d7f6b3c94273477ff`, and the actual artifact is
+`runs/final_holdout_p2_v1_evaluator_v2_frozen`, created
+`2026-09-13T11:17:43.423742+00:00`. Its evaluator identity is
+`956213df2a1669814f82491809d776998346d9e54cb1fdc8d9a5434e8dd26f77`
+and manifest SHA-256 is
+`6d7193d555445d7514b918a31fc30ea57b905e0382912870add2da075c1fdd55`.
+Its truth binding is the verified V2 truth/manifest identity documented in the
+primary procedure. Do not reseal or overwrite either artifact.
 
-The implementation task executes none of these subsequent gates. Commands
-below are a **future procedure**, not evidence of an executed freeze or run.
-Use a new output directory each time; there is no overwrite option.
+The closure audit identified a **PRE-GEMINI BLOCKER** in this evaluator's
+`evaluate` usage guard: it counts terminal model-origin errors toward a minimum
+request count that PydanticAI does not guarantee. A local synthetic 503 sequence
+reproduces a valid primary record rejected before scoring. The proposed bounded
+correction is to count only successful model-origin attempts in that lower bound;
+no matching, scoring, metric, truth, temporal or P0 rule changes. This is a
+diagnosis only; evaluator code and the frozen artifact remain unchanged. See
+the usage section of [PRIMARY_EXECUTION_V2.md](PRIMARY_EXECUTION_V2.md).
+
+The remaining sequence is controller review → approved controller commit/push
+→ separately approved usage-guard fix/commit and a new evaluator freeze
+→ verified detached productive environment → API key → prepared-run review
+→ separately authorized primary execution. The controller remains outside this
+frozen package; see [PRIMARY_EXECUTION_V2.md](PRIMARY_EXECUTION_V2.md).
+Preserve all primary errors and original outputs before any human semantic
+intervention. Additional attempts cannot replace the first execution.
+The commands below verify the existing artifact. After the approved fix/freeze,
+use the new evaluator path/identity/manifest for real preparation and evaluation;
+never overwrite the current freeze or reseal it after inspecting predictions.
 
 ```bash
 UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
-uv run python -m evaluation.final_holdout_v2.cli freeze-evaluator \
-  --truth runs/final_holdout_p2_v1_truth_v2_frozen \
-  --expected-truth-artifact-id e3f300253db94931345e9bbbc489cd810802f94339c3b6a0d751f98b32383b54 \
-  --expected-truth-manifest-sha256 4f32dc8f89fff8ae1b80f7fb5f94e9168d131f4dea3d0d025640e869c07c148c \
-  --output runs/final_holdout_p2_v2b_evaluator_frozen
-
-UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
 uv run python -m evaluation.final_holdout_v2.cli validate-evaluator \
-  --evaluator runs/final_holdout_p2_v2b_evaluator_frozen \
-  --expected-evaluator-identity <RECORDED_EVALUATOR_ID> \
-  --expected-manifest-sha256 <RECORDED_EVALUATOR_MANIFEST_SHA256>
+  --evaluator runs/final_holdout_p2_v1_evaluator_v2_frozen \
+  --expected-evaluator-identity 956213df2a1669814f82491809d776998346d9e54cb1fdc8d9a5434e8dd26f77 \
+  --expected-manifest-sha256 6d7193d555445d7514b918a31fc30ea57b905e0382912870add2da075c1fdd55
 ```
 
 The evaluator identity covers relative Python/JSON/CSV files under both isolated
@@ -105,8 +114,9 @@ Populate the unchanged
 adjacent schema. `record_version=final_holdout_execution_record_v1` is an
 execution provenance version; V2 evaluation still uses only V2 truth/scoring.
 The record captures the **actual** argv, timestamps, status, model usage, run ID,
-source/selection/snapshot identities and log paths. No proposed Gemini command
-or invented record is provided here.
+source/selection/snapshot identities and log paths. The external primary
+controller now produces this record at `finalization/execution_record.json`
+and the snapshot at `primary/extraction/`. It never calls this evaluator.
 
 ```bash
 UV_OFFLINE=1 uv run python -m evaluation.final_holdout_v2.cli \
@@ -115,9 +125,9 @@ UV_OFFLINE=1 uv run python -m evaluation.final_holdout_v2.cli \
 UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
 uv run python -m evaluation.final_holdout_v2.cli evaluate \
   --truth runs/final_holdout_p2_v1_truth_v2_frozen \
-  --evaluator runs/final_holdout_p2_v2b_evaluator_frozen \
-  --expected-evaluator-identity <RECORDED_EVALUATOR_ID> \
-  --expected-evaluator-manifest-sha256 <RECORDED_EVALUATOR_MANIFEST_SHA256> \
+  --evaluator runs/final_holdout_p2_v1_evaluator_v2_frozen \
+  --expected-evaluator-identity 956213df2a1669814f82491809d776998346d9e54cb1fdc8d9a5434e8dd26f77 \
+  --expected-evaluator-manifest-sha256 6d7193d555445d7514b918a31fc30ea57b905e0382912870add2da075c1fdd55 \
   --predictions <FROZEN_PRIMARY_EXTRACTION_DIRECTORY> \
   --execution-record <ACTUAL_EXECUTION_RECORD_JSON> \
   --output <NEW_V2_EVALUATION_DIRECTORY>
