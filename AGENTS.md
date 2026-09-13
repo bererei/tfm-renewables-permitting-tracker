@@ -24,7 +24,9 @@ Gold `projects` and `project_events`. The additive location tables and the
 local Streamlit MVP are validated extensions, not additions to the frozen
 scope.
 
-Current phase: **product completion**.
+Current phase: **evaluation and written-TFM closeout**. Active deadlines and
+remaining gates are defined in `docs/TFM_CLOSEOUT.md`: technical evaluation
+freeze on **2026-09-15**, final TFM delivery on **2026-09-18**.
 
 - REQUIRED priorities are the approved data and product gates, the minimum
   dashboard, safe error reporting, public read-only deployment, final visual
@@ -59,7 +61,7 @@ requested. Prefer a documented non-blocking limitation over unnecessary scope.
 8. After the functional freeze, allow only bug fixes, security, deployment,
    documentation and validation work.
 9. Do not add speculative architecture or administrative functionality before
-   the August submission.
+   the final TFM submission defined in `docs/TFM_CLOSEOUT.md`.
 10. Before selecting a holdout, register every BOE manually inspected for
     development or evaluation in `config/evaluation/development_used_documents.csv`.
 

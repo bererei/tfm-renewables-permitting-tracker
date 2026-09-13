@@ -1,7 +1,7 @@
 # TFM Closeout
 
 Operational source of truth for status, dependencies, gates, calendar, risks
-and scope cuts through the **31 August 2026** delivery. Stable engineering
+and scope cuts through the **18 September 2026** delivery. Stable engineering
 rules live in `AGENTS.md`; user procedures in `docs/USER_GUIDE.md`; Streamlit
 architecture in `docs/STREAMLIT_CODE_GUIDE.md`.
 
@@ -16,7 +16,117 @@ perfect + exhaustive
 The August delivery scope is frozen from **19 August 2026**. Only the REQUIRED
 work listed here may enter the product.
 
-## 1. Current validated state
+## September closeout — active plan, audited 2026-09-13
+
+This section supersedes the August calendar, pending-work labels and next-action
+sequence below. Those records preserve historical decisions and run provenance;
+they are not authorization to resume product development or P2 extraction.
+
+- **2026-09-15 = TECHNICAL EVALUATION FREEZE**: system, human truth, evaluator,
+  predictions, metrics and evaluation artifacts closed.
+- **2026-09-18 = FINAL TFM DEADLINE**: complete written TFM, reviewed PDF,
+  reproducibility evidence and delivery archive.
+- **16–18 September are for analysis, writing, review and delivery, not product
+  expansion.** Existing functional/data freezes remain effective.
+
+Current phase: **evaluation and written-TFM closeout**. The audited checkout is
+`tfm-evaluation@b6c78ac9a4933e9b9cdef565b028097ccbab2cc2`, initially clean and equal
+to the local `origin/tfm-evaluation` tracking ref (no remote fetch). The system
+under evaluation remains `tfm-final@282de815bea4e248bdcba2c655e3ee078cb58a49`.
+Production code, runtime configuration and lockfile have no diff against that
+frozen system in the audited checkout.
+
+### Evidence that determines remaining work
+
+| Block | State | Verified evidence / remaining gate |
+| --- | --- | --- |
+| Final W14 data pipeline | DONE | The 13-table Silver loader and four-table Gold loader pass; 233 Silver actions, 86 projects, 80 relevant BOEs; grouping reproduces in memory; publication Gold is byte-identical. Existing identities below are unchanged. |
+| Local Streamlit implementation | DONE | Gold-only loader, filters, search, charts, administrative map, detail and bounded mailto are implemented in `streamlit_app.py` and `src/renewables_permitting/app_*.py`; public deployment and final visual/security acceptance are separate outstanding delivery evidence. |
+| Holdout selection | DONE | 48 unique documents, six year/series strata of eight, seed `20260821`; zero overlap with the 479-document development registry or 104-document W14 corpus. |
+| V2 human annotation | DONE | Read-only `validate-truth --require-complete` passes: 48 complete, zero draft; source membership/hashes match the selection; 30 events, 37 assets, 81 actions, 111 locations; all 108 evidence passages pass existing literal validation. No structural correction identified. |
+| V2 truth freeze | MISSING | `evaluation/final_holdout_v2/cli.py` has no freeze command; `contract.load_truth` explicitly rejects a frozen manifest. Complete annotation is not an operational freeze. |
+| V2-B evaluator | MISSING | V2 has annotation/contract/UI code only. V1 matching, metrics and immutable-artifact machinery are reusable references, not an implemented V2 evaluator. |
+| Final experiment | MISSING | No final truth manifest, execution record, evaluation manifest or metrics artifact located in the local filename inventory. No prediction contents were inspected. |
+| Written TFM | PARTIAL | `docs/tfm_report/` contains a LaTeX template, placeholder chapters/resumen, two objective notes and five bibliography entries. Technical Markdown is reusable; the scientific narrative/results are not written. |
+| Delivery reproducibility | PARTIAL | Python 3.10, `uv.lock`, CLI, source/Gold hashes and versioned human inputs exist; final execution record, evaluator identity, distributable external artifacts and delivery acceptance remain. |
+
+The annotation workspace `runs/final_holdout_p2_v1_truth_v2_working` was read
+only. Its 11 files are byte-identical before/after structural validation.
+The computed truth identity is
+`e3f300253db94931345e9bbbc489cd810802f94339c3b6a0d751f98b32383b54`;
+this is an audit fingerprint, **not a freeze declaration**. Completeness does
+not establish semantic exhaustiveness or an independent second review.
+
+Current verification: 150 evaluation/P0 tests and 252 product/data/source tests
+pass offline; this is not a rerun of the historical 1,486-test full suite.
+AppTest against the real corrected Gold also passes with zero exceptions and
+86/80 KPIs. These checks do not replace human browser/security acceptance.
+
+### Critical path and human gates
+
+P0 means indispensable for delivery (BLOCKER or REQUIRED under `AGENTS.md`);
+P1 means OPTIONAL and may start only after all P0 work is closed. The plan is
+conditional on the human gates, not permission to execute its next block.
+
+| Date | Priority | One primary outcome | Dependency / acceptance |
+| --- | --- | --- | --- |
+| 13 Sep | P0 / REQUIRED | Review this audit and authorize the minimum truth-freeze support | Annotation is structurally ready. Implement/test only V2 immutable truth publication/loading first, with synthetic fixtures; review, then separately authorize a new frozen output and record hashes/provenance. Do not use V1 freeze on V2 or rewrite the working workspace. |
+| 13 Sep | P0 / BLOCKER | Resolve evaluation semantics before V2-B scoring | Decide historical-action detection denominators and the operational meaning of temporal scoring; record the blind-annotation/QA history. Preserve human annotations and production behavior. |
+| 14 Sep | P0 / REQUIRED | Implement, test, review and freeze V2-B | Frozen truth first; deterministic matching, reduced primary metrics, affected-asset sets/pairs, P0, exclusions/denominators, isolation, immutable report and exact evaluator identity. Synthetic tests only until evaluator freeze. |
+| 15 Sep | P0 / REQUIRED | TECHNICAL EVALUATION FREEZE | Only after explicit execution authorization: frozen system on exactly 48 BOEs, durable original outputs, execution record, frozen evaluator, metrics, integrity checks and error inventory. No tuning or opportunistic matching changes. |
+| 16 Sep | P0 / REQUIRED | Results and scientific analysis | Use frozen metrics to produce the small final table/figure set, error taxonomy, representative cases, Results and Discussion. |
+| 17 Sep | P0 / REQUIRED | Complete manuscript content | Finish methods, limitations, conclusions, future work, reproducibility and references; reconcile objectives with results; integrate screenshots and artifact identities. |
+| 18 Sep | P0 / REQUIRED | FINAL TFM DEADLINE | Full PDF/readability/reference/index/annex review, reproduce documented delivery checks, archive accessible artifacts, human acceptance; final commit/tag/push only if expressly authorized. No normal functional development. |
+
+Start source/corpus/architecture/contracts/grouping/territory/annotation/product
+writing immediately alongside the technical gates. Waiting until 16 September
+to start the manuscript is not realistic given the template-only state.
+Complete the outstanding simple read-only deployment, mailbox configuration,
+visual/security review and screenshots by 17 September within the existing
+product gate; do not make deployment a prerequisite for running the scientific
+evaluation. If unavailable, record the delivery gap for human disposition,
+not an implicit waiver or an architectural expansion.
+
+Two methodological decisions must be explicit before evaluator freeze:
+
+1. `extraction/instructions.py` requires current actions only, while V1
+   `evaluator.py` counts omitted historical truth actions as extraction FN.
+   Do not silently inherit that denominator into V2. Decide the current-action
+   primary universe and the separate historical/P0 diagnostic universe before
+   predictions. Historical actions absent from extraction are never P0 FN.
+2. Production `AdministrativeAction` has no `temporal_status` output field.
+   Define whether temporal evaluation measures the implicit current-action
+   attribution; keep P0 warnings distinct from model predictions. Effective
+   action-to-generation attribution needs its own documented projection of
+   event, asset and associated-component targets, including unmatched assets.
+
+Further V2-B acceptance must fix exact aliases/normalization, event matching,
+action evidence matching, ambiguous ties, unmatched entities, applicable-field
+denominators, zero denominators, micro aggregation, action evidence correctness,
+P0 TP/FP/FN/TN and false-warning denominator before any final output is viewed.
+Metadata declares blind annotation, but a retrospective declaration alone
+does not prove all exposure history. Document actual annotator/QA provenance
+and any independent review that occurred; if none, state the limitation. No
+new exhaustive semantic annotation pass is inferred from this audit.
+
+P1 / OPTIONAL: additional scientific exposition or a bounded independent QA
+only if all P0 work is closed and the blind/frozen protocol permits it; never
+change frozen truth or scoring in response to predictions.
+
+POST-TFM / OUT_OF_SCOPE: `environmental_outcome`, next milestone, expanded
+hybridisation, new cross-event inference, power/promoter/participant primary
+metrics, component/technical/exact-target/non-action-evidence primary metrics,
+new extraction variables/sources, holdout expansion, model tuning, persistent
+reporting, daily automation/scheduler, new administrative features, cosmetic
+Streamlit work, complex deployment and nonessential refactors/architecture.
+
+Schedule risk is high: truth-freeze support and V2-B are not implemented, and
+the manuscript is largely unwritten. If the 14 September evaluator gate fails,
+do not inspect predictions or call Gemini to save time. Escalate the milestone
+conflict to the human reviewer; do not silently spend 16–18 September on
+functional software work or weaken scientific safeguards.
+
+## 1. Historical delivery ledger — superseded by the September checkpoint
 
 | Area | Status | Evidence |
 | --- | --- | --- |
@@ -85,7 +195,7 @@ Final TFM corpus    → final materialization
 Deployment dataset → published Gold
 ```
 
-Current phase: **product completion**. Gates 1 and 2, the final corpus, Gold
+Historical phase: **product completion**. Gates 1 and 2, the final corpus, Gold
 materialization and final local Streamlit alignment are complete. Public
 deployment, final visual/security review, screenshots, written evidence and
 the final holdout remain pending. `project_components` and
@@ -343,7 +453,7 @@ reproducibility or provenance, with explicit human approval. The Final TFM
 corpus is a separate run with new identities, cardinalities and manifests; it
 does not move the tag or rewrite the baseline.
 
-## 7. Calendar 19–31 August
+## 7. Historical calendar 19–31 August — not the active deadline
 
 | Window | Outcome |
 | --- | --- |
@@ -358,7 +468,7 @@ does not move the tag or rewrite the baseline.
 | **29–30 Aug** | Full suite, holdout, reproducibility, documentation and written TFM |
 | **31 Aug** | Incident buffer and submission; no planned feature work |
 
-**SCHEDULE RISK:** the ingestion path and extraction/review load are not yet
+**Historical schedule risk (superseded):** the ingestion path and extraction/review load were not yet
 measured. The concrete mitigation is to close the audit/preflight by 21 August,
 finish the build and first review by 24 August, keep both candidate Gold
 extensions deferred, and reserve 25–27 August for the MUST SHIP dashboard. The
@@ -394,7 +504,7 @@ Across all cuts, prioritize correctness, reproducibility and security over
 visual refinement, additional data, automation and administration. Never
 sacrifice traceability for a visualization.
 
-## 9. Final delivery checklist
+## 9. Historical delivery checklist — current gates are listed above
 
 Already closed; reopen only for a material bug:
 
@@ -421,7 +531,7 @@ Remaining delivery checks:
 - [ ] Screenshots, limitations, documentation and written TFM synchronized.
 - [ ] Final Git state reviewed, committed and pushed; submission recorded.
 
-## Next required action
+## Historical next-action log — not the active execution plan
 
 ```text
 FINAL CORPUS INGESTION AUDIT — PENDING HUMAN REVIEW

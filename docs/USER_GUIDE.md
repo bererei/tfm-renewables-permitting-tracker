@@ -1971,9 +1971,12 @@ reproducible.
 Que la aplicación funcione localmente no significa que exista ya un despliegue
 público.
 
-**CONDITIONAL:** promotor, participantes, potencia, componentes y títulos. Solo
-se añadirán tras auditar calidad, granularidad y linaje; no se simulan leyendo
-Silver directamente.
+**Diferido a POST-TFM en el cierre vigente:** promotor, participantes, potencia,
+componentes y títulos como nuevas ampliaciones del producto. No se reabren con
+el margen de septiembre. La planificación canónica está en
+[`TFM_CLOSEOUT.md`](TFM_CLOSEOUT.md): **2026-09-15 = TECHNICAL EVALUATION FREEZE** y
+**2026-09-18 = FINAL TFM DEADLINE**. Los días 16–18 se reservan para análisis,
+memoria, revisión y entrega, no para ampliar el software.
 
 **POST-TFM:** reportes persistentes, aplicación administrativa, autenticación y
 autorización, correcciones asistidas, ejecución del pipeline desde Streamlit y
