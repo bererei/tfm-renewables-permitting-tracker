@@ -1,7 +1,8 @@
-# Final holdout evaluation contract V2 — Phase V2-A
+# Final holdout evaluation contract V2 — annotation and truth publication
 
-Status: **annotation contract and tooling implemented; evaluator, matching,
-metrics and truth freeze not implemented**.
+Status: **annotation and immutable truth-publication tooling implemented;
+evaluator, matching and metrics not implemented**. The real V2 truth freeze
+has not been executed; implementation awaits human review.
 
 Contract identifier: `final_holdout_evaluation_contract_v2`.
 
@@ -39,11 +40,14 @@ Phase V2-A does **not** contain:
 - V2 metrics or evaluator;
 - prediction loading;
 - P0-result loading;
-- `freeze-truth`;
 - extraction or model execution.
 
 Those capabilities belong to Phase V2-B and must be reviewed and frozen before
 the system under evaluation is executed.
+
+The separately authorized P0 truth-publication block adds `freeze-truth` and
+`validate-frozen-truth` before V2-B. It preserves the annotation schema, V1 and
+the production system, and implements no matching or scoring.
 
 ## 3. Truth tables
 
@@ -114,7 +118,7 @@ Record every relevant/current administrative action exactly once, including:
 The affected-asset set is always explicit. A single-asset event is not
 automatically assumed correct.
 
-`temporal_status` preserves V1 semantics:
+`temporal_status` preserves the existing annotation values:
 
 - `current`;
 - `historical_antecedent`;
@@ -123,6 +127,46 @@ automatically assumed correct.
 
 P0 truth will be derived from this field in V2-B. No P0 output is read during
 annotation.
+
+### Approved temporal evaluation decision — 2026-09-13
+
+The positive expected universe for primary action extraction is **`current`**.
+An extracted current truth action is an extraction TP when correctly matched;
+an omitted current truth action is an extraction FN. A prediction corresponding
+to `historical_antecedent` is an extraction FP due to historical contamination.
+A historical antecedent correctly omitted by the extractor is **not** an
+extraction FN. This explicitly supersedes the V1 historical-inclusive extraction
+denominator for V2; V1 code and its historical results remain unchanged.
+
+Historical rows remain in human truth for temporal-contamination identification,
+P0 adjudication and diagnostic analysis. Their existing `scored_truth` annotation
+does not make them positive expected current-action extractions. No annotation
+is changed or required to be repeated by this decision.
+
+`temporal_status` is a **truth adjudication variable**, not a categorical model
+output. Production `AdministrativeAction` has no equivalent output field, so
+V2 defines **no categorical temporal-status accuracy**. The detailed matching,
+handling of ambiguous truth and scoring implementation remain a later V2-B gate.
+
+P0 is an alarm applied to an already extracted action. For a safely adjudicable
+extracted action, before any later human CURRENT/ANTECEDENT intervention:
+
+| Temporal truth | Warning | P0 outcome |
+| --- | --- | --- |
+| `historical_antecedent` | Yes | TP |
+| `historical_antecedent` | No | FN |
+| `current` | Yes | FP |
+| `current` | No | TN |
+
+An omitted historical action is never a P0 FN: the detector received no such
+action. A historical prediction is an extraction FP even when its P0 warning is
+a detector TP; the two evaluations measure different behavior. Warnings that
+cannot be safely linked to adjudicable truth are reported as `unadjudicated`,
+never forced into TP/FP/FN/TN. Ambiguous temporal truth is reported separately.
+The future P0 false warning rate is `FP / (FP + TN)` over extracted/matched,
+adjudicable **current** actions. It is distinct from the rate of all warnings
+over all extracted actions. Zero-denominator handling remains to be frozen with
+V2-B. No metric or scoring implementation is added by this decision.
 
 ### Location
 
@@ -294,16 +338,99 @@ The planned real destination is new:
 Running that real migration requires separate human authorization. Phase V2-A
 implementation and tests use synthetic workspaces only.
 
-## 10. Remaining V2-B gate
+## 10. Immutable V2 truth publication
+
+`evaluation/final_holdout_v2/freeze.py` adapts publication to V2. It reuses V2
+schema/completeness/FK validation, the annotation boundary's reserved-key check,
+canonical source-identity validation and `validate_evidence_literal()`. It does
+not use V1's freeze, which rewrites CSV and metadata and has V1-specific schema
+and identity semantics.
+
+The **working truth** contains ten annotation CSVs and original
+`truth_metadata.json`, without a publication manifest. The **frozen truth** is
+a new directory containing byte-identical copies of those eleven files, a
+byte-identical `holdout_selection.csv`, and a new `manifest.json`: thirteen
+files in total. Secondary data and migration/reviewer provenance are preserved.
+No new annotation field or secondary-entity requirement is introduced.
+
+Before publication the tool requires non-empty, complete V2 truth, exact
+selection membership and document hashes, the selection SHA-256 recorded in
+metadata, and a consistent `source_snapshot_id`. It recomputes the selected
+source-document hashes from canonical BOE title/date/text and checks every
+provided evidence passage against that source using the existing literal
+validator. Snapshot-level provenance comes from the selection/metadata; the
+tool does not recompute the unselected source corpus. The number of documents
+comes from the validated selection: the real selection has 48, synthetic tests
+may have fewer. It does not hardcode 48 or read prediction artifacts.
+
+The existing `truth_semantic_identity()` algorithm is unchanged: canonical
+table rows, truth-contract version and holdout/source identities determine the
+truth ID; local paths, publication time and manifest fields do not. All ten
+contractual tables, including retained secondary data and annotation notes,
+continue to participate exactly as before.
+
+Publication copies to a sibling staging directory, validates the copy, writes
+and verifies the manifest, checks that working files/selection are unchanged,
+then renames to the final destination. Existing destinations, symlinks used as
+truth files, unexpected files and destinations inside the working workspace are
+rejected. There is no overwrite option. On failure the staging directory is
+removed; existing inputs/destinations are neither repaired nor restored. This
+uses the repository's **single-writer convention**, not cross-process locking.
+
+The manifest uses schema/version `final_holdout_truth_manifest_v2` and records:
+
+- frozen status, truth-contract version/declaration hash and semantic truth ID;
+- semantic hashes for all ten tables and physical SHA-256 for twelve files;
+- selection/source identities, document count and reviewer/date provenance;
+- the preserved declaration that predictions were not exposed;
+- UTC publication time, `v2_truth_freeze_v1` and the freeze function entry point;
+- a fingerprint of actual freeze/validation source files and `uv.lock`, computed
+  by `_tool_source_hash()` even when code is uncommitted; no Git commit is guessed;
+- a canonical manifest checksum independent of the annotated truth identity.
+
+`load_truth(..., require_frozen=True)` rejects working truth and verifies the
+manifest schema/checksum, exact file inventory, physical hashes, semantic
+identity, provenance, completeness and copied selection. A manifest found by
+ordinary `load_truth()` is also verified; corruption is never silently treated
+as working truth. The existing annotation write boundary rejects frozen truth.
+Verification needs no original source directory: documentary validation was
+performed before publication and the validated bytes are hash-bound.
+
+CLI examples, **only after implementation review, approved commit/push and
+separate authorization for the real freeze**; not executed during development:
+
+```bash
+UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
+uv run python -m evaluation.final_holdout_v2.cli freeze-truth \
+  --truth runs/final_holdout_p2_v1_truth_v2_working \
+  --output runs/final_holdout_p2_v1_truth_v2_frozen \
+  --holdout config/evaluation/final_holdout_p2_v1.csv \
+  --documents runs/final-corpus-preflight-20220101-20260820-v2/source
+
+UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
+uv run python -m evaluation.final_holdout_v2.cli validate-frozen-truth \
+  --truth runs/final_holdout_p2_v1_truth_v2_frozen
+```
+
+Both commands report the truth ID, count, manifest physical SHA-256,
+`frozen_truth_intact=true` and `evaluator_implemented=false`. Preserve the
+printed manifest hash in the approved execution record. Later verification
+can bind that external reference with `--expected-manifest-sha256 <SHA256>`.
+Checksums detect drift; an independently preserved manifest hash also detects
+coordinated rewriting of publication metadata and its internal checksum.
+This is verified artifact immutability, not filesystem write protection or a
+digital signature. The verification command never writes to the truth.
+
+## 11. Remaining V2-B gate
 
 Before any system prediction is executed, Phase V2-B must separately implement,
 test, review and freeze:
 
 - deterministic primary-entity matching;
 - effective action-attribution scoring;
-- primary and secondary metrics;
+- the approved reduced primary metrics and explicit diagnostic exclusions;
 - P0 scoring;
 - prediction-isolation checks;
-- truth freeze and immutable evaluation artifacts.
+- immutable evaluation artifacts consuming the already frozen V2 truth.
 
 V2-A must never be described as an executable final evaluation.

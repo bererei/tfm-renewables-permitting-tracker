@@ -44,7 +44,7 @@ frozen system in the audited checkout.
 | Local Streamlit implementation | DONE | Gold-only loader, filters, search, charts, administrative map, detail and bounded mailto are implemented in `streamlit_app.py` and `src/renewables_permitting/app_*.py`; public deployment and final visual/security acceptance are separate outstanding delivery evidence. |
 | Holdout selection | DONE | 48 unique documents, six year/series strata of eight, seed `20260821`; zero overlap with the 479-document development registry or 104-document W14 corpus. |
 | V2 human annotation | DONE | Read-only `validate-truth --require-complete` passes: 48 complete, zero draft; source membership/hashes match the selection; 30 events, 37 assets, 81 actions, 111 locations; all 108 evidence passages pass existing literal validation. No structural correction identified. |
-| V2 truth freeze | MISSING | `evaluation/final_holdout_v2/cli.py` has no freeze command; `contract.load_truth` explicitly rejects a frozen manifest. Complete annotation is not an operational freeze. |
+| V2 truth freeze | PARTIAL | P0 support now implements `freeze-truth`, `validate-frozen-truth` and verified frozen loading; pending human implementation review. The real working truth has not been frozen or modified. Complete annotation is not an operational freeze. |
 | V2-B evaluator | MISSING | V2 has annotation/contract/UI code only. V1 matching, metrics and immutable-artifact machinery are reusable references, not an implemented V2 evaluator. |
 | Final experiment | MISSING | No final truth manifest, execution record, evaluation manifest or metrics artifact located in the local filename inventory. No prediction contents were inspected. |
 | Written TFM | PARTIAL | `docs/tfm_report/` contains a LaTeX template, placeholder chapters/resumen, two objective notes and five bibliography entries. Technical Markdown is reusable; the scientific narrative/results are not written. |
@@ -57,10 +57,18 @@ The computed truth identity is
 this is an audit fingerprint, **not a freeze declaration**. Completeness does
 not establish semantic exhaustiveness or an independent second review.
 
-Current verification: 150 evaluation/P0 tests and 252 product/data/source tests
+Pre-implementation audit verification: 150 evaluation/P0 tests and 252 product/data/source tests
 pass offline; this is not a rerun of the historical 1,486-test full suite.
 AppTest against the real corrected Gold also passes with zero exceptions and
 86/80 KPIs. These checks do not replace human browser/security acceptance.
+
+P0 truth-publication verification on `tfm-evaluation`, based on
+`954f485e5582d1183147d83305fcf4290396b9aa`: **55 focused freeze tests**, **190
+evaluation tests**, then **1,541 tests in one complete repository suite** pass
+(22.24 s, 122.10 s and 431.56 s respectively). Freeze writes used synthetic
+temporary inputs exclusively; V1 and the real working truth remain unchanged.
+No real freeze, prediction inspection, model execution or V2-B implementation
+was performed. Implementation review and approved commit/push remain pending.
 
 ### Critical path and human gates
 
@@ -70,8 +78,8 @@ conditional on the human gates, not permission to execute its next block.
 
 | Date | Priority | One primary outcome | Dependency / acceptance |
 | --- | --- | --- | --- |
-| 13 Sep | P0 / REQUIRED | Review this audit and authorize the minimum truth-freeze support | Annotation is structurally ready. Implement/test only V2 immutable truth publication/loading first, with synthetic fixtures; review, then separately authorize a new frozen output and record hashes/provenance. Do not use V1 freeze on V2 or rewrite the working workspace. |
-| 13 Sep | P0 / BLOCKER | Resolve evaluation semantics before V2-B scoring | Decide historical-action detection denominators and the operational meaning of temporal scoring; record the blind-annotation/QA history. Preserve human annotations and production behavior. |
+| 13 Sep | P0 / REQUIRED | Review the implemented minimum truth-freeze support | Publication/loading and synthetic tests are implemented; review, approve commit/push, then separately authorize the controlled real V2 freeze and record hashes/provenance. Do not use V1 freeze on V2 or rewrite the working workspace. |
+| 13 Sep | P0 / REQUIRED | Record approved semantics and annotation provenance before V2-B | Current-only extraction and P0 semantics are approved and documented in the V2 contract. The remaining documentary gate records the actual blind-annotation/QA history. Preserve human annotations and production behavior. |
 | 14 Sep | P0 / REQUIRED | Implement, test, review and freeze V2-B | Frozen truth first; deterministic matching, reduced primary metrics, affected-asset sets/pairs, P0, exclusions/denominators, isolation, immutable report and exact evaluator identity. Synthetic tests only until evaluator freeze. |
 | 15 Sep | P0 / REQUIRED | TECHNICAL EVALUATION FREEZE | Only after explicit execution authorization: frozen system on exactly 48 BOEs, durable original outputs, execution record, frozen evaluator, metrics, integrity checks and error inventory. No tuning or opportunistic matching changes. |
 | 16 Sep | P0 / REQUIRED | Results and scientific analysis | Use frozen metrics to produce the small final table/figure set, error taxonomy, representative cases, Results and Discussion. |
@@ -87,18 +95,17 @@ product gate; do not make deployment a prerequisite for running the scientific
 evaluation. If unavailable, record the delivery gap for human disposition,
 not an implicit waiver or an architectural expansion.
 
-Two methodological decisions must be explicit before evaluator freeze:
-
-1. `extraction/instructions.py` requires current actions only, while V1
-   `evaluator.py` counts omitted historical truth actions as extraction FN.
-   Do not silently inherit that denominator into V2. Decide the current-action
-   primary universe and the separate historical/P0 diagnostic universe before
-   predictions. Historical actions absent from extraction are never P0 FN.
-2. Production `AdministrativeAction` has no `temporal_status` output field.
-   Define whether temporal evaluation measures the implicit current-action
-   attribution; keep P0 warnings distinct from model predictions. Effective
-   action-to-generation attribution needs its own documented projection of
-   event, asset and associated-component targets, including unmatched assets.
+The human temporal decision is now formalized in
+`docs/evaluation/FINAL_HOLDOUT_EVALUATION_CONTRACT_V2.md`: only `current` actions
+are expected extraction positives. Extracted historical antecedents are primary
+extraction FP; omitted historical antecedents are neither extraction FN nor P0
+FN. Historical truth is retained for diagnosis and P0. `temporal_status` is a
+truth adjudication variable; no categorical temporal accuracy is defined because
+production has no equivalent output field. P0 remains a separate alarm on an
+extracted action, with unadjudicated warnings reported separately and future
+false warning rate `FP / (FP + TN)` over adjudicable extracted current actions.
+No scoring was implemented. Effective action-to-generation attribution still
+needs its documented projection of event, asset and component targets in V2-B.
 
 Further V2-B acceptance must fix exact aliases/normalization, event matching,
 action evidence matching, ambiguous ties, unmatched entities, applicable-field
@@ -120,8 +127,11 @@ new extraction variables/sources, holdout expansion, model tuning, persistent
 reporting, daily automation/scheduler, new administrative features, cosmetic
 Streamlit work, complex deployment and nonessential refactors/architecture.
 
-Schedule risk is high: truth-freeze support and V2-B are not implemented, and
-the manuscript is largely unwritten. If the 14 September evaluator gate fails,
+Schedule risk is high: truth-freeze support awaits human review and real
+publication, V2-B is not implemented, and the manuscript is largely unwritten.
+The next step for this P0 block is implementation review → approved commit/push
+→ separately authorized real V2 truth freeze; do not start V2-B in this block.
+If the 14 September evaluator gate fails,
 do not inspect predictions or call Gemini to save time. Escalate the milestone
 conflict to the human reviewer; do not silently spend 16–18 September on
 functional software work or weaken scientific safeguards.

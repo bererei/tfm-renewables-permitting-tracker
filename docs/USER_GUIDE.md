@@ -1768,9 +1768,10 @@ anotación final activa usa el contrato reducido
 `tfm-final` en `282de815bea4e248bdcba2c655e3ee078cb58a49`.
 
 La fase V2-A implementa contrato, migración no destructiva, anotación ciega y
-exportación para QA. **Todavía no implementa evaluator, matching, métricas ni
-freeze V2**; esas funciones pertenecen a V2-B y deben cerrarse antes de
-ejecutar el sistema evaluado.
+exportación para QA. El bloque P0 posterior añade publicación y verificación
+inmutables del truth V2. **Todavía no implementa evaluator, matching ni
+métricas**; esas funciones pertenecen a V2-B y deben cerrarse antes de ejecutar
+el sistema evaluado. El freeze real sigue pendiente de autorización.
 
 #### Interfaz local de anotación humana ciega
 
@@ -1900,9 +1901,71 @@ uv run python -m evaluation.final_holdout_v2.cli migrate-v1-truth \
 
 No ejecutes la migración sobre el workspace real hasta que exista autorización
 humana posterior al review/commit de V2-A. Tampoco existe todavía un comando
-V2 de evaluación o freeze. El alcance, completitud, terminología y frontera
+V2 de evaluación. El alcance, completitud, terminología y frontera
 V2-B están en
 [`evaluation/FINAL_HOLDOUT_EVALUATION_CONTRACT_V2.md`](evaluation/FINAL_HOLDOUT_EVALUATION_CONTRACT_V2.md).
+
+#### Semántica temporal aprobada para V2
+
+La extracción primaria espera actuaciones `current`: una correctamente extraída
+es TP y una omitida es FN. Una predicción que corresponde a un
+`historical_antecedent` es FP por contaminación histórica; un antecedente
+correctamente omitido no es FN. Los antecedentes se conservan en truth para
+diagnóstico y P0. `temporal_status` es una variable humana de adjudicación: no
+existe un campo categórico equivalente en producción ni se define su accuracy.
+
+P0 solo recibe actuaciones extraídas: antecedente con/sin warning = TP/FN de
+P0; actuación actual con/sin warning = FP/TN de P0. Un antecedente omitido nunca
+es FN de P0. Los warnings sin adjudicación segura se informarán como
+`unadjudicated`; la futura false warning rate será `FP / (FP + TN)` sobre
+actuaciones actuales extraídas/emparejadas y adjudicables. El scoring permanece
+pendiente de V2-B; esta decisión no cambia las anotaciones.
+
+#### Publicar y verificar ground truth V2
+
+La publicación requiere revisión de la implementación, commit/push aprobados y
+autorización separada del freeze real. **El siguiente ejemplo real no se ha
+ejecutado durante el desarrollo.**
+
+```bash
+UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
+uv run python -m evaluation.final_holdout_v2.cli freeze-truth \
+  --truth runs/final_holdout_p2_v1_truth_v2_working \
+  --output runs/final_holdout_p2_v1_truth_v2_frozen \
+  --holdout config/evaluation/final_holdout_p2_v1.csv \
+  --documents runs/final-corpus-preflight-20220101-20260820-v2/source
+```
+
+`--truth` y `--output` son explícitos. El destino debe ser nuevo y estar fuera
+del workspace: no existe `--overwrite`. `--holdout` permite verificar selección
+y hashes; `--documents` permite verificar identidad documental y literalidad
+de las evidencias. Se validan completitud y relaciones con el contrato V2.
+
+El working conserva sus diez CSV y metadata originales. El frozen contiene
+copias byte-identical de esos once archivos, la selección copiada y un manifest
+V2: trece archivos. La identidad semántica no cambia por publicar. El manifest
+registra hashes, selección/fuente, revisión, fecha UTC y versión/huella de la
+herramienta; se valida en staging antes del rename. Los fallos no publican un
+destino parcial ni restauran cambios concurrentes de la fuente. Debe operar un
+único escritor por destino, conforme al contrato del repositorio.
+
+Comprobación posterior exclusivamente de lectura:
+
+```bash
+UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
+uv run python -m evaluation.final_holdout_v2.cli validate-frozen-truth \
+  --truth runs/final_holdout_p2_v1_truth_v2_frozen
+```
+
+La salida incluye `frozen_truth_intact`, `truth_artifact_id`, `document_count`,
+`manifest_sha256` y `evaluator_implemented=false`. Guarda el hash del manifest
+en el registro aprobado y úsalo después con
+`--expected-manifest-sha256 <SHA256>` para verificar esa publicación exacta.
+El loader `load_truth(..., require_frozen=True)` rechaza un working y valida
+schema, inventario, hashes físicos/semánticos, provenance y selección congelada,
+sin necesitar las rutas originales. Los archivos congelados no se editan:
+los hashes detectan modificaciones y la frontera de escritura de anotación los
+rechaza; no se trata de un bloqueo de permisos del sistema de archivos.
 
 ## 15. Versionado, commits y rollback
 

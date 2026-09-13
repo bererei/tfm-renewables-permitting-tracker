@@ -6,6 +6,7 @@ import os
 import shutil
 import tempfile
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from hashlib import sha256
 from pathlib import Path
 from typing import Any, Mapping
@@ -23,6 +24,10 @@ TRUTH_MANIFEST = v1.TRUTH_MANIFEST
 TRUTH_METADATA = v1.TRUTH_METADATA
 TEMPLATES_DIR = Path(__file__).with_name("templates")
 CONTRACT_DECLARATION_PATH = Path(__file__).with_name("contract.json")
+FROZEN_MANIFEST_VERSION = "final_holdout_truth_manifest_v2"
+FREEZE_TOOL_VERSION = "v2_truth_freeze_v1"
+FREEZE_ENTRY_POINT = "evaluation.final_holdout_v2.freeze.freeze_truth"
+FROZEN_SELECTION = "holdout_selection.csv"
 
 APPLICABILITY = v1.APPLICABILITY
 ADJUDICATION = v1.ADJUDICATION
@@ -337,6 +342,8 @@ def _read_metadata(truth_dir: Path) -> Mapping[str, Any]:
         metadata = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as error:
         raise TruthContractError("Invalid V2 truth metadata JSON.") from error
+    if not isinstance(metadata, dict):
+        raise TruthContractError("V2 truth metadata must be a JSON object.")
     if metadata.get("truth_contract_version") != CONTRACT_VERSION:
         raise TruthContractError("V2 truth metadata contract version mismatch.")
     if metadata.get("predictions_exposed_during_annotation") is not False:
@@ -367,12 +374,29 @@ def load_truth(
     truth_dir: Path,
     *,
     require_complete: bool = False,
+    require_frozen: bool = False,
+    expected_manifest_sha256: str | None = None,
 ) -> TruthArtifact:
     truth_dir = Path(truth_dir)
+    manifest_path = truth_dir / TRUTH_MANIFEST
+    has_manifest = manifest_path.exists() or manifest_path.is_symlink()
+    if (require_frozen or expected_manifest_sha256 is not None) and not has_manifest:
+        raise TruthContractError("V2 evaluation requires a frozen truth manifest.")
+    if has_manifest:
+        if (
+            truth_dir.is_symlink()
+            or not manifest_path.is_file()
+            or manifest_path.is_symlink()
+        ):
+            raise TruthContractError("Frozen V2 truth requires regular files, not symlinks.")
+        metadata_path = truth_dir / TRUTH_METADATA
+        if not metadata_path.is_file() or metadata_path.is_symlink():
+            raise TruthContractError("Frozen V2 truth needs regular metadata.")
+        require_complete = True
     tables: dict[str, pd.DataFrame] = {}
     for table, spec in TABLE_SPECS.items():
         path = truth_dir / f"{table}.csv"
-        if not path.is_file():
+        if not path.is_file() or (has_manifest and path.is_symlink()):
             raise TruthContractError(f"Missing V2 truth table: {path}.")
         frame = v1._read_csv(path)
         _validate_table(frame, table=table, spec=spec)
@@ -380,6 +404,8 @@ def load_truth(
     _validate_v2_foreign_keys(tables)
     _validate_complete_documents(tables)
     if require_complete:
+        if tables["documents"].empty:
+            raise TruthContractError("Complete V2 truth must contain documents.")
         drafts = tables["documents"].loc[
             ~tables["documents"]["annotation_status"].eq("complete")
         ]
@@ -398,9 +424,15 @@ def load_truth(
             None if source_identity is None else str(source_identity)
         ),
     )
-    if (truth_dir / TRUTH_MANIFEST).exists():
-        raise TruthContractError(
-            "V2-A does not implement frozen truth manifests; freeze belongs to V2-B."
+    manifest = None
+    if has_manifest:
+        manifest = _validate_frozen_manifest(
+            truth_dir,
+            tables=tables,
+            table_ids=table_ids,
+            artifact_id=artifact_id,
+            metadata=metadata,
+            expected_manifest_sha256=expected_manifest_sha256,
         )
     return TruthArtifact(
         tables=tables,
@@ -413,8 +445,132 @@ def load_truth(
             None if source_identity is None else str(source_identity)
         ),
         metadata=metadata,
-        manifest=None,
+        manifest=manifest,
     )
+
+
+def validate_holdout_selection(
+    selection_path: Path,
+    documents: pd.DataFrame,
+    *,
+    holdout_identity: str | None,
+    source_identity: str | None,
+) -> None:
+    """Bind a non-empty truth to the exact selected BOEs and canonical hashes."""
+    if holdout_identity is None or source_identity is None:
+        raise TruthContractError("Frozen V2 truth needs holdout and source identities.")
+    if sha256_file(selection_path) != holdout_identity:
+        raise TruthContractError("Holdout selection file hash mismatch.")
+    selection = v1._read_csv(selection_path)
+    required = {"identificador_boe", "source_document_sha256", "source_snapshot_id"}
+    if not required.issubset(selection.columns):
+        raise TruthContractError("Holdout selection misses source identity columns.")
+    if selection.empty or selection["identificador_boe"].duplicated().any():
+        raise TruthContractError("Holdout selection must contain unique documents.")
+    if not selection["source_snapshot_id"].eq(source_identity).all():
+        raise TruthContractError("Holdout/source snapshot identity mismatch.")
+    expected = dict(zip(
+        documents["identificador_boe"], documents["source_document_sha256"],
+    ))
+    observed = dict(zip(
+        selection["identificador_boe"], selection["source_document_sha256"],
+    ))
+    if observed != expected:
+        raise TruthContractError("Holdout/truth document membership or hash mismatch.")
+
+
+def frozen_manifest_identity(manifest: Mapping[str, Any]) -> str:
+    """Publication checksum, deliberately separate from annotated truth identity."""
+    return sha256(canonical_json_bytes({
+        key: value for key, value in manifest.items() if key != "manifest_identity_sha256"
+    })).hexdigest()
+
+
+def _validate_frozen_manifest(
+    truth_dir: Path,
+    *,
+    tables: Mapping[str, pd.DataFrame],
+    table_ids: Mapping[str, str],
+    artifact_id: str,
+    metadata: Mapping[str, Any],
+    expected_manifest_sha256: str | None,
+) -> Mapping[str, Any]:
+    path = truth_dir / TRUTH_MANIFEST
+    if (
+        expected_manifest_sha256 is not None
+        and sha256_file(path) != expected_manifest_sha256
+    ):
+        raise TruthContractError("Frozen V2 manifest physical hash mismatch.")
+    try:
+        manifest = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise TruthContractError("Invalid frozen V2 manifest JSON.") from error
+    documents = tables["documents"]
+    expected = {
+        "manifest_version": FROZEN_MANIFEST_VERSION,
+        "status": "frozen",
+        "truth_contract_version": CONTRACT_VERSION,
+        "truth_contract_declaration_sha256": sha256_file(CONTRACT_DECLARATION_PATH),
+        "truth_artifact_id": artifact_id,
+        "table_semantic_sha256": dict(table_ids),
+        "holdout_artifact_identity": metadata.get("holdout_artifact_identity"),
+        "source_snapshot_identity": metadata.get("source_snapshot_identity"),
+        "document_count": len(documents),
+        "reviewer_ids": sorted(set(documents["reviewer_id"].astype(str))),
+        "reviewed_on": sorted(set(documents["reviewed_on"].astype(str))),
+        "predictions_exposed_during_annotation": False,
+        "freeze_tool_version": FREEZE_TOOL_VERSION,
+        "freeze_entry_point": FREEZE_ENTRY_POINT,
+    }
+    variable_fields = {
+        "truth_file_hashes", "created_at", "freeze_tool_sha256",
+        "manifest_identity_sha256",
+    }
+    if not isinstance(manifest, dict) or set(manifest) != set(expected) | variable_fields:
+        raise TruthContractError("Frozen V2 manifest fields mismatch.")
+    if any(manifest[key] != value for key, value in expected.items()):
+        raise TruthContractError("Frozen V2 manifest identity/provenance mismatch.")
+    if (
+        type(manifest["document_count"]) is not int
+        or manifest["predictions_exposed_during_annotation"] is not False
+    ):
+        raise TruthContractError("Frozen V2 manifest has invalid field types.")
+    if manifest["manifest_identity_sha256"] != frozen_manifest_identity(manifest):
+        raise TruthContractError("Frozen V2 manifest checksum mismatch.")
+    if (
+        not isinstance(manifest["freeze_tool_sha256"], str)
+        or not v1._SHA_RE.fullmatch(manifest["freeze_tool_sha256"])
+    ):
+        raise TruthContractError("Frozen V2 manifest has an invalid tool hash.")
+    try:
+        created_at = datetime.fromisoformat(manifest["created_at"])
+        if (
+            created_at.tzinfo is None
+            or created_at.utcoffset() != timezone.utc.utcoffset(created_at)
+        ):
+            raise ValueError("UTC timestamp required")
+    except (TypeError, ValueError) as error:
+        raise TruthContractError("Frozen V2 manifest needs a UTC publication timestamp.") from error
+    files = manifest["truth_file_hashes"]
+    expected_names = {f"{table}.csv" for table in TABLE_SPECS} | {
+        TRUTH_METADATA, FROZEN_SELECTION,
+    }
+    if not isinstance(files, dict) or set(files) != expected_names:
+        raise TruthContractError("Frozen V2 manifest file set mismatch.")
+    if {entry.name for entry in truth_dir.iterdir()} != expected_names | {TRUTH_MANIFEST}:
+        raise TruthContractError("Frozen V2 directory file set mismatch.")
+    for filename, expected_hash in files.items():
+        artifact_path = truth_dir / filename
+        if not artifact_path.is_file() or artifact_path.is_symlink():
+            raise TruthContractError(f"Frozen V2 truth requires a regular file: {filename}.")
+        if sha256_file(artifact_path) != expected_hash:
+            raise TruthContractError(f"Frozen V2 truth file drift: {filename}.")
+    validate_holdout_selection(
+        truth_dir / FROZEN_SELECTION, documents,
+        holdout_identity=metadata.get("holdout_artifact_identity"),
+        source_identity=metadata.get("source_snapshot_identity"),
+    )
+    return manifest
 
 
 def _write_csv(frame: pd.DataFrame, path: Path, spec: TableSpec) -> None:
