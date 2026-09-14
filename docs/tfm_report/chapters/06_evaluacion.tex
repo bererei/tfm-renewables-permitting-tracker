@@ -1,0 +1,54 @@
+\chapter{Metodología experimental}
+\label{ch:evaluacion}
+% Fuentes canónicas: FINAL_HOLDOUT_EVALUATION_CONTRACT_V2.md;
+% FINAL_HOLDOUT_V2_RESULTS.md; V2_B_EVALUATOR.md. No ejecutar evaluación.
+\section{Diseño independiente y selección del holdout}
+\pendiente{Retomar la separación del capítulo~\ref{ch:datos}: 48 BOE,
+seis estratos, exclusión de exposición y selección previa. Precisar que se
+evalúa la salida documental del sistema congelado, sin medir agrupación Gold
+ni usabilidad. No generalizar al BOE completo.}
+\section{Referencia humana y anotación ciega}
+% Contrato V2 §§3--9; resultados §§2,10; interfaz evaluation/final_holdout_v2/.
+\pendiente{Definir ground truth como referencia anotada por una persona y
+anotación ciega como trabajo sin consultar predicciones del sistema.
+Describir campos primarios V2, interfaz auxiliar Streamlit y QA efectivamente
+realizado. No inferir segunda revisión independiente ni acuerdo interanotador
+por disponer de un exportador de QA o metadatos de revisión.}
+\section{Versiones congeladas y orden del experimento}
+% Resultados §§1,11; TFM_CLOSEOUT.md, checkpoint septiembre.
+\pendiente{Explicar freeze como fijación de versiones antes de conocer
+predicciones. Registrar sistema, truth V2 y evaluador definitivo V2-B,
+diferenciando el evaluador histórico conservado. Separar selección del
+holdout, cierre productivo y congelación preejecución.}
+\section{Emparejamiento y reglas de puntuación V2-B}
+% Contrato V2 §§11--12; evaluation/final_holdout_v2/scoring_rules.json.
+\pendiente{Definir matching como correspondencia entre elementos de la
+predicción y de la referencia. Explicar progresivamente nombres de activos,
+con un ejemplo de relación nominal reconocible y coincidencia normalizada
+exacta exigida por el evaluador; usar Hipódromo solo como ilustración del
+diagnóstico ya documentado, sin crear una nueva correspondencia.
+Continuar con el
+conjunto completo de activos del evento, evidencia de actuaciones y
+localizaciones dentro de eventos emparejados; correspondencias uno a uno.
+Describir atribución actuación a activo y denominadores sin modificarlos.}
+\section{Temporalidad, evidencia y salvaguarda P0}
+\pendiente{Distinguir actuaciones actuales de antecedentes; estos últimos
+no integran el denominador positivo de detección actual. Explicar evidencia
+aceptada, fragmentos y adjudicación de P0. Antecedente sin extracción
+emparejada no es un falso negativo de P0; no existe accuracy temporal
+categórica. Mantener separado el ensayo de desarrollo.}
+\section{Métricas y ejemplo didáctico}
+\pendiente{Definir primero TP (correctamente detectado), FP (predicho sin
+correspondencia) y FN (esperado sin detección); después precisión, recall,
+F1 y accuracy. Ejemplo exclusivamente didáctico: diez elementos esperados,
+ocho predichos y seis correctos; precisión 6/8, recall 6/10. Explicar que F1
+es su media armónica, accuracy corresponde a clasificación y no existe una
+accuracy global. Tratar denominadores nulos y atributos condicionados.
+TODO-CITA: fuente metodológica de evaluación de extracción.}
+\section{Reproducibilidad y registro de ejecución}
+% Resultados §§1,7,11; PRIMARY_EXECUTION_V2.md.
+\pendiente{Definir manifest, identidad de versión y hash antes de presentar
+las identidades; remitir su detalle al anexo. Describir preservación de
+predicciones, evaluador y registro de ejecución, incluyendo el error terminal.
+No prometer identidad de nuevas respuestas generativas. Reservar diagrama
+del holdout y sus barreras de exposición.}

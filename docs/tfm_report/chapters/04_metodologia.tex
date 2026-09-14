@@ -1,0 +1,92 @@
+\chapter{Metodología y arquitectura del sistema}
+\label{ch:metodologia}
+% Mapa de fuentes por sección: MAPA_FUENTES.md, capítulo 4.
+\section{Del desarrollo exploratorio al código reutilizable}
+% README.md; notebooks/01,03,07,10,11,12; src/renewables_permitting/pipeline.py.
+\pendiente{Explicar la exploración con notebooks y el traslado de lógica
+estable al paquete reutilizable: modularidad y separación de responsabilidades.
+No afirmar que todos los notebooks históricos se migraron por completo.}
+
+\section{Organización en capas Bronze, Silver y Gold}
+% docs/USER_GUIDE.md §§2--3; docs/architecture/silver_extraction_contract.md.
+\pendiente{Definir primero datos próximos a la fuente, tablas estructuradas
+y datos consolidados para consulta; después introducir Silver y Gold.
+Puede introducirse la analogía materia prima, información estructurada y
+producto de consulta, seguida de la definición exacta de cada capa.
+Explicar ETL (extraer, transformar y cargar datos) solo si se utiliza el término;
+no confundir esa extracción general con la extracción de entidades por IA.
+Situar extracción, 13 tablas Silver, derivación territorial y cuatro tablas
+Gold. Reservar una figura global con una rama experimental separada.}
+
+\section{Extracción estructurada mediante Gemini}
+% extraction/config.py, documents.py, models.py, instructions.py; resultados §1.
+\pendiente{Explicar por qué se utiliza un LLM, qué recibe y qué devuelve.
+Describir Gemini 2.5 Flash como parte del sistema evaluado; separar selección
+del texto, instrucciones, evidencia y límites de inferencia. TODO-CITA:
+documentación del modelo y extracción estructurada.}
+
+\section{Contratos, validación y canonicalización}
+% architecture/silver_extraction_contract.md; extraction/models.py,
+% flat_contract.py, canonicalization.py, validation.py.
+\pendiente{Definir un contrato como la estructura y los valores admisibles;
+Pydantic es la biblioteca que permite expresarlo y comprobarlo. Introducir
+categorías permitidas, nulos, relaciones y evidencia. Distinguir generación
+por IA de reglas deterministas y validez estructural de corrección semántica.
+Reservar la figura de extracción y validación. TODO-CITA: Pydantic.}
+
+\section{Agrupación de menciones en proyectos}
+% FINAL_CORPUS_W14_DOWNSTREAM_MATERIALIZATION.md §5; project_grouping.py;
+% tests/test_project_grouping.py; FINAL_W14_ADMIN_ACTION_TEMPORAL_AUDIT.md.
+\pendiente{Definir activo de generación, mención e identidad consolidada;
+introducir después la clave project\_match\_key. Explicar nombres y alias
+observados, tecnología y anclaje territorial; solo la generación crea raíces.
+Reservar un esquema de menciones documentales que convergen en un proyecto.
+Reutilizar Don Rodrigo II sin confundir agrupación longitudinal con el
+emparejamiento de predicciones y referencia en la evaluación.}
+
+\section{Resolución territorial}
+% USER_GUIDE.md; FINAL_CORPUS_W14_DOWNSTREAM_MATERIALIZATION.md §§3--4;
+% ine_reference.py, location_resolution.py, project_locations.py.
+\pendiente{Explicar la correspondencia entre topónimos y códigos oficiales
+INE de municipio, provincia y comunidad o ciudad autónoma. Conservar
+resoluciones parciales y ambigüedades; territorio documental no equivale a
+ubicación exacta de la planta. TODO-CITA: referencia INE realmente utilizada.}
+
+\section{Revisión humana y antecedentes históricos}
+\subsection{Decisiones y correcciones versionadas}
+% architecture/extraction_quality_review.md; FINAL_W14_ADMIN_ACTION_CORRECTIONS.md.
+\pendiente{Definir cola de revisión, decisiones de la autora y correcciones
+versionadas. Explicar conservación del original, aplicación antes de Silver,
+trazabilidad y regeneración sin editar tablas derivadas.}
+\subsection{Salvaguarda de antecedentes históricos}
+% architecture/extraction_quality_review.md §Safeguard;
+% extraction/historical_antecedents.py; tests/extraction/test_historical_antecedents.py.
+\pendiente{Introducir P0 como nombre de la salvaguarda: requiere una señal
+temporal o estructural y otra contextual independiente. Abre revisión sin
+eliminar actuaciones. Separar detección, decisión humana y corrección;
+no confundirla con la recuperación retrospectiva del corpus.}
+
+\section{Reproducibilidad y proceso de desarrollo}
+\subsection{Interfaz de línea de comandos y pruebas}
+% README.md; USER_GUIDE.md §§5,14; pipeline.py; .github/workflows/tests.yml.
+\pendiente{Definir CLI como una interfaz de instrucciones por terminal y
+pytest como herramienta de pruebas automatizadas. Explicar repetición de
+transformaciones, contratos, regresiones y casos límite. No enumerar todos
+los comandos ni usar el número de tests como métrica científica.}
+\subsection{Desarrollo asistido por IA}
+\label{sec:ia-desarrollo}
+% Declaración de uso aportada por la autora en la petición de esta fase;
+% AGENTS.md; FINAL_W14_ADMIN_ACTION_CORRECTIONS.md §1; resultados §§1,11.
+\pendiente{Describir, según la declaración de la autora, ChatGPT para análisis,
+planificación, diseño metodológico, revisión y refinamiento de prompts;
+Codex desde VSCode para inspección, implementación acotada, pruebas,
+refactorización, documentación y LaTeX. Definir primero el archivo de
+instrucciones persistentes que aporta reglas y contexto al agente; después
+nombrar AGENTS.md y explicar su uso junto a prompts con alcance y restricciones;
+desarrollo incremental, revisión humana, tests y commits/push manuales de la
+autora, con separación de ramas. Contrastar la cronología de las versiones
+fijadas de sistema, referencia humana y evaluador antes de las predicciones.
+No hubo ajuste retrospectivo del experimento. Distinguir estos asistentes de
+Gemini como objeto evaluado. La autora decide objetivos y método, anota,
+revisa, interpreta y asume la responsabilidad; Codex no es autor del TFM.
+La declaración de uso debe ser revisada por ella y no se deduce de Git.}

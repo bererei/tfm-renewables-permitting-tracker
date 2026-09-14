@@ -3,7 +3,8 @@
 %
 % Luis de la Ossa. UCLM
 % 
-% Compilar con XeLaTeX 
+% Compilar con XeLaTeX
+% Criterios editoriales persistentes: REGLAS_REDACCION.md.
 % -------------------------------
 \documentclass[12pt, a4paper, openany]{book}
 
@@ -16,9 +17,11 @@
 % Configuración del documento, paquetes, etc. 
 % -------------------------------
 \input{include/configuracion}
+\input{include/redaccion}
 
 % Documento
 \begin{document}
+\hypersetup{pageanchor=false}
 
 % -------------------------------
 % Portada y título
@@ -36,16 +39,16 @@
 % Preámbulo
 % -------------------------------
 \frontmatter 
+\hypersetup{pageanchor=true}
 \input{elements/preambulo}
 
 % -------------------------------
 % Índices y tablas
 % -------------------------------
 \tableofcontents	% Índice
-\listoffigures		% Índice de figuras
+% Activar cuando se incorporen las figuras revisadas.
+% \listoffigures
 \listoftables		% Índice de tablas
-\listofalgorithms   % Índice de algoritmos (comentar si no los hay)
-\listofcodes	    % Índice de códigos (comentar si no los hay)
 \cleardoublepage
 
 % -------------------------------
@@ -55,21 +58,22 @@
 % Estilo de página
 \pagestyle{fancy}
 
-% Introducción
-\input{chapters/ch1} 
-
-% Algunos elementos
-\input{chapters/ch2} 
-
-% Utilidades para anotaciones
-\input{chapters/ch3} 
+% ch1--ch3 se conservan como ejemplos históricos, sin incluir.
+\input{chapters/01_introduccion}
+\input{chapters/02_contexto}
+\input{chapters/03_datos}
+\input{chapters/04_metodologia}
+\input{chapters/05_aplicacion}
+\input{chapters/06_evaluacion}
+\input{chapters/07_resultados}
+\input{chapters/08_discusion}
+\input{chapters/09_conclusiones}
 
 % -------------------------------
 % Apéndices
 % -------------------------------
 \appendix
-\chapter{Anexo 1}
-\lipsum[1-2]
+\input{chapters/anexos}
 
 \cleardoublepage
 \thispagestyle{empty}
@@ -79,7 +83,8 @@
 % Bibliografía
 % -------------------------------
 \bibliographystyle{apalike}
+\phantomsection
+\addcontentsline{toc}{chapter}{Referencia bibliográfica}
 \bibliography{bib/ref} 
-\addcontentsline{toc}{chapter}{Referencia bibliográfica} % Añade a la tabla de contenidos
 
 \end{document}

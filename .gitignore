@@ -1,6 +1,21 @@
 # Personal - Development
 delete/
 runs/
+# LaTeX: auxiliares del documento principal, nunca fuentes ni figuras PDF.
+# build/ ya está ignorado más abajo.
+/docs/tfm_report/tfm_report_bgd.aux
+/docs/tfm_report/tfm_report_bgd.bbl
+/docs/tfm_report/tfm_report_bgd.blg
+/docs/tfm_report/tfm_report_bgd.fdb_latexmk
+/docs/tfm_report/tfm_report_bgd.fls
+/docs/tfm_report/tfm_report_bgd.loalgorithm
+/docs/tfm_report/tfm_report_bgd.locode
+/docs/tfm_report/tfm_report_bgd.lof
+/docs/tfm_report/tfm_report_bgd.lot
+/docs/tfm_report/tfm_report_bgd.out
+/docs/tfm_report/tfm_report_bgd.synctex.gz
+/docs/tfm_report/tfm_report_bgd.toc
+/docs/tfm_report/tfm_report_bgd.xdv
 # Ignorar todo el contenido de data
 data/**
 # Conservar la estructura de directorios
