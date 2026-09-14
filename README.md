@@ -4,6 +4,29 @@ Master Final Project focused on building an automated renewable energy permittin
 
 Datos de localizaciones INE: https://www.ine.es/dyngs/INEbase/es/operacion.htm?c=Estadistica_C&cid=1254736177031&menu=ultiDatos&idp=1254734710990
 
+## Instalación y tests
+
+Requiere Python **3.10** y [uv](https://docs.astral.sh/uv/). Desde la raíz del
+checkout, instala las dependencias de ejecución fijadas en `uv.lock`:
+
+```bash
+uv sync --locked
+```
+
+Para desarrollo y testing, instala también el extra `dev` existente
+(`ipykernel` y `pytest`) y ejecuta la suite:
+
+```bash
+uv sync --locked --extra dev
+uv run --locked --extra dev pytest --version
+uv run --locked --extra dev pytest
+```
+
+`--locked` comprueba que el manifiesto y el lockfile coinciden. Pytest se instala
+en `.venv` desde las dependencias declaradas. Esta mejora del entorno de
+desarrollo es posterior a la evaluación final del TFM; la trazabilidad y los
+tests focales se detallan en [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md).
+
 ## Pipeline ejecutable
 
 La entrada operativa no requiere notebooks:

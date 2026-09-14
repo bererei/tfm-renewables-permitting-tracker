@@ -31,13 +31,13 @@ jobs:
           enable-cache: true
 
       - name: Install project dependencies
-        run: uv sync --locked
+        run: uv sync --locked --extra dev
 
       - name: Run extraction tests
         env:
           PYTHONDONTWRITEBYTECODE: "1"
         run: >
-          uv run --with pytest pytest
+          uv run --locked --extra dev pytest
           tests/extraction
           -q
           -p no:cacheprovider

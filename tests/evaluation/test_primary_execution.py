@@ -399,6 +399,8 @@ def synthetic_git_system(tmp_path, monkeypatch):
     root.mkdir()
     (root / ".gitignore").write_text(".venv/\n")
     shutil.copyfile(g.HARNESS_ROOT / "uv.lock", root / "uv.lock")
+    # This fixture freezes its own synthetic system, including its lockfile.
+    monkeypatch.setattr(g, "FROZEN_UV_LOCK_SHA256", g.file_hash(root / "uv.lock"))
     (root / "tracked.txt").write_text("synthetic system")
     subprocess.run(["git", "init", "-q", str(root)], check=True)
     subprocess.run(["git", "-C", str(root), "add", "."], check=True)

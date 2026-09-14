@@ -198,28 +198,49 @@ python --version
 git status --short
 ```
 
-Antes de la primera ejecución, prepara el entorno:
+Antes de la primera ejecución, prepara el entorno con Python **3.10** y `uv`.
+La instalación normal usa solo las dependencias de ejecución de `uv.lock`:
 
 **Ejecutable en Bash/Linux desde la carpeta que contiene el repositorio.**
 
 ```bash
 cd tfm-renewables-permitting-tracker
-uv sync --extra dev
+uv sync --locked
 uv run python --version
 uv run python -c "import renewables_permitting; print('entorno correcto')"
 uv run python -m renewables_permitting.pipeline --help
 ```
 
-Para ejecutar un test focal cuando `pytest` no está instalado en el entorno
-base:
+Para desarrollar o ejecutar tests, instala también el extra `dev` definido en
+`[project.optional-dependencies]`: conserva `ipykernel` para notebooks e incluye
+`pytest` para la suite. Las versiones se fijan en `uv.lock`; `--locked` rechaza
+un manifiesto que requiera cambiar ese lockfile.
 
 **Ejecutable en Bash/Linux desde la raíz del repositorio.**
 
 ```bash
+uv sync --locked --extra dev
+uv run --locked --extra dev pytest --version
+uv run --locked --extra dev pytest
+```
+
+Por ejemplo, para ejecutar un test focal tras la instalación:
+
+```bash
 UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
-uv run --with pytest pytest tests/test_app_queries.py \
+uv run --locked --extra dev pytest tests/test_app_queries.py \
 -q -p no:cacheprovider
 ```
+
+**Trazabilidad del entorno de desarrollo — 2026-09-14.** La declaración de
+`pytest` en el extra `dev` y la sincronización de CI/documentación son una mejora
+de reproducibilidad posterior a la evaluación experimental final del
+2026-09-13, realizada en la rama de cierre `tfm-evaluation`. No forman parte del
+sistema que produjo los resultados: `tfm-final` permanece en
+`282de815bea4e248bdcba2c655e3ee078cb58a49`. Este cambio no altera las versiones
+de runtime, truth, evaluator, predicciones, métricas ni resultados reportados.
+La fixture de tests que simula un sistema congelado usa el hash de su propio
+lockfile sintético; el controlador conserva la comprobación del hash histórico.
 
 Para conocer la interfaz exacta de una fase, usa siempre su ayuda:
 
@@ -1721,7 +1742,7 @@ La validación combina varias evidencias:
 
 ```bash
 UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
-uv run --with pytest pytest \
+uv run --locked --extra dev pytest \
   tests/test_app_data.py \
   tests/test_app_queries.py \
   tests/test_streamlit_app.py \
@@ -1732,7 +1753,7 @@ uv run --with pytest pytest \
 
 ```bash
 UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
-uv run --with pytest pytest \
+uv run --locked --extra dev pytest \
   tests/test_admin.py \
   tests/test_pipeline.py \
   tests/test_downstream.py \
@@ -1745,7 +1766,7 @@ uv run --with pytest pytest \
 
 ```bash
 UV_OFFLINE=1 PYTHONDONTWRITEBYTECODE=1 \
-uv run --with pytest pytest -q -p no:cacheprovider
+uv run --locked --extra dev pytest -q -p no:cacheprovider
 ```
 
 Completa los tests con:
@@ -2244,7 +2265,7 @@ automática de snapshots documentales tampoco está disponible actualmente.
 | Hash incorrecto | El archivo no coincide con el manifest. Considera el snapshot corrupto; no edites el hash ni el Parquet. |
 | Mapa no disponible | Verifica `RENEWABLES_GEOMETRY_DIR`, `RENEWABLES_COUNTRY_CONTEXT_DIR`, ambos hashes de manifest y sus GeoJSON. Si el componente queda vacío, comprueba los recursos frontend Leaflet JavaScript/CSS. No existe un tile provider que configurar y no debes descargar geometría en runtime. |
 | Reporte no configurado | Define `RENEWABLES_REPORT_EMAIL` o el secret `report_email`; no hardcodees una dirección personal. |
-| `pytest` no disponible | Ejecuta uno de los comandos completos con `uv run --with pytest` de la sección 14; `pytest` no está declarado como dependencia base. |
+| `pytest` no disponible | Instala el extra de desarrollo con `uv sync --locked --extra dev` y ejecuta `uv run --locked --extra dev pytest`; los tests focales están en la sección 14. |
 | Streamlit ya está activo | Vuelve al terminal que lo ejecuta y pulsa `Ctrl+C` antes de iniciar otra instancia. |
 | El run/output ya existe | El pipeline protege contra overwrite. Elige un run ID y directorios nuevos; no borres el anterior para forzar la operación. |
 | Falta permiso de modelo (salida 3) | Hay documentos sin intento compatible. Revisa el plan y añade `--execute-model` solo con autorización y credencial configurada. |
