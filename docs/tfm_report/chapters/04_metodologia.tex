@@ -9,14 +9,60 @@ No afirmar que todos los notebooks históricos se migraron por completo.}
 
 \section{Organización en capas Bronze, Silver y Gold}
 % docs/USER_GUIDE.md §§2--3; docs/architecture/silver_extraction_contract.md.
-\pendiente{Definir primero datos próximos a la fuente, tablas estructuradas
-y datos consolidados para consulta; después introducir Silver y Gold.
-Puede introducirse la analogía materia prima, información estructurada y
-producto de consulta, seguida de la definición exacta de cada capa.
-Explicar ETL (extraer, transformar y cargar datos) solo si se utiliza el término;
-no confundir esa extracción general con la extracción de entidades por IA.
-Situar extracción, 13 tablas Silver, derivación territorial y cuatro tablas
-Gold. Reservar una figura global con una rama experimental separada.}
+Una analogía útil es pasar de materia prima a información depurada y,
+finalmente, a un producto preparado para consulta. En este trabajo, las capas
+Bronze, Silver y Gold designan esas funciones, resumidas en la
+tabla~\ref{tab:capas}. «Depurada» significa sometida a reglas y controles;
+no garantiza que toda interpretación del documento sea semánticamente correcta.
+
+\begin{table}[htbp]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{L{1.5cm} L{6.0cm} L{5.0cm}}
+\hline
+Capa & Contenido & Finalidad \\
+\hline
+Bronze & Sumarios, XML, metadatos y texto preparado & Conservar una fuente identificable y comprobable \\
+Silver & Entidades, actuaciones, relaciones y evidencias en 13 tablas normalizadas & Estructurar la información y conservar su procedencia \\
+Gold & Proyectos consolidados, cronología y territorios en cuatro tablas & Preparar la consulta desde Streamlit \\
+\hline
+\end{tabular}
+\caption[Capas de datos]{Cada capa cumple una función diferente: preservar
+la fuente, estructurar su contenido o preparar consultas. La validación
+estructural no equivale a una garantía de corrección semántica.}
+\label{tab:capas}
+\end{table}
+
+La figura~\ref{fig:arquitectura-sistema} sitúa las transformaciones entre
+capas. La extracción generativa se realiza con Gemini cuando las reglas de
+alcance no resuelven el documento. El contrato, la canonicalización, la
+validación y la materialización son operaciones deterministas para entradas
+fijadas; las decisiones humanas quedan como entradas trazables. Silver solo
+se materializa después de resolver las incidencias bloqueantes de revisión.
+
+La resolución territorial combina Silver con una referencia INE independiente.
+Esta referencia se construye a partir de dos CSV locales, se normaliza y
+valida, y se conserva como dimensión municipal junto a un manifest y hashes.
+No procede de Silver ni se descarga automáticamente durante el downstream,
+es decir, el procesamiento posterior a Silver. Ese procesamiento reúne
+resolución territorial, agrupación y construcción de Gold sin nuevas llamadas
+al modelo. La aplicación consulta exclusivamente Gold validado.
+\citapendiente{Referenciar la edición y procedencia de los CSV INE utilizados.}
+La evaluación experimental constituye una vía separada, desarrollada en el
+capítulo~\ref{ch:evaluacion}; sus predicciones no son una nueva etapa del
+pipeline de consulta.
+
+\begin{figure}[p]
+\centering
+\input{figs/arquitectura_sistema}
+\caption[Arquitectura general del sistema]{La fuente preservada se transforma
+en entidades trazables y después en datos para consulta. La referencia INE
+entra de forma independiente en la resolución territorial. Gemini no produce
+Gold directamente. Elaboración propia a partir del pipeline, la construcción
+de referencia INE y el downstream implementados.}
+\label{fig:arquitectura-sistema}
+\end{figure}
 
 \section{Extracción estructurada mediante Gemini}
 % extraction/config.py, documents.py, models.py, instructions.py; resultados §1.
@@ -32,17 +78,78 @@ documentación del modelo y extracción estructurada.}
 Pydantic es la biblioteca que permite expresarlo y comprobarlo. Introducir
 categorías permitidas, nulos, relaciones y evidencia. Distinguir generación
 por IA de reglas deterministas y validez estructural de corrección semántica.
-Reservar la figura de extracción y validación. TODO-CITA: Pydantic.}
+TODO-CITA: Pydantic.}
+\pendiente{TABLA — Principales entidades extraídas: evento documental,
+activo de generación, componente asociado, actuación y localización.
+Explicar su significado y relaciones con un ejemplo breve; no copiar las
+13 tablas contractuales ni repetir la tabla de capas.}
+\pendiente{FIGURA F04 — Extracción IA y validación
+\par Etiqueta prevista: \path{fig:extraccion-validacion}. Mostrar texto,
+instrucciones, Gemini y salida estructurada, seguidos del contrato Pydantic,
+canonicalización y validación documental en el orden real de
+\texttt{extraction/runner.py}; no copiar una secuencia conceptual que invierta
+esos controles. Distinguir auto-validación, revisión humana y materialización
+Silver. Mensaje: la respuesta del modelo no es el producto final. Referenciar
+esta figura desde la explicación y remitir el circuito de incidencias a F06.}
 
 \section{Agrupación de menciones en proyectos}
 % FINAL_CORPUS_W14_DOWNSTREAM_MATERIALIZATION.md §5; project_grouping.py;
 % tests/test_project_grouping.py; FINAL_W14_ADMIN_ACTION_TEMPORAL_AUDIT.md.
-\pendiente{Definir activo de generación, mención e identidad consolidada;
-introducir después la clave project\_match\_key. Explicar nombres y alias
-observados, tecnología y anclaje territorial; solo la generación crea raíces.
-Reservar un esquema de menciones documentales que convergen en un proyecto.
-Reutilizar Don Rodrigo II sin confundir agrupación longitudinal con el
-emparejamiento de predicciones y referencia en la evaluación.}
+Un activo de generación es la planta a la que se refieren las publicaciones.
+Cada aparición estructurada de ese activo en un evento documental es una
+\emph{mención}. Agrupar consiste en asignar una identidad de proyecto común
+a las menciones que satisfacen la misma regla de identidad.
+
+La figura~\ref{fig:grouping-implementado} muestra la regla implementada.
+Combina la identidad nominal normalizada, la tecnología exacta y un anclaje
+territorial. La normalización elimina tildes, diferencias de mayúsculas y
+determinados descriptores iniciales; conserva números y sufijos distintivos.
+Si una mención tiene varios nombres normalizados distintos, su conjunto
+ordenado de alias forma parte de la identidad. Compartir solo uno de ellos
+no basta para fusionar conjuntos diferentes.
+
+El anclaje utiliza el conjunto ordenado de provincias resueltas del evento;
+si no existe, utiliza las comunidades autónomas resueltas. El municipio y el
+promotor no participan en la clave. Solo las menciones de generación pueden
+crear proyectos raíz; las infraestructuras asociadas no los crean por sí solas.
+
+Antes de agrupar se comprueban las claves, la pertenencia de los nombres y
+los estados territoriales de provincia y comunidad autónoma. Un estado
+ambiguo o contradictorio provoca un error que exige inspección. La ausencia
+de ambos anclajes se representa como \texttt{unresolved}; no garantiza un
+proyecto separado si otras menciones comparten toda la clave. En el corpus
+final, las tres menciones con ese valor forman tres proyectos individuales.
+
+La clave versionada, \texttt{project\_match\_key}, determina la agrupación
+por igualdad. De ella se deriva \texttt{project\_id} mediante UUID5, un
+identificador calculado de forma reproducible a partir de la misma clave.
+Su estabilidad se mantiene mientras no cambien los elementos de esa identidad;
+no se aplica similitud difusa ni una puntuación de confianza.
+
+\begin{figure}[p]
+\centering
+\input{figs/grouping_implementado}
+\caption[Agrupación de menciones en proyectos]{Las menciones con igual
+identidad nominal, tecnología y anclaje territorial comparten proyecto.
+Los errores de entrada detienen la agrupación; la ausencia territorial
+admisible se conserva explícitamente. Elaboración propia a partir de
+\texttt{project\_grouping.py} y sus tests.}
+\label{fig:grouping-implementado}
+\end{figure}
+
+Por ejemplo, las dos publicaciones de Don Rodrigo II de la
+tabla~\ref{tab:don-rodrigo} contienen nombres que se normalizan como
+«don rodrigo ii», tecnología fotovoltaica y provincia de Sevilla, código INE
+41. Comparten así la clave y el proyecto, mientras que Bianor conserva una
+identidad distinta aunque aparezca en el mismo anuncio de abril.
+
+Esta regla también tiene límites: variaciones nominales o territoriales
+pueden separar menciones que requerirían una revisión de identidad. En Gold,
+«HSF DON RODRIGO II», presente en publicaciones de 2022, permanece separado de
+«DON RODRIGO II» de 2026. El ejemplo ilustra una separación nominal, no autoriza
+a fusionar esos registros ni supone una evaluación del grouping mediante el
+holdout. La posible corroboración con municipio o promotor se reserva para
+trabajo futuro.
 
 \section{Resolución territorial}
 % USER_GUIDE.md; FINAL_CORPUS_W14_DOWNSTREAM_MATERIALIZATION.md §§3--4;
@@ -52,27 +159,155 @@ INE de municipio, provincia y comunidad o ciudad autónoma. Conservar
 resoluciones parciales y ambigüedades; territorio documental no equivale a
 ubicación exacta de la planta. TODO-CITA: referencia INE realmente utilizada.}
 
+La resolución territorial conserva un resultado independiente para municipio,
+provincia y comunidad autónoma, junto con el motivo de cada correspondencia.
+El resultado agregado distingue resolución completa, parcial, ambigüedad,
+conflicto, nombre no encontrado y dato no proporcionado. Una resolución
+parcial puede ser suficiente: por ejemplo, conocer la provincia aunque no
+se haya identificado el municipio. No equivale por sí sola a un error.
+
+Estos resultados se inspeccionan en la tabla de localizaciones resueltas;
+no alimentan la cola de extracción descrita a continuación. La agrupación
+se detiene si la provincia o la comunidad autónoma presentan ambigüedad o
+conflicto. La incertidumbre municipal, por sí sola, no activa ese bloqueo.
+La indicación técnica \texttt{requires\_inspection} forma parte del error
+emitido, no de una incidencia registrada en una cola administrativa.
+Si este control detiene el proceso, no se publica una nueva salida downstream
+parcial. Tampoco existe en la interfaz administrativa una operación para
+corregir directamente territorios o códigos INE.
+
 \section{Revisión humana y antecedentes históricos}
 \subsection{Decisiones y correcciones versionadas}
+\label{sec:revision-humana}
 % architecture/extraction_quality_review.md; FINAL_W14_ADMIN_ACTION_CORRECTIONS.md.
-\pendiente{Definir cola de revisión, decisiones de la autora y correcciones
-versionadas. Explicar conservación del original, aplicación antes de Silver,
-trazabilidad y regeneración sin editar tablas derivadas.}
+% Auditoría acotada: AUDITORIA_REVISION_REPORTES.md; admin.py; review.py.
+Un sistema automático puede detectar un caso dudoso sin disponer de
+información suficiente para decidir correctamente. Una cola de revisión
+reúne esos casos para que una persona examine la publicación y adopte una
+decisión justificada. Detectar una incidencia no demuestra que la extracción
+sea errónea ni autoriza a cambiarla automáticamente.
+
+El sistema mantiene una cola de extracción en cada snapshot. Registra
+documentos sin intento vigente, errores de extracción, fallos de validación
+documental, clasificaciones inciertas y posibles antecedentes históricos.
+Cada entrada conserva el BOE, la huella del documento, el intento de origen
+cuando existe, el motivo y los diagnósticos disponibles. Todas estas causas
+son bloqueantes: mientras quede alguna pendiente, el snapshot no puede
+pasar a Silver. La cola se recalcula al preparar una nueva salida; no se
+resuelve editando manualmente su archivo Parquet.
+
+La revisión se apoya en una interfaz administrativa de línea de comandos
+(Admin CLI). Permite listar casos, mostrar su propuesta y sus evidencias,
+y registrar decisiones acotadas. Para una revisión genérica puede aprobar
+la propuesta exacta, siempre que supere de nuevo los controles, o rechazar
+la extracción completa. Un documento sin intento debe procesarse primero.
+La interfaz no es un editor general de campos: una corrección estructural
+requiere preparar por separado una extracción completa revisada, que también
+debe satisfacer el contrato y la validación documental.
+
+Las decisiones genéricas se guardan en archivos JSON por BOE; las decisiones
+sobre antecedentes y sus exclusiones, en registros CSV versionados. Se
+conservan la razón, la persona revisora, la fecha y el vínculo con la fuente;
+las identidades y versiones permiten comprobar a qué extracción o actuación
+se aplica cada decisión. No toda decisión cambia contenido: confirmar una
+actuación actual conserva su representación. Cuando procede una exclusión
+histórica, se registra una corrección aprobada y se aplica a una copia de la
+extracción antes de generar Silver, verificando el identificador, el tipo,
+la decisión y la huella de la evidencia.
+
+El operador prepara después nuevas salidas de extracción, el subconjunto
+aplicable de correcciones, Silver y los derivados hasta Gold. La CLI
+administrativa indica esos pasos, pero no los ejecuta automáticamente.
+El original y el registro de correcciones aplicadas permiten reconstruir
+qué cambió y por qué; editar directamente los datos derivados perdería esa
+relación reproducible. Los procedimientos y argumentos concretos se
+documentan en \path{docs/USER_GUIDE.md}, sin duplicarlos en la memoria.
+
+\pendiente{FIGURA F06 — Flujo de revisión y corrección humana implementado.
+\par Etiqueta prevista: \path{fig:revision-correcciones}. Representar solo
+el sistema actual: intentos, validación y detección P0; cola por BOE;
+inspección y decisión humana. Separar aprobación/rechazo genéricos, CURRENT
+sin cambio de contenido y ANTECEDENT con exclusión versionada. Mostrar
+reconciliación en un nuevo snapshot, control sin bloqueantes, aplicación
+de exclusiones a una copia antes de Silver y regeneración hasta Gold.
+La ejecución posterior es del operador. Situar territorio después de Silver
+como control independiente, sin flecha a la cola. Reservar integración de
+reportes persistentes y cola unificada para F09, en Trabajo futuro.}
 \subsection{Salvaguarda de antecedentes históricos}
 % architecture/extraction_quality_review.md §Safeguard;
 % extraction/historical_antecedents.py; tests/extraction/test_historical_antecedents.py.
-\pendiente{Introducir P0 como nombre de la salvaguarda: requiere una señal
-temporal o estructural y otra contextual independiente. Abre revisión sin
-eliminar actuaciones. Separar detección, decisión humana y corrección;
-no confundirla con la recuperación retrospectiva del corpus.}
+Una publicación puede mencionar trámites anteriores al acto que comunica.
+La salvaguarda denominada P0 busca posibles atribuciones de esos antecedentes
+como actuaciones actuales. Exige conjuntamente una señal temporal o
+estructural y otra contextual independiente; una fecha antigua aislada no
+basta. El detector conserva la extracción y reúne los hallazgos por actuación
+dentro de una entrada de la cola por BOE. Es una advertencia que requiere
+revisión, no una clasificación histórica definitiva. Tampoco es el mecanismo
+de recuperación retrospectiva de publicaciones que amplía el corpus.
+
+La persona puede confirmar que la actuación es actual (\texttt{CURRENT}) o
+aprobar su exclusión por ser un antecedente (\texttt{ANTECEDENT}). La primera
+decisión resuelve el aviso exacto sin modificar la extracción; la segunda
+registra la corrección que se aplicará al generar Silver. Resolver una
+actuación no cierra otras pendientes del mismo BOE. Una aprobación genérica
+de la extracción tampoco sustituye estas decisiones específicas.
+
+Por ejemplo, la publicación de agosto de Don Rodrigo II, presentada en la
+tabla~\ref{tab:don-rodrigo}, recordaba la información pública de abril.
+La revisión humana aprobó excluir esa mención histórica de las actuaciones
+atribuidas a agosto, conservando las autorizaciones actuales. La publicación
+de abril permaneció en su lugar de la cronología: no se trasladó ni se
+inventó ninguna actuación. La decisión consta en el registro versionado y
+su aplicación en los datos corregidos del corpus W14. Este ejemplo documenta
+una corrección real; no implica que la CLI actual se utilizara para registrar
+aquella decisión histórica.
 
 \section{Reproducibilidad y proceso de desarrollo}
 \subsection{Interfaz de línea de comandos y pruebas}
 % README.md; USER_GUIDE.md §§5,14; pipeline.py; .github/workflows/tests.yml.
-\pendiente{Definir CLI como una interfaz de instrucciones por terminal y
-pytest como herramienta de pruebas automatizadas. Explicar repetición de
-transformaciones, contratos, regresiones y casos límite. No enumerar todos
-los comandos ni usar el número de tests como métrica científica.}
+Una interfaz de línea de comandos, o \emph{CLI}, permite dar instrucciones
+a un programa desde una terminal. En el TFM permite ejecutar operaciones
+con entradas, configuración y destinos explícitos, sin depender de ejecutar
+manualmente una secuencia de celdas de un notebook.
+
+El desarrollo partió de notebooks exploratorios y trasladó la lógica
+reutilizable al paquete situado en \texttt{src/}. Las CLI llaman a esas
+funciones para repetir operaciones y facilitar su automatización. Esto no
+significa que todos los notebooks históricos se migrasen ni que exista una
+planificación diaria automática. La tabla~\ref{tab:interfaces-cli} distingue
+las interfaces por su propósito; los argumentos detallados se remiten a la
+guía de usuario y al anexo~\ref{an:reproducibilidad}.
+
+\begin{table}[htbp]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{L{3.1cm} L{9.7cm}}
+\hline
+Interfaz & Función \\
+\hline
+Pipeline CLI & Ejecutar las fases de adquisición, extracción, Silver, referencia INE y downstream \\
+Admin CLI & Registrar decisiones humanas acotadas sobre extracciones y antecedentes, sin editar directamente datos analíticos \\
+Evaluation CLI & Validar y congelar referencias y evaluador, y puntuar predicciones preservadas sin llamar al modelo \\
+Controlador primario & Preparar, ejecutar con autorización, consultar y finalizar la ejecución experimental \\
+\hline
+\end{tabular}
+\caption[Interfaces de línea de comandos]{Separación entre operación del
+pipeline, revisión humana y evaluación. El controlador ejecuta el experimento;
+la CLI de evaluación calcula sus resultados.}
+\label{tab:interfaces-cli}
+\end{table}
+
+Las pruebas automatizadas, ejecutadas con pytest, comprueban contratos,
+regresiones y casos límite. Complementan la revisión de los datos, pero su
+número no constituye una medida de calidad científica de la extracción.
+
+El proyecto incluye una guía versionada, \path{docs/USER_GUIDE.md}, que
+explica cómo instalar el entorno, ejecutar sus componentes, consultar
+Streamlit y realizar operaciones controladas de revisión y evaluación.
+Forma parte de la reproducibilidad y usabilidad del producto al permitir
+que otra persona siga procedimientos explícitos. No sustituye los artefactos
+congelados del experimento ni demuestra por sí sola una evaluación de usabilidad.
 \subsection{Desarrollo asistido por IA}
 \label{sec:ia-desarrollo}
 % Declaración de uso aportada por la autora en la petición de esta fase;

@@ -7,16 +7,51 @@
 Describir usuarios potenciales, lectura exclusiva de
 Gold validado y separación del proceso de extracción. No afirmar aceptación
 pública de despliegue sin su evidencia de entrega.}
+La guía versionada \path{docs/USER_GUIDE.md}, presentada en el
+capítulo~\ref{ch:metodologia}, acompaña la aplicación: explica su instalación,
+las vistas, los filtros, la ficha y las condiciones de las operaciones
+controladas. La memoria explica el propósito del producto; el manual permite
+seguir los pasos concretos para utilizarlo.
 \section{Resumen, catálogo y filtros}
 \pendiente{Presentar las vistas reales, los dos indicadores, filtros
 compartidos, gráficos y mapas. Contar BOE distintos y proyectos por territorio;
 los conteos territoriales no son sumables. Capturas pendientes de revisión.}
+\pendiente{CAPTURAS C01 y C02 — Reservar vista general y mapa/filtros,
+respectivamente. Mostrar contexto de consulta y cómo cambia la selección;
+no duplicar dos vistas casi idénticas. Capturar después de la revisión de
+publicación, con texto legible, caption y referencia desde esta sección.}
 \section{Ficha del proyecto y cronología}
 \pendiente{Describir territorio, publicaciones, actuaciones y acceso al BOE.
 Explicar la lectura de la cronología y la preservación de incertidumbre.
 Añadir una captura revisada del ejemplo del corpus.}
+\pendiente{CAPTURA C03 — Ficha de proyecto y publicaciones: mostrar una
+consulta verificable y su cronología, preferiblemente Don Rodrigo II de 2026.
+Incluir caption y referencia desde el texto. Conservar entre dos y tres
+capturas finales en total; no generar imágenes en esta integración.}
 \section{Metodología, reporte y límites}
-\pendiente{Describir el apartado metodológico y el enlace de correo para
-reportar posibles errores, sin persistencia ni aprobación de correcciones.
-Distinguir esta aplicación de usuario final de la interfaz auxiliar de
-anotación del holdout, descrita en el capítulo~\ref{ch:evaluacion}.}
+\label{sec:reporte-publico}
+% streamlit_app.py::_render_report_channel; app_reporting.py; USER_GUIDE.md.
+El usuario dispone del control «Reportar posible error» en la barra lateral,
+debajo de la navegación. Cuando hay una dirección de revisión configurada,
+el enlace utiliza \texttt{mailto:} para abrir un borrador en el cliente de
+correo del usuario. Incluye la vista y los filtros activos; desde una ficha
+añade contexto del proyecto y de su última publicación observada. El usuario
+debe completar la descripción y enviar el mensaje desde su cliente de correo.
+
+La aplicación no envía ni almacena el reporte: no crea una fila en una tabla
+ni una entrada en la cola de revisión. Tampoco ofrece un backend de incidencias
+ni integración automática con la Admin CLI. Sin una dirección válida,
+el control queda deshabilitado y muestra que el canal no está configurado.
+El destino se proporciona mediante configuración del operador; su disponibilidad
+en una instalación debe comprobarse antes de presentarlo como canal operativo.
+
+Si un mensaje recibido motiva una corrección, una persona debe trasladar el
+caso al procedimiento técnico correspondiente, revisar la evidencia y preparar
+una decisión trazable antes de regenerar los datos. Este paso es externo a
+Streamlit y está sujeto a los límites de la sección~\ref{sec:revision-humana}.
+La integración persistente de reportes con una cola unificada se propone
+como trabajo futuro en la sección~\ref{sec:cola-unificada-futura}.
+
+\pendiente{Completar la descripción del apartado metodológico. Distinguir esta
+aplicación de consulta de la interfaz auxiliar de anotación del holdout,
+descrita en el capítulo~\ref{ch:evaluacion}.}

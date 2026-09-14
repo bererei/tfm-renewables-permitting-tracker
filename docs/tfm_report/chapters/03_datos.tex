@@ -117,10 +117,17 @@ proporcionando publicaciones, no una historia de proyectos ya consolidada.
 La variación de nombres y la dispersión entre documentos requieren la
 agrupación posterior descrita en el capítulo~\ref{ch:metodologia}.
 
-\pendiente{Diagrama de adquisición: sumarios y metadatos, filtro de títulos,
-XML de candidatos, corpus fuente y bifurcación entre descarte determinista
-y extracción con Gemini. Mensaje: recuperar, seleccionar, decidir alcance
-y extraer son operaciones distintas; la descarga de XML sigue al filtro.}
+\pendiente{FIGURA F02 — API del BOE y construcción del corpus
+\par Etiqueta prevista: \path{fig:api-corpus}. Mostrar servicio BOE, sumarios y metadatos,
+filtro de títulos, XML de candidatos y documentos fuente preservados;
+después, reglas de alcance con bifurcación entre negativos deterministas
+y candidatos para Gemini. Mensaje: recuperar, filtrar candidatos, decidir
+alcance y extraer son operaciones distintas. La descarga de XML sigue al
+filtro; la relevancia no queda resuelta para todos los casos antes del modelo.
+Contrastar con \texttt{boe\_source.py}, \texttt{boe\_documents.py},
+\texttt{boe\_http.py}, \texttt{boe\_candidates.py} y el pipeline. Referenciar
+desde esta sección después de recordar la definición de API del capítulo 2.
+Usar el endpoint documentado y las URL XML del sumario, sin inventar servicios.}
 
 \section{Identidad documental}
 \label{sec:identidad-documental}

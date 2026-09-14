@@ -12,6 +12,33 @@ La descripción siguiente introduce los conceptos necesarios para interpretar
 las publicaciones; no pretende recoger todas las variantes normativas ni
 representar una secuencia obligatoria e idéntica para cada instalación.
 
+La tabla~\ref{tab:siglas-administrativas} reúne las siglas que se utilizarán
+en esta explicación. Conviene distinguir el procedimiento ambiental, el
+estudio que aporta el promotor y la decisión del órgano ambiental.
+\begin{table}[htbp]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{L{1.4cm} L{11.5cm}}
+\hline
+Sigla & Significado en esta memoria \\
+\hline
+PACC & Permisos de acceso y conexión a la red eléctrica \\
+EIA & Evaluación de impacto ambiental: procedimiento de evaluación \\
+EsIA & Estudio de impacto ambiental: documento preparado por el promotor \\
+DIA & Declaración de impacto ambiental: pronunciamiento del órgano ambiental \\
+AAP & Autorización administrativa previa \\
+AAC & Autorización administrativa de construcción \\
+DUP & Declaración de utilidad pública \\
+AE & Autorización de explotación \\
+\hline
+\end{tabular}
+\caption[Siglas administrativas]{Siglas para distinguir permisos,
+procedimientos, documentos y decisiones. Las referencias normativas y sus
+límites se indican en el texto.}
+\label{tab:siglas-administrativas}
+\end{table}
+
 \subsection{Acceso y conexión a la red}
 Los permisos de acceso y conexión se refieren a la posibilidad de utilizar
 la red eléctrica y a las condiciones para conectar la instalación. Son
@@ -72,9 +99,32 @@ una AAP a información pública y otra conceder esa misma clase de
 autorización. El sistema conserva ambos elementos, junto con la publicación
 que respalda cada uno, sin completar los pasos ausentes por suposición.
 
-\pendiente{Figura del procedimiento administrativo simplificado, una vez
-verificadas las referencias normativas. Mostrar trámites y decisiones sin
-imponer una secuencia universal ni equiparar publicación y concesión.}
+La figura~\ref{fig:procedimiento-administrativo} representa un recorrido
+orientativo con evaluación ambiental ordinaria y autorización. Las vías
+ambiental y eléctrica pueden avanzar parcialmente en paralelo, aunque el
+pronunciamiento de la DIA condiciona la autorización. La DUP se tramita cuando
+procede y no ocupa necesariamente una fase posterior a la AAC.
+\citapendiente{Verificar los preceptos que respaldan el paralelismo parcial,
+el condicionamiento ambiental y la relación temporal de la DUP con AAP/AAC.}
+
+La puesta en servicio puede requerir pruebas y autorizaciones de explotación
+provisionales o definitivas, según el supuesto aplicable.
+\citapendiente{Precisar los supuestos y la terminología normativa de pruebas,
+autorización provisional y autorización definitiva de explotación.}
+Esta distinción aporta contexto: el sistema de extracción utiliza el tipo
+general \texttt{autorizacion\_explotacion}, sin dos categorías estructuradas
+separadas para esas modalidades.
+
+\begin{figure}[p]
+\centering
+\input{figs/procedimiento_administrativo}
+\caption[Procedimiento administrativo simplificado]{Un proyecto puede
+generar publicaciones sobre solicitudes, consultas y resoluciones diferentes.
+La DIA condiciona la autorización; la DUP es condicional y su enlace discontinuo
+no fija un orden respecto de la AAC. Se omiten denegaciones y otras variantes.
+Elaboración propia; respaldo normativo pendiente en los TODO-CITA del texto.}
+\label{fig:procedimiento-administrativo}
+\end{figure}
 
 \section{El BOE y su acceso programático}
 \label{sec:boe-api-concepto}

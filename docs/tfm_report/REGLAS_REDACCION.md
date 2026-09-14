@@ -39,8 +39,8 @@ seguir en el repositorio sin incluirse.
 La dedicatoria precede a la declaración de autoría, en la posición de la
 plantilla original, con espacio vertical y alineación a la derecha. Se
 mantienen portada, agradecimientos y declaración. Los índices pertinentes
-se conservan; el índice de figuras está previsto y se activará al incorporar
-figuras, mientras que algoritmos/listados se activarán si existen realmente.
+se conservan; el índice de figuras se activa en la primera integración de
+diagramas, mientras que algoritmos/listados se activarán si existen realmente.
 
 ## Narración y recursos pedagógicos
 
@@ -119,7 +119,7 @@ No atribuir autoría del TFM o decisiones metodológicas al asistente.
 | 2.1 | Procedimiento administrativo | Distinguir trámites y decisiones; incluir variaciones/paralelismo y DUP cuando proceda. Verificar normativa; no imponer una cadena universal |
 | 2.3 | Tabla de Don Rodrigo II, ya incluida | Abril anuncia información pública; agosto concede AAP/AAC y recuerda abril. Auditoría y correcciones W14 verificadas |
 | 3.1 | Adquisición BOE/API | Sumario no es texto completo; filtrar títulos precede a descargar XML. Código actual; TODO de figura y lista de pasos incluidos |
-| 4.2 | Arquitectura global | Fuente, extracción/validación, Silver, territorio/agrupación, Gold y consulta; rama experimental separada |
+| 4.2 | Arquitectura global | Fuente, extracción/validación, Silver, territorio/agrupación, Gold y consulta; panel INE independiente. Experimento en figura propia del capítulo 6 |
 | 4.2 | Capas Bronze/Silver/Gold | Qué conserva y qué transforma cada capa; tabla o panel de la figura global para evitar duplicación |
 | 4.4 | Extracción IA y validación | Distinguir salida generada, controles deterministas y revisión; validez no garantiza corrección |
 | 4.5 | Agrupación | Varias menciones de la misma planta convergen; plantas independientes siguen separadas; no es matching experimental |
@@ -128,9 +128,12 @@ No atribuir autoría del TFM o decisiones metodológicas al asistente.
 | 8.2 | Cascada de matching | Activo sin match puede impedir evento y actuaciones/localizaciones; no atribuir todos los FP/FN a invenciones del modelo |
 | 5 y, si aporta, 6.2 | Capturas seleccionadas | Enseñar una consulta del producto o explicar anotación ciega, sin saturar ni confundir finalidades |
 
-Las figuras quedan planificadas: esta corrección no autoriza generarlas todas
-ni redactar capítulos nuevos. Las tablas del corpus y Don Rodrigo II son
-apoyos para comprender los capítulos ya redactados.
+La integración autorizada de 2026-09-14 incorpora tres diagramas vectoriales
+(procedimiento, arquitectura con INE y grouping) y tablas de siglas, capas y
+CLI. El plan actualizado de nueve figuras y los TODO de capturas están en
+`PLAN_FIGURAS.md`. Primero se revisa este lenguaje visual; no se generan todas
+las figuras ni se completan todos los capítulos. Las tablas del corpus y
+Don Rodrigo II se conservan como apoyos de los capítulos ya redactados.
 
 ## Comprobación al cerrar un bloque
 

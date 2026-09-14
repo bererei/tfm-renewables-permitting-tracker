@@ -1,0 +1,35 @@
+% F05: project_grouping.py; tests/test_project_grouping.py.
+\begin{tikzpicture}
+\node[tfm data, text width=11.8cm] (entradas) at (0,0)
+  {Menciones de generación, nombres y localizaciones resueltas};
+\node[tfm box, text width=7.0cm] (validacion) at (-1.3,-1.6)
+  {Validar entradas\\Provincia y CCAA sin ambigüedad ni conflicto};
+\node[tfm optional, text width=3.2cm] (error) at (4.9,-1.6)
+  {Si falla: error\\e inspección};
+\node[tfm box, text width=3.8cm] (nombre) at (-4.65,-3.85)
+  {Identidad nominal\\Nombre / conjunto de alias\\normalizados};
+\node[tfm box, text width=3.8cm] (tecnologia) at (0,-3.85)
+  {Tecnología\\Coincidencia exacta};
+\node[tfm box, text width=3.8cm] (territorio) at (4.65,-3.85)
+  {Provincia(s) resuelta(s)\\si no, CCAA\\si no, \texttt{unresolved}};
+\node[tfm accent, text width=7.0cm] (clave) at (0,-6.15)
+  {Clave de identidad versionada\\\texttt{project\_match\_key}};
+\node[tfm box, text width=7.0cm] (igualdad) at (0,-7.6)
+  {Agrupar por igualdad de la clave};
+\node[tfm accent, text width=7.0cm] (id) at (0,-9.05)
+  {\texttt{project\_id} estable\\UUID5 derivado de la clave};
+\draw[tfm flow] (entradas.south) -- (0,-0.75) -| (validacion.north);
+\draw[tfm flow, dashed] (validacion.east) -- (error.west);
+\draw[tfm relation] (validacion.south) -- (-1.3,-2.7);
+\foreach \n in {nombre,tecnologia,territorio}
+  {\draw[tfm flow] (-1.3,-2.7) -| (\n.north);}
+\foreach \n in {nombre,tecnologia,territorio}
+  {\draw[tfm relation] (\n.south) |- (0,-5.3);}
+\draw[tfm flow] (0,-5.3) -- (clave.north);
+\draw[tfm flow] (clave) -- (igualdad);
+\draw[tfm flow] (igualdad) -- (id);
+\node[tfm note, text width=12.0cm] at (0,-10.55)
+  {Municipio y promotor no intervienen en la clave.\\
+   Los componentes asociados no crean proyectos raíz.
+   No se utilizan similitud difusa ni puntuaciones.};
+\end{tikzpicture}

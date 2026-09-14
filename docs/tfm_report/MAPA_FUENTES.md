@@ -116,7 +116,7 @@ Tests leídos como garantías existentes: `tests/test_boe_source.py` y
 La auditoría histórica que decía «sin retry» no describe el código actual;
 la ausencia de reanudación/caché es una limitación distinta.
 
-## 4. Metodología y arquitectura — estructura, sin redacción definitiva
+## 4. Metodología y arquitectura — estructura y redacción parcial de apoyos
 
 Archivo: `chapters/04_metodologia.tex`.
 
@@ -134,6 +134,14 @@ Archivo: `chapters/04_metodologia.tex`.
 Distinguir P0 (advertencia no destructiva) de corrección y de recuperación
 retrospectiva. Para el estado final de Gold, complementar el informe downstream
 v1 con el informe de correcciones v2; no mezclar identidades ni cardinalidades.
+
+La auditoría acotada `AUDITORIA_REVISION_REPORTES.md` contrasta código, contratos,
+tests y registros existentes para 4.6–4.7, 5.4 y 9.2.2. Extracción/P0 comparten
+cola; territorio tiene estados independientes; Admin CLI registra decisiones
+acotadas y no regenera automáticamente; Streamlit solo construye un mailto.
+La persistencia de reportes y su integración en una cola común son POST-TFM.
+El ejemplo de Don Rodrigo II se verificó contra extracción, corrección y Silver
+preservados; no demuestra uso histórico de la CLI actual.
 
 La declaración de uso de ChatGPT/Codex procede de la petición de la autora.
 Git no acredita por sí solo quién redactó, revisó o ejecutó manualmente cada
@@ -212,25 +220,31 @@ pendiente. Anexo B: detalle contractual y glosario estrictamente necesarios.
 
 ## Figuras y tablas
 
-Prioridad REQUIRED, para fases posteriores:
+Selección vigente y trazabilidad: `PLAN_FIGURAS.md`, primera integración de
+2026-09-14. Se incorporan procedimiento administrativo (F01), arquitectura con
+panel INE (F03) y grouping real (F05); las restantes figuras tienen TODO
+detallados. Se desarrollan también los textos necesarios para esas figuras,
+las capas y CLI/User Guide. Los demás capítulos conservan su estructura.
 
-1. Procedimiento administrativo simplificado (cap. 2), tras verificación legal.
-2. Arquitectura global con Bronze → Silver → Gold y rama experimental (cap. 4).
-   Reutilizar conceptualmente Mermaid de `docs/USER_GUIDE.md` §2; puede integrar
-   la figura de capas para evitar repetición.
+El plan previo se concreta del modo siguiente:
+
+1. Procedimiento administrativo simplificado (cap. 2), conceptual y con TODO-CITA jurídicos pendientes.
+2. Arquitectura global con Bronze → Silver → Gold y panel INE (cap. 4).
+   La metodología experimental tendrá una figura propia en el capítulo 6.
 3. Extracción, validación y revisión (cap. 4); fuente: contrato y guía de calidad.
 4. Selección, anotación y freezes del holdout (cap. 6).
 5. Cascada de matching (cap. 8), solo con el diagnóstico aprobado.
 6. Capturas revisadas de resumen y ficha (cap. 5).
 
-En `docs/tfm_report/figs/` solo se localizaron logos institucionales y la imagen
-ESIIAB de ejemplo; no hay allí diagramas técnicos ni capturas del producto.
-Los diagramas Mermaid documentales son esquemas, no figuras terminadas de tesis.
-No se genera ninguna figura en esta fase.
+En `docs/tfm_report/figs/` se conservan los logos y se añaden tres fuentes TikZ,
+con el estilo común de `include/diagramas.tex`. No hay capturas nuevas del
+producto. API/corpus, extracción, revisión, experimento, cascada y operación
+futura quedan pendientes. La propuesta diaria se identifica como trabajo futuro.
 
-Tabla de corpus y tabla de seguimiento de Don Rodrigo II: incluidas.
-El plan de las ocho clases de diagramas, los mensajes y las capturas está en
-`REGLAS_REDACCION.md`; se añaden adquisición y agrupación explícitas.
+Tabla de corpus y tabla de seguimiento de Don Rodrigo II: conservadas.
+Se incorporan tablas de siglas administrativas, capas e interfaces CLI.
+El plan de las nueve figuras, sus mensajes y capturas está en `PLAN_FIGURAS.md`,
+junto a las reglas pedagógicas de `REGLAS_REDACCION.md`.
 Tabla de corpus: conservada sin cambiar cifras. Pendientes: entidades/contrato resumido (cap. 4),
 composición del holdout y tablas primarias A–F. Evitar duplicar cuadros si una
 referencia entre capítulos basta. Los casos detallados pueden ir al anexo B.

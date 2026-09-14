@@ -170,14 +170,23 @@ Logs y evidencias locales: `build/compilacion-limpieza.txt`,
 
 ## Inventario exacto de fuentes conservadas
 
+Actualizado en la primera integración de figuras de 2026-09-14:
+TikZ ya está disponible mediante `todonotes`; `include/diagramas.tex` carga
+sus bibliotecas y define los estilos comunes. Los tres diagramas se compilan
+directamente desde fuentes `.tex`, sin conversión externa ni imágenes raster.
+El plan y la revisión visual se registran en `PLAN_FIGURAS.md`; el comando y
+la política del PDF de trabajo se mantienen.
+
 Además de `.gitignore` en la raíz, los siguientes archivos bajo
 `docs/tfm_report/` son versionables. El PDF raíz se trata por separado como
 artefacto de hito; `.vscode/settings.json` permanece local e ignorado.
 
 ```text
 .latexmkrc
+AUDITORIA_REVISION_REPORTES.md
 COMPILACION.md
 MAPA_FUENTES.md
+PLAN_FIGURAS.md
 REGLAS_REDACCION.md
 REVISION_FASE_1.md
 bib/ref.bib
@@ -198,11 +207,15 @@ elements/portada.tex
 elements/preambulo.tex
 figs/CIDaeN copia.png
 figs/CIDaeN.png
+figs/arquitectura_sistema.tex
 figs/esiiab.png
 figs/logouclm.pdf
 figs/logouclm.png
+figs/grouping_implementado.tex
+figs/procedimiento_administrativo.tex
 include/colores.tex
 include/configuracion.tex
+include/diagramas.tex
 include/opciones.tex
 include/redaccion.tex
 template_original/tfm-template.tex

@@ -7,6 +7,9 @@
 seis estratos, exclusión de exposición y selección previa. Precisar que se
 evalúa la salida documental del sistema congelado, sin medir agrupación Gold
 ni usabilidad. No generalizar al BOE completo.}
+\pendiente{TABLA — Composición del holdout: 48 BOE en seis estratos
+A/B por año, ocho por estrato. Explicar la separación respecto del corpus
+de desarrollo y remitir a la composición del capítulo 3 para evitar duplicarla.}
 \section{Referencia humana y anotación ciega}
 % Contrato V2 §§3--9; resultados §§2,10; interfaz evaluation/final_holdout_v2/.
 \pendiente{Definir ground truth como referencia anotada por una persona y
@@ -14,12 +17,24 @@ anotación ciega como trabajo sin consultar predicciones del sistema.
 Describir campos primarios V2, interfaz auxiliar Streamlit y QA efectivamente
 realizado. No inferir segunda revisión independiente ni acuerdo interanotador
 por disponer de un exportador de QA o metadatos de revisión.}
+\pendiente{CAPTURA C04, opcional — Interfaz de anotación ciega.
+Solo si aclara el procedimiento: vista pequeña, legible y sin confundirla con
+la aplicación pública. Generar después, con caption y referencia textual.}
 \section{Versiones congeladas y orden del experimento}
 % Resultados §§1,11; TFM_CLOSEOUT.md, checkpoint septiembre.
 \pendiente{Explicar freeze como fijación de versiones antes de conocer
 predicciones. Registrar sistema, truth V2 y evaluador definitivo V2-B,
 diferenciando el evaluador histórico conservado. Separar selección del
 holdout, cierre productivo y congelación preejecución.}
+\pendiente{FIGURA F07 — Metodología experimental
+\par Etiqueta prevista: \path{fig:metodologia-experimental}. Dos ramas: corpus de desarrollo
+hacia sistema congelado; holdout independiente hacia anotación humana ciega
+y truth V2. Mostrar freeze de truth y del evaluador definitivo V2-B antes
+de la ejecución primaria; después, predicciones congeladas, evaluación,
+resultados primarios y análisis post-hoc separado. Las flechas indican
+dependencias, sin inventar fechas ni una independencia interanotador.
+Usar exclusivamente la cronología de los resultados canónicos. Referenciar
+desde esta sección; no repetir el diagrama en reproducibilidad.}
 \section{Emparejamiento y reglas de puntuación V2-B}
 % Contrato V2 §§11--12; evaluation/final_holdout_v2/scoring_rules.json.
 \pendiente{Definir matching como correspondencia entre elementos de la
@@ -50,5 +65,5 @@ TODO-CITA: fuente metodológica de evaluación de extracción.}
 \pendiente{Definir manifest, identidad de versión y hash antes de presentar
 las identidades; remitir su detalle al anexo. Describir preservación de
 predicciones, evaluador y registro de ejecución, incluyendo el error terminal.
-No prometer identidad de nuevas respuestas generativas. Reservar diagrama
-del holdout y sus barreras de exposición.}
+No prometer identidad de nuevas respuestas generativas. Remitir a F07 para
+las barreras de exposición, sin crear una segunda figura del mismo proceso.}

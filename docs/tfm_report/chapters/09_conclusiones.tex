@@ -9,10 +9,48 @@ pendientes. No introducir cifras ni resultados nuevos.}
 \subsection{Operación}
 \pendiente{Ingestión diaria, planificación de ejecuciones y actualización
 acumulativa; distinguir fases CLI implementadas de automatización pendiente.}
+\pendiente{FIGURA F09 — Arquitectura propuesta para una futura operación
+diaria.\par Etiqueta prevista: \path{fig:operacion-diaria-futura}.
+Título y leyenda deben declarar
+TRABAJO FUTURO. Identificar los mecanismos actuales: CLI por etapas,
+snapshots, revisión, trazabilidad y downstream regenerable. Separar las
+propuestas: scheduler, coordinación automática, acumulación incremental,
+reportes persistentes y cola unificada. Flujo previsto: BOE diario, extracción/revisión,
+resolución territorial, grouping, Gold y Streamlit. Propiedades deseadas:
+incremental, idempotente, trazable, reanudable, no bloqueante y regenerable;
+no son garantías del sistema actual completo. El diseño deberá conservar el
+último Gold validado mientras se revisan nuevas incidencias, sin eludir los
+controles bloqueantes existentes. Referenciar desde esta subsección.}
 \subsection{Calidad y gobierno}
-\pendiente{Gestión administrativa de revisiones, reportes persistentes y
-trazabilidad. Mejoras motivadas por evaluación: alias, granularidad de eventos,
+\subsubsection{Cola unificada de incidencias y reportes de usuarios}
+\label{sec:cola-unificada-futura}
+El sistema incorpora detección y revisión humana para algunos tipos de
+incidencias, pero no dispone de una cola persistente que reúna extracción,
+territorio y reportes de usuarios. La extracción y la salvaguarda P0
+comparten una cola; la resolución territorial conserva estados propios;
+el control público de reporte abre un correo sin almacenarlo en la aplicación.
+
+Como evolución posterior al TFM se propone registrar de forma persistente
+las incidencias automáticas y los reportes de Streamlit en una cola común,
+con identificador, origen, estado e historial de revisión. Una administración
+de estos casos permitiría asignar y documentar su resolución. La aceptación
+de un reporte no modificaría directamente Gold: una decisión que exigiera
+cambiar datos debería producir una corrección versionada, seguida de
+regeneración y validación antes de publicar una nueva salida.
+
+Esta propuesta reutilizaría los mecanismos actuales de trazabilidad,
+decisiones y materialización, y añadiría la recepción persistente de reportes,
+su integración y la coordinación administrativa que aún no existen.
+Debería conservar el vínculo entre incidencia, evidencia, decisión y versión
+publicada, además del último Gold validado mientras haya casos bloqueantes.
+Se integrará en la figura prevista de operación diaria futura, sin mezclarla
+con el flujo implementado de la sección~\ref{sec:revision-humana}.
+
+\pendiente{Mejoras motivadas por evaluación: alias, granularidad de eventos,
 evidencia y propagación jerárquica, sin ajustar retrospectivamente el experimento.}
+\pendiente{Valorar municipio y promotor como corroboración futura de identidad,
+con evidencia y validación propias. Ninguno participa en la clave actual;
+no trasladarlos retrospectivamente a la figura del grouping implementado.}
 \subsection{Enriquecimiento funcional}
 \pendiente{Promotores, potencia instalada o autorizada, almacenamiento,
 hibridaciones, resultado ambiental, siguiente hito y relaciones adicionales,
