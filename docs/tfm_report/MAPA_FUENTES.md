@@ -1,10 +1,11 @@
 # Mapa de fuentes y plan de redacción
 
-Fecha: 2026-09-14. Clasificación: **REQUIRED — memoria escrita, fase 1**.
+Fecha: 2026-09-14. Clasificación: **REQUIRED — redacción sustantiva del núcleo metodológico**.
 Documento de trabajo para revisión; no se incorpora al PDF.
 Reglas pedagógicas vigentes: [REGLAS_REDACCION.md](REGLAS_REDACCION.md).
 Corrección del 14/09: se conserva la dedicatoria y se desarrolla el acceso
-programático en 2.2 y 3.1, conectado con candidatos/relevancia en 3.3.
+programático en 2.2; la fase sustantiva lo desarrolla en 3.2, conectado con
+candidatos/relevancia en 3.3 y con el cierre conceptual de 3.6.
 Las rutas indicadas son relativas a la raíz del repositorio.
 
 ## Regla de uso
@@ -16,8 +17,10 @@ los informes históricos explican decisiones en su fecha. No se recalculan
 métricas ni se convierten diagnósticos posteriores en puntuación primaria.
 
 Sistema evaluado: `tfm-final@282de815bea4e248bdcba2c655e3ee078cb58a49`.
-La rama de redacción es `tfm-evaluation`; inspección inicial en
-`8e85ea58340deb929e95ebab80693a1e5d473864`, con árbol limpio.
+La rama de redacción es `tfm-evaluation`. La primera fase partió de
+`8e85ea58340deb929e95ebab80693a1e5d473864`. Esta redacción sustantiva parte de
+`0387e765e4155f4f67bb9ab6fc8fd58b69927166`, con árbol limpio y la referencia
+local `origin/tfm-evaluation` en el mismo commit. No se hace fetch, commit o push.
 El Gold final es v2, con downstream ID
 `316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86`.
 Estas identidades se transcriben de la documentación, sin rematerializar datos.
@@ -52,9 +55,9 @@ Archivo: `chapters/02_contexto.tex`.
   junto con el estado corregido aprobado; no se inspeccionan nuevos BOE ni se
   utiliza un caso del holdout como motivación de desarrollo.
 - Acceso programático (2.2): concepto, necesidad y diferencia entre metadatos
-  de sumarios y XML de candidatos; detalle aplicado en 3.1. Confirmación en
+  de sumarios y XML de candidatos; detalle aplicado en 3.2. Confirmación en
   `boe_source.py`, `boe_documents.py` y `pipeline.py::run_source_stage`.
-- Tabla 2.1: dos publicaciones de Don Rodrigo II, derivada exclusivamente
+- Tabla 2.2: dos publicaciones de Don Rodrigo II, derivada exclusivamente
   de la traza de la auditoría temporal y su corrección aprobada.
 - TODO-CITA: acceso y conexión; artículos/versiones aplicables a información
   pública, estudio/DIA/informe, AAP/AAC/DUP/explotación; alcance institucional
@@ -62,103 +65,86 @@ Archivo: `chapters/02_contexto.tex`.
 - No se inventa una secuencia legal universal ni se deriva estado operativo
   de una autorización previa o de construcción.
 
-## 3. Datos y corpus — primer borrador redactado
+## 3. Datos y corpus — redactado para revisión de contenido
 
-Archivo: `chapters/03_datos.tex`.
+Archivo: `chapters/03_datos.tex`. Seis secciones completas; no quedan TODO
+sustantivos. F02 incorporada; tabla compacta con finalidad, periodo/referencia,
+BOE y uso. Cifras transcritas de fuentes canónicas, sin recálculo.
 
-| Afirmación o sección | Fuente principal y confirmación acotada |
-| --- | --- |
-| API, adquisición y Bronze conceptual (3.1) | `docs/USER_GUIDE.md` §§2–3 y 5; `boe_source.py`, `boe_documents.py`, `boe_http.py`, `pipeline.py::run_source_stage`; lectura de tests fuente/documentos y ayuda CLI de la primera fase |
-| Identidad documental | `docs/USER_GUIDE.md` §3; `extraction/documents.py`; `docs/FINAL_CORPUS_INGESTION_AUDIT.md` como historia, no descripción actual de retries |
-| Títulos y candidatos | `boe_candidates.py::select_energy_candidates`, `TITLE_KEYWORDS`; `tests/test_boe_candidates.py` confirma título como único campo seleccionador |
-| Reglas de alcance | `docs/FINAL_CORPUS_CANDIDATE_FUNNEL_AUDIT.md`, decisión de periodo/funnel y preflight P2 como evolución; comportamiento actual confirmado en `extraction/canonicalization.py::_scope_guard_from_document` y configuración v4 |
-| Piloto y challenge | `config/evaluation/README.md`, `docs/freezes/core_data_freeze_2026-08-13.md` |
-| Exclusión de exposición | `docs/HOLDOUT_EXPOSURE_PROVENANCE.md`; registro versionado `config/evaluation/development_used_documents.csv` localizado, sin alterarlo |
-| W14 | `docs/FINAL_CORPUS_W14_ANCHOR_PILOT_PLAN.md` §1; `docs/FINAL_CORPUS_W14_EXTRACTION_UNION.md` §15 |
-| Histórico conservador | `docs/FINAL_CORPUS_W14_BACKFILL_IMPLEMENTATION.md` §§2–10: antes de 2024, fuente canónica; desde 2024, scopes P2; Tier 3 excluido |
-| Cifras finales del producto | `docs/TFM_CLOSEOUT.md`; `docs/FINAL_W14_ADMIN_ACTION_CORRECTIONS.md` §9: 104 analizados, 80 relevantes, 86 proyectos |
-| Holdout | resultados canónicos §§1–2, checkpoint de cierre, `docs/FINAL_EXTRACTION_PREFLIGHT_P2.md`, contrato V2 |
+En las matrices, código relativo a `src/renewables_permitting/`, tests relativos
+a `tests/`. «—» significa que la afirmación no requiere manifest propio.
 
-La tabla 3.1 transcribe tamaños verificados documentalmente. Distingue
-intervalos de búsqueda de extremos observados y conjuntos no sumables.
-No recalcula selecciones, exposición ni estadísticas. No se atribuye al holdout
-una estimación de cobertura del primer filtro o del censo completo del BOE.
+| Sección | Documentación | Código | Tests revisados como respaldo | Manifests / notas históricas |
+| --- | --- | --- | --- | --- |
+| 3.1 BOE como fuente | User Guide §§1–3; contexto 2.2; correcciones W14 §6 | `boe_source.py`, `boe_documents.py` | `test_boe_source.py`, `test_boe_documents.py` | Ejemplo Don Rodrigo II previamente verificado; función oficial del BOE pendiente de referencia externa |
+| 3.2 API y adquisición | User Guide §10; documentación API ya citada en 2.2 | `boe_source.py::fetch_boe_summary`, `parse_boe_summary`; `boe_http.py`; `boe_documents.py`; `pipeline.py::run_source_stage` | Pruebas de retries/404, XML y persistencia de `test_boe_source.py`, `test_boe_documents.py`; garantías fuente de `test_pipeline.py` localizadas | Esquema del manifest de source en `pipeline.py`; `FINAL_CORPUS_INGESTION_AUDIT.md` solo como historia: «sin retries» no describe el código actual |
+| 3.3 Candidatos/relevancia | Guía de calidad; `FINAL_CORPUS_CANDIDATE_FUNNEL_AUDIT.md` y preflight P2 como antecedentes de decisiones | `boe_candidates.py::TITLE_KEYWORDS`, `select_energy_candidates`; `extraction/canonicalization.py::_scope_guard_from_document`; `runner.py` | `test_boe_candidates.py`: título como único seleccionador, sin mutación; tests de alcance/validación de extracción | Política `title_keywords_v1` y su identidad; alcance actual v4. El ejemplo de carretera es hipotético, no una observación nueva |
+| 3.4 Identidad | User Guide §3 | `extraction/documents.py::_source_document_hash`, `build_source_document`, `select_document_text`; `boe_documents.py` | Tests documentales y de compatibilidad del pipeline | Manifest W14 de extracción; hash del XML distinto de la huella BOE/fecha/título/texto preparado |
+| 3.5.1 Desarrollo/exposición | `config/evaluation/README.md`; `core_data_freeze_2026-08-13.md`; `HOLDOUT_EXPOSURE_PROVENANCE.md` | — | No nueva selección ni estadística | 140 de desarrollo; 479 registrados como expuestos. Registro existente `config/evaluation/development_used_documents.csv`, sin editar |
+| 3.5.2 Producto W14 | Plan ancla, backfill §§2–10, unión W14 y correcciones W14 §§4–9 | `pipeline.py`, `project_history.py` como fuente ya contrastada en la primera fase | Garantías de unión/materialización documentadas, sin ejecutarlas | `runs/final-w14-corpus-20220101-20260820-v1/extraction/manifest.json`; Silver/downstream v2. 48 ancla + 56 históricos = 104; 80 BOE relevantes y 86 proyectos. P2 amplio no se presenta como completado |
+| 3.5.3 Holdout | Resultados canónicos §§1–2, contrato de evaluación V2 y cierre TFM | No ejecución | No se reevalúa | Selección congelada de 48 BOE, seis estratos, ocho por estrato; se transcribe del registro canónico. Separado de exposición y W14 |
+| 3.6 Transición a metodología | User Guide y guía de calidad | `pipeline.py::run_source_stage`; `extraction/runner.py` | Tests fuente/candidatos/extracción citados arriba | F02 separa recuperación, selección, alcance y extracción; no confirma toda relevancia antes de Gemini |
 
-Antes de cerrar el capítulo: revisar con la autora si necesita más detalle del
-cambio P2 → W14. No ampliar por defecto la tabla con recuentos intermedios.
-No hay nuevas referencias bibliográficas externas para las cifras propias;
-la referencia API está introducida en el capítulo 2.
+La tabla 3.1 usa intervalos de búsqueda o referencias de congelación, no fechas
+mínimas/máximas observadas inventadas. Sus filas no son sumables salvo ancla e
+histórico. No se atribuye al holdout una medida de cobertura del primer filtro.
+No se inspeccionaron nuevos BOE ni se realizó investigación web.
 
-### Detalle verificado del acceso programático — corrección 2026-09-14
+## 4. Metodología — 16 secciones redactadas para revisión
 
-Todos los módulos siguientes están en `src/renewables_permitting/`.
-La inspección ha sido de lectura, sin peticiones de red ni ejecución del pipeline.
+Archivo: `chapters/04_metodologia.tex`. Se sigue la secuencia conceptual
+solicitada. F03 y F05 se conservan; se incorpora F04; F06 queda preparada
+mediante el TODO detallado, sin mezclar sistema actual con POST-TFM.
 
-| Explicación incorporada | Evidencia de implementación |
-| --- | --- |
-| Intervalo inclusivo y solicitudes secuenciales | `boe_source.py::inclusive_date_range`, `fetch_boe_summaries` |
-| GET diario a `https://www.boe.es/datosabiertos/api/boe/sumario/AAAAMMDD`, JSON | `BOE_SUMMARY_BASE_URL`, `_summary_url`, `fetch_boe_summary`, cabecera `Accept: application/json` |
-| Metadatos y control de duplicados | `BOE_ITEM_COLUMNS`, `parse_boe_summary`; `run_source_stage` comprueba además duplicados entre fechas |
-| Filtro antes del XML | `run_source_stage`: `select_energy_candidates(items)` precede a las llamadas `fetch_boe_document_xml` |
-| XML obtenido mediante el enlace del sumario | `run_source_stage` pasa `row.url_xml` como `source_url`; `fetch_boe_document_xml` realiza GET sobre él |
-| Preparación de texto, no OCR de PDF | `parse_boe_document_xml`, `_canonical_xml_text`: recorrido de la raíz XML, normalización de espacios, separación de bloques y celdas |
-| Identidad compatible con candidato | `build_extractor_document_input`: exige coincidencia de ID y fecha, no de título; conserva el título del sumario. `_source_document_hash` en `extraction/documents.py` incorpora título y texto de la entrada |
-| Estados del sumario | `fetch_boe_summary`: success, no_publication, failed; 404 HTTP o BOE → no_publication |
-| Estados XML | `fetch_boe_document_xml`: enlace ausente, error de petición/HTTP, respuesta vacía o XML inválido; 404 → http_error |
-| Reintentos acotados | `boe_http.py`: una petición y hasta tres reintentos, esperas 1/2/4 s; HTTP 408/429/500/502/503/504 y excepciones transitorias definidas; timeout por defecto 30 s en ambos módulos |
-| Persistencia y publicación | `materialize_boe_summary`, `materialize_boe_document_xml`, `run_source_stage`: sumarios/XML/metadatos/tablas y manifest en directorio temporal; destino nuevo |
-| Ausencia de caché/resume en adquisición | `run_source_stage` obtiene sumarios/XML antes del staging; `source` no tiene opciones de caché/reanudación. Los resultados fallidos de descarga no se publican como snapshot parcial |
-| Clasificación posterior al primer filtro | `extraction/canonicalization.py::preclassify_document_without_model`, `_scope_guard_from_document`; los casos sin decisión determinista requieren modelo/validación |
+| Sección | Documentación / declaración | Código principal | Tests / evidencia leída | Manifests / historia |
+| --- | --- | --- | --- | --- |
+| 4.1 Prototipo a sistema | README; AGENTS; guía de usuario | Paquete `src/`, `pipeline.py` | Markdown e imports de notebooks 01, 03, 07, 10, 11 y 12; no se ejecutan ni leen outputs para nuevos casos | Notebook 07 llama al paquete; otros conservan lógica exploratoria. No se afirma migración completa |
+| 4.2 Bronze/Silver/Gold | User Guide §§2–3; contrato Silver; guía Streamlit | `pipeline.py`, `extraction/flat_materialization.py`, `downstream.py`, `gold.py` | Pruebas de materialización, pureza y orden | Manifests de extracción/Silver/downstream W14; determinismo del contenido lógico para entradas fijadas, no de nuevas respuestas o timestamps |
+| 4.3 Referencia INE | Informe downstream W14 §3, User Guide | `ine_reference.py` (construcción, validación, identidad, carga), `pipeline.py` (refresh), `downstream.py` | `test_ine_reference.py`: códigos, jerarquía, orden, round trip | `runs/ine-reference-20260614-25a3bbb28f0c21c5/manifest.json`, leído: 8.132 filas, fuentes `codine_ccaaprovincia_20260614.csv` y `diccionario26.csv`. Edición bibliográfica pendiente |
+| 4.4 Gemini | Instrucciones vigentes; resultados canónicos §1 | `extraction/config.py`, `documents.py`, `instructions.py`, `models.py`, `agent.py`, `runner.py` | Tests del contrato y la extracción; selección documental examinada en código | Modelo `google:gemini-2.5-flash`, config `4b54b89dbfe8640e`; texto completo salvo regla del anexo de bienes/derechos, con huella propia |
+| 4.5 Contratos/validación | Contrato Silver y guía de calidad | `extraction/models.py`, `agent.py`, `runner.py`, `validation.py` | `test_models.py`, `test_validation.py`: enums, referencias y diagnósticos; límites de retries contrastados en config/runner | Pydantic → identidad fuente → canonicalización → validación documental. Figura F04 no invierte controles |
+| 4.6 Evidencia/trazabilidad | `AUDITORIA_REVISION_REPORTES.md`; correcciones W14 | `validation.py`, `review.py`, `runner.py` | Tests de literalidad; evidencia real ya comprobada de Don Rodrigo II | Fragmento literal de información pública, sin inventar un BOE; linaje de corrección y Silver preservados |
+| 4.7 Canonicalización | Políticas de dominio; resultados canónicos §8 solo para señalar conexión posterior | `canonicalization.py::canonicalize_project_extraction`, `canonicalize_reviewed_project_extraction`, `_repair_action_evidence`, `_canonicalize_actions` | `test_canonicalization.py`, `test_validation.py`: información pública, evidencias, referencias y preservación de semántica humana | No se reduce a formato: puede incorporar/omitir/reorganizar contenido. Precanónico y ajustes conservados; sin nueva ejecución ni métricas |
+| 4.8 Silver | `architecture/silver_extraction_contract.md`; correcciones W14 | `flatten.py`, `flat_contract.py`, `flat_validation.py`, `flat_materialization.py` | `test_flat_materialization.py`: tablas vacías, schema, PK/FK, errores sin publicación y round trip; tests de correcciones de auditoría previa | `runs/final-w14-corpus-20220101-20260820-v2/silver/manifest.json`. Documento sin eventos queda fuera de las 13 tablas; evidencias son campos, sidecar no es tabla 14 |
+| 4.9 Resolución territorial | Auditoría de revisión; informe downstream | `location_resolution.py`, `ine_reference.py`, `project_grouping.py`, `downstream.py` | `test_location_resolution.py`, `test_project_grouping.py`, `test_ine_reference.py` | Manifest INE y `runs/final-w14-corpus-20220101-20260820-v2/downstream/downstream_manifest.json`; tabla de seis estados, sin cola territorial unificada |
+| 4.10 Grouping | PLAN_FIGURAS, downstream W14 §5; correcciones W14 §6 | `project_grouping.py` | `test_project_grouping.py`; traza Don Rodrigo II ya verificada | Gold v2 y clave documentada. Igualdad nominal/tecnología/anclaje; sin municipio, promotor, similitud difusa o confianza. UUID5 estable mientras lo sea la clave |
+| 4.11 Revisión/correcciones | `AUDITORIA_REVISION_REPORTES.md`; User Guide §§11–13 | `admin.py`, `review.py`, `corrections.py`, `pipeline.py::run_silver_stage` | Se reutiliza auditoría de los tests de CLI, review y corrections | Cuatro JSON genéricos, 16 exclusiones master y 11 aplicadas W14 comprobados en la auditoría anterior. No se vuelven a contar ni aplicar |
+| 4.12 P0 | Guía de calidad; auditoría temporal/correcciones W14 | `historical_antecedents.py`, `historical_antecedent_reviews.py` | Tests de señales, pureza y resolución exacta de la auditoría | CURRENT ≠ exclusión; ANTECEDENT aprobado se aplica después. Ejemplo 2023/2025 explícitamente conceptual, sin métricas P0 |
+| 4.13 CLI | README, User Guide, evaluación V2/controlador | `pipeline.py`, `admin.py`, `evaluation/final_holdout_v2/cli.py`, `evaluation/primary_execution/cli.py` | Ayuda Admin comprobada en auditoría; parser y contratos de roles de la documentación | Cuatro responsabilidades; herramientas de evaluación/controlador diferenciadas del sistema productivo congelado |
+| 4.14 Pytest | README; User Guide §14; `.github/workflows/tests.yml` | Contratos y transformaciones del paquete | Tests citados por concepto; CI ejecuta extracción, no toda la suite | Se describe evidencia de ingeniería, sin usar cantidad de tests como métrica científica ni afirmar ejecuciones nuevas |
+| 4.15 User Guide | `docs/USER_GUIDE.md` | Operaciones referenciadas por la guía | Correspondencia con comandos reales documentados; sin ejecutar operaciones | Guía complementaria versionada; no demuestra por sí sola usabilidad ni disponibilidad del archivo de entrega |
+| 4.16 IA de desarrollo | Declaración explícita de la autora en la solicitud; AGENTS; resultados canónicos §1 y aprobación humana W14 §1 | Separación Gemini productivo / herramientas de desarrollo | Markdown de notebooks y reglas del proyecto; no se deduce autoría de Git | Manifests truth/evaluador leídos: 13/09/2026 09:57:08 y 14:59:31 UTC; ejecución primaria empieza 15:06:50 UTC. Congelación anterior a predicciones, sin ajuste retrospectivo |
 
-Tests leídos como garantías existentes: `tests/test_boe_source.py` y
-`tests/test_boe_documents.py`; también se localizaron controles en
-`tests/test_pipeline.py`. No se ejecutaron ni modificaron tests.
-La auditoría histórica que decía «sin retry» no describe el código actual;
-la ausencia de reanudación/caché es una limitación distinta.
+Las rutas de módulos de extracción sin prefijo en esta matriz pertenecen a
+`src/renewables_permitting/extraction/`. Las rutas `evaluation/` son relativas a la raíz del repositorio, fuera de
+`src/`. Las filas de CLI remiten a sus puntos de entrada; los argumentos completos permanecen en User Guide y anexos.
+No se modifica esa guía, AGENTS, código, tests ni configuraciones productivas.
 
-## 4. Metodología y arquitectura — estructura y redacción parcial de apoyos
+Precisiones frente a historia: el README aún alude a cinco exclusiones en un
+párrafo; para el estado final se utiliza el registro y el informe W14 que
+acreditan 16 en el master y 11 aplicables al W14. El contrato Silver describe
+la proyección relacional base; las exclusiones aprobadas previas al flattening
+y el sidecar se contrastan con código final y el informe v2. La memoria no
+presenta antiguas propuestas de Silver Curated como una capa implementada.
 
-Archivo: `chapters/04_metodologia.tex`.
+La declaración de uso de asistentes procede de la autora y queda redactada para
+su revisión, sin atribuir a Codex decisiones metodológicas ni autoría. El
+registro de freezes corrobora la secuencia de artefactos; no demuestra por sí
+solo quién realizó cada interacción o commit. Gemini se explica en 4.4;
+ChatGPT, Codex y AGENTS en 4.16. No se necesita investigación web para describir
+esa declaración de uso, ni se inventa una referencia bibliográfica del testimonio.
 
-| Sección | Fuentes para la siguiente fase |
-| --- | --- |
-| 4.1 Exploración y migración | `README.md`; markdown e imports de notebooks 01, 03, 07, 10, 11 y 12; `src/renewables_permitting/pipeline.py`. No afirmar migración completa de todos los notebooks |
-| 4.2 Capas | `docs/USER_GUIDE.md` §§2–3; `docs/architecture/silver_extraction_contract.md`; `extraction/flat_contract.py`; `gold.py` |
-| 4.3 Gemini | `extraction/config.py`, `documents.py`, `models.py`, `instructions.py`; resultados §1 para modelo/configuración congelados |
-| 4.4 Contratos y reglas | contrato Silver; `extraction/models.py`, `validation.py`, `canonicalization.py`, `flat_validation.py`; tests focales de extracción |
-| 4.5 Agrupación | downstream W14 §5; `project_grouping.py`; `tests/test_project_grouping.py`; traza Don Rodrigo II |
-| 4.6 Territorio | downstream W14 §§3–4; `ine_reference.py`, `location_resolution.py`, `project_locations.py`; tests territoriales; fuentes INE locales |
-| 4.7 Revisión y P0 | `docs/architecture/extraction_quality_review.md`; auditoría temporal y correcciones W14; `extraction/historical_antecedents.py`, `corrections.py`; registros versionados de revisión |
-| 4.8 CLI, pruebas e IA de apoyo | `README.md`, guía de usuario, `AGENTS.md`, `.github/workflows/tests.yml`; declaración de uso aportada por la autora; correcciones W14 §1 para separar aprobación humana e implementación |
+## 5. Aplicación — base sustantiva redactada
 
-Distinguir P0 (advertencia no destructiva) de corrección y de recuperación
-retrospectiva. Para el estado final de Gold, complementar el informe downstream
-v1 con el informe de correcciones v2; no mezclar identidades ni cardinalidades.
+Archivo: `chapters/05_aplicacion.tex`. Quedan pendientes capturas y evidencia
+de aceptación/entrega pública; no quedan párrafos de funcionalidad en TODO.
 
-La auditoría acotada `AUDITORIA_REVISION_REPORTES.md` contrasta código, contratos,
-tests y registros existentes para 4.6–4.7, 5.4 y 9.2.2. Extracción/P0 comparten
-cola; territorio tiene estados independientes; Admin CLI registra decisiones
-acotadas y no regenera automáticamente; Streamlit solo construye un mailto.
-La persistencia de reportes y su integración en una cola común son POST-TFM.
-El ejemplo de Don Rodrigo II se verificó contra extracción, corrección y Silver
-preservados; no demuestra uso histórico de la CLI actual.
-
-La declaración de uso de ChatGPT/Codex procede de la petición de la autora.
-Git no acredita por sí solo quién redactó, revisó o ejecutó manualmente cada
-commit. Su aprobación de esta sección es necesaria antes de presentarla como
-declaración final. Gemini se explica en 4.3; asistentes de desarrollo en 4.8.2.
-
-## 5. Aplicación — estructura
-
-Archivo: `chapters/05_aplicacion.tex`.
-Fuentes: `docs/STREAMLIT_CODE_GUIDE.md`, `docs/USER_GUIDE.md` §§6–8,
-`docs/FINAL_STREAMLIT_PRODUCT_ALIGNMENT.md`, `docs/APP_PRODUCT_SPEC.md`.
-
-Describir Gold-only, consultas, mapa administrativo local sin tiles externos,
-catálogo/filtros, ficha, cronología, metodología y correo sin persistencia.
-No confundir con la app de anotación ni afirmar una validación de usabilidad.
-Dependencias: capturas y evidencia de la revisión visual/entrega pública real.
-No se modifica ni se ejecuta Streamlit en esta fase de redacción.
+| Sección | Documentación | Código / tests de contraste | Evidencia / límites |
+| --- | --- | --- | --- |
+| 5.1 Objetivo y arquitectura | User Guide §§6–8; STREAMLIT_CODE_GUIDE §§1–2 | `streamlit_app.py`, `app_data.py`; tests del cargador referenciados en guía | Gold v2, cuatro tablas; no Silver, modelo ni pipeline desde interfaz |
+| 5.2 Resumen/mapa/catálogo | User Guide §7; FINAL_STREAMLIT_PRODUCT_ALIGNMENT | `app_queries.py` (última decisión/filtros), `app_geometry.py`, `streamlit_app.py`; tests de consultas citados por guía | Misma fila para condiciones administrativas; mapa de ámbitos publicados, universos y ceros. Cartografía local, TODO-CITA de ediciones |
+| 5.3 Ficha | User Guide, correcciones W14 §6 | `streamlit_app.py::_render_detail`, consultas de ficha/cronología | Don Rodrigo II ya verificado; cronología observada, sin certificación de estado jurídico |
+| 5.4 Metodología/reporting | Auditoría de revisión; User Guide §7 | `_render_methodology`, `_render_report_channel`, `app_reporting.py`; tests mailto/fallback inspeccionados en auditoría previa | Correo externo, sin persistencia, queue o Admin automático; capturas no generadas |
 
 ## 6. Metodología experimental — estructura
 
@@ -220,34 +206,15 @@ pendiente. Anexo B: detalle contractual y glosario estrictamente necesarios.
 
 ## Figuras y tablas
 
-Selección vigente y trazabilidad: `PLAN_FIGURAS.md`, primera integración de
-2026-09-14. Se incorporan procedimiento administrativo (F01), arquitectura con
-panel INE (F03) y grouping real (F05); las restantes figuras tienen TODO
-detallados. Se desarrollan también los textos necesarios para esas figuras,
-las capas y CLI/User Guide. Los demás capítulos conservan su estructura.
+Estado de esta fase: F02 (API/corpus) y F04 (extracción/validación) incorporadas
+como TikZ. F01, F03 y F05 conservadas sin cambios de fuente. F06 preparada en
+4.11; F07/F08/F09 siguen pendientes para sus fases correspondientes. No se
+crean capturas de Streamlit ni de anotación.
 
-El plan previo se concreta del modo siguiente:
-
-1. Procedimiento administrativo simplificado (cap. 2), conceptual y con TODO-CITA jurídicos pendientes.
-2. Arquitectura global con Bronze → Silver → Gold y panel INE (cap. 4).
-   La metodología experimental tendrá una figura propia en el capítulo 6.
-3. Extracción, validación y revisión (cap. 4); fuente: contrato y guía de calidad.
-4. Selección, anotación y freezes del holdout (cap. 6).
-5. Cascada de matching (cap. 8), solo con el diagnóstico aprobado.
-6. Capturas revisadas de resumen y ficha (cap. 5).
-
-En `docs/tfm_report/figs/` se conservan los logos y se añaden tres fuentes TikZ,
-con el estilo común de `include/diagramas.tex`. No hay capturas nuevas del
-producto. API/corpus, extracción, revisión, experimento, cascada y operación
-futura quedan pendientes. La propuesta diaria se identifica como trabajo futuro.
-
-Tabla de corpus y tabla de seguimiento de Don Rodrigo II: conservadas.
-Se incorporan tablas de siglas administrativas, capas e interfaces CLI.
-El plan de las nueve figuras, sus mensajes y capturas está en `PLAN_FIGURAS.md`,
-junto a las reglas pedagógicas de `REGLAS_REDACCION.md`.
-Tabla de corpus: conservada sin cambiar cifras. Pendientes: entidades/contrato resumido (cap. 4),
-composición del holdout y tablas primarias A–F. Evitar duplicar cuadros si una
-referencia entre capítulos basta. Los casos detallados pueden ir al anexo B.
+Tablas: corpus revisada editorialmente sin cambiar cifras; capas y CLI
+conservadas; familias Silver y estados territoriales incorporadas. No se
+incorporan aún tablas experimentales nuevas. Ubicación y comprobación visual
+en `PLAN_FIGURAS.md`.
 
 ## Necesidades bibliográficas
 
@@ -262,3 +229,40 @@ estructurada/LLM y Gemini; Pydantic; resolución de entidades y evaluación
 (precision, recall, F1, muestreo); fuentes INE y cartografía IGN/Natural Earth;
 Streamlit; declaración metodológica de uso de asistentes. Seleccionar solo
 referencias necesarias para las afirmaciones finalmente redactadas.
+
+### TODO-CITA concretos de la fase sustantiva
+
+- 3.1: función institucional y alcance oficial del BOE.
+- 3.2: completar URL/fecha de consulta de la referencia API ya existente, formatos y estados.
+- 4.3: edición/procedencia de los dos CSV INE efectivamente usados.
+- 4.4: LLM, extracción estructurada y documentación pertinente de Gemini 2.5 Flash.
+- 4.5: Pydantic y salida estructurada con Pydantic AI.
+- 5.1: Streamlit como herramienta de construcción de la aplicación.
+- 5.2: ediciones y condiciones de uso de IGN/CNIG y Natural Earth locales.
+
+No se presenta medallion como teoría general ni se atribuyen a bibliografía
+externa las decisiones propias de capas o pruebas: no se crea una cita por
+cada herramienta o afirmación de implementación. Subsisten los TODO-CITA
+jurídicos/contextuales de capítulos 1–2, sin desarrollarlos en esta fase.
+Las cinco entradas bibliográficas se conservan; no se hace investigación web.
+
+## Control de calidad de esta fase
+
+Se revisaron las seis secciones de datos, las dieciséis de metodología y las
+cuatro de aplicación con los siete criterios de la solicitud: concepto antes
+del término, finalidad, aplicación concreta, ejemplo cuando ayuda, ausencia
+de inventario innecesario de código, respaldo y separación actual/futuro.
+Los ejemplos hipotéticos se identifican como tales; Don Rodrigo II reutiliza
+la evidencia comprobada, sin introducir documentos del holdout. Las cifras
+del corpus proceden de registros canónicos y no son métricas nuevas.
+
+La analogía de materia prima introduce las capas; la huella digital introduce
+SHA-256; el tipo de actuación inadmisible ilustra el contrato. Las tablas de
+familias Silver y de estados territoriales evitan enumeraciones extensas.
+La canonicalización se explica con sus consecuencias semánticas y P0 mantiene
+la decisión humana. No se atribuyen funciones futuras a la CLI o al correo.
+
+Aceptación de esta fase: **READY FOR CONTENT REVIEW**. Quedan los siete
+TODO-CITA anteriores, F06 y las capturas previstas, además de la revisión de
+la autora. La compilación y la inspección visual se registran en
+`PLAN_FIGURAS.md`; no se declara terminada la memoria completa.

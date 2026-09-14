@@ -1,13 +1,42 @@
 \chapter{Metodología y arquitectura del sistema}
 \label{ch:metodologia}
-% Mapa de fuentes por sección: MAPA_FUENTES.md, capítulo 4.
-\section{Del desarrollo exploratorio al código reutilizable}
-% README.md; notebooks/01,03,07,10,11,12; src/renewables_permitting/pipeline.py.
-\pendiente{Explicar la exploración con notebooks y el traslado de lógica
-estable al paquete reutilizable: modularidad y separación de responsabilidades.
-No afirmar que todos los notebooks históricos se migraron por completo.}
+% Mapa de fuentes de esta redacción: MAPA_FUENTES.md, secciones 4.1--4.16.
+El capítulo anterior delimitó los documentos de entrada. Este capítulo explica
+cómo se convierten en datos estructurados, cómo se comprueban y cómo se
+relacionan para consultar proyectos. El método combina una extracción
+mediante modelo de lenguaje con reglas reproducibles y decisiones humanas
+registradas cuando la interpretación necesita revisión.
 
-\section{Organización en capas Bronze, Silver y Gold}
+\section{Del prototipo al sistema reproducible}
+Un notebook combina código, texto explicativo y resultados en un mismo
+cuaderno interactivo. Durante el desarrollo permitió probar consultas al BOE,
+examinar los documentos obtenidos y experimentar con instrucciones, modelos
+y contratos de extracción. También sirvió para inspeccionar localizaciones,
+ensayar agrupaciones y observar cómo presentar la información resultante.
+Esta interacción fue útil para formular y contrastar decisiones antes de
+convertirlas en operaciones estables.
+
+Al consolidarse las reglas, repetir todo el proceso desde celdas interactivas
+resultaba menos adecuado para una ejecución controlada. El orden de ejecución
+y las variables conservadas en memoria podían dificultar la identificación
+de las entradas efectivas. La lógica reutilizable se trasladó progresivamente
+al paquete de Python situado en \texttt{src/}, de manera que pudiera llamarse
+desde cuadernos, comandos y pruebas con las mismas funciones.
+
+Esta separación hizo posible comprobar una transformación sin ejecutar el
+proceso completo, reutilizar sus contratos y distinguir adquisición,
+extracción, materialización y consulta. El notebook de extracción evolucionó
+hacia una capa de configuración, orquestación e inspección sobre el paquete.
+Otros cuadernos se conservan como registro de la exploración; no se presupone
+que todas sus implementaciones históricas se migraran o describan el sistema
+final. Las interfaces de línea de comandos y las pruebas automatizadas
+consolidaron después la ejecución fuera del entorno interactivo. Finalmente,
+la aplicación de consulta se conectó a los datos ya preparados, con una
+responsabilidad diferente de la experimentación y la extracción.
+
+\section{Arquitectura Bronze, Silver y Gold}
+\label{sec:capas}
+
 % docs/USER_GUIDE.md §§2--3; docs/architecture/silver_extraction_contract.md.
 Una analogía útil es pasar de materia prima a información depurada y,
 finalmente, a un producto preparado para consulta. En este trabajo, las capas
@@ -34,6 +63,14 @@ estructural no equivale a una garantía de corrección semántica.}
 \label{tab:capas}
 \end{table}
 
+Estas capas describen responsabilidades, no exigen que cada carpeta se llame
+Bronze, Silver o Gold. La fuente se materializa por ejecución; entre esa fuente
+y Silver se conservan los intentos, las respuestas estructuradas y la selección
+vigente. Silver proyecta las extracciones aceptadas en tablas relacionadas.
+Gold reúne las menciones por proyecto y prepara actuaciones y territorios
+para la consulta. Cada salida incorpora un manifest que enlaza sus entradas
+y versiones. La procedencia se mantiene al pasar de una capa a otra.
+
 La figura~\ref{fig:arquitectura-sistema} sitúa las transformaciones entre
 capas. La extracción generativa se realiza con Gemini cuando las reglas de
 alcance no resuelven el documento. El contrato, la canonicalización, la
@@ -48,7 +85,14 @@ No procede de Silver ni se descarga automáticamente durante el downstream,
 es decir, el procesamiento posterior a Silver. Ese procesamiento reúne
 resolución territorial, agrupación y construcción de Gold sin nuevas llamadas
 al modelo. La aplicación consulta exclusivamente Gold validado.
-\citapendiente{Referenciar la edición y procedencia de los CSV INE utilizados.}
+La separación permite repetir las transformaciones sobre entradas ya fijadas.
+Aquí, determinismo significa obtener el mismo contenido lógico con los mismos
+documentos, respuestas, decisiones, referencia y reglas. No significa que una
+nueva respuesta del servicio generativo deba ser idéntica, ni que las fechas
+de creación de dos ejecuciones sean iguales. La temperatura configurada a
+cero busca reducir variación del modelo, pero no se utiliza como garantía de
+reproducibilidad: esta descansa en preservar las entradas y salidas concretas.
+
 La evaluación experimental constituye una vía separada, desarrollada en el
 capítulo~\ref{ch:evaluacion}; sus predicciones no son una nueva etapa del
 pipeline de consulta.
@@ -64,37 +108,373 @@ de referencia INE y el downstream implementados.}
 \label{fig:arquitectura-sistema}
 \end{figure}
 
-\section{Extracción estructurada mediante Gemini}
-% extraction/config.py, documents.py, models.py, instructions.py; resultados §1.
-\pendiente{Explicar por qué se utiliza un LLM, qué recibe y qué devuelve.
-Describir Gemini 2.5 Flash como parte del sistema evaluado; separar selección
-del texto, instrucciones, evidencia y límites de inferencia. TODO-CITA:
-documentación del modelo y extracción estructurada.}
+\section{Datos de referencia territorial}
+\label{sec:referencia-ine}
+Una referencia territorial permite relacionar nombres de municipios,
+provincias y comunidades o ciudades autónomas con códigos administrativos
+consistentes. El Instituto Nacional de Estadística (INE) proporciona las
+relaciones utilizadas. En una \emph{dimensión municipal}, cada fila identifica
+un municipio y sus niveles superiores. Esta tabla auxiliar evita que el
+modelo de lenguaje tenga que inventar códigos o resolver por sí solo
+homónimos y jerarquías administrativas.
 
-\section{Contratos, validación y canonicalización}
-% architecture/silver_extraction_contract.md; extraction/models.py,
-% flat_contract.py, canonicalization.py, validation.py.
-\pendiente{Definir un contrato como la estructura y los valores admisibles;
-Pydantic es la biblioteca que permite expresarlo y comprobarlo. Introducir
-categorías permitidas, nulos, relaciones y evidencia. Distinguir generación
-por IA de reglas deterministas y validez estructural de corrección semántica.
-TODO-CITA: Pydantic.}
-\pendiente{TABLA — Principales entidades extraídas: evento documental,
-activo de generación, componente asociado, actuación y localización.
-Explicar su significado y relaciones con un ejemplo breve; no copiar las
-13 tablas contractuales ni repetir la tabla de capas.}
-\pendiente{FIGURA F04 — Extracción IA y validación
-\par Etiqueta prevista: \path{fig:extraccion-validacion}. Mostrar texto,
-instrucciones, Gemini y salida estructurada, seguidos del contrato Pydantic,
-canonicalización y validación documental en el orden real de
-\texttt{extraction/runner.py}; no copiar una secuencia conceptual que invierta
-esos controles. Distinguir auto-validación, revisión humana y materialización
-Silver. Mensaje: la respuesta del modelo no es el producto final. Referenciar
-esta figura desde la explicación y remitir el circuito de incidencias a F06.}
+El proyecto construye la dimensión a partir de dos CSV locales: una relación
+de provincias y comunidades, y un diccionario municipal. CSV es un formato
+tabular de texto cuyos campos están separados por delimitadores. Los códigos
+se leen como texto, se normaliza su longitud y se conservan ceros iniciales.
+Se preparan nombres para comparación y variantes documentadas de escritura,
+sin sustituir las denominaciones originales de la referencia. La construcción
+comprueba claves únicas, nombres obligatorios y correspondencias coherentes
+entre municipio, provincia y comunidad.
+
+La referencia utilizada contiene 8.132 municipios, 52 códigos provinciales y
+19 códigos de comunidades o ciudades autónomas. Estos tamaños corresponden
+al artefacto local conservado, no a una consulta dinámica al INE. Su manifest
+identifica los dos CSV de origen, sus huellas, el esquema y la identidad de
+la dimensión. Antes de utilizarla se comprueban el archivo y su contenido.
+\citapendiente{Identificar la edición y procedencia oficial de los CSV INE
+\path{codine_ccaaprovincia_20260614.csv} y \path{diccionario26.csv}, conservados
+como entradas de la referencia utilizada.}
+
+La referencia entra después de Silver, por una rama independiente de la
+figura~\ref{fig:arquitectura-sistema}. Si cambia y se aprueba una nueva versión
+validada, el procesamiento downstream puede reutilizar Silver y reconstruir
+territorios, agrupaciones y Gold sin volver a extraer necesariamente el texto
+con Gemini. La nueva salida tendrá su propio linaje. Como el anclaje
+territorial interviene en la identidad de proyecto, un cambio de referencia
+puede modificar agrupaciones: reconstruir no equivale a conservar siempre los
+mismos identificadores. La herramienta de actualización compara referencias
+antes de autorizar una reconstrucción con cambios semánticos.
+
+\section{Extracción estructurada mediante Gemini}
+\label{sec:extraccion-gemini}
+Un documento del BOE expresa en lenguaje administrativo quién promueve una
+instalación, qué actuación se publica y a qué elementos afecta. Para consultar
+esa información de forma sistemática hace falta convertirla en entidades,
+atributos y relaciones. Un modelo de lenguaje de gran tamaño, o \emph{LLM},
+es un modelo capaz de procesar y generar texto; aquí se utiliza para proponer
+una representación estructurada a partir del documento. Esta capacidad no
+implica que toda interpretación propuesta sea correcta.
+\citapendiente{Referencia sobre LLM y extracción de información con salida
+estructurada; documentación de Gemini 2.5 Flash pertinente a la configuración utilizada.}
+
+El sistema evaluado utiliza Gemini 2.5 Flash. Cada solicitud reúne instrucciones
+comunes, el título, el identificador y la fecha de publicación, y el texto
+seleccionado del BOE. Las instrucciones especifican el alcance, las entidades,
+las categorías administrativas y la exigencia de evidencia. El documento se
+delimita como entrada a analizar, no como una instrucción que pueda cambiar
+las reglas del proceso. Modelo, instrucciones, esquema y políticas quedan
+identificados en la configuración de la extracción.
+
+La preparación utiliza el texto completo salvo una exclusión concreta: puede
+retirar el tramo que comienza con el anexo de relación de bienes y derechos
+afectados, si reconoce su encabezado después de un mínimo de texto sustantivo.
+La regla busca separar listados accesorios del objeto administrativo; no es
+un resumen generativo. Conserva la estrategia, el marcador, los caracteres
+excluidos y la huella del texto enviado. No se aplica un recorte arbitrario
+por longitud en la configuración vigente. La fuente completa permanece
+conservada para la validación y la revisión.
+
+La respuesta clasifica el alcance y, cuando corresponde, contiene eventos
+documentales. Un evento representa el objeto administrativo referido a un
+proyecto dentro de una publicación; no es todavía el proyecto longitudinal
+consolidado. Incluye menciones de plantas generadoras y sus nombres,
+actuaciones con tipo y decisión, y localizaciones textuales. Puede recoger
+componentes asociados de almacenamiento o evacuación, participantes,
+referencias de expediente y menciones técnicas cuando el documento los
+respalda. La relación entre una actuación y los elementos afectados se
+representa mediante referencias internas, no mediante una asociación libre
+por proximidad de palabras.
+
+Las plantas generadoras son las raíces del modelo de datos. Una línea,
+subestación o batería autónoma no se convierte en proyecto de generación por
+aparecer en un texto energético. Las plantas independientes se separan cuando
+el documento permite distinguirlas; compartir promotor o evacuación no basta
+para unirlas. Los casos de integración material y las decisiones humanas
+explícitas sobre un componente compartido tienen un tratamiento específico,
+sujeto a validación.
+
+El criterio de extracción puede resumirse como «menos inferencia, más
+evidencia». Se solicita conservar lo publicado, omitir detalles secundarios
+sin respaldo y mantener la incertidumbre. Una autorización no demuestra
+construcción ni funcionamiento, y una fecha mencionada en antecedentes no
+se convierte por ello en la fecha de una actuación actual. Este es el objetivo
+metodológico de las instrucciones, no una garantía de cumplimiento del modelo.
+El código posterior valida, canonicaliza y deriva información conforme a
+reglas explícitas; esas operaciones deben distinguirse de lo generado por
+Gemini para interpretar el comportamiento del sistema completo.
+
+\section{Pydantic, contratos y validación}
+\label{sec:contratos-validacion}
+Un contrato estructurado especifica qué forma y qué valores se consideran
+válidos para un dato. Por ejemplo, una actuación debe tener un tipo, una
+decisión y una evidencia, y sus referencias deben apuntar a elementos
+admisibles. Disponer de este contrato permite rechazar respuestas incompletas
+o incompatibles antes de utilizarlas como si fueran datos correctos.
+
+Pydantic es la biblioteca de Python utilizada para expresar y comprobar esos
+contratos mediante modelos. Los tipos distinguen textos, fechas, valores
+lógicos y listas; las enumeraciones, o \emph{enums}, fijan conjuntos cerrados
+de categorías. Los validadores comprueban además coherencia entre campos y
+referencias. Los campos desconocidos se rechazan y un dato ausente se expresa
+mediante el valor nulo permitido por el contrato, no mediante un texto vacío.
+\citapendiente{Documentación de Pydantic y de la salida estructurada utilizada
+con Pydantic AI; distinguir garantía de esquema de corrección del contenido.}
+
+Como ejemplo didáctico, una respuesta que propusiera «permiso definitivo»
+como tipo de actuación quedaría fuera de las categorías admitidas y sería
+rechazada. En cambio, elegir una categoría admitida pero equivocada podría
+superar ese primer control. Por eso la validez estructural debe complementarse
+con validación documental: el sistema comprueba el vínculo con el BOE,
+la literalidad de los pasajes y las referencias entre las entidades.
+
+El orden ejecutado es relevante. El agente entrega una salida del modelo
+Pydantic de extracción. El programa incorpora el identificador y la fecha
+verificados de la fuente, aplica la canonicalización, vuelve a comprobar la
+estructura resultante y realiza la validación documental final. La
+figura~\ref{fig:extraccion-validacion} detalla esta secuencia. El modelo no
+tiene que generar de nuevo la identidad BOE, y Silver no recibe directamente
+su primera respuesta.
+
+Los reintentos son acotados. El agente dispone de correcciones de salida y
+reintentos transitorios limitados; si falla la validación documental, el
+programa admite una nueva solicitud con los problemas detectados, siempre
+que quede presupuesto de peticiones. La configuración fija un máximo de seis
+peticiones al modelo por documento, además de límites de tiempo. Estos
+controles son distintos de los reintentos HTTP de adquisición del capítulo 3.
+Si la salida sigue siendo inválida, se conserva el intento fallido con sus
+diagnósticos y se abre revisión cuando corresponde. No se relajan los
+contratos para conseguir una extracción aparentemente satisfactoria.
+
+\begin{figure}[p]
+\centering
+\input{figs/extraccion_validacion}
+\caption[Extracción IA y validación]{Secuencia aplicada a los documentos
+que requieren modelo. La salida estructurada precede a la canonicalización
+y a la validación documental final. Una respuesta válida aún puede requerir
+revisión de alcance o de antecedentes. Los reintentos están limitados;
+el circuito humano se explica en la sección~\ref{sec:revision-humana}.
+Elaboración propia a partir del extractor implementado.}
+\label{fig:extraccion-validacion}
+\end{figure}
+
+\section{Evidencia y trazabilidad}
+\label{sec:evidencia}
+Obtener un valor no basta para justificarlo. La evidencia es el fragmento del
+documento que permite comprobar de dónde procede una afirmación. El sistema
+intenta conservar el valor extraído junto a su pasaje de respaldo y la
+publicación de origen. Esta relación facilita revisar un caso dudoso, detectar
+atribuciones incorrectas y contrastar la salida con una referencia humana.
+
+La evidencia debe ser literal. Cuando se admiten varios fragmentos, se
+separan explícitamente mediante \texttt{[...]}; no se presentan como una frase
+continua que el BOE nunca escribió. Las comprobaciones permiten normalizar
+aspectos de representación al buscar el pasaje, pero no autorizan inventar
+una cita. La existencia de un fragmento en la fuente tampoco demuestra por
+sí sola que respalde toda la interpretación: su contexto temporal y la
+entidad a la que se refiere siguen siendo relevantes.
+
+Por ejemplo, en la publicación de agosto de Don Rodrigo II aparece el
+fragmento «la petición fue sometida a información pública». Es una evidencia
+literal de una referencia al trámite, pero el texto completo sitúa esa
+información pública en abril. Utilizar solo la frase para atribuir un acto
+actual a agosto produciría una cronología incorrecta. La
+sección~\ref{sec:antecedentes} explica cómo se trata esa duda.
+
+La trazabilidad amplía esta relación hasta el proceso que produjo el dato:
+fuente y su huella, intento, configuración, ajustes deterministas y decisiones
+humanas aplicables. Las evidencias acompañan a las entidades y actuaciones;
+los manifests conservan el linaje de las materializaciones. Así se puede
+volver desde una actuación mostrada en la aplicación hasta su BOE, sin
+confundir un valor extraído, una derivación del código y una corrección humana.
+
+\section{Canonicalización de la extracción}
+\label{sec:canonicalizacion}
+Canonicalizar consiste en transformar representaciones distintas hacia una
+forma coherente mediante reglas definidas. Su finalidad es que variaciones
+de la respuesta no creen categorías, referencias o eventos incompatibles.
+En este proyecto no se limita a corregir espacios: incorpora reglas de dominio
+que pueden cambiar la representación propuesta por el modelo, conservando
+un registro de los ajustes.
+
+Conviene distinguir tres operaciones. La extracción generativa propone
+entidades a partir del texto. La normalización textual facilita comparaciones
+uniformes. La canonicalización aplica decisiones deterministas sobre el
+alcance, las evidencias, las actuaciones y sus relaciones. Entre las reglas
+implementadas están la reparación de nombres y evidencias contra la fuente,
+la renumeración de referencias locales, la agrupación de ciertos componentes
+de evacuación y la separación de plantas independientes en eventos distintos.
+También se resuelven vínculos entre componentes y plantas y destinatarios de
+actuaciones mediante el título y el contexto documental.
+
+Una regla administrativa concreta ilustra su utilidad: si se publica la
+información pública de una solicitud de autorización, se representa el tipo
+de autorización con la decisión «sometido a información pública». No se añade
+además un trámite genérico redundante cuando la misma información ya está
+expresada. La regla distingue qué se tramita y en qué situación se publica.
+Otros controles impiden interpretar una solicitud o una renuncia como una
+autorización concedida.
+
+El tratamiento de evidencias también tiene consecuencias. Para ciertas
+actuaciones, si el tipo aparece declarado en el título, el código puede
+utilizar ese título literal como evidencia. En otros casos busca un pasaje de
+la fuente mediante anclajes y patrones definidos. El resultado se valida de
+nuevo; disponer de texto literal no garantiza por sí solo que el fragmento
+sea el más específico para la actuación. El análisis posterior identificó
+efectos de esta política sobre la evaluación de evidencias, que se expondrán
+en el capítulo~\ref{ch:resultados} y se interpretarán en el
+capítulo~\ref{ch:discusion}, sin desarrollar aquí sus métricas.
+
+Por tanto, la representación canónica puede incorporar, omitir o reorganizar
+elementos respecto a la propuesta inicial dentro de las reglas implementadas.
+Esas consecuencias forman parte del sistema evaluado. Se conservan la salida
+precanónica y los ajustes para poder distinguirlas de la respuesta generativa.
+Las revisiones humanas utilizan una vía que preserva sus relaciones y
+separaciones explícitas, aunque siguen sometidas al contrato y a la evidencia.
+Aplicar de nuevo reglas aprobadas a salidas preservadas permite reconstruir
+una nueva versión sin llamar al modelo; no autoriza a cambiar retroactivamente
+el sistema congelado ni los resultados del experimento.
+
+\section{Materialización Silver}
+\label{sec:silver}
+Materializar significa escribir una representación de los datos que pueda
+cargarse y verificarse después. La extracción canónica organiza la información
+en objetos anidados: un documento contiene eventos y estos contienen plantas,
+actuaciones y otros elementos. El \emph{flattening}, o proyección tabular,
+convierte esa estructura en tablas relacionadas. Separar una lista de nombres
+o de destinatarios en sus propias filas evita repetir todos los datos de una
+entidad cada vez que tiene varios valores.
+
+Silver conserva menciones documentales; todavía no resuelve cuáles pertenecen
+al mismo proyecto longitudinal. Su contrato contiene trece tablas normalizadas.
+La tabla~\ref{tab:familias-silver} resume sus familias sin reproducir el
+esquema completo. Un documento sin eventos no genera una fila artificial de
+proyecto: se conserva en la extracción y en los recuentos del manifest.
+Las evidencias son campos asociados a las entidades y actuaciones, no una
+tabla independiente añadida al contrato.
+
+\begin{table}[htbp]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{L{3.0cm} C{1.0cm} L{8.3cm}}
+\hline
+Familia & Tablas & Qué representa \\
+\hline
+Eventos y expedientes & 2 & Evento publicado y referencias de expediente citadas \\
+Plantas y nombres & 2 & Mención de generación y cada denominación observada \\
+Componentes y relaciones & 4 & Componentes, nombres, vínculos con plantas y relaciones entre plantas \\
+Actuaciones y destinatarios & 2 & Acto, decisión, evidencia y elementos a los que afecta \\
+Localizaciones & 1 & Topónimos documentales y pistas territoriales, aún sin resolver \\
+Participantes & 1 & Nombres y funciones administrativas publicados \\
+Menciones técnicas & 1 & Atributos textuales de plantas o componentes con su evidencia \\
+\hline
+\end{tabular}
+\caption[Familias de tablas Silver]{Resumen de las trece tablas contractuales.
+La fuente BOE, la fecha y el evento relacionan los datos documentales;
+el manifest conserva el linaje de ejecución.}
+\label{tab:familias-silver}
+\end{table}
+
+Cada fila se identifica mediante una clave primaria. Las claves foráneas
+expresan relaciones válidas: por ejemplo, una actuación pertenece a un evento
+y sus destinatarios deben corresponder a entidades existentes. Algunas
+referencias pueden apuntar a distintos tipos de entidad, como planta,
+componente o evento; el contrato comprueba conjuntamente el tipo y el
+identificador. Los IDs de Silver derivan del BOE, el evento y las referencias
+o posiciones canónicas. Identifican menciones dentro de esa representación,
+no plantas universales; pueden cambiar si cambia la estructura de origen.
+
+La materialización comprueba columnas, orden contractual, tipos, nulos,
+dominios, claves y relaciones. Una tabla vacía conserva su esquema completo;
+no se utiliza una cadena vacía para representar un dato ausente. El orden
+físico de las filas no altera la integridad relacional, aunque se ordenan
+las salidas para facilitar su comparación reproducible.
+
+Después de validar en memoria, el proceso escribe los Parquet en un directorio
+temporal, los relee y verifica que mantengan estructura y contenido. Solo
+entonces publica el conjunto con su manifest en un destino nuevo. Las
+correcciones históricas aprobadas se aplican previamente sobre una copia y
+quedan documentadas en un archivo auxiliar de correcciones aplicadas. Ese
+archivo no amplía las trece tablas del contrato. Una salida inválida no se
+publica como sustituta de la anterior; la operación presupone un único
+escritor por destino. El contrato completo se remite al
+anexo~\ref{an:contrato} y a la documentación técnica complementaria.
+
+\section{Resolución territorial}
+\label{sec:resolucion-territorial}
+El BOE contiene nombres textuales de territorios, mientras que la aplicación
+necesita referencias administrativas consistentes para filtrar y representar
+proyectos. Resolver una localización consiste en relacionar la mención
+textual con una unidad de la dimensión INE de la
+sección~\ref{sec:referencia-ine}. No significa obtener las coordenadas exactas
+de una planta.
+
+La transformación parte de la mención y sus pistas de provincia o comunidad,
+normaliza los nombres para compararlos y consulta la referencia. El código
+utiliza correspondencias de nombres y variantes controladas; las pistas
+territoriales ayudan a restringir municipios homónimos. Cada nivel conserva
+su resultado, método y razón. Si se identifica un municipio, su jerarquía
+permite derivar provincia y comunidad y contrastarlas con lo indicado en el
+documento. Una contradicción queda señalada aunque se conserve la jerarquía
+de la unidad más específica.
+
+La tabla~\ref{tab:estados-territoriales} resume los estados. El resultado
+agregado prioriza conflicto y ambigüedad antes de distinguir completitud.
+No todo dato faltante debe convertirse en una elección forzada: conservar
+un nivel resuelto y otro incierto permite utilizar la información respaldada
+sin inventar la restante.
+
+\begin{table}[htbp]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{L{4.0cm} L{8.5cm}}
+\hline
+Estado & Interpretación \\
+\hline
+\texttt{resolved} & Unidad identificada; en el agregado, los tres niveles resueltos \\
+\texttt{partially\_resolved} & Estado agregado: algún nivel resuelto, sin conflicto ni ambigüedad \\
+\texttt{ambiguous} & La información disponible no permite escoger una unidad única \\
+\texttt{conflict} & Existe contradicción entre niveles administrativos \\
+\texttt{not\_found} & Se proporcionó información que no pudo corresponderse con la referencia \\
+\texttt{not\_provided} & No se proporcionó información suficiente para ese nivel ni se derivó de otro \\
+\hline
+\end{tabular}
+\caption[Estados de resolución territorial]{Los niveles mantienen resultados
+independientes. Una resolución parcial puede ser válida para la mención
+publicada y no equivale por sí sola a un error.}
+\label{tab:estados-territoriales}
+\end{table}
+
+Por ejemplo, un anuncio que solo identifica una provincia puede conservar
+provincia y comunidad resueltas sin aportar municipio. El resultado agregado
+será parcial, pero describe correctamente el nivel disponible. De forma
+análoga, un municipio no encontrado no obliga a descartar una provincia
+respaldada. Estos ejemplos explican la regla; no son nuevas observaciones
+cuantificadas del corpus.
+
+La resolución conserva todas las menciones y sus identificadores. Sus estados
+se inspeccionan de forma independiente de la cola de extracción. La agrupación
+se detiene ante ambigüedad o conflicto de provincia o comunidad; una
+incertidumbre exclusivamente municipal no activa ese control. La indicación
+\texttt{requires\_inspection} es parte del error emitido, no una incidencia
+persistida en una cola común. Si el control detiene downstream, no se publica
+una nueva salida parcial. Los territorios aceptados pueden corresponder a la
+planta o a componentes asociados; no se atribuye cada topónimo a una ubicación
+física concreta cuando el BOE no lo permite.
 
 \section{Agrupación de menciones en proyectos}
+\label{sec:grouping}
+
 % FINAL_CORPUS_W14_DOWNSTREAM_MATERIALIZATION.md §5; project_grouping.py;
 % tests/test_project_grouping.py; FINAL_W14_ADMIN_ACTION_TEMPORAL_AUDIT.md.
+El BOE no ofrece un identificador longitudinal de proyecto que pueda copiarse
+a todas sus publicaciones. Es necesario decidir qué menciones representan
+una misma planta a lo largo del tiempo. Esta resolución de identidad se
+realiza mediante una regla determinista de agrupación, denominada
+\emph{grouping} en el proyecto.
+
 Un activo de generación es la planta a la que se refieren las publicaciones.
 Cada aparición estructurada de ese activo en un evento documental es una
 \emph{mención}. Agrupar consiste en asignar una identidad de proyecto común
@@ -117,10 +497,12 @@ Antes de agrupar se comprueban las claves, la pertenencia de los nombres y
 los estados territoriales de provincia y comunidad autónoma. Un estado
 ambiguo o contradictorio provoca un error que exige inspección. La ausencia
 de ambos anclajes se representa como \texttt{unresolved}; no garantiza un
-proyecto separado si otras menciones comparten toda la clave. En el corpus
-final, las tres menciones con ese valor forman tres proyectos individuales.
+proyecto separado si otras menciones comparten toda la clave. La ausencia
+territorial se mantiene explícita y debe interpretarse al revisar el proyecto.
 
-La clave versionada, \texttt{project\_match\_key}, determina la agrupación
+La combinación puede resumirse como \emph{identidad nominal + tecnología +
+anclaje territorial}. La clave determinista y versionada de agrupación,
+\texttt{project\_match\_key}, representa esa combinación y determina la agrupación
 por igualdad. De ella se deriva \texttt{project\_id} mediante UUID5, un
 identificador calculado de forma reproducible a partir de la misma clave.
 Su estabilidad se mantiene mientras no cambien los elementos de esa identidad;
@@ -146,38 +528,13 @@ identidad distinta aunque aparezca en el mismo anuncio de abril.
 Esta regla también tiene límites: variaciones nominales o territoriales
 pueden separar menciones que requerirían una revisión de identidad. En Gold,
 «HSF DON RODRIGO II», presente en publicaciones de 2022, permanece separado de
-«DON RODRIGO II» de 2026. El ejemplo ilustra una separación nominal, no autoriza
-a fusionar esos registros ni supone una evaluación del grouping mediante el
-holdout. La posible corroboración con municipio o promotor se reserva para
+«DON RODRIGO II» de 2026. Es una posible separación de menciones que podrían requerir revisión, o
+\emph{false split}; fusionarlas exigiría evidencia adicional. El holdout evalúa
+la extracción documental, no valida esta agrupación longitudinal. La posible corroboración con municipio o promotor se reserva para
 trabajo futuro.
 
-\section{Resolución territorial}
-% USER_GUIDE.md; FINAL_CORPUS_W14_DOWNSTREAM_MATERIALIZATION.md §§3--4;
-% ine_reference.py, location_resolution.py, project_locations.py.
-\pendiente{Explicar la correspondencia entre topónimos y códigos oficiales
-INE de municipio, provincia y comunidad o ciudad autónoma. Conservar
-resoluciones parciales y ambigüedades; territorio documental no equivale a
-ubicación exacta de la planta. TODO-CITA: referencia INE realmente utilizada.}
+\section{Revisión humana y correcciones}
 
-La resolución territorial conserva un resultado independiente para municipio,
-provincia y comunidad autónoma, junto con el motivo de cada correspondencia.
-El resultado agregado distingue resolución completa, parcial, ambigüedad,
-conflicto, nombre no encontrado y dato no proporcionado. Una resolución
-parcial puede ser suficiente: por ejemplo, conocer la provincia aunque no
-se haya identificado el municipio. No equivale por sí sola a un error.
-
-Estos resultados se inspeccionan en la tabla de localizaciones resueltas;
-no alimentan la cola de extracción descrita a continuación. La agrupación
-se detiene si la provincia o la comunidad autónoma presentan ambigüedad o
-conflicto. La incertidumbre municipal, por sí sola, no activa ese bloqueo.
-La indicación técnica \texttt{requires\_inspection} forma parte del error
-emitido, no de una incidencia registrada en una cola administrativa.
-Si este control detiene el proceso, no se publica una nueva salida downstream
-parcial. Tampoco existe en la interfaz administrativa una operación para
-corregir directamente territorios o códigos INE.
-
-\section{Revisión humana y antecedentes históricos}
-\subsection{Decisiones y correcciones versionadas}
 \label{sec:revision-humana}
 % architecture/extraction_quality_review.md; FINAL_W14_ADMIN_ACTION_CORRECTIONS.md.
 % Auditoría acotada: AUDITORIA_REVISION_REPORTES.md; admin.py; review.py.
@@ -223,6 +580,12 @@ qué cambió y por qué; editar directamente los datos derivados perdería esa
 relación reproducible. Los procedimientos y argumentos concretos se
 documentan en \path{docs/USER_GUIDE.md}, sin duplicarlos en la memoria.
 
+Esta cola cubre extracción y P0; la resolución territorial mantiene sus
+propios estados, como explica la sección~\ref{sec:resolucion-territorial}.
+El enlace de correo de Streamlit tampoco registra entradas en ella. La
+integración persistente de reportes y territorio en una cola común se reserva
+para el trabajo futuro de la sección~\ref{sec:cola-unificada-futura}.
+
 \pendiente{FIGURA F06 — Flujo de revisión y corrección humana implementado.
 \par Etiqueta prevista: \path{fig:revision-correcciones}. Representar solo
 el sistema actual: intentos, validación y detección P0; cola por BOE;
@@ -233,14 +596,24 @@ de exclusiones a una copia antes de Silver y regeneración hasta Gold.
 La ejecución posterior es del operador. Situar territorio después de Silver
 como control independiente, sin flecha a la cola. Reservar integración de
 reportes persistentes y cola unificada para F09, en Trabajo futuro.}
-\subsection{Salvaguarda de antecedentes históricos}
+\section{Salvaguarda de antecedentes históricos}
+\label{sec:antecedentes}
+
 % architecture/extraction_quality_review.md §Safeguard;
 % extraction/historical_antecedents.py; tests/extraction/test_historical_antecedents.py.
-Una publicación puede mencionar trámites anteriores al acto que comunica.
+Un documento puede recordar trámites previos al acto que publica.
+Como ejemplo conceptual, una resolución de 2025 puede recordar en sus
+antecedentes que en 2023 se concedió una autorización, y decidir ahora una
+modificación. Interpretar ambas referencias como actuaciones de 2025 alteraría
+la cronología. Las fechas de este ejemplo son didácticas; no describen un BOE
+adicional del corpus.
+
 La salvaguarda denominada P0 busca posibles atribuciones de esos antecedentes
 como actuaciones actuales. Exige conjuntamente una señal temporal o
-estructural y otra contextual independiente; una fecha antigua aislada no
-basta. El detector conserva la extracción y reúne los hallazgos por actuación
+estructural, como una resolución anterior o la ubicación en antecedentes,
+y otra contextual independiente, como la separación respecto del dispositivo
+que adopta el acto actual. Una fecha antigua aislada no basta. El detector conserva la extracción
+y reúne los hallazgos por actuación
 dentro de una entrada de la cola por BOE. Es una advertencia que requiere
 revisión, no una clasificación histórica definitiva. Tampoco es el mecanismo
 de recuperación retrospectiva de publicaciones que amplía el corpus.
@@ -258,12 +631,11 @@ La revisión humana aprobó excluir esa mención histórica de las actuaciones
 atribuidas a agosto, conservando las autorizaciones actuales. La publicación
 de abril permaneció en su lugar de la cronología: no se trasladó ni se
 inventó ninguna actuación. La decisión consta en el registro versionado y
-su aplicación en los datos corregidos del corpus W14. Este ejemplo documenta
-una corrección real; no implica que la CLI actual se utilizara para registrar
-aquella decisión histórica.
+su aplicación en los datos corregidos del corpus W14.
 
-\section{Reproducibilidad y proceso de desarrollo}
-\subsection{Interfaz de línea de comandos y pruebas}
+\section{Interfaces de línea de comandos}
+\label{sec:cli}
+
 % README.md; USER_GUIDE.md §§5,14; pipeline.py; .github/workflows/tests.yml.
 Una interfaz de línea de comandos, o \emph{CLI}, permite dar instrucciones
 a un programa desde una terminal. En el TFM permite ejecutar operaciones
@@ -289,7 +661,7 @@ Interfaz & Función \\
 Pipeline CLI & Ejecutar las fases de adquisición, extracción, Silver, referencia INE y downstream \\
 Admin CLI & Registrar decisiones humanas acotadas sobre extracciones y antecedentes, sin editar directamente datos analíticos \\
 Evaluation CLI & Validar y congelar referencias y evaluador, y puntuar predicciones preservadas sin llamar al modelo \\
-Controlador primario & Preparar, ejecutar con autorización, consultar y finalizar la ejecución experimental \\
+Controlador de ejecución primaria & Preparar, ejecutar con autorización, consultar y finalizar la ejecución experimental \\
 \hline
 \end{tabular}
 \caption[Interfaces de línea de comandos]{Separación entre operación del
@@ -298,30 +670,108 @@ la CLI de evaluación calcula sus resultados.}
 \label{tab:interfaces-cli}
 \end{table}
 
-Las pruebas automatizadas, ejecutadas con pytest, comprueban contratos,
-regresiones y casos límite. Complementan la revisión de los datos, pero su
-número no constituye una medida de calidad científica de la extracción.
+\section{Pruebas automatizadas con pytest}
+\label{sec:pytest}
+Un test automatizado ejecuta una operación con entradas conocidas y comprueba
+si su resultado cumple una condición esperada. Permite repetir la misma
+comprobación después de un cambio y detectar una regresión: un comportamiento
+que funcionaba y deja de hacerlo. En el proyecto se utiliza pytest para
+organizar y ejecutar esas pruebas sobre el paquete y sus interfaces.
 
-El proyecto incluye una guía versionada, \path{docs/USER_GUIDE.md}, que
-explica cómo instalar el entorno, ejecutar sus componentes, consultar
-Streamlit y realizar operaciones controladas de revisión y evaluación.
-Forma parte de la reproducibilidad y usabilidad del producto al permitir
-que otra persona siga procedimientos explícitos. No sustituye los artefactos
-congelados del experimento ni demuestra por sí sola una evaluación de usabilidad.
-\subsection{Desarrollo asistido por IA}
+Las pruebas cubren contratos, transformaciones y casos límite. Comprueban,
+por ejemplo, que una referencia inexistente se rechace, que una tabla vacía
+mantenga sus tipos y que un fallo de escritura no publique una materialización
+incompleta. Otras verifican que cambiar el orden de las filas no altere una
+identidad semántica o que aplicar una transformación no modifique su entrada.
+En extracción se protegen reglas de alcance, granularidad, evidencia y
+preservación de decisiones humanas. En la aplicación se comprueban filtros,
+conteos y lectura de datos validados.
+
+Estas verificaciones utilizan datos de prueba controlados y sustitutos de
+servicios externos cuando corresponde. Así se pueden comprobar errores y
+reintentos sin descargar BOE ni llamar al modelo en cada ejecución. Las
+pruebas del proyecto y su configuración forman parte del repositorio; la
+integración continua ejecuta el subconjunto de extracción configurado, mientras
+los cierres técnicos registran las suites ejecutadas en cada fase. No se
+supone que toda prueba existente se ejecute en cada interacción de desarrollo.
+
+Los tests verifican propiedades del software sobre los casos definidos.
+La evaluación científica responde a otra pregunta: cómo se comporta el
+sistema sobre documentos reservados y comparados con una anotación humana.
+Superar pruebas de contrato no demuestra precisión de extracción ni cobertura
+del BOE. Por eso no se utiliza el número de tests como métrica científica,
+y los resultados del holdout se presentan por separado en el
+capítulo~\ref{ch:evaluacion}.
+
+\section{Guía de usuario y reproducibilidad operativa}
+\label{sec:user-guide}
+Un sistema reproducible necesita procedimientos que otra persona pueda
+seguir, además del código que los ejecuta. La guía versionada
+\path{docs/USER_GUIDE.md} se creó para explicar la preparación del entorno,
+la consulta de Streamlit y las operaciones principales de adquisición,
+extracción, revisión, validación y reconstrucción de datos. Se dirige tanto
+a quien utiliza la aplicación como a quien opera el pipeline.
+
+La guía relaciona comandos con sus entradas, destinos y comprobaciones.
+Distingue inspeccionar un plan de ejecutar una operación y explica cómo
+registrar decisiones sin editar datos derivados. También documenta la
+configuración de la aplicación y sus límites de interpretación. Así reduce
+la dependencia de instrucciones informales o de recordar el estado de un
+notebook.
+
+La memoria explica por qué existe cada componente y cómo se organiza el método;
+la guía contiene los procedimientos detallados. Ambas se complementan con
+contratos, manifests y versiones conservadas. La documentación facilita
+repetir operaciones, pero no sustituye el acceso a los artefactos y referencias
+necesarios ni demuestra por sí sola una evaluación de usabilidad. La relación
+de materiales para reproducir el trabajo se desarrolla en el
+anexo~\ref{an:reproducibilidad}.
+
+\section{Desarrollo asistido por inteligencia artificial}
 \label{sec:ia-desarrollo}
-% Declaración de uso aportada por la autora en la petición de esta fase;
-% AGENTS.md; FINAL_W14_ADMIN_ACTION_CORRECTIONS.md §1; resultados §§1,11.
-\pendiente{Describir, según la declaración de la autora, ChatGPT para análisis,
-planificación, diseño metodológico, revisión y refinamiento de prompts;
-Codex desde VSCode para inspección, implementación acotada, pruebas,
-refactorización, documentación y LaTeX. Definir primero el archivo de
-instrucciones persistentes que aporta reglas y contexto al agente; después
-nombrar AGENTS.md y explicar su uso junto a prompts con alcance y restricciones;
-desarrollo incremental, revisión humana, tests y commits/push manuales de la
-autora, con separación de ramas. Contrastar la cronología de las versiones
-fijadas de sistema, referencia humana y evaluador antes de las predicciones.
-No hubo ajuste retrospectivo del experimento. Distinguir estos asistentes de
-Gemini como objeto evaluado. La autora decide objetivos y método, anota,
-revisa, interpreta y asume la responsabilidad; Codex no es autor del TFM.
-La declaración de uso debe ser revisada por ella y no se deduce de Git.}
+% Declaración de uso aportada expresamente por la autora en esta fase.
+% Cronología: manifests truth/evaluator y FINAL_HOLDOUT_V2_RESULTS.md §1.
+El trabajo distingue la inteligencia artificial que forma parte del sistema
+evaluado de las herramientas utilizadas para ayudar a desarrollarlo. Gemini
+realiza la extracción documental descrita en la
+sección~\ref{sec:extraccion-gemini}; su respuesta y el procesamiento posterior
+son objeto de evaluación. ChatGPT y Codex se utilizaron como herramientas de
+apoyo al trabajo de la autora, con funciones diferentes.
+
+ChatGPT apoyó el análisis de necesidades, la planificación, la discusión
+metodológica, la revisión de propuestas y la elaboración y refinamiento de
+instrucciones para el modelo. Codex, utilizado desde el editor Visual Studio
+Code (VSCode), apoyó la inspección del repositorio, la implementación de tareas
+delimitadas, la creación y adaptación de pruebas, la documentación y la
+redacción en LaTeX. Estas herramientas propusieron explicaciones y cambios;
+las decisiones sobre objetivos, alcance y método correspondieron a la autora.
+
+Para orientar al agente de desarrollo se mantuvo un archivo de instrucciones
+persistentes: un documento que reúne reglas y contexto del proyecto y que
+puede consultarse al comenzar una tarea. En el repositorio se denomina
+\path{AGENTS.md}. Incluye las reglas de dominio, la protección de los datos
+congelados, los límites de modificación y las comprobaciones exigidas. Se
+complementó con solicitudes concretas que indicaban la necesidad, los archivos
+o comportamientos afectados y el resultado esperado. Su función fue aportar
+contexto estable; no reemplazó la especificación de cada tarea ni la revisión
+de su resultado.
+
+El proceso de trabajo siguió una secuencia incremental: identificar una
+necesidad, especificarla mediante una solicitud, obtener una implementación
+acotada, inspeccionar los cambios, ejecutar las pruebas pertinentes y someter
+el resultado a revisión humana. La autora gestionó manualmente los commits y
+pushes de Git, es decir, el registro de versiones y su envío al repositorio
+remoto. La anotación de los documentos, la revisión de cambios, las decisiones
+metodológicas y la interpretación de resultados fueron responsabilidad de
+la autora. El uso de asistentes no les atribuye la autoría del TFM.
+
+La separación experimental se preservó mediante versiones fijadas antes de
+la ejecución primaria. La referencia anotada, o \emph{truth}, y el evaluador
+se congelaron antes de obtener las predicciones; el sistema evaluado permaneció
+en la versión identificada por \texttt{tfm-final}. Las predicciones se
+conservaron antes de calcular los resultados. No se modificó retrospectivamente
+el experimento para mejorar sus resultados. El diagnóstico posterior se
+identifica como tal y no altera las métricas primarias. El
+capítulo~\ref{ch:evaluacion} desarrolla esta cronología; aquí se explicita la
+responsabilidad humana y se separan las herramientas de desarrollo del
+objeto evaluado.

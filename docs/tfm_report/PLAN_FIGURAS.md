@@ -1,7 +1,8 @@
-# Figuras y recursos pedagógicos — primera integración
+# Figuras y recursos pedagógicos — integración progresiva
 
-Clasificación: **REQUIRED — memoria; pendiente de revisión visual humana**.
-Base de contraste: `tfm-evaluation@a7eadca9564df9d982f1145c22b3e39f4c0dc6fd`.
+Clasificación: **REQUIRED — memoria; núcleo metodológico para revisión de contenido**.
+Primera integración: `tfm-evaluation@a7eadca9564df9d982f1145c22b3e39f4c0dc6fd`.
+Fase sustantiva actual: `tfm-evaluation@0387e765e4155f4f67bb9ab6fc8fd58b69927166`.
 El sistema productivo auditado permanece en
 `tfm-final@282de815bea4e248bdcba2c655e3ee078cb58a49`.
 
@@ -13,9 +14,10 @@ Se utilizan las decisiones revisadas comunicadas por la autora sobre
 se contrasta con código, tests y artefactos finales; las decisiones revisadas
 son la fuente editorial, sin atribuir una nueva lectura literal de los originales.
 
-Esta integración incorpora F01, F03 y F05, sus textos de apoyo y tres tablas.
-Desarrolla CLI/User Guide y reserva las restantes figuras y capturas mediante
-TODO. No completa todos los capítulos ni modifica código, tests, runs,
+La primera integración incorporó F01, F03 y F05, sus textos de apoyo y tres tablas.
+La fase sustantiva incorpora F02/F04, desarrolla los capítulos 3/4 y la base
+del 5; añade tablas de familias Silver y estados territoriales. F06 queda
+preparada y las capturas continúan en TODO. No modifica código, tests, runs,
 resultados, bibliografía o PDF raíz. Los IDs F01–F09 son IDs de planificación;
 la numeración visible de LaTeX depende del capítulo y de las figuras incorporadas.
 
@@ -24,11 +26,11 @@ la numeración visible de LaTeX depende del capítulo y de las figuras incorpora
 | ID | Figura / capítulo | Estado | Fuente y correcciones esenciales |
 | --- | --- | --- | --- |
 | F01 | Procedimiento administrativo / 2.1 | Incorporada; conceptual, TODO-CITA | Decisiones revisadas sobre autorizaciones y contexto del capítulo 2. Vías parcialmente paralelas, DIA condicionante, DUP sin posición fija respecto de AAC; AE provisional/definitiva como contexto |
-| F02 | API del BOE y corpus / 3.1 | TODO detallado; actual | `boe_source.py`, `boe_documents.py`, `boe_http.py`, `boe_candidates.py`, `pipeline.py::run_source_stage`. Filtrar títulos antes del XML; separar alcance y extracción |
+| F02 | API del BOE y corpus / 3.2 y 3.6 | Incorporada; actual | `boe_source.py`, `boe_documents.py`, `boe_http.py`, `boe_candidates.py`, `pipeline.py::run_source_stage`. Filtrar títulos antes del XML; separar alcance y extracción |
 | F03 | Arquitectura general / 4.2 | Incorporada; actual | `pipeline.py`, `ine_reference.py`, `downstream.py`. Panel INE independiente, dos CSV locales, dimensión y manifest/hashes; no descarga automática ni coste cuantificado |
-| F04 | Extracción IA y validación / 4.4 | TODO detallado; actual | `extraction/documents.py`, `models.py`, `runner.py`, `canonicalization.py`, `validation.py`, `review.py`. Respetar el orden ejecutado: canonicalización antes de la validación documental final; no atribuir las reglas al modelo |
-| F05 | Grouping / 4.5 | Incorporada; actual | `project_grouping.py` y `tests/test_project_grouping.py`. Igualdad de clave nominal/tecnológica/territorial; UUID5; sin municipio, promotor, fuzzy matching ni scores |
-| F06 | Flujo de revisión y corrección humana implementado / 4.7 | TODO detallado; opción A, solo actual | `AUDITORIA_REVISION_REPORTES.md`, `admin.py`, `extraction/review.py`, P0, correcciones y `run_silver_stage`. Separar decisiones genéricas, CURRENT y ANTECEDENT; regeneración del operador; territorio independiente. Sin reportes ni rama futura |
+| F04 | Extracción IA y validación / 4.5 | Incorporada; actual | `extraction/documents.py`, `models.py`, `runner.py`, `canonicalization.py`, `validation.py`, `review.py`. Respetar el orden ejecutado: canonicalización antes de la validación documental final; no atribuir las reglas al modelo |
+| F05 | Grouping / 4.10 | Incorporada; actual | `project_grouping.py` y `tests/test_project_grouping.py`. Igualdad de clave nominal/tecnológica/territorial; UUID5; sin municipio, promotor, fuzzy matching ni scores |
+| F06 | Flujo de revisión y corrección humana implementado / 4.11 | TODO detallado; opción A, solo actual | `AUDITORIA_REVISION_REPORTES.md`, `admin.py`, `extraction/review.py`, P0, correcciones y `run_silver_stage`. Separar decisiones genéricas, CURRENT y ANTECEDENT; regeneración del operador; territorio independiente. Sin reportes ni rama futura |
 | F07 | Metodología experimental / 6.3 | TODO detallado; experimento realizado | `docs/evaluation/FINAL_HOLDOUT_V2_RESULTS.md`, contrato V2 y controlador primario. Sistema/truth/evaluator fijados antes de la ejecución; predicciones congeladas antes de evaluar; post-hoc separado |
 | F08 | Cascada de matching / 8.2 | TODO detallado; explicación post-hoc | Resultados canónicos §8. POST-HOC DIAGNOSTIC — NOT PRIMARY SCORING. Padre emparejado necesario pero no suficiente; no crear correspondencias ni métricas |
 | F09 | Arquitectura propuesta para una futura operación diaria / 9.2.1 | TODO detallado; TRABAJO FUTURO | Decisiones revisadas sobre proceso diario, CLI real, `TFM_CLOSEOUT.md` y `USER_GUIDE.md`. Diferenciar mecanismos existentes y scheduler/reportes persistentes/cola/coordinación propuestos |
@@ -42,7 +44,7 @@ de referencia INE, otra de capas ni otra sobre evolución del grouping.
 | ID | Mensaje / texto que complementa | Ejemplo | Referencia necesaria |
 | --- | --- | --- | --- |
 | F01 | Un proyecto genera publicaciones distintas; sustituye el antiguo TODO genérico del procedimiento | Remisión posterior a Don Rodrigo II, tabla longitudinal existente | TODO-CITA de paralelismo, condicionamiento ambiental, DUP y modalidades de AE |
-| F02 | Recuperar, filtrar, decidir alcance y extraer son operaciones distintas; apoya los pasos de 3.1 | No necesita otro BOE; los endpoints ya están explicados | API oficial y código de adquisición; no inventar endpoints |
+| F02 | Recuperar, filtrar, decidir alcance y extraer son operaciones distintas; apoya los pasos de 3.2 y el cierre de 3.6 | No necesita otro BOE; los endpoints ya están explicados | API oficial y código de adquisición; no inventar endpoints |
 | F03 | Fuente → estructura → consulta; la referencia territorial es una entrada independiente | Analogía breve y tabla de capas, no un segundo flujo idéntico | Código y procedencia/edición INE (TODO-CITA) |
 | F04 | Gemini no entrega Silver/Gold directamente; amplía el bloque de controles de F03 | Solo si aclara salida frente a reglas, sin reutilizar resultados como demostración | Modelo, Pydantic (TODO-CITA), runner y contratos |
 | F05 | Las menciones con igual clave comparten identidad; sustituye el TODO genérico de agrupación | Don Rodrigo II de 2026 y Bianor separado; límite HSF de 2022 | Código/tests y Silver/Gold final v2 |
@@ -82,7 +84,9 @@ Incorporadas: siglas administrativas (PACC, EIA, EsIA, DIA, AAP, AAC, DUP, AE),
 capas Bronze/Silver/Gold e interfaces CLI. Se conservan la composición del
 corpus y el ejemplo longitudinal ya existentes, sin alterar sus cifras.
 
-Pendientes: principales entidades (4.4), composición del holdout (6.1),
+Incorporadas en la fase sustantiva: familias Silver (4.8) y estados territoriales
+(4.9). La tabla del corpus añade la separación finalidad/uso sin cambiar cifras.
+Pendientes: composición del holdout (6.1),
 métricas y ejemplo didáctico (6.6), tablas primarias y atributos condicionados
 (7) y limitaciones (8.4). Referenciar tablas existentes en vez de duplicarlas.
 
@@ -97,13 +101,14 @@ cada imagen tendrá caption, etiqueta y referencia textual.
   `arrows.meta`, `positioning`, `calc`. No instalar herramientas ni externalizar.
 - Estilo común en `include/diagramas.tex`; fuentes en
   `figs/procedimiento_administrativo.tex`, `figs/arquitectura_sistema.tex` y
-  `figs/grouping_implementado.tex`.
+  `figs/grouping_implementado.tex`; se añaden `figs/api_boe_corpus.tex` y
+  `figs/extraccion_validacion.tex` en esta fase.
 - Tipografía del documento; nodos de 10 pt y notas de 9 pt, sin reducción global.
   Color `tema`, fondos suaves, bordes y flechas vectoriales.
 - F01 usa enlace discontinuo para la relación no secuencial de DUP.
   F09 deberá incorporar una leyenda explícita actual/propuesto; el color no
   será el único medio para distinguirlos.
-- Las tres figuras tienen caption, etiqueta y referencia desde el texto.
+- Las cinco figuras incorporadas tienen caption, etiqueta y referencia desde el texto.
   Se activa el índice de figuras; se conserva el índice de tablas.
 - Compilación y PDF intermedio en `build/`, según `COMPILACION.md`.
   El PDF raíz continúa reservado para una actualización de hito aprobada.
@@ -153,7 +158,7 @@ del flujo real; la integración futura se reserva para F09. Los tres diagramas
 ya incorporados se conservan sin cambios.
 
 Una invocación del comando de compilación anterior terminó con **exit 0**.
-Log: `build/compilacion-revision-reportes.txt`. PDF actual:
+Log: `build/compilacion-revision-reportes.txt`. PDF de aquella auditoría:
 `build/tfm_report_bgd.pdf`, **49 páginas A4**. Las referencias nuevas quedan
 resueltas en la última pasada; no hay citas indefinidas, caracteres perdidos
 ni nuevos desbordamientos. Subsisten los avisos previos enumerados arriba.
@@ -180,12 +185,69 @@ Los cambios de capítulos de esta tarea solo afectan a las secciones indicadas;
 el resto del contenido y los apoyos previos se conservan. No se ejecutaron
 tests productivos ni regeneración de datos. No hubo staging, commit o push.
 
-## Impacto documental
+## Redacción sustantiva del núcleo — 2026-09-14
+
+Resultado: **READY FOR CONTENT REVIEW**. Se desarrollan las seis secciones
+de datos, las dieciséis de metodología y la base de aplicación. La revisión
+pedagógica y la trazabilidad por sección constan en `MAPA_FUENTES.md`.
+Se incorporan F02/F04 y dos tablas; las fuentes de F01/F03/F05 se conservan.
+F06 mantiene el TODO del circuito real. No se generan capturas de aplicación.
+
+PDF intermedio de esta fase: `build/tfm_report_bgd.pdf`, **63 páginas A4**.
+La última invocación del comando anterior termina con **exit 0**; se repitió
+durante la revisión para corregir un desbordamiento mínimo en P0, precisar
+la explicación de filtros y abreviar el título del corpus en el índice.
+Log final: `build/compilacion-nucleo.txt`.
+
+| Recurso | Número LaTeX | Página impresa | Página del archivo PDF |
+| --- | --- | ---: | ---: |
+| F01 Procedimiento, conservada | Figura 2.1 | 7 | 21 |
+| Corpus, tabla revisada | Tabla 3.1 | 15 | 29 |
+| F02 API y corpus, nueva | Figura 3.1 | 16 | 30 |
+| Capas | Tabla 4.1 | 18 | 32 |
+| F03 Arquitectura, conservada | Figura 4.1 | 20 | 34 |
+| F04 Extracción y validación, nueva | Figura 4.2 | 23 | 37 |
+| Familias Silver, nueva | Tabla 4.2 | 26 | 40 |
+| Estados territoriales, nueva | Tabla 4.3 | 27 | 41 |
+| F05 Grouping, conservada | Figura 4.3 | 29 | 43 |
+| Interfaces CLI | Tabla 4.4 | 32 | 46 |
+
+Los índices contienen **cinco figuras y siete tablas**. No hay referencias
+o citas indefinidas, caracteres perdidos ni marcadores `??` en el texto
+extraído. Se comprobaron acentos y ñ. Las referencias bibliográficas
+pendientes siguen explícitas como TODO-CITA, no como entradas inventadas.
+
+Se inspeccionaron individualmente los renders de las páginas PDF
+12, 13, 29, 30, 32, 33, 35, 37, 40, 41, 44, 45, 46, 47, 49 y 51, conservados como
+`build/nucleo-pN.png`. Las nuevas figuras, las cinco tablas prioritarias,
+las notas INE/Gemini, la revisión humana, la declaración de asistentes y la
+aplicación son legibles, sin cortes ni solapamientos. Los espacios y saltos
+de esta redacción siguen sujetos a la integración futura de F06 y capturas.
+
+No hay nuevos overfull: permanecen los **67,05614 pt** del logo de portada y
+los **0,30453 pt** de la cita legal del capítulo 2. Subsisten los avisos de
+hooks, ligaduras y captions no utilizados de la plantilla. Hay tres underfull
+verticales (páginas impresas 18, 21 y 35) y uno horizontal en la nota INE
+(página 19); se inspeccionaron y no provocan pérdida de texto. Son ajustes
+de composición no bloqueantes para revisar el contenido.
+
+La comparación por SHA-256 con el estado inicial confirma que los únicos
+archivos versionados modificados son los tres capítulos autorizados y cuatro
+documentos auxiliares. El PDF raíz, la bibliografía, las tres figuras previas
+y todos los demás capítulos se conservan íntegros. El índice Git, HEAD,
+`origin/tfm-evaluation` local y `tfm-final` no cambian. No se ejecutaron pruebas
+de software, servicios BOE/Gemini ni evaluaciones; se leyeron las pruebas
+pertinentes como respaldo y se verificó la memoria mediante LaTeX y revisión
+documental/visual. No hubo staging, commit o push. Los resultados de build
+permanecen ignorados.
+
+## Impacto documental de la fase sustantiva
 
 - **Documentation impact:** apoyos pedagógicos y redacción acotada de la memoria.
 - **Documents reviewed:** cierre TFM, reglas y mapa de fuentes, plantilla,
   compilación, User Guide, contratos, informes W14 y resultados canónicos.
 - **Documents updated:** este plan, mapa/reglas de redacción, inventario de
   compilación y fuentes LaTeX afectadas. El manual operativo no cambia.
-- **Reason:** validar primero tres diagramas coherentes con el sistema,
-  conservando como TODO el resto de la integración.
+- **Reason:** explicar el núcleo implementado de forma progresiva, mantener
+  trazabilidad por sección y verificar sus apoyos sin alterar el sistema
+  congelado, las operaciones documentadas ni los resultados experimentales.

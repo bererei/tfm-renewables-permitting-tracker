@@ -66,7 +66,7 @@ ni en una sucesión de párrafos sin apoyos cuando un esquema aclare el proceso.
 
 ## Acceso programático y candidatos
 
-Destino: 2.2, concepto BOE/API; 3.1, adquisición comprobada; 3.3, selección
+Destino: 2.2, concepto BOE/API; 3.2, adquisición comprobada; 3.3, selección
 por título y decisión de relevancia. No confundir una consulta de sumario con
 la descarga del documento completo ni con la extracción mediante IA.
 
@@ -118,22 +118,28 @@ No atribuir autoría del TFM o decisiones metodológicas al asistente.
 | --- | --- | --- |
 | 2.1 | Procedimiento administrativo | Distinguir trámites y decisiones; incluir variaciones/paralelismo y DUP cuando proceda. Verificar normativa; no imponer una cadena universal |
 | 2.3 | Tabla de Don Rodrigo II, ya incluida | Abril anuncia información pública; agosto concede AAP/AAC y recuerda abril. Auditoría y correcciones W14 verificadas |
-| 3.1 | Adquisición BOE/API | Sumario no es texto completo; filtrar títulos precede a descargar XML. Código actual; TODO de figura y lista de pasos incluidos |
+| 3.2 y 3.6 | Adquisición BOE/API | Sumario no es texto completo; filtrar títulos precede a descargar XML. Código actual; figura F02 y explicación de pasos incluidas |
 | 4.2 | Arquitectura global | Fuente, extracción/validación, Silver, territorio/agrupación, Gold y consulta; panel INE independiente. Experimento en figura propia del capítulo 6 |
 | 4.2 | Capas Bronze/Silver/Gold | Qué conserva y qué transforma cada capa; tabla o panel de la figura global para evitar duplicación |
-| 4.4 | Extracción IA y validación | Distinguir salida generada, controles deterministas y revisión; validez no garantiza corrección |
-| 4.5 | Agrupación | Varias menciones de la misma planta convergen; plantas independientes siguen separadas; no es matching experimental |
+| 4.4–4.5 | Extracción IA y validación | Distinguir salida generada, controles deterministas y revisión; validez no garantiza corrección |
+| 4.10 | Agrupación | Varias menciones de la misma planta convergen; plantas independientes siguen separadas; no es matching experimental |
 | 6 | Diseño experimental | Selección, anotación ciega, freezes y ejecución en su orden documentado |
 | 6.6 | Ejemplo de métricas | Comprender qué denominador responde a cada pregunta antes de ver resultados |
 | 8.2 | Cascada de matching | Activo sin match puede impedir evento y actuaciones/localizaciones; no atribuir todos los FP/FN a invenciones del modelo |
 | 5 y, si aporta, 6.2 | Capturas seleccionadas | Enseñar una consulta del producto o explicar anotación ciega, sin saturar ni confundir finalidades |
 
-La integración autorizada de 2026-09-14 incorpora tres diagramas vectoriales
-(procedimiento, arquitectura con INE y grouping) y tablas de siglas, capas y
-CLI. El plan actualizado de nueve figuras y los TODO de capturas están en
-`PLAN_FIGURAS.md`. Primero se revisa este lenguaje visual; no se generan todas
-las figuras ni se completan todos los capítulos. Las tablas del corpus y
-Don Rodrigo II se conservan como apoyos de los capítulos ya redactados.
+La primera integración de 2026-09-14 incorporó procedimiento, arquitectura y
+grouping. La fase sustantiva siguiente desarrolla 3.1–3.6, 4.1–4.16 y la base
+del capítulo 5, incorpora F02/F04 y tablas compactas de Silver y territorio.
+F06 queda preparada para el flujo actual; reportes persistentes y cola unificada
+permanecen en F09, POST-TFM. No se desarrollan todavía Resultados, Discusión,
+Conclusiones, Resumen o Abstract ni se generan capturas.
+
+Los diagramas deben respetar el orden real del extractor: salida estructurada
+Pydantic, incorporación de identidad documental, canonicalización y validación
+documental final. La canonicalización puede cambiar evidencia, relaciones y
+granularidad; no describirla como mera limpieza tipográfica. Diferenciar
+validez estructural, respaldo documental y exactitud científica.
 
 ## Comprobación al cerrar un bloque
 

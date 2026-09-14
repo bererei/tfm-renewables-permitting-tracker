@@ -207,10 +207,12 @@ elements/portada.tex
 elements/preambulo.tex
 figs/CIDaeN copia.png
 figs/CIDaeN.png
+figs/api_boe_corpus.tex
 figs/arquitectura_sistema.tex
 figs/esiiab.png
 figs/logouclm.pdf
 figs/logouclm.png
+figs/extraccion_validacion.tex
 figs/grouping_implementado.tex
 figs/procedimiento_administrativo.tex
 include/colores.tex

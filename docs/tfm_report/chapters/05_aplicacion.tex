@@ -1,34 +1,130 @@
 \chapter{Aplicación de consulta}
 \label{ch:aplicacion}
-% Fuentes: STREAMLIT_CODE_GUIDE.md; USER_GUIDE.md §§6--8;
-% FINAL_STREAMLIT_PRODUCT_ALIGNMENT.md; APP_PRODUCT_SPEC.md.
+% Fuentes: USER_GUIDE.md §§6--8; STREAMLIT_CODE_GUIDE.md;
+% streamlit_app.py; app_data.py, app_queries.py, app_geometry.py, app_reporting.py.
 \section{Objetivo, usuarios y arquitectura}
-\pendiente{Definir Streamlit y su uso para crear aplicaciones en Python.
-Describir usuarios potenciales, lectura exclusiva de
-Gold validado y separación del proceso de extracción. No afirmar aceptación
-pública de despliegue sin su evidencia de entrega.}
-La guía versionada \path{docs/USER_GUIDE.md}, presentada en el
-capítulo~\ref{ch:metodologia}, acompaña la aplicación: explica su instalación,
-las vistas, los filtros, la ficha y las condiciones de las operaciones
-controladas. La memoria explica el propósito del producto; el manual permite
-seguir los pasos concretos para utilizarlo.
+Streamlit es una herramienta para construir aplicaciones de consulta en Python.
+En este TFM permite explorar los datos del BOE sin ejecutar comandos ni leer
+directamente las tablas del pipeline. La aplicación reúne filtros, mapas,
+catálogo y fichas para responder preguntas como qué proyectos aparecen en un
+territorio, qué actuaciones se han publicado o dónde consultar la evidencia
+que respalda una decisión. Puede servir a lectores del ámbito energético,
+ambiental o administrativo; estos usos potenciales no constituyen una
+validación de aceptación por usuarios.
+\citapendiente{Documentación de Streamlit como herramienta utilizada para
+construir la aplicación de consulta.}
+
+Su entrada son las cuatro tablas Gold validadas descritas en el
+capítulo~\ref{ch:metodologia}. Antes de utilizarlas, el cargador comprueba
+el manifest, las huellas, los esquemas y las relaciones. La interfaz consulta
+esa versión de datos y no ejecuta la extracción ni accede directamente a
+Silver. Separar preparación y consulta permite que una selección de filtros
+no cambie la información publicada ni desencadene llamadas a Gemini.
+
+La aplicación es de solo lectura. Presenta lo observado en el corpus, con
+acceso a la publicación oficial, pero no certifica el estado jurídico actual
+ni la situación física de una instalación. La guía versionada
+\path{docs/USER_GUIDE.md}, presentada en la sección~\ref{sec:user-guide},
+explica su instalación y uso. La disponibilidad de la implementación local
+se distingue de la aceptación de un despliegue público, cuya revisión de
+entrega debe documentarse por separado.
+
 \section{Resumen, catálogo y filtros}
-\pendiente{Presentar las vistas reales, los dos indicadores, filtros
-compartidos, gráficos y mapas. Contar BOE distintos y proyectos por territorio;
-los conteos territoriales no son sumables. Capturas pendientes de revisión.}
-\pendiente{CAPTURAS C01 y C02 — Reservar vista general y mapa/filtros,
-respectivamente. Mostrar contexto de consulta y cómo cambia la selección;
-no duplicar dos vistas casi idénticas. Capturar después de la revisión de
-publicación, con texto legible, caption y referencia desde esta sección.}
+La vista Resumen combina dos indicadores, gráficos, mapa y catálogo. Los
+indicadores cuentan proyectos y publicaciones BOE distintas dentro de la
+selección. Una publicación puede contener varias actuaciones o afectar a más
+de un proyecto: contar filas administrativas como si fueran publicaciones
+inflaría ese indicador. Los gráficos temporales distinguen proyectos con
+alguna publicación observada en cada año y número de BOE publicados; no
+representan plantas construidas ni nueva potencia instalada.
+
+Los filtros permiten buscar texto y seleccionar tecnología, territorio,
+periodo, trámite y situación publicada. Varias opciones de una misma categoría
+se aceptan alternativamente; las categorías diferentes deben cumplirse
+conjuntamente. Por ejemplo, seleccionar dos provincias y una tecnología
+recupera proyectos de esa tecnología vinculados a cualquiera de las dos
+provincias. Las selecciones en gráficos, polígonos del mapa y celdas filtrables
+del catálogo se incorporan a los controles compartidos. Así, los indicadores
+y las vistas responden a una misma consulta.
+
+La interpretación temporal merece una distinción. El modo predeterminado,
+«Última decisión publicada por trámite», selecciona la fila más reciente de
+cada proyecto y tipo de actuación antes de aplicar fecha, trámite y situación.
+«Cualquier publicación histórica» examina todas las filas disponibles.
+Un proyecto puede, por tanto, aparecer al buscar una situación histórica y
+no aparecer bajo el primer modo si existe una publicación posterior para ese
+trámite. Para cada trámite, la fecha y la situación deben cumplirse en la misma
+actuación; no basta cumplir una condición en una fila y la otra en una distinta. Si se
+seleccionan varios trámites, el usuario puede exigir alguno de ellos o todos,
+sin imponer que procedan de una misma publicación.
+
+El mapa representa ámbitos administrativos asociados a los proyectos mediante
+polígonos de comunidades o ciudades autónomas, provincias y municipios.
+Conserva la referencia completa de los dos primeros niveles y, para municipios,
+el universo presente en el corpus final. Los territorios de ese universo con
+cero proyectos bajo los filtros permanecen visibles. Un proyecto puede
+contabilizarse en varios polígonos, por lo que sus valores no son sumables
+como total de proyectos. Tampoco representan coordenadas exactas de plantas.
+Los proyectos sin territorio resuelto permanecen consultables en el catálogo.
+
+La geometría y el contexto cartográfico proceden de archivos locales
+versionados de IGN/CNIG y Natural Earth. La aplicación no descarga geometría
+ni utiliza mapas base externos durante la consulta. Esta decisión separa la
+presentación de dependencias de red ajenas a los datos Gold.
+\citapendiente{Identificar las ediciones y condiciones de uso de la geometría
+IGN/CNIG y del contexto Natural Earth efectivamente utilizados.}
+
+El catálogo mantiene una fila por proyecto y muestra nombre, tecnología,
+territorios, primera y última publicación observadas y número de BOE.
+Permite seleccionar columnas y abrir la ficha del proyecto. Las adaptaciones
+de nombres para facilitar la lectura no modifican los valores Gold ni la
+evidencia documental.
+
+\pendiente{CAPTURA C01 — Vista general: indicadores, consulta y catálogo.
+CAPTURA C02 — Mapa y filtros: mostrar cómo una selección territorial modifica
+los resultados. Preparar tras la revisión de entrega, con caption, etiqueta
+y referencia; evitar dos vistas casi idénticas. No generadas en esta fase.}
+
 \section{Ficha del proyecto y cronología}
-\pendiente{Describir territorio, publicaciones, actuaciones y acceso al BOE.
-Explicar la lectura de la cronología y la preservación de incertidumbre.
-Añadir una captura revisada del ejemplo del corpus.}
-\pendiente{CAPTURA C03 — Ficha de proyecto y publicaciones: mostrar una
-consulta verificable y su cronología, preferiblemente Don Rodrigo II de 2026.
-Incluir caption y referencia desde el texto. Conservar entre dos y tres
-capturas finales en total; no generar imágenes en esta integración.}
+La ficha reúne la identidad del proyecto, su tecnología, el ámbito territorial
+disponible y las publicaciones que componen su historia observada. Incluye
+un mapa contextual cuando hay territorio resoluble y una cronología agrupada
+por fecha y BOE. Cada publicación aparece una vez y muestra sus actuaciones,
+con decisión, evidencia desplegable y enlace al documento oficial. El orden
+va de la publicación más reciente a la más antigua.
+
+Esta organización permite consultar en conjunto documentos que el BOE
+publica por separado. En el caso de Don Rodrigo II, el lector puede contrastar
+la información pública de abril con las autorizaciones de agosto descritas
+en la tabla~\ref{tab:don-rodrigo}. La ficha muestra la secuencia conservada en
+Gold; no vuelve a interpretar los documentos con un modelo al abrirla.
+
+La cronología recoge actos publicados dentro del periodo observado. La
+primera fecha no prueba el inicio real del proyecto ni la última publicación
+resuelve por sí sola su estado jurídico definitivo. Del mismo modo, el
+territorio puede proceder de la planta o de sus componentes de evacuación o
+almacenamiento. La ficha conserva ese alcance documental para evitar una
+precisión física que la fuente no proporciona.
+
+\pendiente{CAPTURA C03 — Ficha de un proyecto y sus publicaciones,
+preferiblemente Don Rodrigo II. Mostrar cronología y acceso a evidencia.
+Reservar caption, etiqueta y referencia desde esta sección; no generar
+capturas hasta la revisión visual de entrega.}
+
 \section{Metodología, reporte y límites}
+La vista Metodología explica la cobertura del corpus, las fuentes, la unidad
+de proyecto, la interpretación de la cronología y el territorio, las
+correcciones y la versión utilizada. Incluye un glosario y advertencias para
+interpretar ausencias y situaciones administrativas. Su función es acompañar
+la consulta con el contexto necesario para entender qué representan los datos.
+
+Existe además un explorador técnico de las tablas Gold, desactivado por
+defecto, destinado a inspección local. Esta aplicación pública de consulta
+es diferente de la interfaz auxiliar empleada para anotar el holdout,
+descrita en el capítulo~\ref{ch:evaluacion}. Consultar el producto y construir
+la referencia de evaluación tienen propósitos y entradas distintos.
+
+
 \label{sec:reporte-publico}
 % streamlit_app.py::_render_report_channel; app_reporting.py; USER_GUIDE.md.
 El usuario dispone del control «Reportar posible error» en la barra lateral,
@@ -51,7 +147,3 @@ una decisión trazable antes de regenerar los datos. Este paso es externo a
 Streamlit y está sujeto a los límites de la sección~\ref{sec:revision-humana}.
 La integración persistente de reportes con una cola unificada se propone
 como trabajo futuro en la sección~\ref{sec:cola-unificada-futura}.
-
-\pendiente{Completar la descripción del apartado metodológico. Distinguir esta
-aplicación de consulta de la interfaz auxiliar de anotación del holdout,
-descrita en el capítulo~\ref{ch:evaluacion}.}

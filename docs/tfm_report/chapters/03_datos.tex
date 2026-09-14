@@ -2,10 +2,43 @@
 \chapter{Datos y construcción del corpus}
 \label{ch:datos}
 
-\section{Acceso programático al BOE y adquisición}
+\section{El BOE como fuente de datos}
+El Boletín Oficial del Estado (BOE) es el diario oficial estatal en el que se
+publican disposiciones y actos administrativos. Para este trabajo resulta
+adecuado porque permite consultar publicaciones identificadas, fechadas y
+accesibles, con el texto que comunica cada actuación. Su carácter oficial
+aporta una fuente documental sobre la que justificar la reconstrucción; no
+convierte automáticamente la interpretación realizada por el sistema en una
+conclusión jurídica.
+\citapendiente{Fuente institucional sobre el BOE, su función y el alcance de
+la publicación oficial.}
+
+La unidad publicada es un documento administrativo, no una ficha consolidada
+de proyecto renovable. Una planta puede aparecer en varios anuncios y
+resoluciones, con nombres abreviados o variantes de escritura, y una misma
+publicación puede referirse a varias plantas. El identificador BOE reconoce
+la publicación; no identifica de forma estable el proyecto a lo largo del
+tiempo. Esta diferencia obliga a recuperar documentos, distinguir sus
+entidades y relacionar después las menciones compatibles.
+
+Por ejemplo, las publicaciones de abril y agosto de Don Rodrigo II de la
+tabla~\ref{tab:don-rodrigo} corresponden a documentos diferentes de una misma
+secuencia administrativa. Consultarlas por separado permite leer cada acto;
+reconstruir la secuencia exige reconocer la planta y separar el acto actual
+que comunica cada documento de los antecedentes que recuerda. El corpus
+construido aquí conserva esa información dispersa para su procesamiento.
+Su alcance depende de las publicaciones y periodos seleccionados: no es un
+censo exhaustivo de instalaciones ni sustituye otros registros oficiales.
+
+\section{API y adquisición de documentos}
 \label{sec:adquisicion-api}
-La API introducida en la sección~\ref{sec:boe-api-concepto} permite obtener
-la relación de publicaciones sin recorrer manualmente la web. El proceso
+Una interfaz de programación de aplicaciones, o \emph{API}, permite que un
+programa solicite información a otro sistema de forma automatizada y siguiendo
+unas condiciones conocidas. Retomando la sección~\ref{sec:boe-api-concepto},
+la API del BOE permite obtener la relación diaria de publicaciones sin
+recorrer manualmente la web. Una consulta con parámetros explícitos puede
+repetirse, mientras que conservar su respuesta permite saber qué se recibió
+en una ejecución concreta. El proceso
 parte de una fecha inicial y otra final e incluye ambos extremos. Consulta
 los sumarios de forma secuencial, día a día. Se trata de un
 \emph{flujo de procesamiento} o \emph{pipeline}: una secuencia en la que cada
@@ -117,32 +150,11 @@ proporcionando publicaciones, no una historia de proyectos ya consolidada.
 La variación de nombres y la dispersión entre documentos requieren la
 agrupación posterior descrita en el capítulo~\ref{ch:metodologia}.
 
-\pendiente{FIGURA F02 — API del BOE y construcción del corpus
-\par Etiqueta prevista: \path{fig:api-corpus}. Mostrar servicio BOE, sumarios y metadatos,
-filtro de títulos, XML de candidatos y documentos fuente preservados;
-después, reglas de alcance con bifurcación entre negativos deterministas
-y candidatos para Gemini. Mensaje: recuperar, filtrar candidatos, decidir
-alcance y extraer son operaciones distintas. La descarga de XML sigue al
-filtro; la relevancia no queda resuelta para todos los casos antes del modelo.
-Contrastar con \texttt{boe\_source.py}, \texttt{boe\_documents.py},
-\texttt{boe\_http.py}, \texttt{boe\_candidates.py} y el pipeline. Referenciar
-desde esta sección después de recordar la definición de API del capítulo 2.
-Usar el endpoint documentado y las URL XML del sumario, sin inventar servicios.}
-
-\section{Identidad documental}
-\label{sec:identidad-documental}
-El identificador BOE permite reconocer una publicación y evitar tratarla como
-varios documentos. La identidad de su contenido se controla además mediante
-una \emph{huella digital} o \emph{hash}: un valor calculado a partir del
-contenido que permite detectar cambios. El proyecto utiliza SHA-256, un
-algoritmo concreto para calcular esas huellas.
-
-Ambos controles responden a preguntas diferentes. El identificador indica
-qué publicación es; la huella permite comprobar si la versión utilizada
-coincide con la conservada. La fecha, los enlaces y las identidades de
-configuración completan la procedencia. Reutilizar una extracción requiere
-compatibilidad documental y de configuración; no basta con encontrar el
-mismo identificador BOE.
+La figura~\ref{fig:api-corpus}, al final del capítulo, reúne estas operaciones
+con la clasificación posterior. La referencia bibliográfica de la API ya
+incorporada identifica el servicio; falta completar su acceso verificable.
+\citapendiente{Completar URL y fecha de consulta de la documentación oficial
+API BOE ya recogida en la bibliografía; verificar formatos y estados del servicio.}
 
 \section{Selección de candidatos y decisión de relevancia}
 \label{sec:candidatos}
@@ -190,7 +202,45 @@ títulos y la búsqueda histórica delimitan el universo observado. La evaluaci�
 independiente posterior tampoco mide la cobertura de los documentos descartados
 por todas las etapas anteriores.
 
-\section{Corpus de desarrollo}
+\section{Identidad documental}
+\label{sec:identidad-documental}
+El identificador BOE permite reconocer una publicación y evitar tratarla como
+varios documentos. La identidad de su contenido se controla además mediante
+una \emph{huella digital} o \emph{hash}: un valor calculado a partir del
+contenido que permite detectar cambios. El proyecto utiliza SHA-256, un
+algoritmo concreto para calcular esas huellas.
+
+Ambos controles responden a preguntas diferentes. El identificador indica
+qué publicación es; la huella permite comprobar si la versión utilizada
+coincide con la conservada. La fecha, los enlaces y las identidades de
+configuración completan la procedencia. Reutilizar una extracción requiere
+compatibilidad documental y de configuración; no basta con encontrar el
+mismo identificador BOE.
+
+La huella documental empleada por la extracción se calcula a partir del
+identificador, la fecha de publicación, el título y el texto preparado.
+El XML descargado tiene además su propia huella sobre los bytes del archivo.
+Son comprobaciones complementarias: conservar el mismo XML y conservar la
+misma entrada textual del extractor no son exactamente la misma condición.
+Si cambia el texto preparado, cambia la identidad que enlaza el documento con
+sus intentos y revisiones, aunque se mantenga el identificador BOE.
+
+Los manifests relacionan esas huellas con archivos, reglas y versiones de
+cada etapa. Permiten detectar una entrada incompatible y evitar reutilizar
+una extracción como si procediera de otra versión documental. Una huella no
+comprueba que el contenido sea verdadero ni que la extracción sea correcta;
+comprueba la identidad del contenido utilizado. La selección de texto para
+Gemini conserva también una huella propia, descrita en la
+sección~\ref{sec:extraccion-gemini}.
+
+\section{Corpus utilizados y separación de finalidades}
+\label{sec:corpus-utilizados}
+Un \emph{corpus} es un conjunto de documentos delimitado para una finalidad.
+En el TFM conviven datos usados para desarrollar el sistema, datos destinados
+a construir el producto y datos reservados para evaluarlo, denominados \emph{holdout}. Aunque todos
+procedan del BOE, sus usos y criterios de selección son diferentes.
+
+\subsection{Desarrollo y registro de exposición}
 El desarrollo utilizó un piloto inicial de 100 documentos y una muestra
 dirigida de 40 documentos para detectar casos difíciles. Estos conjuntos
 sirvieron para revisar reglas y corregir defectos; sus resultados no
@@ -209,7 +259,7 @@ finalidad distinta del corpus de 140 documentos: impedir que un documento
 ya utilizado para tomar decisiones de desarrollo se considere desconocido
 en la evaluación. No se deben sumar ambos tamaños.
 
-\section{Corpus final}
+\subsection{Corpus final del producto}
 La estrategia final se centró en una ventana ancla de catorce días, denominada
 W14, del 7 al 20 de agosto de 2026. Una ventana ancla selecciona actividad
 reciente desde la que buscar publicaciones anteriores relacionadas. Tras
@@ -243,25 +293,25 @@ que resumen esta separación se recogen en la tabla~\ref{tab:corpus}.
 \centering
 \small
 \renewcommand{\arraystretch}{1.2}
-\begin{tabular}{L{3.1cm} C{1.5cm} L{4.1cm} L{4.0cm}}
+\begin{tabular}{L{2.0cm} L{2.2cm} L{3.3cm} C{1.0cm} L{3.2cm}}
 \hline
-Conjunto & BOE & Periodo o referencia & Función \\
+Conjunto & Finalidad & Periodo o referencia & BOE & Uso \\
 \hline
-Desarrollo congelado & 140 & Referencia fijada el 13/08/2026 & Desarrollo y regresión \\
-Registro de exposición & 479 & Usos previos a la selección & Exclusión de evaluación \\
-Ancla W14 & 48 & 07/08/2026--20/08/2026 & Actividad reciente \\
-Histórico recuperado & 56 & Búsqueda: 01/01/2022--06/08/2026 & Antecedentes candidatos \\
-Corpus final & 104 & Ancla más histórico & Construcción del producto \\
-Evaluación independiente & 48 & Marco: 01/01/2024--20/08/2026 & Evaluación de extracción \\
+Desarrollo congelado & Afinar el sistema & Referencia: 13/08/2026 & 140 & Desarrollo y regresión \\
+Registro de exposición & Delimitar lo ya conocido & Usos previos a la selección & 479 & Exclusión del holdout \\
+Ancla W14 & Actividad reciente & 07/08/2026--20/08/2026 & 48 & Punto de partida del producto \\
+Histórico recuperado & Ampliar cronologías & Búsqueda: 01/01/2022--06/08/2026 & 56 & Publicaciones anteriores \\
+Corpus final & Construir el producto & Ancla más histórico & 104 & Materialización Silver y Gold \\
+Holdout & Evaluar la extracción & Marco: 01/01/2024--20/08/2026 & 48 & Evaluación separada \\
 \hline
 \end{tabular}
-\caption{Conjuntos documentales y funciones. Los intervalos de búsqueda no
+\caption[Conjuntos documentales y funciones]{Conjuntos documentales y funciones. Los intervalos de búsqueda no
 son fechas mínimas y máximas observadas. Las filas no son sumables, salvo
 ancla e histórico, que son disjuntos.}
 \label{tab:corpus}
 \end{table}
 
-\section{Separación del conjunto de evaluación}
+\subsection{Conjunto reservado para evaluación}
 Un \emph{holdout} es un conjunto reservado para evaluar el sistema con
 documentos que no se han utilizado para ajustar sus reglas. Permite observar
 su comportamiento más allá de los ejemplos de desarrollo. En este TFM se
@@ -284,3 +334,31 @@ muestra aleatoria de los proyectos mostrados en la aplicación.
 La anotación humana, la fijación de las reglas de evaluación y las medidas
 utilizadas se explicarán en el capítulo~\ref{ch:evaluacion}. La tabla anterior
 describe los conjuntos y no anticipa resultados de rendimiento.
+
+\section{De candidato a documento procesable}
+El capítulo ha descrito cuatro operaciones que conviene mantener separadas.
+\emph{Recuperar} obtiene los metadatos del sumario; \emph{seleccionar candidatos}
+aplica el filtro de títulos y determina qué XML descargar; \emph{decidir el
+alcance} establece si el documento cumple las reglas de generación;
+\emph{extraer} convierte su contenido en entidades y actuaciones.
+La figura~\ref{fig:api-corpus} muestra dónde se sitúa cada operación.
+
+El documento procesable reúne identificador, fecha, título y texto no vacío,
+con identidad y procedencia comprobables. Las reglas previas resuelven algunos
+negativos sin modelo. Para los demás candidatos, Gemini produce conjuntamente
+una clasificación y, si procede, la información estructurada. Que un documento
+haya sido descargado o seleccionado no garantiza que sea relevante, y que la
+respuesta tenga una estructura válida no garantiza que su interpretación sea
+correcta. El capítulo siguiente explica los contratos y controles que separan
+estas decisiones y permiten construir los datos para consulta.
+
+\begin{figure}[p]
+\centering
+\input{figs/api_boe_corpus}
+\caption[API del BOE y construcción del corpus]{El sumario identifica
+publicaciones; el filtro de títulos selecciona los XML que se descargarán.
+Las reglas posteriores resuelven ciertos negativos y el modelo clasifica los
+casos restantes. La salida se valida antes de utilizarse. Elaboración propia
+a partir del acceso BOE y del pipeline implementados.}
+\label{fig:api-corpus}
+\end{figure}
