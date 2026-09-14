@@ -18,208 +18,185 @@ work listed here may enter the product.
 
 ## September closeout — active plan, audited 2026-09-13
 
-This section supersedes the August calendar, pending-work labels and next-action
-sequence below. Those records preserve historical decisions and run provenance;
-they are not authorization to resume product development or P2 extraction.
+**TECHNICAL EVALUATION FREEZE: COMPLETE — 2026-09-13.**
 
-- **2026-09-15 = TECHNICAL EVALUATION FREEZE**: system, human truth, evaluator,
-  predictions, metrics and evaluation artifacts closed.
-- **2026-09-18 = FINAL TFM DEADLINE**: complete written TFM, reviewed PDF,
-  reproducibility evidence and delivery archive.
-- **16–18 September are for analysis, writing, review and delivery, not product
-  expansion.** Existing functional/data freezes remain effective.
+The technical milestone originally scheduled for 15 September was completed
+on 13 September. Final delivery remains **18 September 2026**. Current phase:
+**written-TFM completion, results presentation and delivery review**.
 
-Current phase: **evaluation and written-TFM closeout**. The audited checkout is
-`tfm-evaluation@10e1ada589731e00cd5d5ec3f61694aab0c668d3`, initially clean and equal
-to the local `origin/tfm-evaluation` tracking ref (no remote fetch). The system
-under evaluation remains `tfm-final@282de815bea4e248bdcba2c655e3ee078cb58a49`.
-Production code, runtime configuration and lockfile have no diff against that
-frozen system in the audited checkout.
+This checkpoint supersedes the pending-evaluation labels and next-action
+sequences in the historical ledger below and in earlier implementation
+reports. Those records preserve development history; they do not authorize
+further extraction, refreezing, tuning or POST-TFM development.
+
+Canonical final experimental results and manuscript material:
+[Final Holdout V2 Results](evaluation/FINAL_HOLDOUT_V2_RESULTS.md).
+That document separates **PRIMARY RESULTS** from the approved
+**POST-HOC DIAGNOSTIC — NOT PRIMARY SCORING** and records complete identities,
+paths, timestamps, denominators, cases and verification commands.
+
+The documentation audit started on clean
+`tfm-evaluation@2c0632b89d59ef3f7e25c24ee61e74ca3ac3c6f1`. The evaluated
+system remains `tfm-final@282de815bea4e248bdcba2c655e3ee078cb58a49`.
+The evaluator/controller checkout and frozen production commit are distinct
+provenance roles. Production code, runtime configuration and lockfile have
+no diff against the frozen system. No model, evaluation or test suite is
+rerun for this documentation-only closure.
 
 ### Evidence that determines remaining work
 
 | Block | State | Verified evidence / remaining gate |
 | --- | --- | --- |
-| Final W14 data pipeline | DONE | The 13-table Silver loader and four-table Gold loader pass; 233 Silver actions, 86 projects, 80 relevant BOEs; grouping reproduces in memory; publication Gold is byte-identical. Existing identities below are unchanged. |
-| Local Streamlit implementation | DONE | Gold-only loader, filters, search, charts, administrative map, detail and bounded mailto are implemented in `streamlit_app.py` and `src/renewables_permitting/app_*.py`; public deployment and final visual/security acceptance are separate outstanding delivery evidence. |
-| Holdout selection | DONE | 48 unique documents, six year/series strata of eight, seed `20260821`; zero overlap with the 479-document development registry or 104-document W14 corpus. |
-| V2 human annotation | DONE | Read-only `validate-truth --require-complete` passes: 48 complete, zero draft; source membership/hashes match the selection; 30 events, 37 assets, 81 actions, 111 locations; all 108 evidence passages pass existing literal validation. No structural correction identified. |
-| V2 truth freeze | DONE | The sole final truth is `runs/final_holdout_p2_v1_truth_v2_frozen`; read-only loader confirms 48 documents and the exact truth/manifest identities below. No annotation or freeze files are edited in V2-B. |
-| V2-B evaluator | HISTORICAL FREEZE PRESERVED / REFREEZE PENDING | `runs/final_holdout_p2_v1_evaluator_v2_frozen` is byte-identical and validates against archived `10e1ada...` code. It correctly rejects the corrected checkout; a new freeze at a new destination is required after fix review/commit/push. Identities below. |
-| Primary operational controller | COMMITTED | External `evaluation/primary_execution/` is closed in `10e1ada...`; it remains unchanged during the guard fix. Detached environment, explicit API-key injection, preparation and human preflight review precede real execution. |
-| Evaluator usage guard | READY FOR REFREEZE / HUMAN REVIEW PENDING | Minimum reported requests now counts only successful model-origin attempts. Zero-usage terminal errors remain preserved/evaluable; usage is never estimated. All 1,785 tests pass; scientific behavior is unchanged. Review/commit/push must precede the new freeze. |
-| Final experiment | PENDING | Requires fix review/commit/push, a new verified evaluator freeze and supersession of the old one before Gemini, followed by detached environment, injected API key, preparation and human preflight approval. No real predictions or final metrics are inspected/produced by this fix. |
-| Written TFM | PARTIAL | `docs/tfm_report/` contains a LaTeX template, placeholder chapters/resumen, two objective notes and five bibliography entries. Technical Markdown is reusable; the scientific narrative/results are not written. |
-| Delivery reproducibility | PARTIAL | Python 3.10, `uv.lock`, CLI, source/Gold hashes and versioned human inputs exist; final execution record, evaluator identity, distributable external artifacts and delivery acceptance remain. |
+| Final W14 data pipeline | DONE | Existing validated evidence: 13 Silver tables, four Gold tables, 233 Silver actions, 86 projects and 80 relevant BOEs. Existing data identities below are unchanged; no data materialization in this block. |
+| Local Streamlit implementation | DONE; DELIVERY REVIEW REMAINS | Existing Gold-only application and bounded mailto control are implemented. Human visual/security review, captures and any outstanding public read-only delivery acceptance remain separate from the completed experiment. |
+| Holdout selection | DONE | 48 unique documents; six A/B × 2024/2025/2026 strata of eight; seed `20260821`. Previously verified zero overlap with the 479-document development registry and 104-document W14 corpus. |
+| V2 human annotation | DONE | 48 complete documents: 30 relevant, 18 not relevant; 30 events, 37 assets, 81 actions (36 current, 45 historical), 111 locations. Completeness/integrity do not establish semantic exhaustiveness or independent second review. |
+| V2 truth freeze | COMPLETE | `runs/final_holdout_p2_v1_truth_v2_frozen`; read-only frozen loader verifies the expected identity and manifest. Working truth is not a scoring input. |
+| V2-B evaluator | COMPLETE; DEFINITIVE FREEZE VERIFIED | `runs/final_holdout_p2_v1_evaluator_v2_frozen_2c0632b`, identity `a617ef6155cfcd8c403b0c55542cb753fac22f7893f57f3861af665ae23dda5b`. The older freeze is superseded for this experiment and preserved unchanged. |
+| Primary operational controller | CLOSED; RUN COMPLETED | Controller commit `10e1ada…`; final harness checkout `2c0632b…`. Production ran from the detached frozen system. No further run is authorized by this checkpoint. |
+| Evaluator usage guard | CLOSED | Bounded fix committed in `2c0632b…` and included in the definitive freeze before primary execution. Only successful model-origin attempts contribute to the minimum reported-request guard; scoring and reported usage are unchanged. |
+| Primary predictions | FROZEN | `final-holdout-v2-primary-001`: 47 TERMINAL_SUCCESS, one TERMINAL_ERROR; zero PENDING, STARTED or INDETERMINATE. Exactly 48 documents; primary snapshot and execution record verified. |
+| Final evaluation | COMPLETE; VALIDATED | `runs/final-holdout-v2-evaluation-primary-001`; `validate-evaluation` returns `valid=true` with the expected output ID and manifest. |
+| Post-hoc diagnostic | COMPLETE; APPROVED | Quantified hierarchy, conditional denominators and representative cases recorded in the results document. No implementation defect found in the inspected paths; no alternative scoring or new matches. |
+| Results documentation | READY FOR HUMAN REVIEW | Canonical results, tables A–F, LaTeX transfer blocks, academic statements and memory integration map prepared. Next gate is documentary review and explicitly approved commit/push. |
+| Written TFM | REQUIRED; MAIN REMAINING WORK | `docs/tfm_report/` still contains example chapters, placeholder preamble/annex and five bibliography entries. Write the scientific manuscript using the final results; no template restructuring in this block. |
+| Delivery reproducibility | EXPERIMENT PROVENANCE COMPLETE; DELIVERY ARCHIVE REMAINS | Frozen system/truth/evaluator, primary predictions, execution record and valid evaluation now exist. Preserve and distribute accessible external artifacts with hashes; finish archive and human delivery acceptance. |
 
-The working and frozen truth directories are protected by per-file SHA-256
-inventories in the V2-B implementation block. The frozen loader verifies
-the truth identity
-`e3f300253db94931345e9bbbc489cd810802f94339c3b6a0d751f98b32383b54`;
-its physical manifest SHA-256 is
-`4f32dc8f89fff8ae1b80f7fb5f94e9168d131f4dea3d0d025640e869c07c148c`.
-This is now an operational truth freeze, separately completed after the earlier
-annotation audit. Completeness does not establish semantic exhaustiveness or
-an independent second review.
+### Final experiment provenance
 
-Pre-implementation audit verification: 150 evaluation/P0 tests and 252 product/data/source tests
-pass offline; this is not a rerun of the historical 1,486-test full suite.
-AppTest against the real corrected Gold also passes with zero exceptions and
-86/80 KPIs. These checks do not replace human browser/security acceptance.
+All values below were verified read-only before documentation edits. Full
+physical manifest hashes and the original execution-record hash are recorded
+in the canonical results document.
 
-Historical P0 truth-publication implementation verification on `tfm-evaluation`, based on
-`954f485e5582d1183147d83305fcf4290396b9aa`: **55 focused freeze tests**, **190
-evaluation tests**, then **1,541 tests in one complete repository suite** pass
-(22.24 s, 122.10 s and 431.56 s respectively). Freeze writes used synthetic
-temporary inputs exclusively; V1 and the real working truth remain unchanged.
-No real freeze, prediction inspection, model execution or V2-B implementation
-was performed in that earlier block. The subsequent truth freeze is now
-complete as recorded above; the earlier implementation state is historical.
+| Artifact | Final identity |
+| --- | --- |
+| Production commit | `282de815bea4e248bdcba2c655e3ee078cb58a49` |
+| Truth | `e3f300253db94931345e9bbbc489cd810802f94339c3b6a0d751f98b32383b54` |
+| Evaluator | `a617ef6155cfcd8c403b0c55542cb753fac22f7893f57f3861af665ae23dda5b` |
+| Primary prediction snapshot | `154c9b42e840f5d3c8989f8470680d040f40113700f040023ebdbae70e21a500` |
+| Evaluation output | `4686355d47e0e21ad4b88e313e5ddd9561195e6696893945da6610b1f3b371fd` |
 
-V2-B implements `final_holdout_scoring_v2_b_1` and
-`final_holdout_evaluator_v2_b_1` in the isolated evaluation package. Its separate
-`scoring_rules.json` preserves the annotation `contract.json` bound by the
-truth freeze. Code/rule/contract identities, explicit truth binding and
-timestamps are recorded independently; evaluator semantic identity includes no
-prediction, metric, absolute path or timestamp. The real evaluator is frozen at
-`runs/final_holdout_p2_v1_evaluator_v2_frozen`, created
-`2026-09-13T11:17:43.423742+00:00`, with identity
-`956213df2a1669814f82491809d776998346d9e54cb1fdc8d9a5434e8dd26f77`
+The primary execution record starts at `2026-09-13T15:06:50.219263+00:00`
+and ends at `2026-09-13T15:28:00.612890+00:00`. Primary predictions were
+frozen at `2026-09-13T15:32:07.325125+00:00`; the evaluation report was
+created at `2026-09-13T15:36:43.131585+00:00`.
+
+The sole terminal error, `BOE-B-2024-32569`, is a preserved
+`DocumentExtractionValidationError`. It contributes a missing-scope error,
+but no entity FP/FN because its truth is negative. It was not retried after
+the protocol or replaced. Operational TERMINAL_SUCCESS is not a claim of
+semantic correctness.
+
+The historical evaluator at `runs/final_holdout_p2_v1_evaluator_v2_frozen`
+has identity `956213df2a1669814f82491809d776998346d9e54cb1fdc8d9a5434e8dd26f77`
 and manifest SHA-256
 `6d7193d555445d7514b918a31fc30ea57b905e0382912870add2da075c1fdd55`.
-Both were verified before controller implementation. The controller deliberately
-lives outside the packages hashed by that freeze; no seal is changed. See
-`docs/evaluation/PRIMARY_EXECUTION_V2.md` for execution, recovery and provenance.
+It remains historical evidence; the definitive artifact is the separate
+`…_frozen_2c0632b` directory. No existing artifact was resealed for this
+documentary closure.
 
-V2-B closing verification, 2026-09-13: **153 focused V2-B tests** pass in
-82.34 s; **343 evaluation tests** in 217.31 s; **15 existing P0 historical
-safeguard tests** in 8.49 s; **1,694 tests in one complete repository suite**
-in 547.32 s. This adds 153 tests to the previous 1,541-test reference.
-`git diff --check` passes. Test writes use invented BOE-2099 fixtures and
-temporary directories; no real prediction is read and no real evaluator freeze
-or evaluation is executed. The exact verification commands are recorded in
-`docs/evaluation/V2_B_EVALUATOR.md`. Those implementation-closing gates were
-subsequently completed for the evaluator; its actual freeze is recorded above.
-Controller review and the real primary experiment remain pending.
+### Primary results and interpretation gate
 
-Primary-controller verification, 2026-09-13: the new synthetic suite contains
-**79 tests**. Existing evaluation tests pass (**343**, 219.33 s), as do the
-pertinent production tests (**986**, 146.18 s). The explicitly requested single
-complete suite finished with **1 failed, 1,772 passed** in 682.47 s: a new test
-fixture retained the frozen runner's last-document `debug_state`, breaking an
-existing import-boundary assertion. Only the new fixture was corrected to
-restore that diagnostic; production and controller code were unchanged after
-the complete run. The ordered follow-up passes **80 tests** in 154.82 s (the
-79 controller tests followed by the affected import regression). The exact
-command/result ledger is in `docs/evaluation/PRIMARY_EXECUTION_V2.md`; that
-initial block did not perform a second full run. The subsequent verification
-request explicitly authorized one new complete suite after the fixture fix:
-**1,773 passed in 661.26 s (0:11:01), exit 0**. No code or tests changed during
-this closure. Controller acceptance: **READY FOR CONTROLLER COMMIT**, subject to
-human authorization; the separate evaluator usage blocker still prohibits Gemini.
-Before/after inventories and SHA-256 match for all **26 protected files**
-(11 working truth, 13 frozen truth, 2 frozen evaluator). No real primary run,
-system worktree, model call or evaluation was created during this block.
+Document scope is **46/48**, accuracy **0.9583333333**. Frozen entity counts
+(TP/FP/FN) are assets **20/19/17**, events **13/25/17**, current actions
+**1/57/35**, locations **43/95/68**; action → asset is **1/59/38**.
+No global accuracy exists.
 
-The subsequent closure audit confirms 21 execution-record properties and 21
-required fields, identical to the V1 validator reused by V2; the earlier count
-of 22 was a reporting error. The ignored main-checkout `.env` declares
-`GOOGLE_API_KEY`, but neither primary command loads it automatically. A launch
-with explicit `uv --env-file` safely supplies the inherited environment; the
-documented procedure was checked using a temporary fake key only.
-That closure classified the old usage guard as a **PRE-GEMINI BLOCKER**:
-two synthetic successes and one zero-usage error produced a valid primary
-snapshot/record rejected by V2 (`2 < 3`). The approved bounded correction is now
-implemented: only successful model-origin attempts count toward the minimum.
-The new code declaration is
-`a617ef6155cfcd8c403b0c55542cb753fac22f7893f57f3861af665ae23dda5b`;
-the only changed identity input is `evaluation/final_holdout_v2/evaluator.py`.
-No new evaluator freeze/manifest exists. Review/commit/push, a new freeze in a
-new destination, verification and formal supersession of the old freeze remain
-mandatory before Gemini. The unchanged controller's historical usage-bound
-diagnostic is not the corrected evaluator's admissibility gate; see the primary
-procedure. The API key already exists in `.env` and needs explicit loading at
-the authorized execution gate, not a development fix.
+The approved post-hoc action cascade explains 35 FN as 18 under unmatched
+events and 17 without evidence candidates; 57 FP comprise 37 under unmatched
+events and 20 without evidence candidates. No ambiguity was observed. This
+diagnosis does not modify any match or primary metric.
 
-Usage-guard closing verification: **12 focused tests** pass (22.75 s), **165
-V2-B tests** (87.28 s), **434 evaluation tests** (357.91 s), **8 pertinent
-controller tests** (51.56 s), then **1,785 tests in one complete suite**
-(669.67 s / 0:11:09), all exit 0 and in that order. The pre-fix synthetic
-reference reproduces every metric and all 12 scientific-table identities.
-Reported usage and terminal errors are preserved. All 26 protected files are
-byte-identical; production, controller, V1, scoring rules and truth contracts
-have no diff. `git diff --check` passes. Exact commands and archive verification
-are recorded in `docs/evaluation/V2_B_EVALUATOR.md`. No real refreeze or other
-subsequent gate has been executed.
+Attributes are conditional on applicable matched pairs: generation type
+20/20, location level 43/43, each action attribute 1/1 and exact affected-asset
+set 1/1. Evidence is supported 0/1. P0 has TP=0, FP=0, FN=0, TN=1,
+unadjudicated=1 and 45 missing extractions that are not P0 FN; precision,
+recall and F1 are null and false warning rate is 0/1.
+
+Current-only extraction positives, historical contamination, owner-specific
+evidence, complete event asset sets, forced 1:1 matching, temporal/P0 rules
+and micro denominators remain as defined in
+`docs/evaluation/FINAL_HOLDOUT_EVALUATION_CONTRACT_V2.md`. No categorical
+temporal accuracy is inferred. Effective attribution still projects event
+targets to all event assets, direct targets to their assets and components
+only through explicit generation links.
+
+The final record declares no manual intervention before primary freeze.
+Document the actual annotation/QA and exposure provenance in the manuscript;
+do not infer an independent review from metadata or hashes. No new
+annotation, code change or evaluation is needed to complete this results
+documentation block.
 
 ### Critical path and human gates
 
-P0 means indispensable for delivery (BLOCKER or REQUIRED under `AGENTS.md`);
-P1 means OPTIONAL and may start only after all P0 work is closed. The plan is
-conditional on the human gates, not permission to execute its next block.
+P0 means indispensable for delivery (BLOCKER or REQUIRED under `AGENTS.md`).
+The remaining P0 sequence is documentation, writing and delivery review,
+not product development. Each next block needs its own human acceptance;
+this plan is not permission to execute model or publication operations.
 
-| Date | Priority | One primary outcome | Dependency / acceptance |
+| Order / date | Priority | One primary outcome | Dependency / acceptance |
 | --- | --- | --- | --- |
-| 13 Sep | P0 / REQUIRED | Preserve and verify the completed V2 truth freeze | DONE: read-only verification matches the approved truth and manifest IDs. Working is not a scoring input. |
-| 13 Sep | P0 / REQUIRED | Record approved semantics and annotation provenance before V2-B | Current-only extraction and P0 semantics are approved and documented in the V2 contract. The remaining documentary gate records the actual blind-annotation/QA history. Preserve human annotations and production behavior. |
-| 13–14 Sep | P0 / REQUIRED | Review the bounded evaluator usage fix | Controller committed. Next: human review → fix commit/push → new evaluator freeze in a new destination → verify identity/manifest → supersede old freeze → prepare/verify detached system worktree → API-key presence → preparation → human preflight review → only then `run-primary`. |
-| 15 Sep | P0 / REQUIRED | TECHNICAL EVALUATION FREEZE | Only after explicit execution authorization: frozen system on exactly 48 BOEs, durable original outputs, execution record, frozen evaluator, metrics, integrity checks and error inventory. No tuning or opportunistic matching changes. |
-| 16 Sep | P0 / REQUIRED | Results and scientific analysis | Use frozen metrics to produce the small final table/figure set, error taxonomy, representative cases, Results and Discussion. |
-| 17 Sep | P0 / REQUIRED | Complete manuscript content | Finish methods, limitations, conclusions, future work, reproducibility and references; reconcile objectives with results; integrate screenshots and artifact identities. |
-| 18 Sep | P0 / REQUIRED | FINAL TFM DEADLINE | Full PDF/readability/reference/index/annex review, reproduce documented delivery checks, archive accessible artifacts, human acceptance; final commit/tag/push only if expressly authorized. No normal functional development. |
+| 1 — 13 Sep | P0 / REQUIRED | Close results documentation | Review canonical results, identities, primary/post-hoc separation and tables; explicitly authorized documentary commit/push. |
+| 2 — 13–17 Sep | P0 / REQUIRED | Write the manuscript | Methods, architecture, Results, Discussion, limitations and conclusions; use the memory integration map and distinguish complete-system behavior from model behavior. |
+| 3 — 14–17 Sep | P0 / REQUIRED | Prepare academic tables and figures | Transfer tables A–F; create architecture and matching-cascade figures from approved material. No new metric or experiment. |
+| 4 — by 17 Sep | P0 / REQUIRED | Review application and captures | Existing product's visual/security/read-only delivery review and screenshots; complete any outstanding authorized delivery gate without reopening product scope. |
+| 5 — by 17 Sep | P0 / REQUIRED | Complete references and appendices | Reconcile references, annotation provenance, artifact access, hashes and technical annexes; do not invent citations or reviews. |
+| 6 — 18 Sep | P0 / REQUIRED | Review PDF and deliver | Layout, references, indices, tables, readable figures, accessible archive and final human acceptance; publish/tag/push only with explicit authorization. |
 
-Start source/corpus/architecture/contracts/grouping/territory/annotation/product
-writing immediately alongside the technical gates. Waiting until 16 September
-to start the manuscript is not realistic given the template-only state.
-Complete the outstanding simple read-only deployment, mailbox configuration,
-visual/security review and screenshots by 17 September within the existing
-product gate; do not make deployment a prerequisite for running the scientific
-evaluation. If unavailable, record the delivery gap for human disposition,
-not an implicit waiver or an architectural expansion.
+Write immediately. The technical evaluation is complete and is no longer a
+dependency waiting on Gemini or another freeze. The document/figure/application
+review tasks may proceed alongside manuscript writing within these boundaries.
+If a public read-only delivery requirement remains unavailable, record the
+gap for human disposition; do not silently waive it or expand architecture.
 
-The human temporal decision is now formalized in
-`docs/evaluation/FINAL_HOLDOUT_EVALUATION_CONTRACT_V2.md`: only `current` actions
-are expected extraction positives. Extracted historical antecedents are primary
-extraction FP; omitted historical antecedents are neither extraction FN nor P0
-FN. Historical truth is retained for diagnosis and P0. `temporal_status` is a
-truth adjudication variable; no categorical temporal accuracy is defined because
-production has no equivalent output field. P0 remains a separate alarm on an
-extracted action, with unadjudicated warnings reported separately and
-false warning rate `FP / (FP + TN)` over adjudicable extracted current actions.
-V2-B implements these rules. Effective attribution projects event targets to all
-event assets, direct targets to their assets, and components only through
-explicit generation links, matching existing Gold semantics.
-
-Human V2-B acceptance must review the implemented exact normalization, complete
-event sets, owner-specific evidence matching, forced 1:1 ties, explicit
-unmatched/excluded rows, applicable-field denominators, null zero-denominator
-convention, micro metrics and P0 before any final output is viewed.
-Metadata declares blind annotation, but a retrospective declaration alone
-does not prove all exposure history. Document actual annotator/QA provenance
-and any independent review that occurred; if none, state the limitation. No
-new exhaustive semantic annotation pass is inferred from this audit.
-
-P1 / OPTIONAL: additional scientific exposition or a bounded independent QA
-only if all P0 work is closed and the blind/frozen protocol permits it; never
-change frozen truth or scoring in response to predictions.
+P1 / OPTIONAL: additional exposition or a bounded diagnostic figure only
+after REQUIRED deliverables. Never alter truth, matching, scoring or
+predictions in response to observed results.
 
 POST-TFM / OUT_OF_SCOPE: `environmental_outcome`, next milestone, expanded
 hybridisation, new cross-event inference, power/promoter/participant primary
 metrics, component/technical/exact-target/non-action-evidence primary metrics,
 new extraction variables/sources, holdout expansion, model tuning, persistent
-reporting, daily automation/scheduler, new administrative features, cosmetic
-Streamlit work, complex deployment and nonessential refactors/architecture.
+reporting, daily automation, administrative features, cosmetic Streamlit work
+and nonessential refactors or architecture.
 
-Schedule risk remains high: the bounded evaluator fix needs review, the primary
-experiment remains a separate authorized gate, and the manuscript is largely
-unwritten. Next: human fix review → approved commit/push → new evaluator freeze,
-identity/manifest verification and old-freeze supersession → detached system
-environment and API key injection → prepared-run review → only then authorization
-for Gemini on the 48 BOEs. This block executes none of those real gates.
-If the 14 September operational gate fails,
-do not inspect predictions or call Gemini to save time. Escalate the milestone
-conflict to the human reviewer; do not silently spend 16–18 September on
-functional software work or weaken scientific safeguards.
+Schedule risk is now manuscript and delivery completion. No additional
+development is started by this closure. Next: **human documentary review →
+explicitly approved documentary commit/push → manuscript writing**.
+
+### Historical implementation verification — not rerun for documentation
+
+The following results belong to earlier implementation gates. Their exact
+command ledgers remain in `docs/evaluation/V2_B_EVALUATOR.md` and
+`docs/evaluation/PRIMARY_EXECUTION_V2.md`; they are not tests run in this
+documentation-only task.
+
+- Pre-implementation audit: 150 evaluation/P0 tests and 252 product/data/source
+  tests; separate Gold AppTest with 86/80 KPIs and no exceptions.
+- Truth publication: 55 focused tests (22.24 s), 190 evaluation tests
+  (122.10 s), then 1,541 full-suite tests (431.56 s), using synthetic inputs.
+- V2-B closure: 153 focused tests (82.34 s), 343 evaluation tests (217.31 s),
+  15 existing P0 tests (8.49 s), then 1,694 full-suite tests (547.32 s).
+- Controller: 79 new tests; existing evaluation tests 343 (219.33 s) and
+  production tests 986 (146.18 s). The initial complete suite had one failure
+  and 1,772 passes (682.47 s), caused by new-fixture `debug_state` isolation.
+  After only that fixture correction, the ordered regression passed 80 tests
+  (154.82 s); the separately authorized final full suite passed 1,773 tests
+  (661.26 s). Controller commit: `10e1ada…`.
+- Usage guard: 12 focused tests (22.75 s), 165 V2-B tests (87.28 s),
+  434 evaluation tests (357.91 s), eight pertinent controller tests
+  (51.56 s), then 1,785 full-suite tests (669.67 s), all exit 0.
+  The pre-fix synthetic comparison preserved all metrics and all twelve
+  scientific-table identities. Fix commit: `2c0632b…`.
+- The earlier execution-record audit found 21 properties and 21 required
+  fields; 22 was a reporting error. The request-accounting fix preserved that
+  schema. Operational launch and historical usage-counter details remain in
+  the primary execution procedure; they are not unresolved execution gates.
+
+The present documentary closure uses read-only artifact validators and
+identity checks, followed by documentation consistency checks and Git diff
+integrity. It changes no code, test, schema, notebook, truth, Gold, Streamlit
+or `runs/` artifact and makes no model, network or evaluation call.
 
 ## 1. Historical delivery ledger — superseded by the September checkpoint
 
@@ -291,9 +268,10 @@ Deployment dataset → published Gold
 ```
 
 Historical phase: **product completion**. Gates 1 and 2, the final corpus, Gold
-materialization and final local Streamlit alignment are complete. Public
+materialization and final local Streamlit alignment were complete. Public
 deployment, final visual/security review, screenshots, written evidence and
-the final holdout remain pending. `project_components` and
+the final holdout remained pending at that checkpoint; the final experiment
+is now complete as recorded above. `project_components` and
 `project_relationships` are approved concepts deferred to POST-TFM, not August
 Gold contracts.
 
@@ -403,15 +381,16 @@ Complete in dependency order:
    environment. Deployment must configure matching `RENEWABLES_GOLD_DIR` and
    `RENEWABLES_EXPECTED_DOWNSTREAM_ID` values. Rollback switches both values to
    a previous validated artifact. Never deploy directly from `runs/`.
-12. **Final validation.** Run focused regressions, the full suite,
-    reproducibility and security checks, visual review and production smoke
-    tests after the functional freeze.
-13. **Final holdout.** Select it only after the extraction/review policy and
-    functional product are frozen. Exclude all 479 documents versioned in
-    `development_used_documents.csv`; the holdout remains outside the core
-    freeze. Exposure provenance is resolved; the final selection is versioned,
-    sealed and not yet executed. Membership remains undisclosed until the
-    approved blind-annotation and one-shot evaluation protocol breaks the seal.
+12. **Final validation.** Implementation regression/full-suite evidence is
+    recorded above. Remaining delivery checks cover reproducibility, document
+    consistency, security, human visual review and the authorized public
+    artifact. Documentation-only edits do not rerun the software test suite.
+13. **Final holdout — COMPLETE 2026-09-13.** The frozen selection excluded the
+    479-document development registry and remains outside the core freeze.
+    Truth, definitive evaluator, primary predictions and validated evaluation
+    are closed; the approved post-hoc diagnosis found no implementation defect
+    in the inspected paths. Use `docs/evaluation/FINAL_HOLDOUT_V2_RESULTS.md`.
+    Do not repeat extraction, alter matching or reopen annotation for writing.
 14. **Delivery evidence.** Prepare screenshots, limitations, data identities,
     written-TFM evidence and synchronized documentation.
 15. **Git closeout.** Review, commit and push only approved files, record the
@@ -524,7 +503,7 @@ backend that violates the stop conditions, stop and apply the scope-cut rule.
 | **3 — Gold** | Approved contracts/materialization validated, or explicit NO-GO confirms no extension |
 | **4 — UI** | Dashboard functionally and visually reviewed |
 | **5 — Deployment** | Public artifact deployed and smoke-tested with approved identity |
-| **6 — Final** | Holdout, tests, reproducibility, documentation and delivery evidence accepted |
+| **6 — Final** | Technical holdout evaluation COMPLETE 2026-09-13; manuscript, presentation, accessible archive and human delivery acceptance remain |
 
 Codex must not skip or combine gates.
 
@@ -539,6 +518,7 @@ open.
 | **Design freeze** | Effective after the Gate 2 commit dated 2026-08-20 | No new pages, KPIs, charts, detail data or reporting functions except approved material defects |
 | **Data-model freeze** | End of 24 August | No Gold changes except material defects |
 | **Functional freeze** | End of 27 August | Only bug fixes, security, deployment, documentation and validation |
+| **Technical evaluation freeze** | COMPLETE 2026-09-13 | System, truth, evaluator, primary predictions and metrics fixed; proceed to documentary review and manuscript writing |
 
 The 140-document core freeze remains an unchanged development/regression
 baseline at `runs/canonical-140-freeze-final-candidate-20260813/`, with tag
@@ -746,6 +726,7 @@ runtime default. The systemic historical-antecedent safeguard is closed,
 human-approved and committed as `7c9fcbc`: it is a non-destructive
 dual-signal review gate with exact approved-correction or CURRENT-validation
 reconciliation and executable replay. P2 is fallback only; `main-04` through `main-20` and the two old
-`main-03` retries are not required for the final TFM corpus. The holdout remains
-unsealed only for blind human annotation; predictions remain unexecuted and
-unseen.
+`main-03` retries were not required for the final TFM corpus. At that historical
+checkpoint, the holdout was unsealed only for blind human annotation and
+predictions were unexecuted and unseen. The September checkpoint above records
+the subsequently completed final experiment and its immutable results.
