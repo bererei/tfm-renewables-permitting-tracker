@@ -1,0 +1,33 @@
+% F08. Dependencias del diagnóstico aprobado; recuentos primarios intactos.
+\begin{tikzpicture}
+\node[tfm heading, text width=12.2cm] (title) at (0,0)
+  {DIAGNÓSTICO POST-HOC\\No modifica los resultados primarios};
+\node[tfm data, text width=11.6cm, inner sep=8pt,
+  below=6mm of title] (assets) {
+  \textbf{Un activo de generación queda sin pareja}\\[4pt]
+  Recuentos del experimento: 37 en referencia / 39 predichos / 20 emparejados
+};
+\node[tfm box, text width=11.6cm, inner sep=8pt,
+  below=13mm of assets] (events) {
+  \textbf{Puede impedir el emparejamiento de su evento}\\[4pt]
+  El evento exige el conjunto completo de activos emparejados\\[4pt]
+  Recuentos: 30 en referencia / 38 predichos / 13 emparejados
+};
+\node[tfm accent, text width=11.6cm, inner sep=8pt,
+  below=13mm of events] (children) {
+  Sin evento emparejado, sus actuaciones y localizaciones\\
+  tampoco pueden emparejarse
+};
+\node[tfm note, text width=11.6cm, below=6mm of children] (counts) {
+  Actuaciones del experimento: 36 actuales en referencia /\\
+  58 predichas / 1 actual emparejada
+};
+\node[tfm note, text width=11.6cm, below=6mm of counts] {
+  Emparejar el evento es necesario, pero no suficiente: después se comprueban\\
+  la evidencia de la actuación y el nombre de la localización.\\[5pt]
+  Las flechas muestran dependencias posibles. Los recuentos son totales\\
+  del experimento, no errores atribuibles a cada flecha ni causas sumables.
+};
+\draw[tfm flow] (assets.south) -- (events.north);
+\draw[tfm flow] (events.south) -- (children.north);
+\end{tikzpicture}

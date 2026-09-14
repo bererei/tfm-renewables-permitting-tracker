@@ -6,25 +6,16 @@
 Explicar su significado respecto a los objetivos antes de introducir
 el diagnóstico. Separar detección de entidades y atributos sobre pares
 emparejados; no atribuir toda la salida final al modelo Gemini.}
-\section{Diagnóstico posterior de las discrepancias}
-\pendiente{POST-HOC DIAGNOSTIC — NOT PRIMARY SCORING. Utilizar únicamente
-el diagnóstico aprobado: alias, división de eventos, dependencia jerárquica,
-evidencia de títulos y canonicalización. Distinguir error del modelo, efecto
-determinista, limitación del matching y discrepancia de representación;
-no confundirlos con errores de agrupación longitudinal de Gold.
-No crear nuevos matches.}
-\pendiente{FIGURA F08 — Cascada de matching
-\par Etiqueta prevista: \path{fig:cascada-matching}. Etiquetar POST-HOC DIAGNOSTIC — NOT PRIMARY
-SCORING. La ausencia de emparejamiento de un activo impide satisfacer el
-conjunto completo exigido para su evento; esto puede dejar actuaciones y
-localizaciones sin match. El emparejamiento del padre es necesario, no
-suficiente. Si ayudan, usar los conteos diagnósticos ya fijados: activos
-37 truth / 39 predichos / 20 matches; eventos 30 / 38 / 13; actuaciones
-36 actuales truth / 58 predichas / 1 match actual. No convertirlos en una
-métrica nueva ni presentar el diagrama como cambio del scoring. Referenciar
-desde esta sección y mantenerlo separado de los resultados primarios.}
+\section{Interpretación del diagnóstico posterior}
+\pendiente{Desarrollar la interpretación a partir de la
+sección~\ref{sec:diagnostico-posthoc} y la figura~\ref{fig:cascada-matching},
+ya incorporadas al capítulo de resultados. No repetir sus tablas ni
+crear nuevos matches. Distinguir extracción, efecto determinista,
+matching estricto y representación; no confundirlos con errores de
+agrupación longitudinal de Gold. Conservar la separación entre resultados
+primarios y diagnóstico post-hoc al discutir sus implicaciones.}
 \section{Validez y límites de la evaluación}
-\pendiente{Describir tamaño y selección del holdout, una anotadora principal,
+\pendiente{Describir tamaño y selección del holdout, anotación a cargo de una sola persona,
 QA realmente documentado, denominadores pequeños, P0 sin positivos
 emparejados, evidencia y error terminal conservado. No inferir equivalencia
 semántica por comparación aproximada ni generalizar atributos 1/1.}

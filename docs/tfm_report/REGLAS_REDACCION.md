@@ -1,6 +1,6 @@
 # Reglas de redacción de la memoria
 
-Reglas aportadas por la autora y aplicadas desde la corrección de 2026-09-14.
+Reglas acordadas en las solicitudes y aplicadas desde la corrección de 2026-09-14.
 Ámbito: `docs/tfm_report/`. Leer junto a `MAPA_FUENTES.md` antes de continuar
 la redacción. No modifica AGENTS.md ni autoriza trabajo sobre el sistema.
 
@@ -24,6 +24,29 @@ ETL si aparece, Bronze/Silver/Gold, LLM, Pydantic, ground truth, holdout,
 matching, precision, recall, F1, Streamlit, pytest y CLI. Una definición en un
 capítulo anterior permite avanzar; en Discusión conviene recordar el significado
 de la medida antes de interpretarla. No repetir por sistema el mismo párrafo.
+
+## Voz narrativa
+
+Usar como norma una redacción académica neutra e impersonal: «se realizó»,
+«se definió», «se comprobó», «en este trabajo» o «el procedimiento seguido».
+No referirse en tercera persona a quien escribe la memoria mediante su papel
+académico o de revisión. No sustituir esa voz por un plural colectivo artificial.
+
+Reservar la primera persona singular para acciones personales cuya intervención
+humana deba quedar inequívoca: anotación manual, decisión final ante una
+discrepancia o responsabilidad sobre el desarrollo asistido. Por ejemplo:
+«Realicé manualmente la anotación de la referencia antes de ejecutar las
+predicciones finales». En el resto de la explicación mantener la voz impersonal.
+
+La anotación humana precedió a las predicciones finales; la QA asistida por IA
+se realizó después de anotar cada documento y la decisión final siguió siendo
+humana. Gemini pertenece al sistema evaluado; ChatGPT y Codex son herramientas
+de desarrollo. No diluir estas responsabilidades al cambiar la voz narrativa.
+
+Revisar cada frase en contexto, sin sustituciones mecánicas. Conservar cifras,
+denominadores, cronología, freezes, reglas de evaluación e interpretación.
+Respetar citas, nombres de terceros y la declaración institucional en primera
+persona. Los registros históricos de revisión no son modelos de voz narrativa.
 
 ## Secciones reales frente a ejemplos de plantilla
 
@@ -90,9 +113,24 @@ limitación de un informe histórico sin comprobarla.
 
 ## Evaluación, discusión y uso de asistentes
 
-Explicar TP, FP y FN antes de precisión, recall y F1; utilizar el ejemplo
-10 esperados / 8 predichos / 6 correctos como ejercicio didáctico, separado de
-las métricas del experimento. Explicar atributos condicionados y denominadores.
+Introducir primero el ejemplo didáctico referencia A/B/C frente a sistema
+A/B/D; identificar TP/FP/FN y explicar las preguntas de precisión, recall y
+F1 antes de las fórmulas. Separarlo de los resultados del experimento.
+Antes de medir atributos, explicar el emparejamiento y su denominador:
+1/1 sobre una pareja no describe todas las entidades.
+
+Orden pedagógico del capítulo 6: pregunta → holdout → referencia humana →
+anotación ciega → congelación → alcance V2 → comparación V2-B → jerarquía →
+corrección previa → ejecución → predicciones congeladas → métricas → flujo
+completo y reproducibilidad. Término español comprensible primero; término
+técnico entre paréntesis cuando aporte valor. Mantener una denominación
+estable después. Reservar las siglas TP/FP/FN para la sección de métricas.
+
+F07 debe leerse de arriba abajo en cuatro fases numeradas, con una barrera
+temporal clara y sin flechas cruzadas ni hashes. F08 explica la dependencia
+activo → evento → actuaciones/localizaciones; los totales no son causas
+sumables. Separar los resultados primarios del post-hoc con encabezado,
+transición explícita y cierre previo de las tablas primarias.
 
 Separar fallo de extracción, alias, agrupación longitudinal, dependencia del
 matching, canonicalización, regla estricta y atributo acertado tras emparejar.
@@ -107,8 +145,9 @@ Gemini forma parte del sistema evaluado. ChatGPT apoya razonamiento,
 planificación, diseño metodológico, revisión y prompts. Codex desde VSCode
 apoya inspección, tareas acotadas, tests, refactorización, documentación y LaTeX.
 Explicar primero qué es un archivo de instrucciones persistentes para el agente
-y después nombrar AGENTS.md. La autora decide y revisa; Codex propone e
-implementa; pytest comprueba regresiones; la autora hace commits/push manuales.
+y después nombrar AGENTS.md. Las decisiones y la revisión final son humanas;
+Codex propone e implementa; pytest comprueba regresiones. La gestión de commits
+y pushes es manual y debe describirse como una acción personal.
 La declaración de uso y la cronología de freezes se verifican antes de cerrarlas.
 No atribuir autoría del TFM o decisiones metodológicas al asistente.
 
@@ -124,16 +163,18 @@ No atribuir autoría del TFM o decisiones metodológicas al asistente.
 | 4.4–4.5 | Extracción IA y validación | Distinguir salida generada, controles deterministas y revisión; validez no garantiza corrección |
 | 4.10 | Agrupación | Varias menciones de la misma planta convergen; plantas independientes siguen separadas; no es matching experimental |
 | 6 | Diseño experimental | Selección, anotación ciega, freezes y ejecución en su orden documentado |
-| 6.6 | Ejemplo de métricas | Comprender qué denominador responde a cada pregunta antes de ver resultados |
-| 8.2 | Cascada de matching | Activo sin match puede impedir evento y actuaciones/localizaciones; no atribuir todos los FP/FN a invenciones del modelo |
+| 6.12 | Ejemplo de métricas | Comprender qué denominador responde a cada pregunta antes de ver resultados |
+| 7.7.1; remisión desde 8.2 | Cascada de matching | Activo sin match puede impedir evento y actuaciones/localizaciones; no atribuir todos los FP/FN a invenciones del modelo |
 | 5 y, si aporta, 6.2 | Capturas seleccionadas | Enseñar una consulta del producto o explicar anotación ciega, sin saturar ni confundir finalidades |
 
 La primera integración de 2026-09-14 incorporó procedimiento, arquitectura y
 grouping. La fase sustantiva siguiente desarrolla 3.1–3.6, 4.1–4.16 y la base
 del capítulo 5, incorpora F02/F04 y tablas compactas de Silver y territorio.
 F06 queda preparada para el flujo actual; reportes persistentes y cola unificada
-permanecen en F09, POST-TFM. No se desarrollan todavía Resultados, Discusión,
-Conclusiones, Resumen o Abstract ni se generan capturas.
+permanecen en F09, POST-TFM. La fase experimental posterior desarrolla los
+capítulos 6/7 e incorpora F07/F08; su revisión pedagógica mantiene intactos
+los resultados. Discusión, Conclusiones, Resumen, Abstract y capturas siguen
+pendientes de sus bloques autorizados.
 
 Los diagramas deben respetar el orden real del extractor: salida estructurada
 Pydantic, incorporación de identidad documental, canonicalización y validación

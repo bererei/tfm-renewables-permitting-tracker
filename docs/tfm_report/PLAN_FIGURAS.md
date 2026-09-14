@@ -1,25 +1,28 @@
 # Figuras y recursos pedagógicos — integración progresiva
 
-Clasificación: **REQUIRED — memoria; núcleo metodológico para revisión de contenido**.
+Clasificación: **REQUIRED — memoria; experimento y resultados para revisión científica**.
 Primera integración: `tfm-evaluation@a7eadca9564df9d982f1145c22b3e39f4c0dc6fd`.
-Fase sustantiva actual: `tfm-evaluation@0387e765e4155f4f67bb9ab6fc8fd58b69927166`.
+Fase sustantiva anterior: `tfm-evaluation@0387e765e4155f4f67bb9ab6fc8fd58b69927166`.
+Fase experimental actual: `tfm-evaluation@d0014a1922e0cf664cfc04491e986b59bf636442`.
 El sistema productivo auditado permanece en
 `tfm-final@282de815bea4e248bdcba2c655e3ee078cb58a49`.
 
 ## Alcance y procedencia
 
-Se utilizan las decisiones revisadas comunicadas por la autora sobre
+Se utilizan las decisiones revisadas comunicadas en las solicitudes sobre
 «Autorización de Proyectos Renovables», «Lógica del grouping», «Pipelines» y
 «Proceso diario». No se reproducen sus diagramas antiguos. La implementación
 se contrasta con código, tests y artefactos finales; las decisiones revisadas
 son la fuente editorial, sin atribuir una nueva lectura literal de los originales.
 
 La primera integración incorporó F01, F03 y F05, sus textos de apoyo y tres tablas.
-La fase sustantiva incorpora F02/F04, desarrolla los capítulos 3/4 y la base
-del 5; añade tablas de familias Silver y estados territoriales. F06 queda
+La fase sustantiva anterior incorporó F02/F04, desarrolló los capítulos 3/4 y la base
+del 5 y añadió tablas de familias Silver y estados territoriales. F06 queda
 preparada y las capturas continúan en TODO. No modifica código, tests, runs,
 resultados, bibliografía o PDF raíz. Los IDs F01–F09 son IDs de planificación;
 la numeración visible de LaTeX depende del capítulo y de las figuras incorporadas.
+La fase actual desarrolla 6/7 e incorpora F07/F08; el capítulo 8 solo recibe
+una conexión/TODO. Las cinco figuras existentes se conservan sin cambios.
 
 ## Selección cerrada para integración progresiva
 
@@ -31,8 +34,8 @@ la numeración visible de LaTeX depende del capítulo y de las figuras incorpora
 | F04 | Extracción IA y validación / 4.5 | Incorporada; actual | `extraction/documents.py`, `models.py`, `runner.py`, `canonicalization.py`, `validation.py`, `review.py`. Respetar el orden ejecutado: canonicalización antes de la validación documental final; no atribuir las reglas al modelo |
 | F05 | Grouping / 4.10 | Incorporada; actual | `project_grouping.py` y `tests/test_project_grouping.py`. Igualdad de clave nominal/tecnológica/territorial; UUID5; sin municipio, promotor, fuzzy matching ni scores |
 | F06 | Flujo de revisión y corrección humana implementado / 4.11 | TODO detallado; opción A, solo actual | `AUDITORIA_REVISION_REPORTES.md`, `admin.py`, `extraction/review.py`, P0, correcciones y `run_silver_stage`. Separar decisiones genéricas, CURRENT y ANTECEDENT; regeneración del operador; territorio independiente. Sin reportes ni rama futura |
-| F07 | Metodología experimental / 6.3 | TODO detallado; experimento realizado | `docs/evaluation/FINAL_HOLDOUT_V2_RESULTS.md`, contrato V2 y controlador primario. Sistema/truth/evaluator fijados antes de la ejecución; predicciones congeladas antes de evaluar; post-hoc separado |
-| F08 | Cascada de matching / 8.2 | TODO detallado; explicación post-hoc | Resultados canónicos §8. POST-HOC DIAGNOSTIC — NOT PRIMARY SCORING. Padre emparejado necesario pero no suficiente; no crear correspondencias ni métricas |
+| F07 | Metodología experimental / 6.13 | Rediseñada; cuatro fases cronológicas | `docs/evaluation/FINAL_HOLDOUT_V2_RESULTS.md`, contrato V2 y controlador primario. Sistema/truth/evaluator fijados antes de la ejecución; predicciones congeladas antes de evaluar; post-hoc separado |
+| F08 | Cascada de matching / 7.7.1 | Revisada; cadena causal vertical | Resultados canónicos §8. POST-HOC DIAGNOSTIC — NOT PRIMARY SCORING. Padre emparejado necesario pero no suficiente; no crear correspondencias ni métricas |
 | F09 | Arquitectura propuesta para una futura operación diaria / 9.2.1 | TODO detallado; TRABAJO FUTURO | Decisiones revisadas sobre proceso diario, CLI real, `TFM_CLOSEOUT.md` y `USER_GUIDE.md`. Diferenciar mecanismos existentes y scheduler/reportes persistentes/cola/coordinación propuestos |
 
 Las nueve figuras son REQUIRED en la selección solicitada. La implementación
@@ -49,9 +52,9 @@ de referencia INE, otra de capas ni otra sobre evolución del grouping.
 | F04 | Gemini no entrega Silver/Gold directamente; amplía el bloque de controles de F03 | Solo si aclara salida frente a reglas, sin reutilizar resultados como demostración | Modelo, Pydantic (TODO-CITA), runner y contratos |
 | F05 | Las menciones con igual clave comparten identidad; sustituye el TODO genérico de agrupación | Don Rodrigo II de 2026 y Bianor separado; límite HSF de 2022 | Código/tests y Silver/Gold final v2 |
 | F06 | La incidencia exige decisión trazable antes de regenerar; amplía revisión sin duplicar F04 | CURRENT/ANTECEDENT; no todos los casos modifican contenido | Guía de calidad, CLI admin y correcciones aprobadas |
-| F07 | El orden de los freezes protege la separación entre anotación y predicción; apoya 6.3 | No necesita otro caso; cronología documentada | Resultados canónicos y protocolo |
-| F08 | Una discrepancia de identidad puede propagarse por la jerarquía; apoya el diagnóstico de 8.2 | Conteos ya fijados: activos 37/39/20, eventos 30/38/13, actuaciones 36 actuales/58/1 match actual | Diagnóstico aprobado; no recalcular scoring |
-| F09 | Una operación diaria exige coordinación adicional; amplía los TODO de operación y gobierno | No necesita caso real de un servicio inexistente | Propuesta de la autora y límites comprobados del sistema |
+| F07 | El orden de los freezes protege la separación entre anotación y predicción; apoya 6.13 | No necesita otro caso; cronología documentada | Resultados canónicos y protocolo |
+| F08 | Una discrepancia de identidad puede propagarse por la jerarquía; apoya el diagnóstico de 7.7.1 | Conteos ya fijados: activos 37/39/20, eventos 30/38/13, actuaciones 36 actuales/58/1 match actual | Diagnóstico aprobado; no recalcular scoring |
+| F09 | Una operación diaria exige coordinación adicional; amplía los TODO de operación y gobierno | No necesita caso real de un servicio inexistente | Propuesta solicitada y límites comprobados del sistema |
 
 ## Precisiones de grouping verificadas
 
@@ -86,13 +89,15 @@ corpus y el ejemplo longitudinal ya existentes, sin alterar sus cifras.
 
 Incorporadas en la fase sustantiva: familias Silver (4.8) y estados territoriales
 (4.9). La tabla del corpus añade la separación finalidad/uso sin cambiar cifras.
-Pendientes: composición del holdout (6.1),
-métricas y ejemplo didáctico (6.6), tablas primarias y atributos condicionados
-(7) y limitaciones (8.4). Referenciar tablas existentes en vez de duplicarlas.
+Incorporadas ahora: composición V2 (6.3), estados del controlador (6.10),
+identidades (6.14), scope (7.2), métricas (7.3), atributos condicionados (7.4),
+P0 (7.6) y diagnóstico de actuaciones (7.7.2). Las fórmulas y el ejemplo
+didáctico se explican en 6.12 sin otra tabla. Sigue pendiente la tabla de
+limitaciones (8.4). Referenciar tablas existentes en vez de duplicarlas.
 
 Capturas reservadas, no generadas: C01 vista general, C02 mapa/filtros,
 C03 ficha/publicaciones (capítulo 5; seleccionar dos o tres en total) y C04
-anotación ciega opcional (6.2). Capturar tras la revisión de publicación;
+anotación ciega opcional (6.4). Capturar tras la revisión de publicación;
 cada imagen tendrá caption, etiqueta y referencia textual.
 
 ## Lenguaje visual y fuentes versionables
@@ -102,13 +107,14 @@ cada imagen tendrá caption, etiqueta y referencia textual.
 - Estilo común en `include/diagramas.tex`; fuentes en
   `figs/procedimiento_administrativo.tex`, `figs/arquitectura_sistema.tex` y
   `figs/grouping_implementado.tex`; se añaden `figs/api_boe_corpus.tex` y
-  `figs/extraccion_validacion.tex` en esta fase.
+  `figs/extraccion_validacion.tex` en la fase anterior. Esta fase añade
+  `figs/metodologia_experimental.tex` y `figs/cascada_matching.tex`.
 - Tipografía del documento; nodos de 10 pt y notas de 9 pt, sin reducción global.
   Color `tema`, fondos suaves, bordes y flechas vectoriales.
 - F01 usa enlace discontinuo para la relación no secuencial de DUP.
   F09 deberá incorporar una leyenda explícita actual/propuesto; el color no
   será el único medio para distinguirlos.
-- Las cinco figuras incorporadas tienen caption, etiqueta y referencia desde el texto.
+- Las siete figuras incorporadas tienen caption, etiqueta y referencia desde el texto.
   Se activa el índice de figuras; se conserva el índice de tablas.
 - Compilación y PDF intermedio en `build/`, según `COMPILACION.md`.
   El PDF raíz continúa reservado para una actualización de hito aprobada.
@@ -251,3 +257,147 @@ permanecen ignorados.
 - **Reason:** explicar el núcleo implementado de forma progresiva, mantener
   trazabilidad por sección y verificar sus apoyos sin alterar el sistema
   congelado, las operaciones documentadas ni los resultados experimentales.
+
+## Metodología experimental y resultados — 2026-09-14
+
+Resultado de esta fase: **READY FOR SCIENTIFIC REVIEW**.
+La rama inicial fue `tfm-evaluation@d0014a1922e0cf664cfc04491e986b59bf636442`,
+con árbol limpio y referencia local origin coincidente. Se desarrollan los
+capítulos 6 y 7; el 8 solo sustituye el antiguo TODO de diagnóstico/F08
+por una conexión para discutir lo ya presentado. No se cierran Discusión,
+Limitaciones, Conclusiones, Resumen o Abstract.
+
+La última compilación, desde `docs/tfm_report/`, termina con **exit 0**:
+
+```bash
+latexmk -synctex=1 -interaction=nonstopmode -halt-on-error -file-line-error tfm_report_bgd.tex
+```
+
+PDF actual: `build/tfm_report_bgd.pdf`, **79 páginas A4**.
+Log: `build/compilacion-experimento.txt`. Se repitió durante la revisión
+para corregir los solapamientos iniciales de F07, despejar flechas de F08,
+ajustar cabeceras y eliminar tres desbordamientos nuevos. Una separación
+de página vacía los floats primarios antes de abrir el post-hoc; así ninguna
+tabla primaria aparece después de su encabezado diagnóstico.
+
+| Recurso | Número | Página impresa | Página PDF |
+| --- | --- | ---: | ---: |
+| Composición V2 | Tabla 6.1 | 40 | 54 |
+| Estados del controlador | Tabla 6.2 | 44 | 58 |
+| F07 Metodología experimental | Figura 6.1 | 45 | 59 |
+| Identidades del experimento | Tabla 6.3 | 47 | 61 |
+| Alcance documental | Tabla 7.1 | 49 | 63 |
+| Métricas de entidades/relaciones | Tabla 7.2 | 49 | 63 |
+| Atributos condicionados | Tabla 7.3 | 50 | 64 |
+| P0 | Tabla 7.4 | 51 | 65 |
+| Diagnóstico de actuaciones | Tabla 7.5 | 53 | 67 |
+| F08 Cascada de matching | Figura 7.1 | 54 | 68 |
+
+Se revisaron individualmente los renders de las tablas y figuras indicadas,
+más las fórmulas (PDF 60), evidencia/P0 (65) y apertura post-hoc (67).
+Las imágenes locales de revisión se conservan como `build/experimento-pN.png`.
+No son capturas de Streamlit ni fuentes versionables.
+Las columnas caben sin reducción global; los avisos N=1 y P0 sin sensibilidad
+van en el mismo float que sus tablas. F07 dirige truth y evaluador solo a la
+evaluación offline; F08 conserva rótulo post-hoc y flechas legibles.
+
+Los índices contienen **siete figuras y quince tablas**; etiquetas y
+referencias están resueltas, sin citas indefinidas, caracteres perdidos o
+marcadores `??`. Se conservan como TODO-CITA las fuentes externas pendientes.
+Las fórmulas, acentos y caracteres españoles se inspeccionaron en el PDF.
+
+No hay nuevos overfull. Se mantienen los previos de portada (67,05614 pt)
+y cita legal del capítulo 2 (0,30453 pt), además de avisos de hooks,
+ligaduras y captions de la plantilla. Los underfull previos corresponden a
+las páginas impresas 18, 19, 21 y 35. El nuevo underfull vertical de página
+50 (badness 6995) produce espaciado amplio, sin pérdida ni solapamiento:
+se considera no bloqueante para revisar el contenido científico.
+
+La comparación de las cinco filas de métricas contra valores ya presentes
+en `evaluation_summary.json` verifica transcripción y redondeo; no ejecuta
+fórmulas de scoring ni reconstruye resultados. La revisión científica A–K y
+la procedencia de cada cifra, incluidas las categorías post-hoc, constan en
+`MAPA_FUENTES.md`.
+
+Protección comprobada antes de la revisión de voz narrativa: SHA-256 de los
+**305 archivos versionados fuera de los seis
+editados** sin cambios, incluido el PDF raíz, los capítulos 1–5 y 9,
+anexos, bibliografía y las cinco figuras previas. Manifests de truth,
+evaluador, predicciones y evaluación, resumen y execution record idénticos
+a los leídos al inicio. Staging, HEAD, origin local y tfm-final intactos.
+No se modificaron código, tests, datos ni runs; no se ejecutaron Gemini,
+evaluación o pruebas de software. Los outputs de build permanecen ignorados.
+No hubo commit ni push.
+
+### Impacto documental de esta fase
+
+- **Documentation impact:** metodología experimental y presentación científica.
+- **Documents reviewed:** cierre TFM, resultados canónicos, contrato V2,
+  runbooks V2-B y controlador, mapa/plan de memoria, reglas congeladas,
+  tests pertinentes y manifests/registro de ejecución.
+- **Documents updated:** capítulos 6/7, conexión/TODO del 8, mapa de fuentes,
+  este plan e inventario de fuentes de `COMPILACION.md`; dos nuevos TikZ.
+- **Reason:** explicar y hacer revisables el diseño, los denominadores y el
+  diagnóstico aprobado conservando las fronteras del experimento.
+  El User Guide y los documentos experimentales canónicos no requieren cambios.
+
+Siguiente bloque, solo tras revisión humana y commit/push manual:
+Discusión → Limitaciones → Conclusiones → Resumen/Abstract →
+revisión bibliográfica/TODO-CITA → revisión visual final.
+
+
+## Cierre de revisión de voz narrativa — 2026-09-14
+
+Bloque REQUIRED exclusivamente estilístico, posterior a la verificación
+experimental anterior. Norma: voz académica impersonal y primera persona
+singular limitada a acciones personales que acreditan intervención humana.
+Se ajustaron 4.16, 6.4, 6.10, el TODO de 8.3, el rótulo de anotación de F07,
+los TODO preliminares y un comentario de opciones. La regla queda fijada en
+`REGLAS_REDACCION.md`; el mapa y este plan usan formulaciones neutrales.
+
+La búsqueda final abarcó todos los capítulos, incluidos los ejemplos históricos,
+el archivo principal, figuras, preliminares y documentación de redacción.
+No quedan referencias personales en tercera persona ni plural colectivo en
+la narración de los capítulos. Se conserva la declaración institucional en
+primera persona (`elements/preambulo.tex:12`) y cinco menciones en el registro
+histórico `REVISION_FASE_1.md` (líneas 11, 23, 34, 278 y 397): documentan
+revisiones anteriores y no establecen el estilo de la memoria. El rol genérico
+de revisión de correcciones de 4.11, los rótulos de portada y las referencias
+a terceros tampoco son referencias narrativas personales.
+
+Comando desde `docs/tfm_report/`:
+
+```bash
+latexmk -synctex=1 -interaction=nonstopmode -halt-on-error -file-line-error tfm_report_bgd.tex
+```
+
+Resultado: exit 0, 79 páginas A4; log local `build/compilacion-voz.txt`.
+Sin referencias o citas indefinidas ni marcadores `??`. Se mantienen los
+avisos previos descritos arriba; la revisión de voz no añade overfull.
+Inspección visual del PDF: páginas físicas 5 y 8 (preliminares), 12 (índice),
+47 (IA de desarrollo), 54 (anotación/QA), 58 (límites y secuencia),
+59 (F07) y 72 (TODO de discusión). Sin nuevas pérdidas ni solapamientos.
+Renders de revisión ignorados: `build/voz-pN.png`. La paginación de las
+figuras y tablas del registro experimental anterior se conserva.
+
+Protección frente al inicio de esta revisión: todos los tokens numéricos,
+etiquetas, referencias, citas y bloques tabulares/ecuaciones LaTeX idénticos.
+Capítulo 7, figura F08 y archivo principal idénticos byte a byte. El diff de
+voz fue revisado frase a frase; no altera cronología, freezes, reglas V2-B,
+denominadores, arquitectura o interpretación post-hoc. Frente al inicio del
+bloque experimental, los 301 archivos versionados fuera de los diez editados
+conservan SHA-256, incluido el PDF raíz. Los seis artefactos experimentales
+comprobados también conservan SHA-256. Índice Git y referencias intactos.
+No se ejecutaron pruebas de software, evaluación ni llamadas a modelos.
+
+- **Documentation impact:** voz narrativa y reglas de redacción.
+- **Documents reviewed:** cierre TFM, todos los capítulos, archivo principal,
+  preliminares, figuras y documentación auxiliar de memoria.
+- **Documents updated:** capítulos 4/6/8, F07, preliminares, comentario de
+  opciones, reglas de redacción, mapa de fuentes y este registro.
+- **Reason:** explicitar las acciones humanas personales y evitar la tercera
+  persona en la narración, conservando el contenido científico. Sin impacto
+  en User Guide, código, tests, datos, resultados canónicos ni runs.
+
+Aceptación: **READY FOR VOICE REVIEW**. Se detiene el bloque para revisión
+humana; no se hace staging, commit ni push.

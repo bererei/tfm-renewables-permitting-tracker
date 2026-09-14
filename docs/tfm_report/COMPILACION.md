@@ -124,7 +124,7 @@ ni reemplazado el PDF raíz del proyecto.
 - **Reason:** separar fuentes y salidas regenerables antes de un commit
   revisable, sin perder trabajo ni alterar el experimento.
 
-## Validación realizada — 2026-09-14
+## Validación de la limpieza inicial — 2026-09-14
 
 Una invocación del comando anterior: **exit 0**, PDF de **39 páginas A4**
 en `build/tfm_report_bgd.pdf`. El log confirma que se lee `.latexmkrc` y
@@ -174,7 +174,9 @@ Actualizado en la primera integración de figuras de 2026-09-14:
 TikZ ya está disponible mediante `todonotes`; `include/diagramas.tex` carga
 sus bibliotecas y define los estilos comunes. Los tres diagramas se compilan
 directamente desde fuentes `.tex`, sin conversión externa ni imágenes raster.
-El plan y la revisión visual se registran en `PLAN_FIGURAS.md`; el comando y
+El inventario actual incluye siete diagramas: la revisión pedagógica de F07/F08
+mantiene ese mecanismo y los estilos existentes, sin dependencias nuevas.
+El plan y la revisión visual vigentes se registran en `PLAN_FIGURAS.md`; el comando y
 la política del PDF de trabajo se mantienen.
 
 Además de `.gitignore` en la raíz, los siguientes archivos bajo
@@ -209,11 +211,13 @@ figs/CIDaeN copia.png
 figs/CIDaeN.png
 figs/api_boe_corpus.tex
 figs/arquitectura_sistema.tex
+figs/cascada_matching.tex
 figs/esiiab.png
 figs/logouclm.pdf
 figs/logouclm.png
 figs/extraccion_validacion.tex
 figs/grouping_implementado.tex
+figs/metodologia_experimental.tex
 figs/procedimiento_administrativo.tex
 include/colores.tex
 include/configuracion.tex

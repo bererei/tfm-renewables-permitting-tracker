@@ -1,6 +1,10 @@
 # Mapa de fuentes y plan de redacción
 
-Fecha: 2026-09-14. Clasificación: **REQUIRED — redacción sustantiva del núcleo metodológico**.
+Fecha: 2026-09-14. Clasificación: **REQUIRED — metodología experimental, resultados primarios y diagnóstico**.
+Fase actual: `tfm-evaluation@d0014a1922e0cf664cfc04491e986b59bf636442`,
+con árbol limpio y referencia local `origin/tfm-evaluation` coincidente.
+La fase anterior del núcleo metodológico está cerrada y sincronizada.
+No se hace fetch, staging, commit o push.
 Documento de trabajo para revisión; no se incorpora al PDF.
 Reglas pedagógicas vigentes: [REGLAS_REDACCION.md](REGLAS_REDACCION.md).
 Corrección del 14/09: se conserva la dedicatoria y se desarrolla el acceso
@@ -18,7 +22,7 @@ métricas ni se convierten diagnósticos posteriores en puntuación primaria.
 
 Sistema evaluado: `tfm-final@282de815bea4e248bdcba2c655e3ee078cb58a49`.
 La rama de redacción es `tfm-evaluation`. La primera fase partió de
-`8e85ea58340deb929e95ebab80693a1e5d473864`. Esta redacción sustantiva parte de
+`8e85ea58340deb929e95ebab80693a1e5d473864`. La fase anterior del núcleo metodológico partió de
 `0387e765e4155f4f67bb9ab6fc8fd58b69927166`, con árbol limpio y la referencia
 local `origin/tfm-evaluation` en el mismo commit. No se hace fetch, commit o push.
 El Gold final es v2, con downstream ID
@@ -113,7 +117,7 @@ mediante el TODO detallado, sin mezclar sistema actual con POST-TFM.
 | 4.13 CLI | README, User Guide, evaluación V2/controlador | `pipeline.py`, `admin.py`, `evaluation/final_holdout_v2/cli.py`, `evaluation/primary_execution/cli.py` | Ayuda Admin comprobada en auditoría; parser y contratos de roles de la documentación | Cuatro responsabilidades; herramientas de evaluación/controlador diferenciadas del sistema productivo congelado |
 | 4.14 Pytest | README; User Guide §14; `.github/workflows/tests.yml` | Contratos y transformaciones del paquete | Tests citados por concepto; CI ejecuta extracción, no toda la suite | Se describe evidencia de ingeniería, sin usar cantidad de tests como métrica científica ni afirmar ejecuciones nuevas |
 | 4.15 User Guide | `docs/USER_GUIDE.md` | Operaciones referenciadas por la guía | Correspondencia con comandos reales documentados; sin ejecutar operaciones | Guía complementaria versionada; no demuestra por sí sola usabilidad ni disponibilidad del archivo de entrega |
-| 4.16 IA de desarrollo | Declaración explícita de la autora en la solicitud; AGENTS; resultados canónicos §1 y aprobación humana W14 §1 | Separación Gemini productivo / herramientas de desarrollo | Markdown de notebooks y reglas del proyecto; no se deduce autoría de Git | Manifests truth/evaluador leídos: 13/09/2026 09:57:08 y 14:59:31 UTC; ejecución primaria empieza 15:06:50 UTC. Congelación anterior a predicciones, sin ajuste retrospectivo |
+| 4.16 IA de desarrollo | Declaración explícita aportada en la solicitud; AGENTS; resultados canónicos §1 y aprobación humana W14 §1 | Separación Gemini productivo / herramientas de desarrollo | Markdown de notebooks y reglas del proyecto; no se deduce autoría de Git | Manifests truth/evaluador leídos: 13/09/2026 09:57:08 y 14:59:31 UTC; ejecución primaria empieza 15:06:50 UTC. Congelación anterior a predicciones, sin ajuste retrospectivo |
 
 Las rutas de módulos de extracción sin prefijo en esta matriz pertenecen a
 `src/renewables_permitting/extraction/`. Las rutas `evaluation/` son relativas a la raíz del repositorio, fuera de
@@ -127,8 +131,8 @@ la proyección relacional base; las exclusiones aprobadas previas al flattening
 y el sidecar se contrastan con código final y el informe v2. La memoria no
 presenta antiguas propuestas de Silver Curated como una capa implementada.
 
-La declaración de uso de asistentes procede de la autora y queda redactada para
-su revisión, sin atribuir a Codex decisiones metodológicas ni autoría. El
+La declaración de uso de asistentes procede de la solicitud y queda redactada para
+revisión humana, sin atribuir a Codex decisiones metodológicas ni autoría. El
 registro de freezes corrobora la secuencia de artefactos; no demuestra por sí
 solo quién realizó cada interacción o commit. Gemini se explica en 4.4;
 ChatGPT, Codex y AGENTS en 4.16. No se necesita investigación web para describir
@@ -146,32 +150,114 @@ de aceptación/entrega pública; no quedan párrafos de funcionalidad en TODO.
 | 5.3 Ficha | User Guide, correcciones W14 §6 | `streamlit_app.py::_render_detail`, consultas de ficha/cronología | Don Rodrigo II ya verificado; cronología observada, sin certificación de estado jurídico |
 | 5.4 Metodología/reporting | Auditoría de revisión; User Guide §7 | `_render_methodology`, `_render_report_channel`, `app_reporting.py`; tests mailto/fallback inspeccionados en auditoría previa | Correo externo, sin persistencia, queue o Admin automático; capturas no generadas |
 
-## 6. Metodología experimental — estructura
+## 6. Metodología experimental — redactada para revisión científica
 
-Archivo: `chapters/06_evaluacion.tex`.
-Fuentes: contrato V2 §§3–12, `evaluation/final_holdout_v2/scoring_rules.json`,
-`docs/evaluation/V2_B_EVALUATOR.md`, `docs/evaluation/PRIMARY_EXECUTION_V2.md`,
-resultados canónicos §§1–2, 5–7, 10–11 y `docs/TFM_CLOSEOUT.md`.
+Archivo: `chapters/06_evaluacion.tex`. Catorce secciones, reorganizadas para
+introducir cada concepto antes de sus reglas o métricas. La revisión pedagógica
+conserva el contenido científico y las cifras. Las fuentes de
+estado final son resultados canónicos y manifests; los runbooks conservan
+estados históricos de sus bloques, explícitamente superados por el cierre
+de septiembre. No hay discrepancias numéricas o de identidad entre la
+solicitud, las tablas canónicas y el resumen inmutable leído.
 
-Orden de explicación: conjunto independiente → referencia humana/ground truth
-→ anotación ciega → freezes → emparejamiento jerárquico → temporalidad/P0
-→ métricas → reproducibilidad. Ejemplo numérico didáctico separado del experimento.
-Mantener semántica current-only, reglas de evidencia, atribución y denominadores.
+| Sección | Fuente principal | Respaldo y límite |
+| --- | --- | --- |
+| 6.1 Objetivo | Contrato V2 §§1, 4, 11; resultados §§1, 10 | Sistema completo congelado: extracción, canonicalización y validación; no atribuir métricas exclusivamente a Gemini ni evaluar Gold/usabilidad |
+| 6.2 Desarrollo/holdout | Resultados §2; cierre septiembre; capítulo 3 y sus fuentes verificadas | 140 desarrollo, 479 expuestos, 104 W14, 48 holdout; cero solapamientos documentados. Seis estratos A/B × año, ocho por estrato, semilla 20260821. Sin nueva selección |
+| 6.3 Referencia humana | Contrato V2 §§1–6; tabla A de resultados | Definición antes de detalle; alcance V2 remitido a 6.6. 48 documentos, 30 relevantes/18 negativos, 30 eventos, 37 activos, 81 actuaciones = 36 actuales + 45 históricas, 111 localizaciones |
+| 6.4 Anotación ciega | Declaración explícita aportada en esta solicitud; contrato V2 §8; manifest truth | Manifest: `predictions_exposed_during_annotation=false`, un `primary_reviewer`. QA asistida realizada después de anotar cada BOE según declaración aportada en la solicitud; no se infiere ejecución de QA a partir del exportador ni acuerdo interanotador |
+| 6.5 Freeze truth | Manifest truth leído y SHA físico comprobado | Creación 09:57:08.540285 UTC; identidad/manifest completos abajo. No se lee ni altera el working truth |
+| 6.6 Alcance V2 y P0 | Contrato V2 §§1–6 y 11; capítulo 4.11 | Campos primarios fijados antes de predicciones; P0 avisa, no autoexcluye. CURRENT/ANTECEDENT distinguen función temporal en el documento |
+| 6.7–6.8 Comparación y jerarquía | Contrato V2 §11; `evaluation/final_holdout_v2/scoring_rules.json`; V2_B_EVALUATOR | Alias exactos con orden, conjuntos completos de eventos, candidatos por evidencia y nombre de localización. Atributos excluidos de las claves; correspondencias forzadas 1:1; current-only, pares, soporte y P0 |
+| 6.9 Corrección previa | V2_B_EVALUATOR, “Bounded usage-guard fix”; manifest definitivo | Mínimo de requests solo sobre intentos modelo `ok`. Tests sintéticos `test_requests_guard_preserves_pre_fix_scientific_results` y `test_requests_guard_accepts_preserved_transport_error` leídos; no ejecutados. No se modificaron scoring ni métricas |
+| 6.10 Controlador | PRIMARY_EXECUTION_V2, “Durable states”; execution record y provenance | Solo PENDING continúa; terminales preservados, INDETERMINATE bloquea. Tests de interrupción/reanudación leídos. Registro final 48/47/1 y ceros restantes; no se invoca el controlador |
+| 6.11 Predicciones | Execution record original; manifest extracción; resumen evaluación | Snapshot generado antes del sello; freeze 15:32:07.325125 UTC. Informe a 15:36:43.131585 UTC. No se confunde fecha de creación del manifest de extracción con freeze de predicciones |
+| 6.12 Métricas | Contrato V2 §11, “Metrics”; reglas congeladas; tablas B/C/F | Ejemplo A/B/C frente a A/B/D puramente didáctico. Atributos condicionados, evidencia y P0 después del matching. Agregación micro por tarea; null por denominador cero, F1 cero si P y R definidos y cero. Sin accuracy global |
+| 6.13 Secuencia/F07 | Identidades y cronología de artefactos abajo | La referencia y el evaluador entran en scoring offline, nunca en Gemini. Cuatro fases verticales y barrera previa a predicciones |
+| 6.14 Reproducibilidad | Resultados §§1, 11; manifests y execution record | Prefijos en tabla del cuerpo, cadenas completas en registro canónico y aquí. Integridad no equivale a corrección ni accesibilidad del archivo de entrega |
 
-Dependencia documental: precisar el QA realmente efectuado y la procedencia de
-anotación. No afirmar interanotador formal, independencia de una segunda persona
-o exhaustividad semántica por integridad de archivos. El evaluador definitivo
-es `…_frozen_2c0632b`, no el primer freeze histórico. No se ejecuta nada.
+Tests pertinentes consultados como respaldo, sin ejecución:
+`tests/evaluation/test_scoring_v2b.py` (normalización, conjuntos, atributos,
+evidencia, localizaciones); `test_evaluator_v2b.py` (guard y equivalencia
+científica sintética); `test_primary_execution.py` (estados e interrupciones).
+Los dos últimos nombres son relativos a `tests/evaluation/`.
 
-## 7. Resultados — estructura
+### Identidades y cronología contrastadas en modo de solo lectura
 
-Archivo: `chapters/07_resultados.tex`.
-Única fuente: `docs/evaluation/FINAL_HOLDOUT_V2_RESULTS.md`.
-Orden: tabla A y estados operativos → scope/matriz D → activos, eventos,
-actuaciones, localizaciones (B) → atributos (C) → actuación/activo (E)
-→ evidencia y P0 (F). Copiar bloques LaTeX A–F con denominadores y redondeo
-ya documentado. **PRIMARY RESULTS**. No trasladar porcentajes 1/1 como
-rendimiento general ni sustituir null por cero.
+Rutas desde la raíz. Los SHA siguientes son los hashes físicos de los manifests,
+salvo el execution record, que identifica el JSON original.
+
+| Elemento | Artefacto | Identidad completa | SHA-256 del manifest |
+| --- | --- | --- | --- |
+| Sistema | `tfm-final` | `282de815bea4e248bdcba2c655e3ee078cb58a49` | Commit; no manifest de sistema añadido |
+| Truth | `runs/final_holdout_p2_v1_truth_v2_frozen` | `e3f300253db94931345e9bbbc489cd810802f94339c3b6a0d751f98b32383b54` | `4f32dc8f89fff8ae1b80f7fb5f94e9168d131f4dea3d0d025640e869c07c148c` |
+| Evaluador | `runs/final_holdout_p2_v1_evaluator_v2_frozen_2c0632b` | `a617ef6155cfcd8c403b0c55542cb753fac22f7893f57f3861af665ae23dda5b` | `f9e33836d1995a70f24094469cb1e39908e3f30874deee11ba175b5255457d1c` |
+| Predicciones | `runs/final-holdout-v2-primary-001/primary/extraction` | `154c9b42e840f5d3c8989f8470680d040f40113700f040023ebdbae70e21a500` | `c1464ef49d01f3fe5f7e839fe1af0f00a736d2eba030ebd2871c7760c81c3277` |
+| Evaluación | `runs/final-holdout-v2-evaluation-primary-001` | `4686355d47e0e21ad4b88e313e5ddd9561195e6696893945da6610b1f3b371fd` | `1fbd44dea97c03bebb9f34d109862e51e8db181da3ec35b1cf63caadae6e23ae` |
+
+El evaluador pertenece al commit `2c0632b89d59ef3f7e25c24ee61e74ca3ac3c6f1`.
+El freeze antiguo es histórico; no se reseña como entrada actual ni se altera.
+El registro `runs/final-holdout-v2-primary-001/finalization/execution_record.json`
+tiene SHA `8332a7cfe78455daf5983537db851224455cbdd0455360c04677672df4264181`.
+
+Todas las fechas siguientes son del **13/09/2026, UTC**:
+
+| Hito | Hora exacta | Fuente |
+| --- | --- | --- |
+| Truth congelado | 09:57:08.540285 | `created_at` del manifest truth |
+| Evaluador definitivo congelado | 14:59:31.922147 | `created_at_utc` del manifest evaluador |
+| Inicio ejecución | 15:06:50.219263 | Execution record |
+| Fin ejecución | 15:28:00.612890 | Execution record |
+| Freeze de predicciones | 15:32:07.325125 | Execution record |
+| Informe de evaluación | 15:36:43.131585 | `created_at_utc` de evaluation_summary |
+
+Las tablas/figuras del PDF abrevían identidades y muestran horas al segundo
+o minuto, según su caption. No se recalculan identidades semánticas ni métricas.
+
+## 7. Resultados — primarios y post-hoc separados
+
+Archivo: `chapters/07_resultados.tex`. Secciones 7.1–7.6 primarias;
+7.7 “Análisis diagnóstico posterior a la evaluación”. F08 se traslada aquí
+desde el TODO de discusión; el capítulo 8 remite a ella sin repetir diagnóstico.
+
+Fuente primaria numérica única:
+`docs/evaluation/FINAL_HOLDOUT_V2_RESULTS.md` §§2–7, contrastada mediante
+lectura de `runs/final-holdout-v2-evaluation-primary-001/evaluation_summary.json`.
+No se ejecuta scoring, validadores productivos ni lectura de Parquet para
+reconstruir cifras. Redondeo editorial de métricas a tres decimales.
+
+| Sección / cifra | Fuente canónica | Campo o artefacto de origen |
+| --- | --- | --- |
+| 7.1: 48 documentos, 47 éxitos, 1 error, restantes 0 | Resultados §7 | Execution record y `finalization/provenance.json`; estados finales ya declarados |
+| 7.2: 46/48, accuracy 0.9583333333; matriz 30/0/0 y 1/16/1 | Resultados §3, tabla D | Resumen: `metrics.document_scope`; error de scope 13309 y ausencia 32569 identificados por documento canónico |
+| 7.3: activos 20/19/17; eventos 13/25/17; actuaciones 1/57/35; localizaciones 43/95/68 | Tabla B | `metrics.entity_detection.<entity>`: TP/FP/FN, precision/recall/F1 leídos, no calculados |
+| 7.3: pares 1/59/38; denominadores 60 y 39 | Tabla E | `metrics.action_asset_pairs` |
+| 7.3: históricos no extraídos 45 y contaminación emparejada 0 | Resultados §3 | `metrics.entity_detection.administrative_action`; cero no demuestra ausencia semántica en predicciones sin match |
+| 7.4: 20/20 generación, 43/43 nivel, tres atributos de actuación 1/1 | Tabla C | `metrics.field_accuracy` |
+| 7.4: conjunto exacto 1/1 | Tabla C | `metrics.affected_assets_exact_set`; condicionado, sin sumar pares |
+| 7.5: soporte 0/1 y fragmentos del caso 7540 | Resultados §5 | `metrics.action_evidence_support`; cita compuesta transcrita del diagnóstico verificado, con `[...]` |
+| 7.6: TP=FP=FN=0; TN=1; no adjudicado=1; omitidos=45; P/R/F1 null; falsos avisos 0/1 | Tabla F | `metrics.p0`; ningún positivo adjudicable |
+| Nota de desarrollo: 11/11 y 0/5 | Resultados §6 y referencia al replay W14 | Evidencia previa de desarrollo, sin nueva ejecución ni agregación al holdout |
+
+### Diagnóstico 7.7: transcripción del análisis aprobado
+
+Fuente exclusiva: resultados canónicos §§8–9. No se vuelven a examinar los
+BOE ni sus predicciones para producir explicaciones nuevas.
+
+| Subsección | Cifra o caso transferido | Apartado de origen / límite |
+| --- | --- | --- |
+| 7.7.1 Cascada | Activos 37/39/20; eventos 30/38/13; actuaciones 36 actuales/58/1; siete activos TP bajo eventos sin match | §8 Cascada. Son recuentos primarios, no estimación causal adicional |
+| 7.7.2 Actuaciones | FN 18+17=35; FP 37+20=57; ambigüedad 0 | §8 Actions, motivos prioritarios. Sin reasignación ni nuevos matches |
+| 7.7.3 Evidencia | 18 títulos exactos y dos otros fragmentos entre 20 sin candidato | §8 Actions; caso 2440. La función congelada `_repair_action_evidence` fue contrastada en la fase metodológica previa; no se puntúa salida alternativa |
+| 7.7.4 Activos | 14 descriptores, dos “existente”, uno PFVH/Planta; dos FP adicionales | §8 Assets; Hipódromo 27493 y Envatios XXIV Fase I. Semejanza post-hoc no crea TP |
+| 7.7.5 Eventos | 15 FN/20 FP por activos; 2 FN/4 FP por división; 1 FP scope; cero merges observados | §8 Events; caso 11661 con dos activos TP y evento 0/2/1 |
+| 7.7.6 Localizaciones | 61 FN/92 FP bajo evento sin match; 7 FN/3 FP dentro de eventos emparejados | §8 Locations. No interpretar toda fila como topónimo inventado |
+| 7.7.7 Relaciones | Todos FP/FN bajo actuaciones sin match; exact-set 1/1 | §8 Action → asset. Dependencias no sumables como causas |
+| 7.7.8 Error terminal | 32569, document_validation, ocho incidencias, exit 4; dos requests y 50.801 tokens | Resultados §7; exit 4 y estado contrastados en `finalization/provenance.json`. Sin reintento ni uso del payload fallido |
+| 7.7.9 Ejemplos | 27493, 11661, 2440 y 7540 | Selección de cuatro patrones del §9; scope/error terminal se mencionan además por ser resultados obligatorios |
+
+No se desarrolla aún la discusión completa. El último párrafo prepara la
+lectura de resultados sin proponer cambios retrospectivos de contrato.
 
 ## 8. Discusión y limitaciones — estructura
 
@@ -179,8 +265,10 @@ Archivo: `chapters/08_discusion.tex`.
 Fuentes: resultados canónicos §§8–10 y Discussion-ready statements;
 capítulos 3 y 6 para límites del corpus y del diseño.
 
-Primero interpretar resultados primarios; después presentar
-**POST-HOC DIAGNOSTIC — NOT PRIMARY SCORING** como sección separada.
+Primero interpretar resultados primarios; después discutir el
+**POST-HOC DIAGNOSTIC — NOT PRIMARY SCORING** ya separado en 7.7.
+La antigua figura pendiente de 8.2 se incorpora como F08 en 7.7.1;
+8.2 mantiene únicamente una conexión/TODO para su interpretación.
 La cascada jerárquica, alias, splits, evidence/canonicalization y ejemplos
 proceden del diagnóstico aprobado. No volver a analizar predicciones ni
 corregir matches. Separar error del modelo, procesamiento determinista,
@@ -200,20 +288,21 @@ no confundir potencia con producción ni proponer tuning del holdout cerrado.
 Dedicatoria: restaurada como TODO antes de la declaración, con el formato
 básico original. Agradecimientos: conservados como contenido personal pendiente.
 Resumen y Abstract: redactar después de conclusiones. Declaración institucional
-y título propuesto: revisión de la autora. No suprimir secciones por estar vacías.
+y título propuesto: revisión humana. No suprimir secciones por estar vacías.
 Anexo A: resultados §§1 y 11; acceso verificable al archivo de entrega aún
 pendiente. Anexo B: detalle contractual y glosario estrictamente necesarios.
 
 ## Figuras y tablas
 
-Estado de esta fase: F02 (API/corpus) y F04 (extracción/validación) incorporadas
+Estado heredado del núcleo: F02 (API/corpus) y F04 (extracción/validación) incorporadas
 como TikZ. F01, F03 y F05 conservadas sin cambios de fuente. F06 preparada en
-4.11; F07/F08/F09 siguen pendientes para sus fases correspondientes. No se
+4.11; F07/F08 se incorporan en la fase experimental; F09 sigue pendiente.
+Las cinco figuras anteriores se conservan íntegras. No se
 crean capturas de Streamlit ni de anotación.
 
 Tablas: corpus revisada editorialmente sin cambiar cifras; capas y CLI
-conservadas; familias Silver y estados territoriales incorporadas. No se
-incorporan aún tablas experimentales nuevas. Ubicación y comprobación visual
+conservadas; familias Silver y estados territoriales incorporadas. La fase experimental incorpora composición V2, estados del controlador,
+identidades, matriz scope, métricas, atributos, P0 y diagnóstico de actuaciones. Ubicación y comprobación visual
 en `PLAN_FIGURAS.md`.
 
 ## Necesidades bibliográficas
@@ -246,7 +335,7 @@ cada herramienta o afirmación de implementación. Subsisten los TODO-CITA
 jurídicos/contextuales de capítulos 1–2, sin desarrollarlos en esta fase.
 Las cinco entradas bibliográficas se conservan; no se hace investigación web.
 
-## Control de calidad de esta fase
+## Control de calidad de la fase del núcleo metodológico (cerrada)
 
 Se revisaron las seis secciones de datos, las dieciséis de metodología y las
 cuatro de aplicación con los siete criterios de la solicitud: concepto antes
@@ -263,6 +352,45 @@ La canonicalización se explica con sus consecuencias semánticas y P0 mantiene
 la decisión humana. No se atribuyen funciones futuras a la CLI o al correo.
 
 Aceptación de esta fase: **READY FOR CONTENT REVIEW**. Quedan los siete
-TODO-CITA anteriores, F06 y las capturas previstas, además de la revisión de
-la autora. La compilación y la inspección visual se registran en
+TODO-CITA anteriores, F06 y las capturas previstas, además de la revisión
+humana. La compilación y la inspección visual se registran en
 `PLAN_FIGURAS.md`; no se declara terminada la memoria completa.
+
+## Control científico de la fase experimental
+
+La anotación y la QA efectivas se describen según declaración aportada en la solicitud,
+sin inventar identidad de otro revisor o una medida interanotador. Las
+declaraciones históricas de “pendiente de freeze” en contratos/runbooks no
+se usan como estado actual: el cierre canónico y los artefactos definitivos
+documentan la secuencia posterior. Esta diferencia temporal está explícita;
+no se detectó discrepancia entre cifras o identidades canónicas.
+
+| Control | Resultado y ubicación vigente |
+| --- | --- |
+| A Holdout definido antes de usarlo | PASS — 6.2, conjunto reservado y analogía |
+| B Ground truth definido antes de usarlo | PASS — 6.3, referencia con la que comparar |
+| C Anotación humana ciega inequívoca | PASS — 6.4, anotación personal anterior; QA posterior y decisión humana |
+| D V2 fijado antes de predicciones | PASS — 6.3 y 6.6 |
+| E Referencia congelada antes de predicciones | PASS — 6.5, 09:57:08 UTC |
+| F Evaluador congelado antes de predicciones | PASS — 6.9, 14:59:31 UTC |
+| G Corrección anterior a Gemini | PASS — 6.9 frente a inicio 15:06:50 en 6.10 |
+| H Predicciones congeladas antes de scoring offline | PASS — 6.11, 15:32:07 frente a 15:36:43 UTC |
+| I Matching anterior a atributos condicionados | PASS — 6.7–6.8 antes de 6.12.2 |
+| J TP/FP/FN anteriores a precisión/recall/F1 | PASS — 6.12.1, ejemplo → significado → fórmulas |
+| K Primario y post-hoc separados | PASS — 7.1–7.6 frente a 7.7, encabezado y salto de página |
+| L P0 sin sobreinterpretación | PASS — 6.6.1 y 6.12.4; límites explícitos en 7.6 |
+| M Sin exactitud global inventada | PASS — 6.1, 6.12 y capítulo 7 |
+| N Voz consistente | PASS — impersonal y primera persona singular para acciones humanas personales |
+
+TODO-CITA nuevos: referencia metodológica sobre holdout y separación de
+predicciones (6.2); precisión/recall/F1 y agregación micro (6.12).
+Los artefactos propios respaldan las reglas particulares del experimento.
+No se realizó investigación web ni se alteró la bibliografía.
+
+Compilación, revisión visual y protección de archivos: `PLAN_FIGURAS.md`.
+No se ejecutaron tests de software ni evaluación; las comprobaciones de
+esta fase son documentales, de integridad, LaTeX y visuales.
+
+Aceptación tras la revisión pedagógica: **READY FOR PEDAGOGICAL REVIEW**.
+Pendientes de este bloque: revisión humana y dos TODO-CITA metodológicos.
+La captura C04 sigue siendo opcional y no se ha generado.

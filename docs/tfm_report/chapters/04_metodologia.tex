@@ -729,14 +729,14 @@ anexo~\ref{an:reproducibilidad}.
 
 \section{Desarrollo asistido por inteligencia artificial}
 \label{sec:ia-desarrollo}
-% Declaración de uso aportada expresamente por la autora en esta fase.
+% Declaración de uso aportada expresamente en la solicitud de esta fase.
 % Cronología: manifests truth/evaluator y FINAL_HOLDOUT_V2_RESULTS.md §1.
 El trabajo distingue la inteligencia artificial que forma parte del sistema
 evaluado de las herramientas utilizadas para ayudar a desarrollarlo. Gemini
 realiza la extracción documental descrita en la
 sección~\ref{sec:extraccion-gemini}; su respuesta y el procesamiento posterior
 son objeto de evaluación. ChatGPT y Codex se utilizaron como herramientas de
-apoyo al trabajo de la autora, con funciones diferentes.
+apoyo en el desarrollo del TFM, con funciones diferentes.
 
 ChatGPT apoyó el análisis de necesidades, la planificación, la discusión
 metodológica, la revisión de propuestas y la elaboración y refinamiento de
@@ -744,7 +744,8 @@ instrucciones para el modelo. Codex, utilizado desde el editor Visual Studio
 Code (VSCode), apoyó la inspección del repositorio, la implementación de tareas
 delimitadas, la creación y adaptación de pruebas, la documentación y la
 redacción en LaTeX. Estas herramientas propusieron explicaciones y cambios;
-las decisiones sobre objetivos, alcance y método correspondieron a la autora.
+las decisiones sobre objetivos, alcance y método se mantuvieron bajo control
+humano.
 
 Para orientar al agente de desarrollo se mantuvo un archivo de instrucciones
 persistentes: un documento que reúne reglas y contexto del proyecto y que
@@ -759,11 +760,11 @@ de su resultado.
 El proceso de trabajo siguió una secuencia incremental: identificar una
 necesidad, especificarla mediante una solicitud, obtener una implementación
 acotada, inspeccionar los cambios, ejecutar las pruebas pertinentes y someter
-el resultado a revisión humana. La autora gestionó manualmente los commits y
+el resultado a revisión humana. Gestioné manualmente los commits y
 pushes de Git, es decir, el registro de versiones y su envío al repositorio
-remoto. La anotación de los documentos, la revisión de cambios, las decisiones
-metodológicas y la interpretación de resultados fueron responsabilidad de
-la autora. El uso de asistentes no les atribuye la autoría del TFM.
+remoto. Asumí la responsabilidad de la anotación de los documentos, la revisión
+de cambios, las decisiones metodológicas y la interpretación de resultados.
+El uso de asistentes no les atribuye la autoría del TFM.
 
 La separación experimental se preservó mediante versiones fijadas antes de
 la ejecución primaria. La referencia anotada, o \emph{truth}, y el evaluador
