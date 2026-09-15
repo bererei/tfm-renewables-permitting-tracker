@@ -137,6 +137,13 @@ matching, canonicalización, regla estricta y atributo acertado tras emparejar.
 El holdout no evalúa directamente la agrupación Gold. El ejemplo Hipódromo
 ilustra la regla congelada, no autoriza asignar un nuevo TP.
 
+En Discusión seguir la secuencia: significado del resultado, mecanismos
+compatibles, conclusión respaldada y conclusión excesiva. Atribuir las métricas
+al sistema completo; separar modelo, canonicalización, representación y
+evaluador, sin asignar causalidad cuando el diagnóstico post-hoc no la aísla.
+Contrastar ventajas y costes del matching exacto. En Limitaciones indicar qué
+se restringe y cómo afecta a la interpretación, sin duplicar la discusión.
+
 `FINAL_HOLDOUT_V2_RESULTS.md` sigue siendo la única fuente numérica primaria.
 Mantener PRIMARY RESULTS y POST-HOC DIAGNOSTIC — NOT PRIMARY SCORING separados.
 No cambiar truth, evaluador, matching, denominadores, predicciones ni experimento.

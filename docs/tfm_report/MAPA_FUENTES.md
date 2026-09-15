@@ -256,23 +256,39 @@ BOE ni sus predicciones para producir explicaciones nuevas.
 | 7.7.8 Error terminal | 32569, document_validation, ocho incidencias, exit 4; dos requests y 50.801 tokens | Resultados §7; exit 4 y estado contrastados en `finalization/provenance.json`. Sin reintento ni uso del payload fallido |
 | 7.7.9 Ejemplos | 27493, 11661, 2440 y 7540 | Selección de cuatro patrones del §9; scope/error terminal se mencionan además por ser resultados obligatorios |
 
-No se desarrolla aún la discusión completa. El último párrafo prepara la
-lectura de resultados sin proponer cambios retrospectivos de contrato.
+El cierre de 7.7 mantiene el diagnóstico separado y prepara su interpretación
+en el capítulo 8, sin proponer cambios retrospectivos de contrato.
 
-## 8. Discusión y limitaciones — estructura
+## 8. Discusión y limitaciones — redactado para revisión
 
 Archivo: `chapters/08_discusion.tex`.
 Fuentes: resultados canónicos §§8–10 y Discussion-ready statements;
 capítulos 3 y 6 para límites del corpus y del diseño.
 
-Primero interpretar resultados primarios; después discutir el
-**POST-HOC DIAGNOSTIC — NOT PRIMARY SCORING** ya separado en 7.7.
-La antigua figura pendiente de 8.2 se incorpora como F08 en 7.7.1;
-8.2 mantiene únicamente una conexión/TODO para su interpretación.
-La cascada jerárquica, alias, splits, evidence/canonicalization y ejemplos
-proceden del diagnóstico aprobado. No volver a analizar predicciones ni
-corregir matches. Separar error del modelo, procesamiento determinista,
-regla de matching y representación; no inferir causas que no se aislaron.
+La discusión parte de las métricas primarias y utiliza únicamente el
+diagnóstico post-hoc aprobado para delimitar interpretaciones. No se vuelven a
+analizar predicciones, corregir matches ni calcular resultados. F08 permanece
+en 7.7.1 y se interpreta por referencia, sin duplicar la figura.
+
+| Bloque | Fuente y uso | Límite explícito |
+| --- | --- | --- |
+| 8.1–8.2 Lectura global y alcance | Resultados §§3 y 10; capítulos 3–4 | 46/48 solo mide alcance; sin exactitud global ni cobertura del filtro BOE |
+| 8.3 Activos | Diagnóstico §8 Assets | 14 variantes cortas, dos “existente” y un contraste PFVH/Planta; no crea TP post-hoc |
+| 8.4 Eventos | Diagnóstico §8 Events y F08 | 15 FN/20 FP asociados a activos; 2 FN/4 FP por splits; 1 FP de alcance; cero merges observados |
+| 8.5 Localizaciones | Diagnóstico §8 Locations; metodología territorial 4.9 | 61 FN/92 FP bajo evento sin match; 7 FN/3 FP dentro; no evalúa ubicación física ni perfección territorial |
+| 8.6–8.7 Actuaciones y evidencia | Diagnóstico §8 Actions; caso 2440 | 18/37 bajo evento sin match; 17/20 sin candidato; 18 títulos y dos fragmentos; interacción, no causalidad única |
+| 8.8–8.9 Atributos y relaciones | Resultados tablas C y E | Denominadores condicionados; 1/1 no es rendimiento general; pares dependen de actuación emparejada |
+| 8.10 P0 | Resultados §6 y tabla F | Sin positivos adjudicables; replay 11/11 y 0/5 solo como desarrollo |
+| 8.11 Error terminal | Resultados §7 | 32569 se conserva; error de alcance por ausencia, sin errores de entidades |
+| 8.12–8.13 Fuentes y mejora | Resultados §§8–10; metodología 4.4–4.7 | Distingue modelo, canonicalización, representación y matching; no reasigna FP/FN |
+| 8.14 Limitaciones | Contrato V2, capítulos 2–6 y resultados §10 | Muestra, anotación, alcance, jerarquía, P0, fuente, dominio/modelo y post-hoc restringen las inferencias |
+| 8.15 Generalización | Síntesis de alcance validado | Método transferible con adaptación; cifras no extrapolables sin nueva evaluación |
+
+Casos empleados, con una función pedagógica cada uno: Hipódromo para variante
+nominal; 11661 para división de evento; 2440 para evidencia/canonicalización;
+13309 para alcance incorrecto; y 32569 para error terminal. No se añaden casos,
+figuras, correspondencias ni métricas. Dos tablas nuevas resumen fuentes de
+discrepancia y limitaciones, sin repetir la tabla de resultados.
 
 ## 9. Conclusiones y trabajo futuro — estructura
 

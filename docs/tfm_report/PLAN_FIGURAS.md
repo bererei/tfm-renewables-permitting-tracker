@@ -21,8 +21,10 @@ del 5 y añadió tablas de familias Silver y estados territoriales. F06 queda
 preparada y las capturas continúan en TODO. No modifica código, tests, runs,
 resultados, bibliografía o PDF raíz. Los IDs F01–F09 son IDs de planificación;
 la numeración visible de LaTeX depende del capítulo y de las figuras incorporadas.
-La fase actual desarrolla 6/7 e incorpora F07/F08; el capítulo 8 solo recibe
-una conexión/TODO. Las cinco figuras existentes se conservan sin cambios.
+La fase experimental desarrolla 6/7 e incorpora F07/F08. La fase de Discusión
+y Limitaciones reutiliza F08 mediante referencia y añade
+dos tablas, sin incorporar otra figura. Las cinco figuras anteriores se
+conservan sin cambios.
 
 ## Selección cerrada para integración progresiva
 
@@ -92,8 +94,10 @@ Incorporadas en la fase sustantiva: familias Silver (4.8) y estados territoriale
 Incorporadas ahora: composición V2 (6.3), estados del controlador (6.10),
 identidades (6.14), scope (7.2), métricas (7.3), atributos condicionados (7.4),
 P0 (7.6) y diagnóstico de actuaciones (7.7.2). Las fórmulas y el ejemplo
-didáctico se explican en 6.12 sin otra tabla. Sigue pendiente la tabla de
-limitaciones (8.4). Referenciar tablas existentes en vez de duplicarlas.
+didáctico se explican en 6.12 sin otra tabla. Discusión incorpora una tabla de
+fuentes de discrepancia (8.12) y otra de limitaciones (8.14), sin repetir las
+métricas. F08 se reutiliza mediante referencia desde 8.4; no se añade otra
+figura. Referenciar tablas existentes en vez de duplicarlas.
 
 Capturas reservadas, no generadas: C01 vista general, C02 mapa/filtros,
 C03 ficha/publicaciones (capítulo 5; seleccionar dos o tres en total) y C04
@@ -401,3 +405,22 @@ No se ejecutaron pruebas de software, evaluación ni llamadas a modelos.
 
 Aceptación: **READY FOR VOICE REVIEW**. Se detiene el bloque para revisión
 humana; no se hace staging, commit ni push.
+
+## Discusión y limitaciones — 2026-09-14
+
+Estado vigente: **READY FOR DISCUSSION REVIEW**. El capítulo 8 ocupa las
+páginas impresas 60–69 (PDF 74–83). Reutiliza F08 por referencia; no añade
+figuras. La tabla 8.1, fuentes de discrepancia, aparece en la página impresa
+65 (PDF 79); la tabla 8.2, limitaciones, en la 67 (PDF 81). No repiten métricas.
+
+Se inspeccionaron visualmente las diez páginas del capítulo. Las dos tablas
+caben sin reducción global ni solapamientos. La distinción sistema/Gemini,
+el denominador 1/1, P0 sin positivos adjudicables, el error terminal y la
+frontera primario/post-hoc permanecen explícitos. No hay nuevas figuras,
+capturas o TODO-CITA. La política y el inventario de `COMPILACION.md` no
+requieren cambios en este bloque.
+
+Compilación habitual: exit 0, 89 páginas A4. F07 permanece en PDF 62 y F08
+en PDF 70. Se conservan los dos overfull históricos y los cuatro underfull
+previos; no aparecen referencias indefinidas, caracteres perdidos ni avisos
+nuevos de cajas. Log local: `build/compilacion-discusion.txt`.
