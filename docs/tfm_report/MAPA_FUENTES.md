@@ -293,11 +293,25 @@ discrepancia y limitaciones, sin repetir la tabla de resultados.
 ## 9. Conclusiones y trabajo futuro — estructura
 
 Archivo: `chapters/09_conclusiones.tex`.
-Depende de objetivos aceptados y capítulos 7–8 revisados.
-Fuentes: resultados canónicos, `docs/TFM_CLOSEOUT.md` §§4–5,
-`docs/USER_GUIDE.md` §16. Responder a objetivos sin nuevas métricas.
-Futuro agrupado en operación, calidad/gobierno y enriquecimiento funcional;
-no confundir potencia con producción ni proponer tuning del holdout cerrado.
+Depende de los objetivos del capítulo 1 y de los capítulos 7–8 revisados.
+Fuentes: resultados canónicos, `docs/TFM_CLOSEOUT.md` y
+`docs/USER_GUIDE.md`. No incorpora resultados nuevos.
+
+| Sección | Fuente principal | Respuesta y límite |
+| --- | --- | --- |
+| 9.1 Apertura y aportación | Capítulos 1, 3–5 | BOE no longitudinal; sistema completo desde adquisición hasta consulta, no solo Gemini |
+| 9.1.1 Aprendizaje | Resultados primarios y diagnóstico aprobado | Scope 46/48; rendimiento desigual; cascada sin reasignar métricas ni causalidad exclusiva |
+| 9.1.2 Utilidad y reproducibilidad | Capítulos 4–6; User Guide | Seguimiento asistido y trazable; no registro oficial, autonomía plena ni cola unificada actual |
+| 9.1.3 Objetivos | Objetivo general y seis específicos de 1.3–1.4 | Cumplimiento técnico explícito y matices empíricos; Gold/grouping sin métrica independiente |
+| 9.2.1 Calidad | Diagnóstico 7.7 y Discusión | Alias controlados, granularidad, evidencia y actuaciones; ninguna corrección retrospectiva |
+| 9.2.2 Evaluación | P0 y limitaciones | Conjunto P0 independiente y nuevos protocolos; el holdout final no se usa para ajuste |
+| 9.2.3 Enriquecimiento | Alcance y cierre TFM | `environmental_outcome` derivado, siguiente hito prudente, hibridación, promotor, potencia y componentes |
+| 9.2.4 Gobierno | Revisión humana y reporting | Cola persistente futura; una incidencia aceptada produce corrección versionada y regeneración |
+| 9.2.5 Operación | CLI y mecanismos existentes; F09 | Scheduler, incrementalidad, publicación y monitorización como propuesta POST-TFM |
+
+La potencia se distingue de la producción energética. El promotor se plantea
+como señal futura, no como clave rígida. Las comparaciones de modelos requieren
+el mismo protocolo y criterios previos.
 
 ## Preliminares y anexos
 
@@ -312,8 +326,8 @@ pendiente. Anexo B: detalle contractual y glosario estrictamente necesarios.
 
 Estado heredado del núcleo: F02 (API/corpus) y F04 (extracción/validación) incorporadas
 como TikZ. F01, F03 y F05 conservadas sin cambios de fuente. F06 preparada en
-4.11; F07/F08 se incorporan en la fase experimental; F09 sigue pendiente.
-Las cinco figuras anteriores se conservan íntegras. No se
+4.11; F07/F08 se incorporan en la fase experimental; F09 se incorpora en
+9.2.5 como propuesta POST-TFM. Las figuras anteriores se conservan íntegras. No se
 crean capturas de Streamlit ni de anotación.
 
 Tablas: corpus revisada editorialmente sin cambiar cifras; capas y CLI

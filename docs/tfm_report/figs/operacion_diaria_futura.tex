@@ -1,0 +1,58 @@
+% F09. Propuesta POST-TFM basada en mecanismos actuales y carencias documentadas.
+\begin{tikzpicture}
+\node[tfm heading, text width=12.4cm] (title) at (0,0)
+  {PROPUESTA POST-TFM: OPERACIÓN DIARIA};
+
+\node[tfm heading, text width=7.0cm, below=6mm of title, xshift=-2.5cm]
+  (mainheading) {Flujo de datos y publicación};
+\node[tfm optional, text width=5.8cm, below=5mm of mainheading]
+  (scheduler) {Planificador y coordinación automática};
+\node[tfm optional, text width=5.8cm, below=5mm of scheduler]
+  (daily) {BOE diario y adquisición incremental};
+\node[tfm data, text width=5.8cm, below=5mm of daily]
+  (cli) {CLI por etapas y snapshots};
+\node[tfm box, text width=5.8cm, below=5mm of cli]
+  (extract) {Extracción, validación y revisión};
+\node[tfm box, text width=5.8cm, below=5mm of extract]
+  (downstream) {Resolución territorial, grouping y regeneración};
+\node[tfm data, text width=5.8cm, below=5mm of downstream]
+  (gold) {Última versión Gold validada};
+\node[tfm optional, text width=5.8cm, below=5mm of gold]
+  (publish) {Publicación versionada y monitorización};
+\node[tfm accent, text width=5.8cm, below=5mm of publish]
+  (streamlit) {Streamlit de solo lectura};
+
+\foreach \a/\b in {scheduler/daily,daily/cli,cli/extract,extract/downstream,
+  downstream/gold,gold/publish,publish/streamlit}
+  {\draw[tfm flow] (\a) -- (\b);}
+
+\node[tfm heading, text width=4.7cm, right=5mm of mainheading]
+  (reviewheading) {Gobierno de incidencias};
+\node[tfm data, text width=4.4cm, below=5mm of reviewheading]
+  (signals) {Incidencias de extracción/P0\\y estados territoriales};
+\node[tfm data, text width=4.4cm, below=5mm of signals]
+  (reports) {Reportes de usuarios\\mediante correo};
+\node[tfm optional, text width=4.4cm, below=7mm of reports]
+  (queue) {Cola persistente unificada};
+\node[tfm optional, text width=4.4cm, below=5mm of queue]
+  (admin) {Revisión administrativa\\y seguimiento};
+\node[tfm data, text width=4.4cm, below=5mm of admin]
+  (decision) {Decisión o corrección\\versionada};
+
+\draw[tfm flow] (signals.west) -- ++(-3mm,0) |- (queue.west);
+\draw[tfm flow] (reports.south) -- (queue.north);
+\draw[tfm flow] (queue.south) -- (admin.north);
+\draw[tfm flow] (admin.south) -- (decision.north);
+\draw[tfm flow] (decision.west) -| ($(downstream.east)+(4mm,0)$)
+  -- (downstream.east);
+\draw[tfm relation] (extract.east) -- (signals.west);
+
+\node[tfm note, text width=12.2cm, below=7mm of streamlit] (legend) {
+  \textbf{Trazo continuo --- EXISTE ACTUALMENTE:} mecanismo reutilizable\\[3pt]
+  \textbf{Trazo discontinuo --- PROPUESTO POST-TFM:} componente por desarrollar
+};
+\node[tfm note, text width=12.2cm, below=4mm of legend] {
+  Objetivos de la propuesta: operación incremental, idempotente, trazable,
+  reanudable, regenerable y no bloqueante para la última versión Gold validada.
+};
+\end{tikzpicture}

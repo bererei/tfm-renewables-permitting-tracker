@@ -144,6 +144,14 @@ evaluador, sin asignar causalidad cuando el diagnóstico post-hoc no la aísla.
 Contrastar ventajas y costes del matching exacto. En Limitaciones indicar qué
 se restringe y cómo afecta a la interpretación, sin duplicar la discusión.
 
+En Conclusiones responder de forma explícita al objetivo general y a los seis
+objetivos específicos. Separar construcción técnica, calidad empírica y
+utilidad actual; no convertir el capítulo en otro resumen de métricas. El
+trabajo futuro parte de una limitación observada, propone una mejora y declara
+el beneficio que deberá comprobarse. Priorizar actuaciones, evidencia, eventos
+y alias; conservar el holdout final como evidencia, no como conjunto de ajuste.
+Las capas semánticas y la operación diaria se declaran propuestas POST-TFM.
+
 `FINAL_HOLDOUT_V2_RESULTS.md` sigue siendo la única fuente numérica primaria.
 Mantener PRIMARY RESULTS y POST-HOC DIAGNOSTIC — NOT PRIMARY SCORING separados.
 No cambiar truth, evaluador, matching, denominadores, predicciones ni experimento.
@@ -180,8 +188,8 @@ del capítulo 5, incorpora F02/F04 y tablas compactas de Silver y territorio.
 F06 queda preparada para el flujo actual; reportes persistentes y cola unificada
 permanecen en F09, POST-TFM. La fase experimental posterior desarrolla los
 capítulos 6/7 e incorpora F07/F08; su revisión pedagógica mantiene intactos
-los resultados. Discusión, Conclusiones, Resumen, Abstract y capturas siguen
-pendientes de sus bloques autorizados.
+los resultados. Discusión, Limitaciones y Conclusiones ya están desarrolladas;
+Resumen, Abstract y capturas siguen pendientes de sus bloques autorizados.
 
 Los diagramas deben respetar el orden real del extractor: salida estructurada
 Pydantic, incorporación de identidad documental, canonicalización y validación

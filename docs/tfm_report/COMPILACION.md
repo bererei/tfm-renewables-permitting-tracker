@@ -174,8 +174,8 @@ Actualizado en la primera integración de figuras de 2026-09-14:
 TikZ ya está disponible mediante `todonotes`; `include/diagramas.tex` carga
 sus bibliotecas y define los estilos comunes. Los tres diagramas se compilan
 directamente desde fuentes `.tex`, sin conversión externa ni imágenes raster.
-El inventario actual incluye siete diagramas: la revisión pedagógica de F07/F08
-mantiene ese mecanismo y los estilos existentes, sin dependencias nuevas.
+El inventario actual incluye ocho diagramas: F09 añade la propuesta de operación
+diaria posterior al TFM con el mismo mecanismo y sin dependencias nuevas.
 El plan y la revisión visual vigentes se registran en `PLAN_FIGURAS.md`; el comando y
 la política del PDF de trabajo se mantienen.
 
@@ -218,6 +218,7 @@ figs/logouclm.png
 figs/extraccion_validacion.tex
 figs/grouping_implementado.tex
 figs/metodologia_experimental.tex
+figs/operacion_diaria_futura.tex
 figs/procedimiento_administrativo.tex
 include/colores.tex
 include/configuracion.tex

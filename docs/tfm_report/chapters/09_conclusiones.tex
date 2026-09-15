@@ -1,57 +1,281 @@
 \chapter{Conclusiones y trabajo futuro}
 \label{ch:conclusiones}
-% Fuentes futuras: objetivos aprobados; resultados canónicos; TFM_CLOSEOUT.md §5.
-\section{Conclusiones respecto a los objetivos}
-\pendiente{Redactar tras revisar Resultados y Discusión. Responder a cada
-objetivo: realización técnica, aprendizaje experimental, utilidad y problemas
-pendientes. No introducir cifras ni resultados nuevos.}
+% Fuentes y trazabilidad por sección: MAPA_FUENTES.md.
+% Objetivos: capítulo 1. Resultados: FINAL_HOLDOUT_V2_RESULTS.md.
+
+\section{Conclusiones}
+
+El BOE contiene información oficial necesaria para conocer la tramitación de
+los proyectos de generación renovable, pero no funciona como una base de datos
+longitudinal de proyectos. Las actuaciones aparecen distribuidas entre
+publicaciones, se expresan en lenguaje administrativo y no comparten un
+identificador estable de planta. Además, un mismo nombre puede presentar
+variantes y una publicación puede combinar instalaciones, territorios y
+antecedentes distintos. El problema abordado consistió en transformar esa
+evidencia documental en una historia estructurada y consultable sin perder el
+vínculo con la fuente.
+
+El resultado del TFM es un sistema completo para realizar esa transformación.
+La adquisición programática conserva la identidad y la procedencia de los
+documentos; la extracción mediante Gemini propone una estructura; y los
+contratos, la canonicalización y la validación determinista controlan esa
+salida. Las capas Bronze, Silver y Gold separan fuente, entidades normalizadas
+y datos preparados para consulta. Sobre ellas se incorporan resolución
+territorial, agrupación longitudinal de menciones, decisiones humanas
+versionadas y una aplicación Streamlit de solo lectura. Las interfaces de
+línea de comandos, las pruebas y la guía de usuario completan una base que se
+puede inspeccionar y volver a ejecutar de forma controlada.
+
+Esta aportación no se reduce, por tanto, al uso de un modelo de lenguaje. El
+modelo es una parte generativa de una cadena que también incluye selección
+documental, reglas de dominio, representación de entidades, controles de
+calidad y consolidación posterior. Esa combinación permite mantener la
+evidencia literal, distinguir una extracción original de una corrección y
+reconstruir cómo una publicación termina formando parte de la cronología de
+un proyecto.
+
+\subsection{Aprendizaje experimental}
+
+La evaluación final ofrece una conclusión desigual según la tarea medida. El
+alcance documental fue correcto en 46 de las 48 publicaciones, un 95,8\,\%.
+La detección de activos obtuvo un rendimiento intermedio; la de eventos y
+localizaciones fue más limitada; y las actuaciones administrativas y sus
+relaciones con los activos presentaron un rendimiento primario muy bajo. Los
+atributos fueron consistentes dentro de las parejas disponibles, pero esos
+denominadores condicionados fueron pequeños, en especial para las actuaciones.
+No existe una única métrica global que resuma de manera honesta todos estos
+comportamientos.
+
+El principal aprendizaje es que la calidad de extremo a extremo no depende solo
+de Gemini. La predicción atraviesa extracción, canonicalización y
+representación antes de compararse mediante un emparejamiento jerárquico. Una
+omisión o una diferencia nominal en un activo puede impedir emparejar el
+evento y, a partir de ahí, sus actuaciones, localizaciones y relaciones. Por
+ello, un falso positivo o un falso negativo final no puede atribuirse
+automáticamente al modelo. Este diagnóstico explica dónde investigar, pero no
+modifica ni suaviza las métricas primarias del sistema congelado.
+
+Los valores bajos tampoco deben ocultarse ni interpretarse como la ausencia de
+resultado científico. La referencia se anotó antes de ejecutar las
+predicciones finales; la comparación utilizó una anotación humana ciega,
+reglas fijadas, un evaluador congelado y predicciones preservadas; y el análisis
+posterior quedó separado de la puntuación primaria. El experimento permitió
+identificar qué capas son prometedoras y cuáles todavía requieren control
+humano y nuevas mejoras. Esa delimitación reproducible es una conclusión del
+trabajo, no una corrección retrospectiva del experimento.
+
+\subsection{Utilidad, control humano y reproducibilidad}
+
+En su estado actual, el sistema resulta útil para explorar publicaciones,
+estructurar información y apoyar el seguimiento y la revisión humana. La
+aplicación permite consultar proyectos, territorios y cronologías sobre una
+versión Gold validada, y remite a la publicación y a la evidencia disponibles.
+Este uso es asistido: la herramienta no constituye un registro administrativo
+oficial, no garantiza exhaustividad y no sustituye la comprobación humana de
+las actuaciones, especialmente cuando una decisión dependa de su
+interpretación exacta.
+
+La revisión forma parte del diseño. La extracción y la salvaguarda P0 disponen
+de una cola de revisión; la resolución territorial mantiene estados propios;
+y las correcciones aprobadas se conservan como entradas versionadas antes de
+regenerar los derivados. El reporte público de Streamlit abre un correo, pero
+no registra una incidencia ni la integra automáticamente con esos mecanismos.
+Por tanto, se ha construido un ciclo técnico de revisión y corrección, aunque
+no una cola persistente única para todos los casos.
+
+La reproducibilidad aporta el marco para interpretar tanto los aciertos como
+los límites. Los contratos fijan las estructuras; los manifests, huellas y
+snapshots identifican entradas y salidas; las interfaces de línea de comandos
+reúnen las operaciones; y las pruebas, congelaciones y documentación registran
+los controles aplicados. En la evaluación, estas decisiones permiten precisar
+qué versión del sistema, qué referencia, qué evaluador y qué predicciones
+produjeron los resultados presentados, sin depender de volver a consultar el
+modelo.
+
+\subsection{Cumplimiento de los objetivos}
+
+El primer objetivo específico se cumplió dentro del alcance temporal definido:
+se obtuvo un corpus oficial mediante criterios explícitos y se conservaron la
+identidad, la fecha y la procedencia de cada documento. El segundo se cumplió
+en cuanto a construcción de la extracción estructurada de plantas,
+actuaciones, territorios y evidencias, pero solo parcialmente en cuanto a su
+fiabilidad empírica: la evaluación mostró una debilidad marcada en actuaciones
+y evidencia.
+
+El tercer objetivo se materializó mediante contratos, validación, estados de
+revisión y correcciones trazables. Su límite operativo es la separación actual
+entre las incidencias de extracción, territorio y usuarios. El cuarto se
+cumplió para el corpus del producto mediante reglas conservadoras de agrupación
+y resolución territorial. Estas capas cuentan con validación técnica, aunque
+el holdout no midió de forma independiente la calidad de la agrupación Gold.
+
+El quinto objetivo produjo las cuatro tablas Gold y una aplicación local de
+consulta de solo lectura, acompañada de guía operativa. La aceptación del
+despliegue público y una evaluación con usuarios no forman parte de la
+evidencia experimental presentada. El sexto objetivo se cumplió mediante un
+holdout independiente de 48 publicaciones, una referencia humana previa a las
+predicciones y un protocolo congelado. Cumplir el diseño de evaluación no
+implica que todas las tareas hayan obtenido un rendimiento suficiente; permite
+afirmar precisamente lo contrario donde los datos lo muestran.
+
+En conjunto, el objetivo general se alcanzó en su alcance definido: se
+desarrolló y evaluó una cadena reproducible que convierte publicaciones del
+BOE en una estructura longitudinal consultable y trazable. La metodología es
+transferible si se redefinen y validan las reglas del nuevo dominio, mientras
+que las cifras obtenidas pertenecen al corpus y a la configuración evaluados.
+El resultado debe entenderse como una base funcional para el seguimiento
+asistido, no como una automatización plenamente fiable. La selección
+documental, la trazabilidad y la infraestructura de datos ofrecen una base
+sólida; la recuperación de actuaciones y relaciones administrativas requiere
+mejoras antes de admitir un uso con mayor autonomía.
+
 \section{Trabajo futuro}
-\subsection{Operación}
-\pendiente{Ingestión diaria, planificación de ejecuciones y actualización
-acumulativa; distinguir fases CLI implementadas de automatización pendiente.}
-\pendiente{FIGURA F09 — Arquitectura propuesta para una futura operación
-diaria.\par Etiqueta prevista: \path{fig:operacion-diaria-futura}.
-Título y leyenda deben declarar
-TRABAJO FUTURO. Identificar los mecanismos actuales: CLI por etapas,
-snapshots, revisión, trazabilidad y downstream regenerable. Separar las
-propuestas: scheduler, coordinación automática, acumulación incremental,
-reportes persistentes y cola unificada. Flujo previsto: BOE diario, extracción/revisión,
-resolución territorial, grouping, Gold y Streamlit. Propiedades deseadas:
-incremental, idempotente, trazable, reanudable, no bloqueante y regenerable;
-no son garantías del sistema actual completo. El diseño deberá conservar el
-último Gold validado mientras se revisan nuevas incidencias, sin eludir los
-controles bloqueantes existentes. Referenciar desde esta subsección.}
-\subsection{Calidad y gobierno}
-\subsubsection{Cola unificada de incidencias y reportes de usuarios}
+
+Las líneas futuras se ordenan por los problemas observados y por su efecto en
+la fiabilidad. La prioridad científica es mejorar la representación y la
+recuperación de actuaciones antes de ampliar la aplicación con nuevas
+funciones. La tabla~\ref{tab:trabajo-futuro} resume cinco ejes; los apartados
+siguientes explican qué limitación motiva cada uno y qué beneficio se espera
+comprobar.
+
+\begin{table}[htbp]
+\centering
+\small
+\renewcommand{\arraystretch}{1.18}
+\begin{tabular}{L{2.5cm} L{3.9cm} L{4.4cm} L{1.6cm}}
+\hline
+Eje & Problema observado & Mejora propuesta & Prioridad \\
+\hline
+Calidad documental & Alias, división de eventos y falta de evidencia reducen las correspondencias; actuaciones con rendimiento muy bajo & Estudiar identidad, granularidad, evidencia y actuaciones de forma conjunta y controlada & 1 \\
+Evaluación & P0 carece de positivos adjudicables en el holdout y algunos denominadores son mínimos & Crear conjuntos independientes y nuevos protocolos congelados sin reajustar con el holdout final & 2 \\
+Enriquecimiento & Gold no explota todavía varias relaciones y atributos secundarios & Añadir capas derivadas solo cuando exista evidencia y validación propias & 3 \\
+Gobierno humano & Las incidencias y los reportes no comparten un registro persistente & Unificar recepción, revisión, decisión versionada y regeneración & 4 \\
+Operación & La CLI permite ejecuciones controladas, pero no existe coordinación diaria completa & Automatizar adquisición incremental, publicación validada, monitorización y despliegue & 5 \\
+\hline
+\end{tabular}
+\caption[Prioridades de trabajo futuro]{Ejes de trabajo futuro derivados de
+los resultados y de las funciones aún incompletas. El orden prioriza la
+fiabilidad científica antes de la ampliación funcional.}
+\label{tab:trabajo-futuro}
+\end{table}
+
+\subsection{Calidad de extracción y representación}
+
+La coincidencia exacta hizo visibles variantes como nombres abreviados,
+descriptores omitidos o la diferencia entre «PFVH San Blas» y «Planta
+fotovoltaica San Blas». Una primera línea consiste en estudiar equivalencias
+nominales controladas mediante reglas explícitas o un diccionario versionado,
+respaldado por evidencia y revisión humana. Su evaluación debe comprobar que
+el aumento de recuperación no introduce fusiones falsas. Una similitud difusa
+sin límites no ofrecería ese control.
+
+Las divisiones diferentes de un mismo contenido en eventos también produjeron
+cascadas de discrepancias. Es necesario revisar cómo representar publicaciones
+con varios activos relacionados, modificaciones o unidades administrativas
+complejas. El objetivo no sería cambiar retrospectivamente V2, sino definir y
+evaluar una granularidad futura que conserve la semántica sin multiplicar ni
+ocultar actuaciones.
+
+La mayor prioridad dentro de este eje corresponde a las actuaciones. El
+rendimiento primario exige analizar por separado qué parte se relaciona con la
+extracción, la granularidad de evento, la representación, la evidencia, el
+emparejamiento y la propagación jerárquica. También debe revisarse la selección
+de evidencia, incluida la relación entre título y cuerpo o dispositivo y la
+conservación de varios fragmentos literales. Mejorar ese material documental
+es distinto de relajar el evaluador. Cada criterio nuevo debe fijarse y medirse
+en otro experimento. Comparar otro LLM puede formar parte de ese estudio, pero
+no sustituye el análisis del procesamiento posterior.
+
+\subsection{Evaluación independiente}
+
+El holdout final no aportó positivos adjudicables suficientes para medir la
+sensibilidad de P0. El ensayo de desarrollo con once positivos detectados y
+cinco negativos sin falsa alarma conserva valor de regresión, pero no es una
+confirmación independiente. Se propone construir un conjunto específico con
+antecedentes históricos positivos, negativos controlados y diversidad
+documental, y medir recuperación, falsas alarmas y comportamiento por tipo de
+antecedente.
+
+Las mejoras sustantivas de alias, eventos, evidencia o actuaciones requerirán
+un nuevo holdout o un protocolo fijado antes de observar las respuestas. El
+holdout final de este TFM debe permanecer como evidencia del sistema
+congelado, no convertirse en un conjunto de ajuste iterativo. Una comparación
+entre Gemini, modelos locales u otros modelos de lenguaje también debería
+mantener la misma referencia y el mismo protocolo, y declarar de antemano las
+medidas de calidad, coste y latencia. Solo un experimento posterior permitiría
+concluir si una alternativa mejora el resultado.
+
+\subsection{Enriquecimiento semántico}
+
+Una primera extensión consiste en representar un resultado ambiental derivado
+y versionado, denominado \texttt{environmental\_outcome}. En determinados actos,
+el campo actual de decisión combina el estado procedimental con el resultado
+sustantivo. La nueva capa podría distinguir, cuando la evidencia lo permita,
+resultados favorables, desfavorables, condicionados, exclusiones o casos
+ambiguos. No debería modificar la extracción original y exigiría reglas
+explícitas, evidencia, revisión y validación independiente.
+
+Solo cuando la interpretación administrativa alcance suficiente fiabilidad
+sería razonable derivar un «siguiente hito probable». Esta indicación tendría
+que ser conservadora, explicable y basada en el estado observado; no
+representaría una certeza administrativa. Ambas capas son posteriores al TFM
+y no se diseñan como contratos en esta memoria.
+
+Silver también conserva información que puede explotarse mejor. Las relaciones
+explícitas de hibridación generación--generación podrían incorporarse a Gold y
+a la consulta siempre que se mantengan trazables y verificadas, sin inferir
+enlaces silenciosos entre documentos. El promotor puede estudiarse como señal
+de corroboración o desambiguación, pero no como identidad rígida: puede faltar,
+cambiar o aparecer con variantes societarias. Del mismo modo, la potencia
+instalada o autorizada, el almacenamiento y los componentes técnicos deben
+modelarse solo cuando estén expresos. La potencia no equivale a la energía
+realmente producida y las agregaciones entre publicaciones requieren control.
+
+\subsection{Revisión humana y gobierno}
 \label{sec:cola-unificada-futura}
-El sistema incorpora detección y revisión humana para algunos tipos de
-incidencias, pero no dispone de una cola persistente que reúna extracción,
-territorio y reportes de usuarios. La extracción y la salvaguarda P0
-comparten una cola; la resolución territorial conserva estados propios;
-el control público de reporte abre un correo sin almacenarlo en la aplicación.
 
-Como evolución posterior al TFM se propone registrar de forma persistente
-las incidencias automáticas y los reportes de Streamlit en una cola común,
-con identificador, origen, estado e historial de revisión. Una administración
-de estos casos permitiría asignar y documentar su resolución. La aceptación
-de un reporte no modificaría directamente Gold: una decisión que exigiera
-cambiar datos debería producir una corrección versionada, seguida de
-regeneración y validación antes de publicar una nueva salida.
+Los mecanismos actuales no cierran en un único lugar el ciclo entre detección,
+revisión, corrección y publicación. Se propone una cola persistente que reúna
+las incidencias de extracción y P0, los estados territoriales y los reportes de
+usuarios. Cada entrada conservaría identificador, origen, contexto, estado,
+persona responsable e historial de revisión.
 
-Esta propuesta reutilizaría los mecanismos actuales de trazabilidad,
-decisiones y materialización, y añadiría la recepción persistente de reportes,
-su integración y la coordinación administrativa que aún no existen.
-Debería conservar el vínculo entre incidencia, evidencia, decisión y versión
-publicada, además del último Gold validado mientras haya casos bloqueantes.
-Se integrará en la figura prevista de operación diaria futura, sin mezclarla
-con el flujo implementado de la sección~\ref{sec:revision-humana}.
+El control de Streamlit basado en \texttt{mailto:} podría sustituirse por un
+backend acotado que asignara un identificador y registrara el contexto del
+proyecto, la adjudicación y el cierre. Una interfaz administrativa sería una
+posible forma de operar esa cola. En ningún caso la aceptación de un reporte
+debería editar Gold directamente: una decisión con efecto en los datos se
+convertiría en una corrección versionada y desencadenaría regeneración y
+validación antes de publicar. La CLI actual puede continuar como referencia
+para esas operaciones controladas.
 
-\pendiente{Mejoras motivadas por evaluación: alias, granularidad de eventos,
-evidencia y propagación jerárquica, sin ajustar retrospectivamente el experimento.}
-\pendiente{Valorar municipio y promotor como corroboración futura de identidad,
-con evidencia y validación propias. Ninguno participa en la clave actual;
-no trasladarlos retrospectivamente a la figura del grouping implementado.}
-\subsection{Enriquecimiento funcional}
-\pendiente{Promotores, potencia instalada o autorizada, almacenamiento,
-hibridaciones, resultado ambiental, siguiente hito y relaciones adicionales,
-solo como trabajo futuro. No denominarlos producción energética.}
+\subsection{Operación diaria y publicación}
+
+La figura~\ref{fig:operacion-diaria-futura} separa los mecanismos ya
+disponibles de la coordinación necesaria para una futura operación diaria. Hoy
+existen adquisición programática, CLI por etapas, snapshots, validación,
+revisión, transformación regenerable y lectura de Gold. La propuesta añade un
+planificador, adquisición incremental coordinada, cola unificada, publicación
+versionada y monitorización. También requiere un despliegue estable de
+Streamlit, gestión segura de secretos y un procedimiento reproducible para
+promover una versión Gold validada.
+
+\begin{figure}[p]
+\centering
+\input{figs/operacion_diaria_futura}
+\caption[Propuesta de operación diaria posterior al TFM]{Arquitectura propuesta
+para una operación diaria posterior al TFM. Las cajas de trazo continuo son
+mecanismos existentes que se reutilizarían; las cajas discontinuas son
+componentes propuestos. La figura no describe una automatización ya
+implantada.}
+\label{fig:operacion-diaria-futura}
+\end{figure}
+
+La operación deseada debería ser incremental, idempotente, trazable, reanudable
+y regenerable. También debería ser no bloqueante para la consulta de la última
+versión Gold validada: una incidencia en datos nuevos impediría publicar esos
+datos, pero no retiraría la versión anterior mientras se resuelve. Estas
+propiedades son requisitos de diseño para el sistema futuro, no garantías del
+flujo completo actual. Su implantación debería comenzar por una coordinación
+sencilla de las interfaces existentes, sin añadir infraestructura que no
+contribuya a la calidad, la revisión o la publicación controlada.

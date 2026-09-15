@@ -38,7 +38,7 @@ conservan sin cambios.
 | F06 | Flujo de revisión y corrección humana implementado / 4.11 | TODO detallado; opción A, solo actual | `AUDITORIA_REVISION_REPORTES.md`, `admin.py`, `extraction/review.py`, P0, correcciones y `run_silver_stage`. Separar decisiones genéricas, CURRENT y ANTECEDENT; regeneración del operador; territorio independiente. Sin reportes ni rama futura |
 | F07 | Metodología experimental / 6.13 | Rediseñada; cuatro fases cronológicas | `docs/evaluation/FINAL_HOLDOUT_V2_RESULTS.md`, contrato V2 y controlador primario. Sistema/truth/evaluator fijados antes de la ejecución; predicciones congeladas antes de evaluar; post-hoc separado |
 | F08 | Cascada de matching / 7.7.1 | Revisada; cadena causal vertical | Resultados canónicos §8. POST-HOC DIAGNOSTIC — NOT PRIMARY SCORING. Padre emparejado necesario pero no suficiente; no crear correspondencias ni métricas |
-| F09 | Arquitectura propuesta para una futura operación diaria / 9.2.1 | TODO detallado; TRABAJO FUTURO | Decisiones revisadas sobre proceso diario, CLI real, `TFM_CLOSEOUT.md` y `USER_GUIDE.md`. Diferenciar mecanismos existentes y scheduler/reportes persistentes/cola/coordinación propuestos |
+| F09 | Arquitectura propuesta para una futura operación diaria / 9.2.5 | Incorporada; PROPUESTA POST-TFM | Decisiones revisadas sobre proceso diario, CLI real, `TFM_CLOSEOUT.md` y `USER_GUIDE.md`. Trazo continuo para mecanismos existentes y discontinuo para scheduler, incrementalidad, publicación/monitorización y cola/coordinación propuestas |
 
 Las nueve figuras son REQUIRED en la selección solicitada. La implementación
 del sistema descrito en F09 sigue siendo POST-TFM. No se añade otra figura
@@ -113,12 +113,13 @@ cada imagen tendrá caption, etiqueta y referencia textual.
   `figs/grouping_implementado.tex`; se añaden `figs/api_boe_corpus.tex` y
   `figs/extraccion_validacion.tex` en la fase anterior. Esta fase añade
   `figs/metodologia_experimental.tex` y `figs/cascada_matching.tex`.
+  La fase de conclusiones añade `figs/operacion_diaria_futura.tex`.
 - Tipografía del documento; nodos de 10 pt y notas de 9 pt, sin reducción global.
   Color `tema`, fondos suaves, bordes y flechas vectoriales.
 - F01 usa enlace discontinuo para la relación no secuencial de DUP.
-  F09 deberá incorporar una leyenda explícita actual/propuesto; el color no
-  será el único medio para distinguirlos.
-- Las siete figuras incorporadas tienen caption, etiqueta y referencia desde el texto.
+  F09 incorpora una leyenda explícita actual/propuesto y distingue ambos
+  estados mediante trazo continuo/discontinuo; el color no es el único medio.
+- Las ocho figuras incorporadas tienen caption, etiqueta y referencia desde el texto.
   Se activa el índice de figuras; se conserva el índice de tablas.
 - Compilación y PDF intermedio en `build/`, según `COMPILACION.md`.
   El PDF raíz continúa reservado para una actualización de hito aprobada.
