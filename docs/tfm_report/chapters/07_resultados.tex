@@ -16,13 +16,16 @@ los artefactos conservan su precisión original.
 
 \section{Ejecución primaria}
 \label{sec:resultado-ejecucion}
-Se procesaron los 48 documentos del holdout. Hubo 47 terminaciones correctas
-y un error terminal. No quedaron documentos pendientes, en ejecución o
-indeterminados. El éxito operativo
-significa que la extracción completó sus controles, no que todas las
-entidades o interpretaciones fueran correctas.
+Se procesaron los 48 documentos del holdout. El resultado operativo fue:
+\begin{center}
+47 \texttt{TERMINAL\_SUCCESS} $+$ 1 \texttt{TERMINAL\_ERROR}.
+\end{center}
+No quedaron documentos pendientes, en ejecución o indeterminados. En este registro,
+\texttt{TERMINAL\_SUCCESS} significa que la ejecución terminó con un artefacto
+válido; no significa que la predicción sea correcta ni que todas sus entidades
+o interpretaciones lo sean.
 
-El error corresponde a \texttt{BOE-B-2024-32569}. Se conservó como parte del
+El error corresponde a \texttt{BOE-B-2024-32569}. El controlador lo conservó como parte del
 experimento, sin reintentarlo después ni sustituir su salida por una
 corrección. Por tanto, el denominador documental sigue siendo 48. El
 evaluador trata ese resultado como predicción ausente, no como un documento
@@ -31,7 +34,7 @@ post-hoc, separado de este resultado operativo.
 
 \section{Alcance documental}
 La primera pregunta es si el documento trata un proyecto de generación
-dentro del alcance definido. El sistema clasificó correctamente 46 de los
+dentro del alcance definido. La salida evaluada clasificó correctamente 46 de los
 48 BOE: proporción de acierto documental (\emph{accuracy}) de 0,9583333,
 o \textbf{95,8\,\%} con el redondeo de presentación. La
 tabla~\ref{tab:scope-resultados} se lee por filas: cada clase humana se
@@ -149,7 +152,7 @@ pares aplicables. Fuente: tabla C del documento canónico.}
 \par\smallskip
 \begin{minipage}{0.91\linewidth}
 \small
-\textbf{N = 1 actuación emparejada.} Las cuatro filas relativas a actuaciones
+\textbf{Denominador condicionado:} una actuación emparejada. Las cuatro filas relativas a actuaciones
 describen ese único caso actual; no estiman la exactitud general de todas las
 actuaciones extraídas.
 \end{minipage}
@@ -214,8 +217,8 @@ Fuente: tabla F del documento canónico.}
 \par\smallskip
 \begin{minipage}{0.91\linewidth}
 \small
-\textbf{El holdout no permite estimar sensibilidad de P0: no hay antecedentes
-extraídos y emparejados que constituyan positivos adjudicables.}
+\textbf{Límite de P0:} el holdout no permite estimar su sensibilidad porque no
+hay antecedentes extraídos y emparejados que constituyan positivos adjudicables.
 La tasa de falsos avisos también se limita a un único caso.
 \end{minipage}
 \end{table}
@@ -236,7 +239,7 @@ una sensibilidad que no pudo medir.
 \clearpage
 \section{Análisis diagnóstico posterior a la evaluación}
 \label{sec:diagnostico-posthoc}
-\textbf{DIAGNÓSTICO POSTERIOR — NO MODIFICA LOS RESULTADOS PRIMARIOS.}
+\textbf{Diagnóstico posterior:} no modifica los resultados primarios.
 
 Hasta este punto se han presentado los resultados obtenidos mediante las
 reglas definidas antes de ejecutar el experimento. A partir de aquí se
@@ -342,6 +345,33 @@ sin convertir esa semejanza en un nuevo TP. Parte del resultado refleja
 la elección previa de un matching exacto y conservador; no se aplicó una
 normalización más flexible después de ver los resultados.
 
+\subsection{Lectura completa de un caso ilustrativo}
+La tabla~\ref{tab:caso-hipodromo} sigue un único caso real del holdout desde
+la referencia hasta el resultado. Su función es explicar la mecánica de una
+fila de evaluación; no sustituye los recuentos agregados ni añade una
+correspondencia posterior.
+
+\begin{table}[htbp]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{L{2.4cm} L{10.0cm}}
+\hline
+Paso & \texttt{BOE-A-2024-27493} \\
+\hline
+Referencia humana & Activo «Instalación fotovoltaica Hipódromo» \\
+Predicción & Activo «Hipódromo» \\
+Regla de matching & La normalización exacta conserva la diferencia del descriptor; los nombres no son iguales bajo la regla congelada \\
+Resultado primario & En el nivel de activos, una omisión (FN) para la referencia y una predicción sin pareja (FP); no se crea un TP por semejanza semántica \\
+\hline
+\end{tabular}
+\caption[Caso ilustrativo de referencia, predicción y matching]{Ejemplo real
+del holdout que muestra cómo una variante nominal afecta al resultado bajo la
+coincidencia exacta. El caso ya forma parte de los totales primarios y se
+presenta como diagnóstico post-hoc.}
+\label{tab:caso-hipodromo}
+\end{table}
+
 \subsection{Eventos: activos no emparejados y divisiones}
 De los 17 FN y 25 FP de eventos, 15 FN y 20 FP se relacionan con algún
 activo humano sin emparejamiento. Otros dos FN y cuatro FP corresponden a divisiones
@@ -389,7 +419,7 @@ salida 4. El intento y sus salidas fallidas se conservaron. No se utilizó
 ese contenido para sustituir una predicción ausente.
 
 El uso reportado registra dos peticiones y 50.801 tokens en total.
-Es el uso conservado por el sistema, no un recuento independiente de todas
+Es el uso conservado por el registro de ejecución, no un recuento independiente de todas
 las llamadas HTTP ni una repetición posterior del documento.
 La referencia era no relevante: el fallo aporta una ausencia en clasificación documental,
 pero ningún TP, FP o FN de entidades, porque no hay entidades positivas

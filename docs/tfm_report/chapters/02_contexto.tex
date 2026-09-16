@@ -51,25 +51,40 @@ general del sector eléctrico.}
 
 \subsection{Evaluación ambiental e información pública}
 La evaluación ambiental examina los efectos que puede tener un proyecto
-sobre el medio ambiente. En el procedimiento ordinario, el promotor prepara
-un \emph{Estudio de Impacto Ambiental}, que describe el proyecto, sus
-alternativas, los efectos previstos y las medidas propuestas. El estudio no
-es la decisión de la administración.
+sobre el medio ambiente. La Ley 21/2013 distingue, para los proyectos, la
+\textbf{evaluación de impacto ambiental ordinaria} y la
+\textbf{evaluación de impacto ambiental simplificada}. En la vía ordinaria,
+el promotor prepara un \emph{Estudio de Impacto Ambiental} (EsIA), que describe
+el proyecto, sus alternativas, los efectos previstos y las medidas propuestas.
+El estudio no es la decisión de la Administración.
 
 La \emph{información pública} permite consultar la documentación y presentar
 alegaciones. Su anuncio puede referirse a la documentación ambiental y a
 autorizaciones solicitadas. Que una autorización se someta a información
 pública no significa que haya sido concedida.
 
-La \emph{Declaración de Impacto Ambiental} (DIA) recoge la decisión del órgano
-ambiental en la evaluación ordinaria, con el pronunciamiento y las condiciones
-que correspondan. La evaluación simplificada utiliza un informe de impacto
-ambiental. La diferencia entre estudio, trámite de consulta y decisión
-ambiental es necesaria para no tratar sus menciones como hitos equivalentes
+La \emph{Declaración de Impacto Ambiental} (DIA) contiene el pronunciamiento
+del órgano ambiental en la evaluación ordinaria. En la vía simplificada, el
+promotor presenta un documento ambiental; después de las consultas, el órgano
+ambiental formula un informe de impacto ambiental. Este informe puede
+determinar que el proyecto debe someterse a evaluación ordinaria por poder
+tener efectos significativos, o que no los tendrá en los términos y con las
+medidas establecidas. La Ley contempla además la terminación del procedimiento
+si no existe información suficiente para resolver. La
+figura~\ref{fig:eia-ordinaria-simplificada} resume estas vías sin sustituir las
+condiciones y excepciones legales de los artículos 33 y 45--47
 \cite{jefaturadelestado_ley212013_2013}.
-\citapendiente{Completar las citas con los artículos y la versión normativa
-consultada para estudio, información pública, DIA e informe de impacto
-ambiental. No se han verificado textos legales consolidados en esta fase.}
+
+\begin{figure}[p]
+\centering
+\input{figs/evaluacion_impacto_ambiental}
+\caption[EIA ordinaria y simplificada]{Esquema conceptual de la evaluación de
+impacto ambiental de proyectos. La vía simplificada puede concluir que el
+proyecto debe someterse a evaluación ordinaria; la figura no representa todos
+los supuestos ni sustituye la Ley. Elaboración propia a partir de los
+artículos 33 y 45--47 de la Ley 21/2013, en su texto consolidado consultado.}
+\label{fig:eia-ordinaria-simplificada}
+\end{figure}
 
 \subsection{Autorizaciones y utilidad pública}
 La \emph{autorización administrativa previa} (AAP) se refiere al proyecto
@@ -96,7 +111,7 @@ la entrada existente utiliza el año 2001.}
 Para el seguimiento documental interesa distinguir el \emph{tipo de
 actuación} de su \emph{decisión}. Por ejemplo, una publicación puede someter
 una AAP a información pública y otra conceder esa misma clase de
-autorización. El sistema conserva ambos elementos, junto con la publicación
+autorización. La representación del TFM conserva ambos elementos, junto con la publicación
 que respalda cada uno, sin completar los pasos ausentes por suposición.
 
 La figura~\ref{fig:procedimiento-administrativo} representa un recorrido
@@ -126,49 +141,27 @@ Elaboración propia; respaldo normativo pendiente en los TODO-CITA del texto.}
 \label{fig:procedimiento-administrativo}
 \end{figure}
 
-\section{El BOE y su acceso programático}
+\section{El BOE como fuente oficial}
 \label{sec:boe-api-concepto}
 El BOE es una fuente oficial de disposiciones, resoluciones y anuncios.
-Ofrece sumarios diarios, que reúnen las publicaciones de cada fecha, y
-documentos consultables individualmente. Localizar y descargar esos documentos
-uno por uno exigiría repetir muchas operaciones manuales. Además, sería
-necesario registrar qué fechas y publicaciones se han consultado para poder
-repetir el proceso.
-
-El \emph{acceso programático} permite que un programa solicite información
-mediante instrucciones. Una interfaz de programación de aplicaciones, o
-\emph{API}, define cómo realizar esas solicitudes y cómo interpretar las
-respuestas. La web está pensada para que una persona consulte el BOE; la API
-de sumarios permite que un programa solicite la relación de publicaciones de
-una fecha de forma estructurada
-\cite{agenciaestatalboletínoficialdelestado_apiparaacceso_2024}.
-
-En este TFM la API se utiliza para obtener los sumarios y sus metadatos, es
-decir, los datos que describen cada publicación: identificador, fecha, título
-y enlaces, entre otros. Un filtro selecciona las publicaciones candidatas y,
-después, el programa descarga sus documentos mediante los enlaces XML
-proporcionados en el sumario. XML es un formato que organiza contenido
-mediante etiquetas. El sumario ayuda a localizar el documento; el documento
-aporta el texto que se analizará. Las solicitudes y el flujo concreto se
-describen en la sección~\ref{sec:adquisicion-api}.
-
 Cada publicación dispone de identificador BOE, fecha y enlaces de consulta.
-Los sumarios aportan además título y contexto de clasificación, como sección
-y departamento. El cuerpo documental puede incluir antecedentes, fundamentos,
-una parte resolutiva y anexos, aunque los anuncios no siempre siguen esa
-estructura. Estas diferencias afectan a la localización e interpretación de
-la información.
+Esta combinación permite comprobar una actuación contra el texto que la
+publica. El cuerpo puede incluir antecedentes, fundamentos, una parte
+resolutiva y anexos, aunque los anuncios no siempre siguen la misma estructura.
+Por ello el BOE aporta \textbf{evidencia oficial identificable}, pero no una
+tabla uniforme de proyectos.
 
-La principal ventaja es la posibilidad de contrastar un dato con una
-publicación identificable. Sin embargo, el identificador BOE identifica el
-documento, no la planta. La información utilizada por este sistema no ofrece
-una clave estable y común de proyecto entre publicaciones. Las denominaciones
-pueden incluir abreviaciones o descriptores diferentes, y un anuncio puede
-referirse a más de una planta.
+Su principal limitación para el seguimiento longitudinal es que el
+identificador BOE reconoce el documento, no la planta. La fuente no ofrece una
+clave estable y común de proyecto entre publicaciones. Las denominaciones
+pueden cambiar y un anuncio puede referirse a más de una planta. Además, una
+historia restringida al BOE puede omitir actuaciones publicadas en otros
+boletines o no recuperadas por la selección documental: la ausencia de una
+publicación en el corpus no equivale a la ausencia del trámite.
 
-Además, una historia restringida al BOE puede omitir actuaciones publicadas
-en otros boletines o no recuperadas por la selección documental. La ausencia
-de una publicación en el corpus no equivale a la ausencia del trámite.
+El capítulo~\ref{ch:datos} explica, ya como problema de datos, el acceso
+programático, los sumarios, los documentos y su persistencia. De este modo, el
+presente capítulo limita el BOE a su función y a sus límites como fuente.
 \citapendiente{Añadir una referencia oficial sobre el alcance del BOE y la
 distribución competencial y de publicaciones entre administraciones.}
 
@@ -220,3 +213,5 @@ El ejemplo muestra dos decisiones diferentes: relacionar las menciones de
 Don Rodrigo II entre documentos y atribuir cada actuación a la publicación
 que realmente la comunica como actual. La metodología debe resolver ambas
 sin confundir la fecha de publicación con todas las fechas citadas en el texto.
+El capítulo~\ref{ch:aplicacion} muestra cómo estas publicaciones se presentan
+posteriormente como una cronología de proyecto.

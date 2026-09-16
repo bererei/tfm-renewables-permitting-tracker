@@ -17,9 +17,9 @@ vínculo con la fuente.
 
 El resultado del TFM es un sistema completo para realizar esa transformación.
 La adquisición programática conserva la identidad y la procedencia de los
-documentos; la extracción mediante Gemini propone una estructura; y los
-contratos, la canonicalización y la validación determinista controlan esa
-salida. Las capas Bronze, Silver y Gold separan fuente, entidades normalizadas
+documentos; el agente de Pydantic AI obtiene de Gemini una propuesta
+estructurada; y Pydantic, la canonicalización y la validación determinista
+controlan esa salida. Las capas Bronze, Silver y Gold separan fuente, entidades normalizadas
 y datos preparados para consulta. Sobre ellas se incorporan resolución
 territorial, agrupación longitudinal de menciones, decisiones humanas
 versionadas y una aplicación Streamlit de solo lectura. Las interfaces de
@@ -161,6 +161,13 @@ fiabilidad científica antes de la ampliación funcional.}
 
 \subsection{Calidad de extracción y representación}
 
+La selección de candidatos también pertenece a este eje. Conviene auditar las
+reglas de título y estudiar señales previas que reduzcan documentos ajenos al
+dominio y, con ello, ruido y coste de procesamiento. Cualquier cambio debe
+evaluarse específicamente sobre publicaciones relevantes y no relevantes:
+reducir candidatos solo aporta valor si no perjudica la recuperación
+documental. Esta línea no implica diseñar ahora un clasificador nuevo.
+
 La coincidencia exacta hizo visibles variantes como nombres abreviados,
 descriptores omitidos o la diferencia entre «PFVH San Blas» y «Planta
 fotovoltaica San Blas». Una primera línea consiste en estudiar equivalencias
@@ -241,7 +248,7 @@ usuarios. Cada entrada conservaría identificador, origen, contexto, estado,
 persona responsable e historial de revisión.
 
 El control de Streamlit basado en \texttt{mailto:} podría sustituirse por un
-backend acotado que asignara un identificador y registrara el contexto del
+\emph{backend} acotado que asignara un identificador y registrara el contexto del
 proyecto, la adjudicación y el cierre. Una interfaz administrativa sería una
 posible forma de operar esa cola. En ningún caso la aceptación de un reporte
 debería editar Gold directamente: una decisión con efecto en los datos se
@@ -255,8 +262,10 @@ La figura~\ref{fig:operacion-diaria-futura} separa los mecanismos ya
 disponibles de la coordinación necesaria para una futura operación diaria. Hoy
 existen adquisición programática, CLI por etapas, snapshots, validación,
 revisión, transformación regenerable y lectura de Gold. La propuesta añade un
-planificador, adquisición incremental coordinada, cola unificada, publicación
-versionada y monitorización. También requiere un despliegue estable de
+entorno de orquestación y ejecución en la nube (\emph{cloud}), adquisición incremental coordinada,
+cola unificada, publicación versionada y monitorización. La plataforma podría
+ser AWS u otra opción adecuada; la memoria no fija servicios concretos.
+También requiere un despliegue estable de
 Streamlit, gestión segura de secretos y un procedimiento reproducible para
 promover una versión Gold validada.
 
@@ -266,8 +275,10 @@ promover una versión Gold validada.
 \caption[Propuesta de operación diaria posterior al TFM]{Arquitectura propuesta
 para una operación diaria posterior al TFM. Las cajas de trazo continuo son
 mecanismos existentes que se reutilizarían; las cajas discontinuas son
-componentes propuestos. La figura no describe una automatización ya
-implantada.}
+componentes propuestos y la plataforma cloud es intercambiable. Hoy Streamlit
+consulta Gold y abre un reporte externo mediante \texttt{mailto:}; el feedback
+estructurado y su entrada en una cola persistente son trabajo futuro. Ninguna
+de las dos vías edita Gold directamente.}
 \label{fig:operacion-diaria-futura}
 \end{figure}
 

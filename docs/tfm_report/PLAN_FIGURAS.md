@@ -15,34 +15,34 @@ Se utilizan las decisiones revisadas comunicadas en las solicitudes sobre
 se contrasta con código, tests y artefactos finales; las decisiones revisadas
 son la fuente editorial, sin atribuir una nueva lectura literal de los originales.
 
-La primera integración incorporó F01, F03 y F05, sus textos de apoyo y tres tablas.
-La fase sustantiva anterior incorporó F02/F04, desarrolló los capítulos 3/4 y la base
-del 5 y añadió tablas de familias Silver y estados territoriales. F06 queda
-preparada y las capturas continúan en TODO. No modifica código, tests, runs,
-resultados, bibliografía o PDF raíz. Los IDs F01–F09 son IDs de planificación;
-la numeración visible de LaTeX depende del capítulo y de las figuras incorporadas.
-La fase experimental desarrolla 6/7 e incorpora F07/F08. La fase de Discusión
-y Limitaciones reutiliza F08 mediante referencia y añade
-dos tablas, sin incorporar otra figura. Las cinco figuras anteriores se
-conservan sin cambios.
+La revisión integral de 2026-09-15 conserva F01, F02, F05, F07 y F08; revisa
+F03, F04 y F09; completa F06; e incorpora cuatro apoyos nuevos: EIA de
+proyectos, conjuntos documentales, contrato conceptual y flujo operativo.
+No modifica código, tests, runs, resultados ni el PDF raíz. Los IDs F01–F09
+son IDs históricos de planificación; la numeración visible de LaTeX depende
+del capítulo y del orden de los recursos.
 
 ## Selección cerrada para integración progresiva
 
 | ID | Figura / capítulo | Estado | Fuente y correcciones esenciales |
 | --- | --- | --- | --- |
 | F01 | Procedimiento administrativo / 2.1 | Incorporada; conceptual, TODO-CITA | Decisiones revisadas sobre autorizaciones y contexto del capítulo 2. Vías parcialmente paralelas, DIA condicionante, DUP sin posición fija respecto de AAC; AE provisional/definitiva como contexto |
+| EIA-01 | EIA ordinaria y simplificada / 2.1 | Nueva; respaldo legal verificado | Ley 21/2013 consolidada, arts. 33 y 45–47. Solo proyectos; no EAE ni secuencia universal |
 | F02 | API del BOE y corpus / 3.2 y 3.6 | Incorporada; actual | `boe_source.py`, `boe_documents.py`, `boe_http.py`, `boe_candidates.py`, `pipeline.py::run_source_stage`. Filtrar títulos antes del XML; separar alcance y extracción |
-| F03 | Arquitectura general / 4.2 | Incorporada; actual | `pipeline.py`, `ine_reference.py`, `downstream.py`. Panel INE independiente, dos CSV locales, dimensión y manifest/hashes; no descarga automática ni coste cuantificado |
-| F04 | Extracción IA y validación / 4.5 | Incorporada; actual | `extraction/documents.py`, `models.py`, `runner.py`, `canonicalization.py`, `validation.py`, `review.py`. Respetar el orden ejecutado: canonicalización antes de la validación documental final; no atribuir las reglas al modelo |
-| F05 | Grouping / 4.10 | Incorporada; actual | `project_grouping.py` y `tests/test_project_grouping.py`. Igualdad de clave nominal/tecnológica/territorial; UUID5; sin municipio, promotor, fuzzy matching ni scores |
-| F06 | Flujo de revisión y corrección humana implementado / 4.11 | TODO detallado; opción A, solo actual | `AUDITORIA_REVISION_REPORTES.md`, `admin.py`, `extraction/review.py`, P0, correcciones y `run_silver_stage`. Separar decisiones genéricas, CURRENT y ANTECEDENT; regeneración del operador; territorio independiente. Sin reportes ni rama futura |
+| CORPUS-01 | Desarrollo, producto y evaluación / 3.5 | Nueva; relaciones verificadas | 140 incluido en exposición 479; W14 48 + 56 = 104; holdout 48 con solapamiento cero frente a 479 y 104; no entra en Gold |
+| F03 | Arquitectura general / 4.3 | Revisada; actual | Distingue modelo Gemini, agente Pydantic AI, contrato Pydantic y código determinista; panel INE independiente |
+| PIPELINE-01 | Flujo operativo / 4.4 | Nueva; actual | Orden de ejecución de Pipeline CLI desde adquisición hasta consulta; revisión bloquea la nueva materialización |
+| CONTRACT-01 | Contrato conceptual / 4.7 | Nueva; actual | `BOEAIExtraction`, `PublicationEvent` y entidades principales; no reproduce clases completas |
+| F04 | Extracción IA y validación / 4.7 | Revisada; actual | Agente Pydantic AI → salida Pydantic → identidad BOE → canonicalización → validación; sin P0 antes de introducirlo |
+| F05 | Grouping / 4.12 | Incorporada; actual | `project_grouping.py` y `tests/test_project_grouping.py`. Igualdad de clave nominal/tecnológica/territorial; UUID5; sin municipio, promotor, fuzzy matching ni scores |
+| F06 | Flujo de revisión y corrección humana / 4.13 | Incorporada; solo actual | Decisiones genéricas, CURRENT y ANTECEDENT; nuevo snapshot y regeneración del operador; territorio independiente; sin reportes persistentes |
 | F07 | Metodología experimental / 6.13 | Rediseñada; cuatro fases cronológicas | `docs/evaluation/FINAL_HOLDOUT_V2_RESULTS.md`, contrato V2 y controlador primario. Sistema/truth/evaluator fijados antes de la ejecución; predicciones congeladas antes de evaluar; post-hoc separado |
 | F08 | Cascada de matching / 7.7.1 | Revisada; cadena causal vertical | Resultados canónicos §8. POST-HOC DIAGNOSTIC — NOT PRIMARY SCORING. Padre emparejado necesario pero no suficiente; no crear correspondencias ni métricas |
-| F09 | Arquitectura propuesta para una futura operación diaria / 9.2.5 | Incorporada; PROPUESTA POST-TFM | Decisiones revisadas sobre proceso diario, CLI real, `TFM_CLOSEOUT.md` y `USER_GUIDE.md`. Trazo continuo para mecanismos existentes y discontinuo para scheduler, incrementalidad, publicación/monitorización y cola/coordinación propuestas |
+| F09 | Arquitectura propuesta para una futura operación diaria / 9.2.5 | Revisada; PROPUESTA POST-TFM | Cloud como plataforma intercambiable, por ejemplo AWS; sin servicios concretos. Trazo continuo actual y discontinuo propuesto |
 
-Las nueve figuras son REQUIRED en la selección solicitada. La implementación
-del sistema descrito en F09 sigue siendo POST-TFM. No se añade otra figura
-de referencia INE, otra de capas ni otra sobre evolución del grouping.
+Los trece diagramas tienen una función distinta. La implementación del sistema
+descrito en F09 sigue siendo POST-TFM. No se añade otra figura de referencia
+INE, otra de capas ni otra sobre evolución del grouping.
 
 ## Mensaje, relación con el texto y citas
 
@@ -425,3 +425,34 @@ Compilación habitual: exit 0, 89 páginas A4. F07 permanece en PDF 62 y F08
 en PDF 70. Se conservan los dos overfull históricos y los cuatro underfull
 previos; no aparecen referencias indefinidas, caracteres perdidos ni avisos
 nuevos de cajas. Log local: `build/compilacion-discusion.txt`.
+
+## Revisión humana integral — 2026-09-15
+
+Estado: **READY FOR HUMAN SECOND READ**. El documento contiene trece
+diagramas. No se eliminó ni fusionó ninguno.
+
+| Recurso nuevo o revisado | Número | Página impresa | Página PDF |
+| --- | --- | ---: | ---: |
+| EIA ordinaria/simplificada, nueva | Figura 2.1 | 6 | 20 |
+| Conjuntos documentales, nueva | Figura 3.1 | 16 | 30 |
+| Arquitectura con Pydantic AI, revisada | Figura 4.1 | 22 | 36 |
+| Flujo operativo, nueva | Figura 4.2 | 23 | 37 |
+| Contrato conceptual, nueva | Figura 4.3 | 26 | 40 |
+| Extracción/validación, revisada | Figura 4.4 | 28 | 42 |
+| F06 revisión/correcciones, nueva | Figura 4.6 | 36 | 50 |
+| F09 operación cloud opcional, revisada | Figura 9.1 | 82 | 96 |
+
+Las figuras de procedimiento, API, grouping, metodología experimental y
+cascada de matching se conservaron. La inspección visual cubrió portada,
+preliminares, comienzo del capítulo 1 y todos los recursos de la tabla. El
+diseño de corpus se corrigió tras detectar solapamientos en un primer render.
+
+Lugares reservados para capturas:
+
+- C01, tras la introducción de la aplicación: página impresa 40 / PDF 54.
+- C02, junto al mapa y los filtros: página impresa 41 / PDF 55.
+- C03, junto a la ficha y cronología: página impresa 42 / PDF 56.
+- C04 opcional, en anotación ciega: página impresa 46 / PDF 60.
+
+El despliegue público, la publicación final en GitHub y las capturas siguen
+como TODO operativos. No se generaron imágenes de la aplicación en esta fase.

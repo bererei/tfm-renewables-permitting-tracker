@@ -6,7 +6,8 @@
 \node[tfm heading, text width=7.0cm, below=6mm of title, xshift=-2.5cm]
   (mainheading) {Flujo de datos y publicación};
 \node[tfm optional, text width=5.8cm, below=5mm of mainheading]
-  (scheduler) {Planificador y coordinación automática};
+  (scheduler) {Orquestación y ejecución cloud\\
+  (p.\ ej., AWS u otra plataforma)};
 \node[tfm optional, text width=5.8cm, below=5mm of scheduler]
   (daily) {BOE diario y adquisición incremental};
 \node[tfm data, text width=5.8cm, below=5mm of daily]
@@ -18,9 +19,9 @@
 \node[tfm data, text width=5.8cm, below=5mm of downstream]
   (gold) {Última versión Gold validada};
 \node[tfm optional, text width=5.8cm, below=5mm of gold]
-  (publish) {Publicación versionada y monitorización};
+  (publish) {Almacenamiento y publicación versionados\\Monitorización};
 \node[tfm accent, text width=5.8cm, below=5mm of publish]
-  (streamlit) {Streamlit de solo lectura};
+  (streamlit) {Streamlit: consulta del producto};
 
 \foreach \a/\b in {scheduler/daily,daily/cli,cli/extract,extract/downstream,
   downstream/gold,gold/publish,publish/streamlit}
@@ -30,29 +31,34 @@
   (reviewheading) {Gobierno de incidencias};
 \node[tfm data, text width=4.4cm, below=5mm of reviewheading]
   (signals) {Incidencias de extracción/P0\\y estados territoriales};
-\node[tfm data, text width=4.4cm, below=5mm of signals]
-  (reports) {Reportes de usuarios\\mediante correo};
-\node[tfm optional, text width=4.4cm, below=7mm of reports]
+\node[tfm optional, text width=4.4cm, below=7mm of signals]
   (queue) {Cola persistente unificada};
 \node[tfm optional, text width=4.4cm, below=5mm of queue]
   (admin) {Revisión administrativa\\y seguimiento};
 \node[tfm data, text width=4.4cm, below=5mm of admin]
   (decision) {Decisión o corrección\\versionada};
+\node[tfm optional, text width=4.4cm, above=5mm of streamlit,
+  xshift=5.1cm] (feedback)
+  {Feedback estructurado\\desde Streamlit};
+\node[tfm data, text width=4.4cm, right=5mm of streamlit]
+  (reports) {Reporte actual: \texttt{mailto:}\\Canal externo; no crea cola};
 
-\draw[tfm flow] (signals.west) -- ++(-3mm,0) |- (queue.west);
-\draw[tfm flow] (reports.south) -- (queue.north);
-\draw[tfm flow] (queue.south) -- (admin.north);
-\draw[tfm flow] (admin.south) -- (decision.north);
+\draw[tfm flow, dashed] (signals.south) -- (queue.north);
+\draw[tfm flow, dashed] (queue.south) -- (admin.north);
+\draw[tfm flow, dashed] (admin.south) -- (decision.north);
 \draw[tfm flow] (decision.west) -| ($(downstream.east)+(4mm,0)$)
   -- (downstream.east);
-\draw[tfm relation] (extract.east) -- (signals.west);
+\draw[tfm flow] (extract.east) -- (signals.west);
+\draw[tfm flow] (streamlit.east) -- (reports.west);
+\draw[tfm flow, dashed] (streamlit.east) |- (feedback.west);
+\draw[tfm flow, dashed] (feedback.east) -- ++(4mm,0) |- (queue.east);
 
 \node[tfm note, text width=12.2cm, below=7mm of streamlit] (legend) {
   \textbf{Trazo continuo --- EXISTE ACTUALMENTE:} mecanismo reutilizable\\[3pt]
   \textbf{Trazo discontinuo --- PROPUESTO POST-TFM:} componente por desarrollar
 };
 \node[tfm note, text width=12.2cm, below=4mm of legend] {
-  Objetivos de la propuesta: operación incremental, idempotente, trazable,
-  reanudable, regenerable y no bloqueante para la última versión Gold validada.
+  El feedback no edita Gold: una decisión versionada debe preceder a la
+  regeneración y publicación de otra versión validada.
 };
 \end{tikzpicture}

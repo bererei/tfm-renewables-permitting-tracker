@@ -174,8 +174,9 @@ Actualizado en la primera integración de figuras de 2026-09-14:
 TikZ ya está disponible mediante `todonotes`; `include/diagramas.tex` carga
 sus bibliotecas y define los estilos comunes. Los tres diagramas se compilan
 directamente desde fuentes `.tex`, sin conversión externa ni imágenes raster.
-El inventario actual incluye ocho diagramas: F09 añade la propuesta de operación
-diaria posterior al TFM con el mismo mecanismo y sin dependencias nuevas.
+El inventario actual incluye trece diagramas. La revisión integral añade EIA,
+conjuntos documentales, contrato, flujo operativo y F06; además revisa F03,
+F04 y F09 con el mismo mecanismo y sin dependencias nuevas.
 El plan y la revisión visual vigentes se registran en `PLAN_FIGURAS.md`; el comando y
 la política del PDF de trabajo se mantienen.
 
@@ -212,14 +213,19 @@ figs/CIDaeN.png
 figs/api_boe_corpus.tex
 figs/arquitectura_sistema.tex
 figs/cascada_matching.tex
+figs/conjuntos_documentales.tex
+figs/contrato_extraccion.tex
 figs/esiiab.png
+figs/evaluacion_impacto_ambiental.tex
 figs/logouclm.pdf
 figs/logouclm.png
 figs/extraccion_validacion.tex
+figs/flujo_operativo_pipeline.tex
 figs/grouping_implementado.tex
 figs/metodologia_experimental.tex
 figs/operacion_diaria_futura.tex
 figs/procedimiento_administrativo.tex
+figs/revision_correcciones.tex
 include/colores.tex
 include/configuracion.tex
 include/diagramas.tex
@@ -228,3 +234,34 @@ include/redaccion.tex
 template_original/tfm-template.tex
 tfm_report_bgd.tex
 ```
+
+## Revisión humana integral — 2026-09-15
+
+La compilación final se ejecutó desde `docs/tfm_report/` con el comando habitual
+indicado al principio de este documento. Terminó con **exit 0** y generó
+`build/tfm_report_bgd.pdf`, de **101 páginas A4**, junto a su archivo SyncTeX.
+El PDF contiene **13 figuras** y **18 tablas**. No hay referencias ni citas
+indefinidas, destinos duplicados, caracteres perdidos o marcadores `??`.
+
+La numeración del catálogo PDF se comprobó directamente: `PageLabels` comienza
+con estilo romano minúsculo en el índice físico 0 y cambia a decimal en el
+índice 14. Por tanto, las catorce páginas preliminares se etiquetan `i`--`xiv`
+y el capítulo 1 empieza en la etiqueta `1`. Para obtenerlo, `\frontmatter` se
+ejecuta antes de la portada y `hyperref` usa `plainpages=false` y
+`pdfpagelabels`; los enlaces se conservan activos sin bordes visibles.
+
+Persisten los dos `overfull` históricos: **67,05614 pt** en el logo de portada y
+**0,30453 pt** en la cita legal inicial. No se añadió ningún `overfull`. El log
+final contiene cuatro `underfull vbox` y dos `underfull hbox`; el log anterior a
+esta revisión contenía cuatro avisos `underfull`. Los dos avisos adicionales proceden
+de la redistribución de páginas y de líneas de TODO/bibliografía, y la inspección
+visual no muestra cortes ni solapamientos. Permanecen además los avisos de
+hooks, ligaduras de Carlito y configuraciones de caption no utilizadas de la
+plantilla.
+
+Se revisaron visualmente portada y preliminares, la transición al capítulo 1,
+las figuras nuevas y revisadas, los lugares C01--C04, el caso Hipódromo, la
+tabla 9.1 y F09. Durante esa revisión se eliminaron los bordes visibles de los
+enlaces y se corrigieron cruces de líneas en el flujo operativo y F06. La figura
+de corpus ya había sido rediseñada tras detectar solapamientos en su primera
+versión. El PDF raíz versionado no se actualizó.

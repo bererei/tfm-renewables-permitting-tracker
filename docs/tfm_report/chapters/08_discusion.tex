@@ -300,26 +300,27 @@ efecto; los párrafos posteriores desarrollan las que requieren mayor contexto.
 
 \begin{table}[p]
 \centering
-\small
+\footnotesize
 \renewcommand{\arraystretch}{1.16}
-\begin{tabular}{L{3.4cm} L{4.1cm} L{5.1cm}}
+\begin{tabular}{L{3.0cm} L{5.0cm} L{4.6cm}}
 \hline
-Limitación & Qué restringe & Efecto sobre la interpretación \\
+Limitación & Implicación al interpretar los resultados & Posible línea de mejora \\
 \hline
-Holdout de 48 BOE & Subgrupos y categorías infrecuentes & No respalda generalización estadística fuerte ni significación no calculada \\
-Una anotación principal & Acuerdo humano independiente & Puede quedar criterio humano residual pese a reglas, QA y freeze \\
-Alcance V2 reducido & Campos secundarios & Las métricas no describen toda la salida posible del sistema \\
-Matching exacto & Variantes semánticamente equivalentes & Puede reducir parejas sin demostrar ausencia conceptual \\
-Jerarquía & Independencia entre niveles & Un error de padre condiciona métricas posteriores \\
-P0 sin positivos adjudicables & Sensibilidad en holdout & El ensayo de desarrollo no sustituye evidencia independiente \\
-Un error terminal & Estabilidad de la tasa de fallo & Debe conservarse, pero un caso no permite extrapolar frecuencia \\
-Fuente BOE & Realidad administrativa observable & No equivale a un registro consolidado ni cubre otras fuentes \\
-Periodo, dominio y modelo & Validez externa & Las cifras corresponden al corpus y configuración congelados \\
-Diagnóstico post-hoc & Inferencia causal y confirmación & Genera explicaciones e hipótesis; no otra evaluación primaria \\
+Holdout de 48 BOE & Limita la precisión de las estimaciones y el análisis de subgrupos; no respalda generalización estadística fuerte & Ampliar la evaluación con otra muestra independiente \\
+Una anotación principal & No permite cuantificar acuerdo interanotador y puede conservar criterio humano residual & Realizar doble anotación independiente y adjudicación \\
+Alcance V2 reducido & Las métricas no describen todos los campos que puede producir el sistema & Evaluar los campos excluidos con protocolos específicos \\
+Matching exacto & Puede penalizar variantes nominales equivalentes sin demostrar ausencia conceptual & Predefinir y validar equivalencias controladas antes de otro experimento \\
+Jerarquía & Un error en un nivel padre condiciona el emparejamiento y las métricas posteriores & Informar medidas condicionadas y estudiar cada transición \\
+P0 sin positivos adjudicables & No permite estimar la sensibilidad de la salvaguarda en el holdout & Crear un conjunto independiente específico con positivos P0 \\
+Un error terminal & Deja un BOE sin predicción evaluable y un caso no permite estimar una tasa estable & Mejorar robustez y reintentos futuros sin ocultar los fallos \\
+Fuente BOE & Refleja lo publicado, no un registro consolidado de proyectos ni toda la realidad administrativa & Contrastar en trabajos futuros con otras fuentes oficiales \\
+Periodo, dominio y modelo & Las cifras solo describen el corpus y la configuración congelados & Repetir el protocolo fijado en otros periodos, dominios o modelos \\
+Diagnóstico post-hoc & Sugiere explicaciones, pero no prueba causalidad ni constituye otra evaluación primaria & Preespecificar hipótesis y confirmarlas en otra muestra \\
 \hline
 \end{tabular}
-\caption[Principales limitaciones]{Restricciones del experimento y su efecto
-sobre las conclusiones. Ninguna fila modifica los resultados del capítulo 7.}
+\caption[Principales limitaciones]{Implicación de cada limitación y posible
+línea de mejora. Las propuestas no son garantías y ninguna fila modifica los
+resultados del capítulo 7.}
 \label{tab:limitaciones-discusion}
 \end{table}
 

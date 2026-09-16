@@ -1,0 +1,27 @@
+% Esquema conceptual verificado contra extraction/models.py.
+\begin{tikzpicture}
+\node[tfm accent, text width=11.8cm] (document) at (0,0)
+  {Documento\\Estado de clasificación + alcance + motivo};
+\node[tfm data, text width=11.8cm] (events) at (0,-1.5)
+  {Eventos documentales (si el documento es específico de generación)};
+\node[tfm box, text width=3.6cm] (assets) at (-4.3,-3.25)
+  {Plantas de generación\\Nombres + tecnología\\+ evidencia};
+\node[tfm box, text width=3.6cm] (actions) at (0,-3.25)
+  {Actuaciones\\Tipo + decisión\\+ destinatarios + evidencia};
+\node[tfm box, text width=3.6cm] (locations) at (4.3,-3.25)
+  {Localizaciones\\Nombre + nivel\\+ pistas + evidencia};
+\node[tfm data, text width=11.8cm] (optional) at (0,-5.05)
+  {Otros elementos opcionales del evento\\
+   Componentes asociados · participantes · relaciones entre plantas ·
+   expedientes · menciones técnicas};
+\draw[tfm flow] (document) -- (events);
+\draw[tfm flow] ($(events.south)+(-4.3,0)$) -- (assets.north);
+\draw[tfm flow] (events.south) -- (actions.north);
+\draw[tfm flow] ($(events.south)+(4.3,0)$) -- (locations.north);
+\draw[tfm relation] (assets.south) -- ($(optional.north)+(-4.3,0)$);
+\draw[tfm relation] (actions.south) -- (optional.north);
+\draw[tfm relation] (locations.south) -- ($(optional.north)+(4.3,0)$);
+\node[tfm note, text width=11.7cm] at (0,-6.35)
+  {Cada evento requiere al menos una planta y una actuación.
+   Las referencias internas deben apuntar a elementos existentes.};
+\end{tikzpicture}

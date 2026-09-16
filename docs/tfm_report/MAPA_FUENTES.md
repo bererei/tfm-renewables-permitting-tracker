@@ -1,15 +1,13 @@
 # Mapa de fuentes y plan de redacción
 
-Fecha: 2026-09-14. Clasificación: **REQUIRED — metodología experimental, resultados primarios y diagnóstico**.
-Fase actual: `tfm-evaluation@d0014a1922e0cf664cfc04491e986b59bf636442`,
-con árbol limpio y referencia local `origin/tfm-evaluation` coincidente.
-La fase anterior del núcleo metodológico está cerrada y sincronizada.
-No se hace fetch, staging, commit o push.
+Fecha: 2026-09-15. Clasificación: **REQUIRED — revisión humana integral de la memoria**.
+La revisión partió de `tfm-evaluation@584ba04565c11808315af5e8ffd8f4eddb58de82`
+con árbol limpio. El working tree contiene únicamente los cambios documentales
+de esta fase. No se hace fetch, staging, commit o push.
 Documento de trabajo para revisión; no se incorpora al PDF.
 Reglas pedagógicas vigentes: [REGLAS_REDACCION.md](REGLAS_REDACCION.md).
-Corrección del 14/09: se conserva la dedicatoria y se desarrolla el acceso
-programático en 2.2; la fase sustantiva lo desarrolla en 3.2, conectado con
-candidatos/relevancia en 3.3 y con el cierre conceptual de 3.6.
+El capítulo 2 conserva la función y los límites del BOE; el capítulo 3 concentra
+el acceso programático, los candidatos, la persistencia y los corpus.
 Las rutas indicadas son relativas a la raíz del repositorio.
 
 ## Regla de uso
@@ -424,3 +422,44 @@ esta fase son documentales, de integridad, LaTeX y visuales.
 Aceptación tras la revisión pedagógica: **READY FOR PEDAGOGICAL REVIEW**.
 Pendientes de este bloque: revisión humana y dos TODO-CITA metodológicos.
 La captura C04 sigue siendo opcional y no se ha generado.
+
+## Revisión humana integral — 2026-09-15
+
+Esta sección sustituye, para el estado actual, los inventarios de pendientes
+de las fases históricas anteriores. La revisión no altera datos ni resultados.
+
+- Capítulo 1: la motivación del PNIEC procede de la página oficial del MITECO,
+  verificada con denominación 2023–2030 y actualización de 25/09/2024.
+- Capítulo 2: la figura EIA utiliza exclusivamente los artículos 33 y 45–47
+  del texto consolidado de la Ley 21/2013 consultado en el BOE; no incluye EAE.
+- Capítulo 3: Parquet se describe con la documentación oficial de Apache. Las
+  relaciones 140/479/104/48 proceden de `HOLDOUT_EXPOSURE_PROVENANCE.md`,
+  `TFM_CLOSEOUT.md` y los informes W14 ya auditados.
+- Capítulo 4: los papeles de Gemini, Pydantic AI y Pydantic se verificaron
+  contra `extraction/agent.py`, `config.py` y `models.py`, y se respaldan
+  con la documentación oficial de Pydantic AI. F06 se contrasta con la Admin
+  CLI, los registros de revisión y el flujo de materialización ya documentado.
+- Capítulos 5–9: las capturas siguen como TODO; el controlador se resume sin
+  cambiar 47 éxitos/1 error; el caso Hipódromo procede del diagnóstico
+  canónico; F09 mantiene cloud como opción POST-TFM sin servicios elegidos.
+
+TODO-CITA todavía presentes: normativa de acceso y conexión; preceptos de
+AAP/AAC/DUP/explotación y del paralelismo de F01; alcance institucional del
+BOE; acceso verificable a la documentación API; edición de los CSV INE;
+configuración de Gemini 2.5 Flash; Medallion Architecture; Streamlit;
+cartografía IGN/CNIG y Natural Earth; y las dos referencias metodológicas de
+holdout y métricas. Se resolvieron en esta fase los TODO de PNIEC, EIA y salida
+estructurada con Pydantic AI/Pydantic; también se incorporó la fuente oficial
+de Parquet. El TODO institucional duplicado sobre el BOE se consolidó en el
+capítulo 2.
+
+- **Documentation impact:** capítulos, bibliografía, figuras y documentación
+  auxiliar de la memoria.
+- **Documents reviewed:** cierre TFM, procedencia de exposición, contratos y
+  código de extracción, documentación W14/holdout/resultados y fuentes
+  oficiales citadas.
+- **Documents updated:** capítulos 1–7 y 9, bibliografía, cinco figuras nuevas,
+  cuatro figuras revisadas, configuración de paginación y los cuatro documentos
+  auxiliares de redacción.
+- **Reason:** segunda versión legible y verificable para lectura humana, con
+  progresión conceptual y separación entre sistema, producto y evaluación.

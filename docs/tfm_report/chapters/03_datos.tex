@@ -3,36 +3,17 @@
 \label{ch:datos}
 
 \section{El BOE como fuente de datos}
-El Boletín Oficial del Estado (BOE) es el diario oficial estatal en el que se
-publican disposiciones y actos administrativos. Para este trabajo resulta
-adecuado porque permite consultar publicaciones identificadas, fechadas y
-accesibles, con el texto que comunica cada actuación. Su carácter oficial
-aporta una fuente documental sobre la que justificar la reconstrucción; no
-convierte automáticamente la interpretación realizada por el sistema en una
-conclusión jurídica.
-\citapendiente{Fuente institucional sobre el BOE, su función y el alcance de
-la publicación oficial.}
-
-La unidad publicada es un documento administrativo, no una ficha consolidada
-de proyecto renovable. Una planta puede aparecer en varios anuncios y
-resoluciones, con nombres abreviados o variantes de escritura, y una misma
-publicación puede referirse a varias plantas. El identificador BOE reconoce
-la publicación; no identifica de forma estable el proyecto a lo largo del
-tiempo. Esta diferencia obliga a recuperar documentos, distinguir sus
-entidades y relacionar después las menciones compatibles.
-
-Por ejemplo, las publicaciones de abril y agosto de Don Rodrigo II de la
-tabla~\ref{tab:don-rodrigo} corresponden a documentos diferentes de una misma
-secuencia administrativa. Consultarlas por separado permite leer cada acto;
-reconstruir la secuencia exige reconocer la planta y separar el acto actual
-que comunica cada documento de los antecedentes que recuerda. El corpus
-construido aquí conserva esa información dispersa para su procesamiento.
-Su alcance depende de las publicaciones y periodos seleccionados: no es un
-censo exhaustivo de instalaciones ni sustituye otros registros oficiales.
+El capítulo~\ref{ch:contexto} estableció por qué el BOE sirve como fuente
+oficial y por qué no proporciona una identidad longitudinal de planta. Este
+capítulo parte de esa limitación y explica el recorrido de datos:
+\textbf{sumarios del BOE, candidatos, documentos preparados y corpus
+delimitados}. La unidad de entrada sigue siendo una publicación; la identidad
+de proyecto se resuelve después, en el capítulo~\ref{ch:metodologia}.
 
 \section{API y adquisición de documentos}
 \label{sec:adquisicion-api}
-Una interfaz de programación de aplicaciones, o \emph{API}, permite que un
+Una interfaz de programación de aplicaciones
+(\textit{Application Programming Interface}, API) permite que un
 programa solicite información a otro sistema de forma automatizada y siguiendo
 unas condiciones conocidas. Retomando la sección~\ref{sec:boe-api-concepto},
 la API del BOE permite obtener la relación diaria de publicaciones sin
@@ -52,19 +33,22 @@ seleccionados. El recorrido hasta la extracción puede resumirse así:
 \item Consultar la API y obtener los sumarios del intervalo.
 \item Reunir sus publicaciones y seleccionar candidatos por el título.
 \item Descargar los XML de los candidatos y preparar el corpus fuente.
-\item Aplicar reglas de alcance que descartan ciertos casos sin usar IA.
-\item Para los casos restantes, solicitar la extracción estructurada a
-Gemini, el modelo de lenguaje utilizado, y validar su respuesta.
+\item Aplicar reglas de alcance que descartan ciertos casos sin utilizar el
+modelo.
+\item Para los casos restantes, solicitar una clasificación y extracción
+estructuradas al modelo presentado en el capítulo~\ref{ch:metodologia}, y
+validar su respuesta.
 \end{enumerate}
 
 La selección inicial es una operación sobre títulos; no confirma todavía la
 relevancia ni extrae plantas o actuaciones. Tampoco se presupone que la etapa
-anterior a Gemini pueda decidir todos los casos. Las reglas y esta diferencia
+anterior al modelo pueda decidir todos los casos. Las reglas y esta diferencia
 se desarrollan en la sección~\ref{sec:candidatos}.
 
 \subsection{Consulta de sumarios y recuperación del XML}
 Una solicitud se dirige a una dirección del servicio, también llamada
-\emph{endpoint}. El programa se comunica mediante HTTP, el protocolo que
+\emph{endpoint}. El programa se comunica mediante el protocolo de transferencia
+de hipertexto (\textit{Hypertext Transfer Protocol}, HTTP), que
 permite solicitar recursos web. Utiliza solicitudes GET, que piden recuperar
 información, a la dirección diaria:
 
@@ -74,15 +58,19 @@ información, a la dirección diaria:
 \end{quote}
 
 La parte \texttt{AAAAMMDD} se sustituye por año, mes y día sin separadores.
-La solicitud pide una respuesta en JSON mediante
-\texttt{Accept: application/json}. JSON es un formato de datos que organiza
+La solicitud pide una respuesta en notación de objetos de JavaScript
+(\textit{JavaScript Object Notation}, JSON) mediante
+\texttt{Accept: application/json}. Este formato organiza
 valores mediante nombres de campo y listas; facilita que el programa lea
 cada publicación sin interpretar la apariencia de una página web.
 
 El programa recorre las publicaciones de las secciones, departamentos y
 epígrafes del sumario. Recupera el identificador BOE, la fecha, el título,
-los enlaces HTML y XML y ese contexto de clasificación. HTML permite abrir
-la publicación en el navegador; XML proporciona el documento que procesa
+los enlaces en lenguaje de marcado de hipertexto
+(\textit{HyperText Markup Language}, HTML) y en lenguaje de marcado extensible
+(\textit{Extensible Markup Language}, XML), junto con ese contexto de
+clasificación. HTML permite abrir la publicación en el navegador; XML
+proporciona el documento que procesa
 el sistema. Se comprueba que no haya identificadores duplicados.
 
 Para descargar el XML se utiliza directamente el enlace del campo
@@ -108,21 +96,34 @@ información administrativa. En este proyecto comprende sumarios, XML y
 texto preparado, junto con los datos que permiten reconocer su origen; no
 significa ausencia de toda transformación, pues el XML ya se convierte a texto.
 
-Los resultados se guardan por ejecución en una instantánea o \emph{snapshot},
+Los resultados se guardan por ejecución en una instantánea
+(\textit{snapshot}),
 es decir, un conjunto identificado de archivos correspondiente a una fase.
 Incluye las respuestas de sumarios, los XML, sus metadatos de obtención y
 las tablas de publicaciones, candidatos, descargas y documentos preparados.
-Estas tablas utilizan Parquet, un formato de archivo para datos tabulares.
+Estas tablas utilizan Apache Parquet, un formato columnar que conserva tipos
+y admite compresión y lectura eficiente \cite{apache_parquet_overview_2025}.
+En comparación, un archivo de valores separados por comas
+(\textit{comma-separated values}, CSV) es sencillo de inspeccionar como texto, pero no
+transporta del mismo modo el esquema y los tipos. Parquet se integra con
+pandas y PyArrow en el proyecto y permite releer las tablas estructuradas para
+comprobar que mantienen su contrato.
 
-Un archivo descriptivo, denominado \emph{manifest}, declara el intervalo,
-las reglas de selección, los recuentos y las identidades de los archivos.
-Su función es permitir comprobar qué fuente concreta se utilizó. Las huellas
-que identifican el contenido se explican en la sección~\ref{sec:identidad-documental}.
+Cada instantánea incluye además un \emph{manifest}, que puede entenderse como
+su \textbf{ficha técnica}. Según la etapa, declara las entradas y sus huellas,
+la versión del proceso, los recuentos y los artefactos generados; los contratos
+concretos no son idénticos en todas las etapas. En la adquisición, el manifest
+registra el intervalo, las reglas de selección y las identidades de los
+archivos. Su función es permitir comprobar qué fuente concreta se utilizó.
+Las huellas se explican en la sección~\ref{sec:identidad-documental}.
 La instantánea se prepara en un directorio temporal y solo se publica cuando
 supera los controles. El destino debe ser nuevo: no se sobrescribe una fuente
 anterior para sustituirla por un resultado parcial.
 
 Esta persistencia permite utilizar después documentos locales ya preparados.
+Por ejemplo, un BOE ya recuperado y convertido a la entrada documental puede
+reutilizarse para revisar una extracción o construir una nueva materialización
+compatible sin descargar y preparar otra vez la misma fuente.
 No equivale a una caché automática de descargas, es decir, un mecanismo que
 evite volver a pedir lo ya descargado durante otra adquisición. La etapa de
 obtención actual no ofrece esa caché ni una reanudación automática desde
@@ -186,7 +187,7 @@ la generación. Se incorporaron también reglas sobre organismos de aguas,
 carreteras y costas, con las excepciones explícitas de generación e
 hidroelectricidad previstas por la política vigente.
 
-Estas reglas reducen el número de documentos que llegan a Gemini, pero no
+Estas reglas reducen el número de documentos que llegan al modelo, pero no
 clasifican todos los casos. Para los restantes, el modelo debe decidir el
 alcance y, cuando corresponde, extraer plantas, actuaciones y otras entidades
 en una respuesta estructurada. Esa respuesta se somete después a controles
@@ -217,20 +218,35 @@ configuración completan la procedencia. Reutilizar una extracción requiere
 compatibilidad documental y de configuración; no basta con encontrar el
 mismo identificador BOE.
 
-La huella documental empleada por la extracción se calcula a partir del
-identificador, la fecha de publicación, el título y el texto preparado.
-El XML descargado tiene además su propia huella sobre los bytes del archivo.
-Son comprobaciones complementarias: conservar el mismo XML y conservar la
-misma entrada textual del extractor no son exactamente la misma condición.
-Si cambia el texto preparado, cambia la identidad que enlaza el documento con
-sus intentos y revisiones, aunque se mantenga el identificador BOE.
+Conviene separar seis pasos. Al ejecutar la etapa de adquisición, el programa
+consulta los sumarios y descarga de nuevo los XML candidatos en un destino
+nuevo. Para trabajar sin otra consulta remota, las etapas posteriores reciben
+el \emph{snapshot} local ya materializado. El XML descargado se conserva y su
+SHA-256 se calcula sobre los bytes del archivo. Después se analiza el XML y se
+prepara el texto limpio. La \textbf{identidad documental} que utiliza la
+extracción se calcula sobre el identificador BOE, la fecha, el título y ese
+texto limpio. Finalmente, la selección concreta enviada al modelo conserva
+otra huella sobre el texto seleccionado.
 
-Los manifests relacionan esas huellas con archivos, reglas y versiones de
-cada etapa. Permiten detectar una entrada incompatible y evitar reutilizar
-una extracción como si procediera de otra versión documental. Una huella no
-comprueba que el contenido sea verdadero ni que la extracción sea correcta;
-comprueba la identidad del contenido utilizado. La selección de texto para
-Gemini conserva también una huella propia, descrita en la
+Por tanto, el SHA-256 no decide si hay que descargar. Solo puede comparar
+contenido del que ya se dispone. La implementación tampoco comprueba por sí
+sola si el BOE remoto cambió mientras se reutiliza un \emph{snapshot} local:
+para descubrir ese cambio hay que volver a consultar la fuente mediante una
+nueva adquisición y comparar después las huellas resultantes.
+
+Un ejemplo sencillo muestra el efecto. El mismo identificador oficial con el
+contenido y preparación A produce el SHA A; si una nueva adquisición o una
+regla de preparación produce el contenido B, genera el SHA B. El identificador
+BOE continúa siendo el mismo, pero la entrada efectiva ya no lo es. En este
+proyecto, la comprobación de reanudación falla de forma cerrada: los intentos,
+revisiones y resultados vinculados al SHA A no se reutilizan como si
+correspondieran al SHA B. El cambio no provoca automáticamente otra descarga;
+obliga a crear y validar artefactos compatibles con la nueva identidad.
+
+Los manifests relacionan estas huellas con archivos, reglas y versiones de
+cada etapa. Una huella no comprueba que el contenido sea verdadero ni que la
+extracción sea correcta; comprueba la identidad del contenido utilizado. La
+selección de texto para el modelo se describe en la
 sección~\ref{sec:extraccion-gemini}.
 
 \section{Corpus utilizados y separación de finalidades}
@@ -255,59 +271,84 @@ los documentos del BOE.
 Además de esos conjuntos, se registraron los documentos examinados durante
 auditorías y revisiones. La frontera de exposición utilizada para seleccionar
 la evaluación final reúne 479 BOE. Este registro de exclusión tiene una
-finalidad distinta del corpus de 140 documentos: impedir que un documento
+finalidad distinta del conjunto de 140 documentos, que está contenido en esos
+479: impedir que un documento
 ya utilizado para tomar decisiones de desarrollo se considere desconocido
 en la evaluación. No se deben sumar ambos tamaños.
 
 \subsection{Corpus final del producto}
-La estrategia final se centró en una ventana ancla de catorce días, denominada
-W14, del 7 al 20 de agosto de 2026. Una ventana ancla selecciona actividad
-reciente desde la que buscar publicaciones anteriores relacionadas. Tras
-aplicar las reglas de alcance y excluir el documento reservado para
-evaluación, el conjunto ejecutable de esta ventana contiene 48 BOE.
+El \textbf{corpus final del producto} contiene 104 BOE y es el único de los
+conjuntos descritos aquí que alimenta Silver, Gold y Streamlit. Se compone de
+48 documentos ancla y 56 publicaciones históricas distintas, sin solapamiento
+entre ambos grupos.
 
-La recuperación retrospectiva buscó candidatos entre el 1 de enero de 2022
-y el 6 de agosto de 2026. Utilizó dos niveles conservadores: coincidencia
-exacta de una denominación normalizada observada, o coincidencia de términos
-distintivos del nombre acompañada de tecnología o territorio compatible.
-Antes de 2024 se buscó en la fuente canónica disponible; desde 2024, en los
-conjuntos documentales delimitados para extracción por el plan previo P2.
-La fuente canónica contiene documentos preparados tras la selección inicial,
-no todas las publicaciones sin filtrar de los sumarios.
+Los 48 documentos ancla proceden de una ventana reciente de catorce días,
+denominada W14, del 7 al 20 de agosto de 2026. Una ventana ancla identifica
+actividad publicada reciente desde la que reconstruir hacia atrás las
+cronologías. Tras aplicar las reglas de alcance y excluir el documento
+reservado para evaluación, esos 48 BOE formaron el conjunto ejecutable.
 
-La búsqueda produjo 56 BOE históricos distintos, posteriormente extraídos y
-validados. Sus enlaces eran candidatos de relación, no confirmaciones
-automáticas de pertenencia al mismo proyecto. La unión de los 48 documentos
-ancla y los 56 históricos constituye el corpus final de 104 publicaciones.
-La versión corregida del producto contiene 86 proyectos y 80 BOE relevantes.
-Por tanto, ni documento analizado, ni publicación relevante, ni proyecto
-son unidades intercambiables.
+Los 56 históricos se recuperaron como candidatos relacionados con las plantas
+observadas en el ancla. La búsqueda cubrió del 1 de enero de 2022 al 6 de agosto
+de 2026 y aplicó dos niveles conservadores: coincidencia exacta de una
+denominación normalizada, o términos distintivos del nombre acompañados de
+tecnología o territorio compatible. Para 2022 y 2023 se utilizó la fuente
+canónica preparada disponible. Desde 2024, la búsqueda se limitó a los lotes
+versionados que requerían extracción mediante modelo dentro del plan amplio
+previo, cuyo intervalo llegaba hasta el 20 de agosto de 2026. Aquella ejecución
+exhaustiva se abandonó como estrategia de producto; solo se reutilizó su
+frontera documental ya registrada. La fuente canónica contiene documentos
+preparados tras la selección inicial, no todos los sumarios del BOE sin filtrar.
 
-El plan P2 previo planteaba una ejecución más amplia entre 2024 y agosto de
-2026. Se conserva como parte del desarrollo, pero fue sustituido para el
-producto final por W14 con recuperación histórica conservadora. No debe
-presentarse como un corpus exhaustivo completado. Los periodos y tamaños
-que resumen esta separación se recogen en la tabla~\ref{tab:corpus}.
+Los enlaces recuperados eran candidatos de relación, no confirmaciones
+automáticas de pertenencia al mismo proyecto. Los 56 BOE se extrajeron y
+validaron antes de unirlos a los 48 ancla. El resultado contiene 80
+publicaciones relevantes y se agrupa en 86 proyectos; documento analizado,
+publicación relevante y proyecto son, por tanto, unidades diferentes.
+
+Este corpus de 104 no sustituye ni se suma a los conjuntos de desarrollo. Los
+140 BOE congelados sirvieron para construir, ajustar y auditar el sistema y
+están incluidos en la \textbf{frontera de exposición previa} de 479 BOE. Ese
+registro evita tratar como desconocido durante la evaluación un documento ya
+visto; no afirma que los 479 se utilizaran para entrenar o ajustar el sistema.
+El \textbf{holdout} contiene otros 48 BOE, sin solapamiento con los 479 ni con
+el corpus del producto. Sus 48 documentos no son los 48 ancla: se destinan
+exclusivamente a referencia, predicciones y evaluación, y nunca llegan a
+Silver, Gold o Streamlit. La figura~\ref{fig:conjuntos-documentales} y la
+tabla~\ref{tab:corpus} resumen estas funciones.
+
+\begin{figure}[p]
+\centering
+\input{figs/conjuntos_documentales}
+\caption[Desarrollo, producto y evaluación]{Separación de finalidades
+documentales. Los 140 BOE de desarrollo forman parte del registro de 479
+documentos expuestos. El corpus W14 de 104 BOE genera Silver, Gold y la
+aplicación. El holdout de 48 BOE tiene solapamiento cero con los 479 expuestos
+y con W14, y se utiliza únicamente para evaluar. Elaboración propia a partir
+de la procedencia de exposición, la construcción W14 y la selección congelada
+del holdout.}
+\label{fig:conjuntos-documentales}
+\end{figure}
 
 \begin{table}[htbp]
 \centering
-\small
+\footnotesize
+\setlength{\tabcolsep}{4pt}
 \renewcommand{\arraystretch}{1.2}
-\begin{tabular}{L{2.0cm} L{2.2cm} L{3.3cm} C{1.0cm} L{3.2cm}}
+\begin{tabular}{L{1.8cm} L{2.35cm} C{0.75cm} L{4.0cm} C{1.25cm} C{1.25cm}}
 \hline
-Conjunto & Finalidad & Periodo o referencia & BOE & Uso \\
+Función & Conjunto & BOE & Para qué se utilizó & ¿Producto? & ¿Evaluación? \\
 \hline
-Desarrollo congelado & Afinar el sistema & Referencia: 13/08/2026 & 140 & Desarrollo y regresión \\
-Registro de exposición & Delimitar lo ya conocido & Usos previos a la selección & 479 & Exclusión del holdout \\
-Ancla W14 & Actividad reciente & 07/08/2026--20/08/2026 & 48 & Punto de partida del producto \\
-Histórico recuperado & Ampliar cronologías & Búsqueda: 01/01/2022--06/08/2026 & 56 & Publicaciones anteriores \\
-Corpus final & Construir el producto & Ancla más histórico & 104 & Materialización Silver y Gold \\
-Holdout & Evaluar la extracción & Marco: 01/01/2024--20/08/2026 & 48 & Evaluación separada \\
+Desarrollo & Desarrollo congelado & 140 & Construir y ajustar reglas; auditar el sistema y mantener regresiones & No & No \\
+Desarrollo / control & Registro de exposición & 479 & Excluir de la evaluación final los BOE vistos en desarrollo, auditorías o decisiones & No & Exclusión \\
+Producto & Corpus final del producto & 104 & Unir 48 ancla y 56 históricos; materializar Silver y Gold y servir Streamlit & Sí & No \\
+Evaluación & Holdout final & 48 & Comparar la extracción congelada con la referencia humana & No & Sí \\
 \hline
 \end{tabular}
-\caption[Conjuntos documentales y funciones]{Conjuntos documentales y funciones. Los intervalos de búsqueda no
-son fechas mínimas y máximas observadas. Las filas no son sumables, salvo
-ancla e histórico, que son disjuntos.}
+\caption[Conjuntos documentales y funciones]{Los 140 documentos de desarrollo
+están incluidos en el registro de exposición de 479; no se suman. El corpus
+del producto sí resulta de 48 ancla más 56 históricos. El holdout también
+contiene 48 BOE, pero es un conjunto diferente y no alimenta el producto.}
 \label{tab:corpus}
 \end{table}
 
@@ -315,8 +356,9 @@ ancla e histórico, que son disjuntos.}
 Un \emph{holdout} es un conjunto reservado para evaluar el sistema con
 documentos que no se han utilizado para ajustar sus reglas. Permite observar
 su comportamiento más allá de los ejemplos de desarrollo. En este TFM se
-seleccionaron 48 BOE del marco P2 que requerían extracción mediante modelo,
-después de excluir los documentos registrados como expuestos.
+seleccionaron 48 BOE que requerían extracción mediante modelo dentro del
+intervalo comprendido entre 2024 y el 20 de agosto de 2026, después de excluir
+los documentos registrados como expuestos.
 
 La selección distribuyó los documentos en seis \emph{estratos}, o grupos
 definidos antes de evaluar: las series BOE-A y BOE-B combinadas con los años
@@ -327,9 +369,11 @@ el universo del BOE.
 
 El conjunto reservado se mantuvo separado tanto del registro de desarrollo
 como de los 104 documentos del corpus W14. Su pertenencia se fijó antes de
-ejecutar el sistema sobre él. La selección heredada de P2 y la construcción
+ejecutar el sistema sobre él. La selección del holdout y la construcción
 posterior de W14 responden a finalidades diferentes; el holdout no es una
-muestra aleatoria de los proyectos mostrados en la aplicación.
+muestra aleatoria de los proyectos mostrados en la aplicación. Sus documentos
+no se materializan en el Silver o el Gold del producto y no aparecen en
+Streamlit; alimentan únicamente la evaluación experimental.
 
 La anotación humana, la fijación de las reglas de evaluación y las medidas
 utilizadas se explicarán en el capítulo~\ref{ch:evaluacion}. La tabla anterior
@@ -345,7 +389,8 @@ La figura~\ref{fig:api-corpus} muestra dónde se sitúa cada operación.
 
 El documento procesable reúne identificador, fecha, título y texto no vacío,
 con identidad y procedencia comprobables. Las reglas previas resuelven algunos
-negativos sin modelo. Para los demás candidatos, Gemini produce conjuntamente
+negativos sin modelo. Para los demás candidatos, el modelo de extracción
+produce conjuntamente
 una clasificación y, si procede, la información estructurada. Que un documento
 haya sido descargado o seleccionado no garantiza que sea relevante, y que la
 respuesta tenga una estructura válida no garantiza que su interpretación sea
@@ -358,7 +403,7 @@ estas decisiones y permiten construir los datos para consulta.
 \caption[API del BOE y construcción del corpus]{El sumario identifica
 publicaciones; el filtro de títulos selecciona los XML que se descargarán.
 Las reglas posteriores resuelven ciertos negativos y el modelo clasifica los
-casos restantes. La salida se valida antes de utilizarse. Elaboración propia
+casos restantes. El código valida la salida antes de utilizarla. Elaboración propia
 a partir del acceso BOE y del pipeline implementados.}
 \label{fig:api-corpus}
 \end{figure}

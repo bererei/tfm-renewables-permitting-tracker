@@ -31,11 +31,10 @@ Cada tarea tiene su propia unidad y denominador; no se construye una única
 exactitud global que las mezcle.
 
 \section{Separación entre desarrollo y holdout}
-Para comprobar el sistema se reservó un conjunto de documentos que no debía
-utilizarse para ajustarlo. Es equivalente a separar un examen final de los
-ejercicios usados durante el aprendizaje. Ese conjunto reservado se denomina
-\emph{holdout}. La separación evita adaptar el método a los mismos ejemplos
-con los que después se presenta su rendimiento.
+El capítulo~\ref{ch:datos} introdujo el \emph{holdout} y su separación del
+desarrollo y del producto. Aquí importa la garantía experimental: reservar
+documentos que no se utilizaron para ajustar el sistema evita adaptar el
+método a los mismos ejemplos con los que después se presenta su rendimiento.
 
 Reservar documentos no impide leerlos para preparar la referencia humana.
 En este TFM se abrieron sus textos para anotarlos, mientras las predicciones
@@ -51,8 +50,8 @@ revisiones. Son conjuntos con finalidades distintas, descritos en la
 sección~\ref{sec:corpus-utilizados}. El holdout final contiene 48 BOE y no
 comparte documentos con ese registro ni con los 104 del corpus final W14.
 
-El marco de selección, identificado como P2, reúne documentos de 2024 a
-agosto de 2026. Dentro de él se eligieron publicaciones que requerían
+El marco temporal de selección reúne documentos de 2024 al 20 de agosto de
+2026. Dentro de él se eligieron publicaciones que requerían
 extracción mediante modelo. Se distribuyó en seis estratos,
 es decir, grupos definidos antes de evaluar: series BOE-A y BOE-B por cada
 uno de los años 2024, 2025 y 2026. Se seleccionaron ocho BOE por estrato,
@@ -118,8 +117,9 @@ comprobar relaciones entre entidades antes de marcar un documento como
 completo. La validación estructural detectaba omisiones contractuales,
 sin sustituir la lectura y la decisión humanas.
 
-Después de completar la anotación humana de cada documento se realizó una
-revisión de calidad, o \emph{QA}, asistida por IA e independiente de las
+Después de completar la anotación humana de cada documento se realizó un
+control de calidad (\textit{Quality Assurance}, QA) asistido por IA e
+independiente de las
 predicciones del sistema evaluado. El paquete para esa revisión reunía el
 texto del BOE, la anotación humana y las instrucciones de QA; no incorporaba
 salidas de Gemini. La IA podía señalar discrepancias para reconsideración;
@@ -150,7 +150,8 @@ los archivos. La identidad del contenido reconoce la referencia; la huella
 del manifest comprueba su publicación concreta. Estas comprobaciones
 acreditan integridad, no corrección semántica ni una firma digital.
 
-La referencia se congeló el 13 de septiembre de 2026 a las 09:57:08 UTC,
+La referencia se congeló el 13 de septiembre de 2026 a las 09:57:08 en tiempo
+universal coordinado (UTC),
 antes de obtener las predicciones finales. Fue la entrada utilizada en la
 evaluación y no se corrigió después de observar los resultados. Sus
 identificadores se reúnen en la tabla~\ref{tab:identidades-experimento};
@@ -302,8 +303,9 @@ No se habían observado predicciones finales.
 El evaluador definitivo, incluida esa corrección, se congeló a las
 14:59:31 UTC del 13 de septiembre. La ejecución empezó después. La versión
 anterior se conservó sin sobrescribirla y el sistema productivo evaluado
-permaneció congelado. Se corrigió una comprobación de procedencia antes del
-experimento, no el criterio científico después de ver sus resultados.
+permaneció congelado. Esa modificación corrigió una comprobación de
+procedencia antes del experimento; el criterio científico no cambió después
+de ver sus resultados.
 La sección~\ref{sec:reproducibilidad-experimental} identifica ambas versiones.
 
 \section{Ejecución primaria con registro durable}
@@ -315,37 +317,17 @@ controlador externo al producto con un registro \emph{durable}: el inicio,
 la terminación, las salidas y su procedencia quedan guardados en disco y
 pueden comprobarse aunque el proceso se interrumpa.
 
-La tabla~\ref{tab:estados-primarios} resume los estados. Al continuar solo
-se procesan documentos pendientes; los terminales se conservan. Un caso
-indeterminado detiene la continuación y exige decisión humana: no vuelve
-a pendiente automáticamente. Si el resultado ya está guardado y solo falta
-completar su registro, puede verificarse sin llamar otra vez al modelo.
+La \textbf{regla de reanudación} es simple: solo se procesan documentos
+pendientes y se conservan los terminales. Un inicio sin terminación verificable
+queda indeterminado y exige decisión humana; no vuelve automáticamente a
+pendiente. Si la salida ya está guardada y solo falta completar el registro,
+el controlador puede verificarla sin llamar otra vez al modelo. Los estados,
+archivos y comandos se documentan en el anexo y en la guía técnica.
 
-Un intento documental puede contener peticiones y reintentos internos
-acotados del extractor; eso no equivale a repetir un documento terminal.
-El controlador es infraestructura experimental, no una función de Streamlit
-ni una programación diaria del pipeline.
-
-\begin{table}[htbp]
-\centering
-\small
-\renewcommand{\arraystretch}{1.2}
-\begin{tabular}{L{4.2cm} L{8.0cm}}
-\hline
-Estado & Significado y continuación \\
-\hline
-\texttt{PENDING} & Sin inicio durable; puede ejecutarse \\
-\texttt{STARTED} & Inicio registrado y ejecución activa \\
-\texttt{TERMINAL\_SUCCESS} & Extracción terminada correctamente; no se repite \\
-\texttt{TERMINAL\_ERROR} & Error terminal conservado; no se repite \\
-\texttt{INDETERMINATE} & Inicio sin terminación verificable tras finalizar el proceso; exige decisión humana \\
-\hline
-\end{tabular}
-\caption[Estados de la ejecución primaria]{Estados del controlador
-experimental y protección frente a repeticiones. Una terminación correcta
-es operativa; no acredita exactitud semántica.}
-\label{tab:estados-primarios}
-\end{table}
+Un intento documental puede contener reintentos internos acotados del
+extractor; eso no equivale a repetir un documento terminal. El controlador es
+infraestructura experimental, no una función de Streamlit ni una programación
+diaria del pipeline.
 
 La ejecución abarcó los 48 BOE y transcurrió el 13 de septiembre entre
 las 15:06:50 y las 15:28:00 UTC. Terminó con 47 éxitos operativos y un error

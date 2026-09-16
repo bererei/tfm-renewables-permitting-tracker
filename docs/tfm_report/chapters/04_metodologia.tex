@@ -34,14 +34,43 @@ consolidaron después la ejecución fuera del entorno interactivo. Finalmente,
 la aplicación de consulta se conectó a los datos ya preparados, con una
 responsabilidad diferente de la experimentación y la extracción.
 
+\section{Tecnologías de IA y responsabilidades}
+\label{sec:tecnologias-ia}
+La inteligencia artificial (IA) interviene en dos contextos distintos. En el
+\textbf{sistema evaluado}, Gemini 2.5 Flash es el LLM que interpreta el texto
+del BOE y genera una propuesta de extracción. Pydantic AI es el
+\emph{framework} que configura el agente: reúne las instrucciones, el modelo y
+el tipo de salida esperado. No es otro modelo. Pydantic expresa ese tipo
+mediante contratos y comprueba que la respuesta tenga la estructura admitida
+\cite{pydantic_ai_overview_2026}.
+\citapendiente{Documentación oficial de Gemini 2.5 Flash correspondiente a la
+configuración del sistema evaluado.}
+
+Después de esa respuesta interviene código determinista del proyecto: incorpora
+la identidad oficial del documento, canonicaliza la representación y ejecuta
+controles documentales. Una salida estructuralmente válida todavía puede
+interpretar mal el texto, por lo que el contrato no sustituye la validación ni
+la revisión humana.
+
+En el \textbf{proceso de desarrollo}, ChatGPT y Codex se utilizaron como
+herramientas de apoyo para analizar, planificar, implementar, probar y redactar.
+No reciben documentos durante la ejecución del pipeline ni forman parte del
+sistema evaluado. La sección~\ref{sec:ia-desarrollo} describe ese flujo de
+trabajo y el control humano sin volver a definir las tecnologías.
+
 \section{Arquitectura Bronze, Silver y Gold}
 \label{sec:capas}
 
 % docs/USER_GUIDE.md §§2--3; docs/architecture/silver_extraction_contract.md.
 Una analogía útil es pasar de materia prima a información depurada y,
 finalmente, a un producto preparado para consulta. En este trabajo, las capas
-Bronze, Silver y Gold designan esas funciones, resumidas en la
-tabla~\ref{tab:capas}. «Depurada» significa sometida a reglas y controles;
+Bronze, Silver y Gold designan esas funciones. Se adopta una organización
+inspirada en el patrón \emph{Medallion Architecture}, adaptada a las
+necesidades de trazabilidad y revisión del TFM.
+\citapendiente{Medallion Architecture: incorporar una referencia primaria o
+documentación oficial adecuada para el patrón por capas.}
+Las funciones concretas se resumen en la tabla~\ref{tab:capas}. «Depurada»
+significa sometida a reglas y controles;
 no garantiza que toda interpretación del documento sea semánticamente correcta.
 
 \begin{table}[htbp]
@@ -71,17 +100,18 @@ Gold reúne las menciones por proyecto y prepara actuaciones y territorios
 para la consulta. Cada salida incorpora un manifest que enlaza sus entradas
 y versiones. La procedencia se mantiene al pasar de una capa a otra.
 
-La figura~\ref{fig:arquitectura-sistema} sitúa las transformaciones entre
-capas. La extracción generativa se realiza con Gemini cuando las reglas de
-alcance no resuelven el documento. El contrato, la canonicalización, la
-validación y la materialización son operaciones deterministas para entradas
-fijadas; las decisiones humanas quedan como entradas trazables. Silver solo
-se materializa después de resolver las incidencias bloqueantes de revisión.
+La figura~\ref{fig:arquitectura-sistema} sitúa los componentes entre capas.
+Cuando las reglas de alcance no resuelven el documento, el agente de Pydantic
+AI utiliza Gemini y espera una salida definida con Pydantic. Después, el código
+determinista canonicaliza, valida y materializa para entradas fijadas; las
+decisiones humanas quedan como entradas trazables. Silver solo se materializa
+después de resolver las incidencias bloqueantes de revisión.
 
 La resolución territorial combina Silver con una referencia INE independiente.
 Esta referencia se construye a partir de dos CSV locales, se normaliza y
 valida, y se conserva como dimensión municipal junto a un manifest y hashes.
-No procede de Silver ni se descarga automáticamente durante el downstream,
+No procede de Silver ni se descarga automáticamente durante el
+\emph{downstream},
 es decir, el procesamiento posterior a Silver. Ese procesamiento reúne
 resolución territorial, agrupación y construcción de Gold sin nuevas llamadas
 al modelo. La aplicación consulta exclusivamente Gold validado.
@@ -102,10 +132,41 @@ pipeline de consulta.
 \input{figs/arquitectura_sistema}
 \caption[Arquitectura general del sistema]{La fuente preservada se transforma
 en entidades trazables y después en datos para consulta. La referencia INE
-entra de forma independiente en la resolución territorial. Gemini no produce
-Gold directamente. Elaboración propia a partir del pipeline, la construcción
-de referencia INE y el downstream implementados.}
+entra de forma independiente en la resolución territorial. La figura distingue
+el modelo Gemini, el agente Pydantic AI, el contrato Pydantic y el código
+posterior; Gemini no produce Gold directamente. Elaboración propia a partir del
+pipeline, la construcción de referencia INE y el downstream implementados.}
 \label{fig:arquitectura-sistema}
+\end{figure}
+
+\section{Flujo operativo del pipeline}
+\label{sec:flujo-operativo}
+La arquitectura anterior explica responsabilidades y dependencias. El
+\textbf{flujo operativo} responde a otra pregunta: qué ocurre al ejecutar el
+sistema. La interfaz de línea de comandos
+(\textit{Command-Line Interface}, CLI) del pipeline recibe intervalos,
+entradas y destinos explícitos y
+permite ejecutar las etapas de la figura~\ref{fig:flujo-operativo}. Cada etapa
+produce o valida una entrada identificable para la siguiente; una incidencia
+bloqueante detiene la publicación de la nueva materialización.
+
+La ejecución obtiene la fuente, selecciona candidatos, clasifica y extrae,
+reconcilia las revisiones necesarias y materializa Silver. A partir de Silver,
+la referencia INE permite resolver territorios; después se agrupan menciones,
+se construye Gold y Streamlit carga únicamente una versión Gold validada. La
+CLI no convierte esta secuencia en una operación diaria automática: coordina
+etapas reutilizables, descritas por interfaz en la
+sección~\ref{sec:cli}.
+
+\begin{figure}[p]
+\centering
+\input{figs/flujo_operativo_pipeline}
+\caption[Flujo operativo del pipeline]{Orden de ejecución desde la adquisición
+hasta la consulta. La revisión puede detener la continuación y exige una
+decisión humana antes de una nueva materialización; Streamlit lee Gold y no
+ejecuta las etapas anteriores. Elaboración propia a partir de la Pipeline CLI
+y las funciones de adquisición, extracción, Silver y downstream.}
+\label{fig:flujo-operativo}
 \end{figure}
 
 \section{Datos de referencia territorial}
@@ -119,8 +180,7 @@ modelo de lenguaje tenga que inventar códigos o resolver por sí solo
 homónimos y jerarquías administrativas.
 
 El proyecto construye la dimensión a partir de dos CSV locales: una relación
-de provincias y comunidades, y un diccionario municipal. CSV es un formato
-tabular de texto cuyos campos están separados por delimitadores. Los códigos
+de provincias y comunidades, y un diccionario municipal. Los códigos
 se leen como texto, se normaliza su longitud y se conservan ceros iniciales.
 Se preparan nombres para comparación y variantes documentadas de escritura,
 sin sustituir las denominaciones originales de la referencia. La construcción
@@ -151,20 +211,18 @@ antes de autorizar una reconstrucción con cambios semánticos.
 Un documento del BOE expresa en lenguaje administrativo quién promueve una
 instalación, qué actuación se publica y a qué elementos afecta. Para consultar
 esa información de forma sistemática hace falta convertirla en entidades,
-atributos y relaciones. Un modelo de lenguaje de gran tamaño, o \emph{LLM},
-es un modelo capaz de procesar y generar texto; aquí se utiliza para proponer
-una representación estructurada a partir del documento. Esta capacidad no
-implica que toda interpretación propuesta sea correcta.
-\citapendiente{Referencia sobre LLM y extracción de información con salida
-estructurada; documentación de Gemini 2.5 Flash pertinente a la configuración utilizada.}
+atributos y relaciones. Gemini, presentado en la
+sección~\ref{sec:tecnologias-ia}, propone esa representación a partir del
+documento. Esta capacidad no implica que toda interpretación sea correcta.
 
-El sistema evaluado utiliza Gemini 2.5 Flash. Cada solicitud reúne instrucciones
-comunes, el título, el identificador y la fecha de publicación, y el texto
+El agente de Pydantic AI configura Gemini 2.5 Flash con instrucciones comunes
+y el contrato \texttt{BOEAIExtraction} como salida esperada. Cada solicitud
+incluye el título, el identificador, la fecha de publicación y el texto
 seleccionado del BOE. Las instrucciones especifican el alcance, las entidades,
 las categorías administrativas y la exigencia de evidencia. El documento se
-delimita como entrada a analizar, no como una instrucción que pueda cambiar
-las reglas del proceso. Modelo, instrucciones, esquema y políticas quedan
-identificados en la configuración de la extracción.
+delimita como entrada a analizar, no como una instrucción que pueda cambiar las
+reglas. Modelo, instrucciones, esquema y políticas quedan identificados en la
+configuración de extracción.
 
 La preparación utiliza el texto completo salvo una exclusión concreta: puede
 retirar el tramo que comienza con el anexo de relación de bienes y derechos
@@ -204,9 +262,15 @@ El código posterior valida, canonicaliza y deriva información conforme a
 reglas explícitas; esas operaciones deben distinguirse de lo generado por
 Gemini para interpretar el comportamiento del sistema completo.
 
+Gemini produce así una respuesta estructurada por medio del agente, pero esa
+respuesta solo puede incorporarse al pipeline si cumple el contrato esperado
+y los controles posteriores. La sección siguiente explica cómo se define esa
+estructura válida.
+
 \section{Pydantic, contratos y validación}
 \label{sec:contratos-validacion}
-Un contrato estructurado especifica qué forma y qué valores se consideran
+¿Cómo se define qué estructura es válida? Un contrato estructurado especifica
+qué forma y qué valores se consideran
 válidos para un dato. Por ejemplo, una actuación debe tener un tipo, una
 decisión y una evidencia, y sus referencias deben apuntar a elementos
 admisibles. Disponer de este contrato permite rechazar respuestas incompletas
@@ -218,18 +282,39 @@ lógicos y listas; las enumeraciones, o \emph{enums}, fijan conjuntos cerrados
 de categorías. Los validadores comprueban además coherencia entre campos y
 referencias. Los campos desconocidos se rechazan y un dato ausente se expresa
 mediante el valor nulo permitido por el contrato, no mediante un texto vacío.
-\citapendiente{Documentación de Pydantic y de la salida estructurada utilizada
-con Pydantic AI; distinguir garantía de esquema de corrección del contenido.}
+Pydantic AI utiliza ese modelo como tipo de salida, de modo que el agente
+entrega datos tipados y validados estructuralmente
+\cite{pydantic_ai_overview_2026}. Esta garantía se refiere a la forma y a las
+reglas expresadas en el contrato, no a la corrección semántica de lo extraído.
 
 Como ejemplo didáctico, una respuesta que propusiera «permiso definitivo»
 como tipo de actuación quedaría fuera de las categorías admitidas y sería
 rechazada. En cambio, elegir una categoría admitida pero equivocada podría
 superar ese primer control. Por eso la validez estructural debe complementarse
-con validación documental: el sistema comprueba el vínculo con el BOE,
+con validación documental: el código de validación comprueba el vínculo con el BOE,
 la literalidad de los pasajes y las referencias entre las entidades.
 
-El orden ejecutado es relevante. El agente entrega una salida del modelo
-Pydantic de extracción. El programa incorpora el identificador y la fecha
+La figura~\ref{fig:contrato-extraccion} resume el contrato sin reproducir las
+clases Python. El documento contiene la
+clasificación y, si es específico de generación, uno o más eventos. Cada evento
+requiere al menos una planta y una actuación, y puede incluir componentes,
+participantes, localizaciones, relaciones y expedientes. Las evidencias
+acompañan a las entidades que respaldan.
+
+\begin{figure}[!htbp]
+\centering
+\input{figs/contrato_extraccion}
+\caption[Contrato conceptual de extracción]{Estructura principal de la salida
+del modelo. Las actuaciones enlazan con el evento, las plantas o los
+componentes mediante referencias internas; las evidencias permanecen asociadas
+a la información extraída. Se omiten detalles de implementación y campos
+opcionales para facilitar la lectura. Elaboración propia a partir de
+\texttt{BOEAIExtraction} y \texttt{PublicationEvent}.}
+\label{fig:contrato-extraccion}
+\end{figure}
+
+El orden ejecutado es relevante. El agente entrega una salida
+\texttt{BOEAIExtraction} validada por Pydantic. El programa incorpora el identificador y la fecha
 verificados de la fuente, aplica la canonicalización, vuelve a comprobar la
 estructura resultante y realiza la validación documental final. La
 figura~\ref{fig:extraccion-validacion} detalla esta secuencia. El modelo no
@@ -252,7 +337,7 @@ contratos para conseguir una extracción aparentemente satisfactoria.
 \caption[Extracción IA y validación]{Secuencia aplicada a los documentos
 que requieren modelo. La salida estructurada precede a la canonicalización
 y a la validación documental final. Una respuesta válida aún puede requerir
-revisión de alcance o de antecedentes. Los reintentos están limitados;
+revisión de alcance o de posibles antecedentes históricos. Los reintentos están limitados;
 el circuito humano se explica en la sección~\ref{sec:revision-humana}.
 Elaboración propia a partir del extractor implementado.}
 \label{fig:extraccion-validacion}
@@ -261,7 +346,7 @@ Elaboración propia a partir del extractor implementado.}
 \section{Evidencia y trazabilidad}
 \label{sec:evidencia}
 Obtener un valor no basta para justificarlo. La evidencia es el fragmento del
-documento que permite comprobar de dónde procede una afirmación. El sistema
+documento que permite comprobar de dónde procede una afirmación. El extractor
 intenta conservar el valor extraído junto a su pasaje de respaldo y la
 publicación de origen. Esta relación facilita revisar un caso dudoso, detectar
 atribuciones incorrectas y contrastar la salida con una referencia humana.
@@ -318,7 +403,7 @@ autorización concedida.
 El tratamiento de evidencias también tiene consecuencias. Para ciertas
 actuaciones, si el tipo aparece declarado en el título, el código puede
 utilizar ese título literal como evidencia. En otros casos busca un pasaje de
-la fuente mediante anclajes y patrones definidos. El resultado se valida de
+la fuente mediante anclajes y patrones definidos. El código valida de
 nuevo; disponer de texto literal no garantiza por sí solo que el fragmento
 sea el más específico para la actuación. El análisis posterior identificó
 efectos de esta política sobre la evaluación de evidencias, que se expondrán
@@ -503,8 +588,9 @@ territorial se mantiene explícita y debe interpretarse al revisar el proyecto.
 La combinación puede resumirse como \emph{identidad nominal + tecnología +
 anclaje territorial}. La clave determinista y versionada de agrupación,
 \texttt{project\_match\_key}, representa esa combinación y determina la agrupación
-por igualdad. De ella se deriva \texttt{project\_id} mediante UUID5, un
-identificador calculado de forma reproducible a partir de la misma clave.
+por igualdad. De ella se deriva \texttt{project\_id} mediante un identificador
+universal único versión 5 (UUID5), calculado de forma reproducible a partir de
+la misma clave.
 Su estabilidad se mantiene mientras no cambien los elementos de esa identidad;
 no se aplica similitud difusa ni una puntuación de confianza.
 
@@ -544,7 +630,7 @@ reúne esos casos para que una persona examine la publicación y adopte una
 decisión justificada. Detectar una incidencia no demuestra que la extracción
 sea errónea ni autoriza a cambiarla automáticamente.
 
-El sistema mantiene una cola de extracción en cada snapshot. Registra
+El módulo de revisión mantiene una cola de extracción en cada snapshot. Registra
 documentos sin intento vigente, errores de extracción, fallos de validación
 documental, clasificaciones inciertas y posibles antecedentes históricos.
 Cada entrada conserva el BOE, la huella del documento, el intento de origen
@@ -580,22 +666,26 @@ qué cambió y por qué; editar directamente los datos derivados perdería esa
 relación reproducible. Los procedimientos y argumentos concretos se
 documentan en \path{docs/USER_GUIDE.md}, sin duplicarlos en la memoria.
 
-Esta cola cubre extracción y P0; la resolución territorial mantiene sus
+Esta cola cubre la extracción y los posibles antecedentes históricos; la
+resolución territorial mantiene sus
 propios estados, como explica la sección~\ref{sec:resolucion-territorial}.
 El enlace de correo de Streamlit tampoco registra entradas en ella. La
 integración persistente de reportes y territorio en una cola común se reserva
 para el trabajo futuro de la sección~\ref{sec:cola-unificada-futura}.
 
-\pendiente{FIGURA F06 — Flujo de revisión y corrección humana implementado.
-\par Etiqueta prevista: \path{fig:revision-correcciones}. Representar solo
-el sistema actual: intentos, validación y detección P0; cola por BOE;
-inspección y decisión humana. Separar aprobación/rechazo genéricos, CURRENT
-sin cambio de contenido y ANTECEDENT con exclusión versionada. Mostrar
-reconciliación en un nuevo snapshot, control sin bloqueantes, aplicación
-de exclusiones a una copia antes de Silver y regeneración hasta Gold.
-La ejecución posterior es del operador. Situar territorio después de Silver
-como control independiente, sin flecha a la cola. Reservar integración de
-reportes persistentes y cola unificada para F09, en Trabajo futuro.}
+\begin{figure}[p]
+\centering
+\input{figs/revision_correcciones}
+\caption[Revisión y corrección humana implementadas]{Circuito actual para
+incidencias de extracción y posibles antecedentes históricos. Una persona
+inspecciona el BOE y registra una decisión; solo las decisiones que cambian
+contenido generan una corrección versionada. El operador crea después un nuevo
+snapshot y regenera los derivados. Los estados territoriales se controlan por
+separado después de Silver y el reporte de Streamlit no entra en esta cola.
+Elaboración propia a partir de la Admin CLI y del flujo de correcciones.}
+\label{fig:revision-correcciones}
+\end{figure}
+
 \section{Salvaguarda de antecedentes históricos}
 \label{sec:antecedentes}
 
@@ -654,19 +744,19 @@ guía de usuario y al anexo~\ref{an:reproducibilidad}.
 \centering
 \small
 \renewcommand{\arraystretch}{1.2}
-\begin{tabular}{L{3.1cm} L{9.7cm}}
+\begin{tabular}{L{3.0cm} L{10.0cm}}
 \hline
 Interfaz & Función \\
 \hline
-Pipeline CLI & Ejecutar las fases de adquisición, extracción, Silver, referencia INE y downstream \\
-Admin CLI & Registrar decisiones humanas acotadas sobre extracciones y antecedentes, sin editar directamente datos analíticos \\
-Evaluation CLI & Validar y congelar referencias y evaluador, y puntuar predicciones preservadas sin llamar al modelo \\
-Controlador de ejecución primaria & Preparar, ejecutar con autorización, consultar y finalizar la ejecución experimental \\
+Pipeline CLI & Ejecutar de forma reproducible las etapas que adquieren y procesan documentos y generan artefactos validados. \\
+Admin CLI & Inspeccionar incidencias y registrar decisiones humanas controladas sin editar directamente las tablas derivadas. \\
+Evaluation CLI & Comparar offline las predicciones preservadas con la referencia congelada mediante el evaluador correspondiente. \\
+Controlador primario & Ejecutar el holdout con estado durable y distinguir documentos terminados, fallidos o indeterminados. \\
 \hline
 \end{tabular}
 \caption[Interfaces de línea de comandos]{Separación entre operación del
-pipeline, revisión humana y evaluación. El controlador ejecuta el experimento;
-la CLI de evaluación calcula sus resultados.}
+pipeline, revisión humana y evaluación. El anexo ofrece una invocación
+representativa y la guía de usuario conserva el procedimiento completo.}
 \label{tab:interfaces-cli}
 \end{table}
 
@@ -731,14 +821,9 @@ anexo~\ref{an:reproducibilidad}.
 \label{sec:ia-desarrollo}
 % Declaración de uso aportada expresamente en la solicitud de esta fase.
 % Cronología: manifests truth/evaluator y FINAL_HOLDOUT_V2_RESULTS.md §1.
-El trabajo distingue la inteligencia artificial que forma parte del sistema
-evaluado de las herramientas utilizadas para ayudar a desarrollarlo. Gemini
-realiza la extracción documental descrita en la
-sección~\ref{sec:extraccion-gemini}; su respuesta y el procesamiento posterior
-son objeto de evaluación. ChatGPT y Codex se utilizaron como herramientas de
-apoyo en el desarrollo del TFM, con funciones diferentes.
-
-ChatGPT apoyó el análisis de necesidades, la planificación, la discusión
+La sección~\ref{sec:tecnologias-ia} separó el sistema evaluado de las
+herramientas de apoyo. En el flujo de desarrollo, ChatGPT apoyó el análisis
+de necesidades, la planificación, la discusión
 metodológica, la revisión de propuestas y la elaboración y refinamiento de
 instrucciones para el modelo. Codex, utilizado desde el editor Visual Studio
 Code (VSCode), apoyó la inspección del repositorio, la implementación de tareas

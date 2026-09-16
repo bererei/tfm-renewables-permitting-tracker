@@ -20,10 +20,13 @@ Para cada concepto relevante:
 5. Introducir después el detalle técnico necesario.
 
 Definir antes de usar: trámites y siglas administrativas, BOE, API, pipeline,
-ETL si aparece, Bronze/Silver/Gold, LLM, Pydantic, ground truth, holdout,
+ETL si aparece, Bronze/Silver/Gold, LLM, Pydantic AI, Pydantic, ground truth, holdout,
 matching, precision, recall, F1, Streamlit, pytest y CLI. Una definición en un
 capítulo anterior permite avanzar; en Discusión conviene recordar el significado
 de la medida antes de interpretarla. No repetir por sistema el mismo párrafo.
+
+Una idea se explica en profundidad una vez; las apariciones posteriores deben
+referenciarla o resumirla, no volver a desarrollarla.
 
 ## Voz narrativa
 
@@ -89,7 +92,8 @@ ni en una sucesión de párrafos sin apoyos cuando un esquema aclare el proceso.
 
 ## Acceso programático y candidatos
 
-Destino: 2.2, concepto BOE/API; 3.2, adquisición comprobada; 3.3, selección
+Destino: 2.2, función y límites del BOE; 3.2, API y adquisición comprobada;
+3.3, selección
 por título y decisión de relevancia. No confundir una consulta de sumario con
 la descarga del documento completo ni con la extracción mediante IA.
 
@@ -182,14 +186,11 @@ No atribuir autoría del TFM o decisiones metodológicas al asistente.
 | 7.7.1; remisión desde 8.2 | Cascada de matching | Activo sin match puede impedir evento y actuaciones/localizaciones; no atribuir todos los FP/FN a invenciones del modelo |
 | 5 y, si aporta, 6.2 | Capturas seleccionadas | Enseñar una consulta del producto o explicar anotación ciega, sin saturar ni confundir finalidades |
 
-La primera integración de 2026-09-14 incorporó procedimiento, arquitectura y
-grouping. La fase sustantiva siguiente desarrolla 3.1–3.6, 4.1–4.16 y la base
-del capítulo 5, incorpora F02/F04 y tablas compactas de Silver y territorio.
-F06 queda preparada para el flujo actual; reportes persistentes y cola unificada
-permanecen en F09, POST-TFM. La fase experimental posterior desarrolla los
-capítulos 6/7 e incorpora F07/F08; su revisión pedagógica mantiene intactos
-los resultados. Discusión, Limitaciones y Conclusiones ya están desarrolladas;
-Resumen, Abstract y capturas siguen pendientes de sus bloques autorizados.
+La revisión integral de 2026-09-15 incorpora las figuras ambiental, de
+conjuntos documentales, contrato y flujo operativo; revisa F03/F04/F09 y
+completa F06. Los reportes persistentes y la cola unificada permanecen en F09,
+POST-TFM. Resumen, Abstract, despliegue público, publicación final en GitHub y
+capturas siguen pendientes de sus bloques autorizados.
 
 Los diagramas deben respetar el orden real del extractor: salida estructurada
 Pydantic, incorporación de identidad documental, canonicalización y validación

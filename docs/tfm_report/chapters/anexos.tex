@@ -4,11 +4,71 @@
 \pendiente{Transferir identidades completas, manifests, hashes y comandos
 verificados del experimento cerrado. Añadir acceso al archivo de entrega
 cuando esté disponible; una ruta local no garantiza acceso al lector.}
-\pendiente{DOCUMENTACIÓN COMPLEMENTARIA — Remitir a la guía versionada
-\path{docs/USER_GUIDE.md} y registrar la versión de entrega. Seleccionar
-comandos representativos de pipeline, admin, evaluación y controlador,
-con sus condiciones y entradas, sin copiar el manual completo. Distinguir
-el entorno de desarrollo posterior a la evaluación del sistema congelado.}
+
+\section{Comandos representativos de las interfaces de línea de comandos}
+Este anexo permite localizar las cuatro interfaces principales sin reproducir
+todos sus argumentos. La referencia operativa completa y mantenida es
+\path{docs/USER_GUIDE.md}; la opción \texttt{--help} de cada interfaz muestra
+el detalle vigente. Los comandos se ejecutan desde la raíz del repositorio.
+Los destinos reales deben ser nuevos cuando así lo exige la guía y una
+operación con modelo necesita autorización y credenciales; los ejemplos de
+consulta y validación siguientes no ejecutan el experimento de nuevo.
+
+\subsection*{Pipeline CLI}
+\textbf{¿Para qué sirve?} Para ejecutar de forma reproducible las etapas
+que adquieren y preparan documentos, extraen información, materializan Silver,
+construyen o actualizan la referencia territorial y generan Gold mediante
+\emph{downstream}.
+
+\begin{lstlisting}[language=bash,title={Ejemplo:}]
+uv run python -m renewables_permitting.pipeline --help
+\end{lstlisting}
+\textbf{Resultado:} ayuda de la Pipeline CLI y lista de operaciones disponibles;
+el ejemplo no descarga ni materializa datos.
+
+\subsection*{Admin CLI}
+\textbf{¿Para qué sirve?} Para inspeccionar incidencias y registrar o aplicar
+decisiones humanas controladas sobre extracciones y posibles antecedentes. No
+edita Gold ni las tablas derivadas y no ejecuta por sí sola el pipeline.
+
+\begin{lstlisting}[language=bash,title={Ejemplo:}]
+uv run python -m renewables_permitting.admin list \
+  --extraction-snapshot <EXTRACCION_VALIDADA>
+\end{lstlisting}
+\textbf{Resultado:} lista validada de casos pendientes que una persona puede
+examinar antes de registrar una decisión.
+
+\subsection*{Evaluation CLI}
+\textbf{¿Para qué sirve?} Para validar o congelar la referencia y el evaluador
+y ejecutar offline la comparación de las predicciones preservadas frente a la
+referencia congelada. No llama al modelo de extracción.
+
+\begin{lstlisting}[language=bash,title={Ejemplo:}]
+UV_OFFLINE=1 uv run python -m evaluation.final_holdout_v2.cli \
+  evaluate --truth <REFERENCIA_CONGELADA> \
+  --predictions <PREDICCIONES_PRESERVADAS> \
+  --evaluator <EVALUADOR_CONGELADO> \
+  --execution-record <REGISTRO_EJECUCION> \
+  --output <NUEVO_DIRECTORIO_RESULTADOS>
+\end{lstlisting}
+\textbf{Resultado:} un nuevo informe de evaluación offline, o un fallo cerrado
+si las entradas y sus identidades no cumplen el protocolo.
+
+\subsection*{Controlador de ejecución primaria}
+\textbf{¿Para qué sirve?} Para preparar y controlar la ejecución final del
+holdout con estado durable por documento. Registra qué casos terminaron,
+fallaron o quedaron en un estado que no debe reintentarse de forma ambigua;
+\texttt{TERMINAL\_SUCCESS} indica un artefacto válido, no una predicción correcta.
+
+\begin{lstlisting}[language=bash,title={Ejemplo:}]
+env -u PYTHONPATH PYTHONDONTWRITEBYTECODE=1 \
+  .venv/bin/python -m evaluation.primary_execution.cli \
+  primary-status --run-root <DIRECTORIO_EJECUCION>
+\end{lstlisting}
+\textbf{Resultado:} resumen de estados terminales, pendientes o indeterminados;
+el comando no llama al modelo. El procedimiento completo, incluidas preparación,
+autorización y finalización, se encuentra en la guía de usuario y en
+\path{docs/evaluation/PRIMARY_EXECUTION_V2.md}.
 
 \chapter{Contrato documental y material de apoyo}
 \label{an:contrato}

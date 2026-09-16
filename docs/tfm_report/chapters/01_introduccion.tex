@@ -7,10 +7,12 @@ La incorporación de instalaciones renovables al sistema eléctrico requiere,
 además de su diseño y construcción, una tramitación administrativa. Conocer
 esa tramitación ayuda a distinguir una propuesta en estudio de un proyecto
 que ha recibido una autorización. Este seguimiento resulta de interés en el
-contexto de la transición hacia fuentes de energía renovables.
-\citapendiente{Incorporar una fuente institucional sobre transición energética
-y planificación de renovables en España; no se incluyen cifras de despliegue
-sin verificar.}
+contexto de la transición hacia fuentes de energía renovables. El
+Plan Nacional Integrado de Energía y Clima 2023--2030 (PNIEC) es la herramienta
+de orientación estratégica nacional que integra la política de energía y clima
+con horizonte 2030 \cite{miteco_pniec_2023_2030_2024}. La ejecución de esa
+planificación exige poder seguir también la evidencia administrativa que
+acompaña a los proyectos.
 
 Una misma planta puede aparecer en distintas publicaciones oficiales: un
 anuncio de información pública, una decisión ambiental o una autorización,
@@ -27,7 +29,7 @@ herramienta que reúna esas publicaciones puede facilitar la consulta, siempre
 que conserve la relación entre cada dato y el texto que lo respalda.
 
 \section{Problema abordado}
-La pregunta que guía el trabajo es: \emph{¿cómo reconstruir la evolución
+La \textbf{pregunta que guía el trabajo} es: \emph{¿cómo reconstruir la evolución
 administrativa observada de un proyecto de generación eléctrica a partir de
 la evidencia publicada en el BOE?}
 
@@ -60,8 +62,9 @@ decir, las que aplican reglas fijas a las mismas entradas.
 y conservar su identidad, fecha y procedencia.
 \item Extraer plantas, actuaciones y territorios con una estructura definida
 y evidencia documental.
-\item Validar la información, conservar los casos inciertos para revisión
-y aplicar decisiones humanas de forma trazable.
+\item Incorporar validación y revisión humana en los casos definidos por el
+sistema de extracción y la salvaguarda de antecedentes, registrando de forma
+trazable las decisiones y correcciones aplicables.
 \item Relacionar menciones de plantas mediante reglas conservadoras y
 vincular las referencias territoriales con unidades administrativas oficiales.
 \item Preparar datos consolidados para una aplicación de consulta de solo
@@ -102,22 +105,18 @@ no incorpora indicadores consolidados de promotor o potencia. La operación
 diaria automática, la administración de usuarios y una interfaz de aprobación
 de correcciones quedan fuera del trabajo entregable.
 
-La extracción utiliza un modelo de inteligencia artificial capaz de procesar
-texto y generar respuestas, denominado modelo de lenguaje de gran tamaño o
-\emph{LLM}. Su salida puede contener errores y requiere validación. Repetir
+La extracción utiliza un \textbf{modelo de lenguaje de gran escala}
+(\textit{Large Language Model}, LLM), capaz de procesar texto y generar
+respuestas. Su salida puede contener errores y requiere validación. Repetir
 una consulta al proveedor no garantiza una respuesta idéntica; por ello se
 conservan las predicciones originales utilizadas en la evaluación.
 
 \section{Estructura de la memoria}
-El capítulo~\ref{ch:contexto} introduce los principales trámites y el BOE.
-El capítulo~\ref{ch:datos} explica cómo se obtuvieron y seleccionaron los
-documentos. El capítulo~\ref{ch:metodologia} desarrolla la metodología de
-extracción, validación y consolidación, y el capítulo~\ref{ch:aplicacion}
-describe la aplicación de consulta.
-
-El capítulo~\ref{ch:evaluacion} presenta el diseño experimental y define las
-medidas necesarias para interpretar el capítulo~\ref{ch:resultados}. Después,
-el capítulo~\ref{ch:discusion} analiza el significado y los límites de los
-resultados. El capítulo~\ref{ch:conclusiones} responde a los objetivos y
-organiza el trabajo futuro. Los anexos reservan el detalle de reproducibilidad
-y del contrato documental que no resulta necesario para seguir la narración.
+Los capítulos~\ref{ch:contexto} y~\ref{ch:datos} presentan el contexto
+administrativo y la construcción del corpus. Los
+capítulos~\ref{ch:metodologia} y~\ref{ch:aplicacion} explican el sistema y su
+aplicación de consulta. Los capítulos~\ref{ch:evaluacion}
+y~\ref{ch:resultados} describen el experimento y sus resultados, que se
+interpretan en el capítulo~\ref{ch:discusion}. El
+capítulo~\ref{ch:conclusiones} responde a los objetivos y ordena el trabajo
+futuro; los anexos reúnen el detalle de reproducibilidad y del contrato.

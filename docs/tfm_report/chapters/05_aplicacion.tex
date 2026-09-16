@@ -29,6 +29,11 @@ explica su instalación y uso. La disponibilidad de la implementación local
 se distingue de la aceptación de un despliegue público, cuya revisión de
 entrega debe documentarse por separado.
 
+\pendiente{CAPTURA C01 — Vista general, situada tras la introducción de la
+aplicación. Mostrar estructura, navegación y filtros principales. Preparar
+solo después del despliegue y de la revisión visual de entrega; no generada
+en esta fase.}
+
 \section{Resumen, catálogo y filtros}
 La vista Resumen combina dos indicadores, gráficos, mapa y catálogo. Los
 indicadores cuentan proyectos y publicaciones BOE distintas dentro de la
@@ -74,16 +79,16 @@ presentación de dependencias de red ajenas a los datos Gold.
 \citapendiente{Identificar las ediciones y condiciones de uso de la geometría
 IGN/CNIG y del contexto Natural Earth efectivamente utilizados.}
 
+\pendiente{CAPTURA C02 — Mapa y filtros, situada junto a la explicación
+territorial. Mostrar el mapa, los filtros activos y su efecto sobre la
+consulta. Preparar tras la revisión visual de entrega; no generada en esta
+fase.}
+
 El catálogo mantiene una fila por proyecto y muestra nombre, tecnología,
 territorios, primera y última publicación observadas y número de BOE.
 Permite seleccionar columnas y abrir la ficha del proyecto. Las adaptaciones
 de nombres para facilitar la lectura no modifican los valores Gold ni la
 evidencia documental.
-
-\pendiente{CAPTURA C01 — Vista general: indicadores, consulta y catálogo.
-CAPTURA C02 — Mapa y filtros: mostrar cómo una selección territorial modifica
-los resultados. Preparar tras la revisión de entrega, con caption, etiqueta
-y referencia; evitar dos vistas casi idénticas. No generadas en esta fase.}
 
 \section{Ficha del proyecto y cronología}
 La ficha reúne la identidad del proyecto, su tecnología, el ámbito territorial
@@ -135,7 +140,7 @@ añade contexto del proyecto y de su última publicación observada. El usuario
 debe completar la descripción y enviar el mensaje desde su cliente de correo.
 
 La aplicación no envía ni almacena el reporte: no crea una fila en una tabla
-ni una entrada en la cola de revisión. Tampoco ofrece un backend de incidencias
+ni una entrada en la cola de revisión. Tampoco ofrece un \emph{backend} de incidencias
 ni integración automática con la Admin CLI. Sin una dirección válida,
 el control queda deshabilitado y muestra que el canal no está configurado.
 El destino se proporciona mediante configuración del operador; su disponibilidad
@@ -147,3 +152,8 @@ una decisión trazable antes de regenerar los datos. Este paso es externo a
 Streamlit y está sujeto a los límites de la sección~\ref{sec:revision-humana}.
 La integración persistente de reportes con una cola unificada se propone
 como trabajo futuro en la sección~\ref{sec:cola-unificada-futura}.
+
+\pendiente{TODO OPERATIVO — Completar y validar el despliegue público de
+Streamlit; preparar la publicación final del repositorio en GitHub y comprobar
+sus instrucciones de acceso. Solo después se generarán C01--C03 y, si aporta
+valor, C04. No se declara completado en esta memoria.}
