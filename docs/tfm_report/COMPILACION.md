@@ -33,6 +33,20 @@ Su archivo de navegación es `build/tfm_report_bgd.synctex.gz`.
 LaTeX/BibTeX pueden necesitar varias pasadas, coordinadas por una invocación
 normal de latexmk. No se instalan dependencias ni se ejecuta el pipeline.
 
+## Política permanente de `build/` y revisiones temporales
+
+`build/` es un directorio ignorado y regenerable, reservado exclusivamente
+para los outputs de compilación de la memoria LaTeX activa. No se utiliza para
+capturas o imágenes de inspección, texto extraído del PDF, logs de auditoría,
+JSON, estados Git, PDFs comparativos ni otros artefactos temporales de revisión.
+
+Esos artefactos se generan fuera del repositorio, preferentemente bajo
+`/tmp/tfm_report_review/` o en otro directorio temporal específico de la tarea.
+Si una evidencia merece conservación académica, su incorporación al repositorio
+y su ubicación documental deben decidirse expresamente. Antes de promover el
+PDF de entrega se verificará una compilación reproducible desde un `build/`
+limpio.
+
 ## LaTeX Workshop
 
 Se reutiliza la receta local existente de `.vscode/settings.json`, que ya

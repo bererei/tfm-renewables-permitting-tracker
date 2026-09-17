@@ -293,6 +293,9 @@ During editing:
 
 - Make the smallest coherent change that satisfies the task.
 - Preserve unrelated user changes.
+- Generate temporary TFM LaTeX/PDF review artifacts outside the repository,
+  preferably under `/tmp/tfm_report_review/`; reserve
+  `docs/tfm_report/build/` for active LaTeX compilation outputs.
 - Do not modify data, notebooks, contracts, or pipeline stages outside the
   stated scope.
 - Do not weaken validation merely to make a failing test pass.
