@@ -200,7 +200,7 @@ validez estructural, respaldo documental y exactitud científica.
 
 ## Comprobación al cerrar un bloque
 
-Revisar definiciones, progresión, ejemplos, trazabilidad, TODO-CITA y recursos
+Revisar definiciones, progresión, ejemplos, trazabilidad, citas y recursos
 necesarios. Compilar; revisar referencias, citas, acentos y legibilidad. No
 eliminar una sección pendiente para que parezca terminada. Informar del diff
 y detenerse para revisión humana, sin commit/push ni siguiente bloque automático.

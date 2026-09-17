@@ -443,15 +443,15 @@ de las fases históricas anteriores. La revisión no altera datos ni resultados.
   cambiar 47 éxitos/1 error; el caso Hipódromo procede del diagnóstico
   canónico; F09 mantiene cloud como opción POST-TFM sin servicios elegidos.
 
-TODO-CITA todavía presentes: normativa de acceso y conexión; preceptos de
-AAP/AAC/DUP/explotación y del paralelismo de F01; alcance institucional del
-BOE; acceso verificable a la documentación API; edición de los CSV INE;
-configuración de Gemini 2.5 Flash; Medallion Architecture; Streamlit;
-cartografía IGN/CNIG y Natural Earth; y las dos referencias metodológicas de
-holdout y métricas. Se resolvieron en esta fase los TODO de PNIEC, EIA y salida
-estructurada con Pydantic AI/Pydantic; también se incorporó la fuente oficial
-de Parquet. El TODO institucional duplicado sobre el BOE se consolidó en el
-capítulo 2.
+La ronda bibliográfica de 2026-09-17 resolvió las trece citas que aún estaban
+marcadas: normativa de acceso y conexión; preceptos de AAP/AAC/DUP/explotación
+y del paralelismo de F01; alcance institucional del BOE; documentación de la
+API; edición de los CSV INE; configuración de Gemini 2.5 Flash; arquitectura
+Medallion; Streamlit; cartografía IGN/CNIG y Natural Earth; y referencias
+metodológicas sobre holdout y métricas. Se conservaron las referencias ya
+resueltas de PNIEC, EIA, salida estructurada con Pydantic AI/Pydantic y
+Parquet. La referencia institucional duplicada sobre el BOE permanece
+consolidada en el capítulo 2.
 
 - **Documentation impact:** capítulos, bibliografía, figuras y documentación
   auxiliar de la memoria.

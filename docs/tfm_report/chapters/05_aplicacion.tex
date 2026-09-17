@@ -3,7 +3,8 @@
 % Fuentes: USER_GUIDE.md §§6--8; STREAMLIT_CODE_GUIDE.md;
 % streamlit_app.py; app_data.py, app_queries.py, app_geometry.py, app_reporting.py.
 \section{Objetivo, usuarios y arquitectura}
-Streamlit es una herramienta para construir aplicaciones de consulta en Python.
+Streamlit es una herramienta para construir aplicaciones interactivas a partir
+de programas de Python \cite{streamlit_basicconcepts_2026}.
 En este TFM permite explorar los datos del BOE sin ejecutar comandos ni leer
 directamente las tablas del pipeline. La aplicación reúne filtros, mapas,
 catálogo y fichas para responder preguntas como qué proyectos aparecen en un
@@ -11,8 +12,6 @@ territorio, qué actuaciones se han publicado o dónde consultar la evidencia
 que respalda una decisión. Puede servir a lectores del ámbito energético,
 ambiental o administrativo; estos usos potenciales no constituyen una
 validación de aceptación por usuarios.
-\citapendiente{Documentación de Streamlit como herramienta utilizada para
-construir la aplicación de consulta.}
 
 Su entrada son las cuatro tablas Gold validadas descritas en el
 capítulo~\ref{ch:metodologia}. Antes de utilizarlas, el cargador comprueba
@@ -72,12 +71,18 @@ contabilizarse en varios polígonos, por lo que sus valores no son sumables
 como total de proyectos. Tampoco representan coordenadas exactas de plantas.
 Los proyectos sin territorio resuelto permanecen consultables en el catálogo.
 
-La geometría y el contexto cartográfico proceden de archivos locales
-versionados de IGN/CNIG y Natural Earth. La aplicación no descarga geometría
-ni utiliza mapas base externos durante la consulta. Esta decisión separa la
+La geometría administrativa procede de una obra derivada de \emph{Límites y
+Unidades Administrativas Actuales} (BDLJE) de IGN/CNIG, edición fechada el
+28 de julio de 2026 y sujeta a reconocimiento CC BY 4.0
+\cite{cnig_limitesadministrativos_2026}. El contexto de países procede del
+conjunto \emph{Admin 0 -- Countries} de Natural Earth a escala 1:110m; el
+manifest local no declara la versión aguas arriba, por lo que no se le atribuye
+la versión que muestra actualmente el catálogo. Natural Earth publica estos
+datos como dominio público
+\cite{naturalearth_admin0countries_nd,naturalearth_termsofuse_nd}.
+La aplicación utiliza copias locales versionadas: no descarga geometría ni
+emplea mapas base externos durante la consulta. Esta decisión separa la
 presentación de dependencias de red ajenas a los datos Gold.
-\citapendiente{Identificar las ediciones y condiciones de uso de la geometría
-IGN/CNIG y del contexto Natural Earth efectivamente utilizados.}
 
 \pendiente{CAPTURA C02 — Mapa y filtros, situada junto a la explicación
 territorial. Mostrar el mapa, los filtros activos y su efecto sobre la

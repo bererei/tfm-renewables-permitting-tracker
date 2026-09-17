@@ -40,14 +40,16 @@ límites se indican en el texto.}
 \end{table}
 
 \subsection{Acceso y conexión a la red}
-Los permisos de acceso y conexión se refieren a la posibilidad de utilizar
-la red eléctrica y a las condiciones para conectar la instalación. Son
-conceptos distintos de la autorización para construirla o explotarla.
+La Ley 24/2013 distingue el acceso, referido al uso de la red, de la conexión,
+referida al acoplamiento eléctrico a un punto concreto
+\cite{jefaturadelestado_ley242013_2013}. El Real Decreto 1183/2020
+\cite{ministeriotransicionecologica_realdecreto1183_2020} aplica ambos permisos
+a instalaciones de producción, almacenamiento para posterior inyección,
+consumo, distribución o transporte.
+Son conceptos distintos de la autorización para construir o explotar la
+instalación.
 En este TFM aportan contexto para comprender la tramitación, pero no se
 reconstruye un registro completo de permisos de red.
-\citapendiente{Verificar la normativa específica de acceso y conexión y
-los preceptos aplicables; la bibliografía actual solo proporciona el marco
-general del sector eléctrico.}
 
 \subsection{Evaluación ambiental e información pública}
 La evaluación ambiental examina los efectos que puede tener un proyecto
@@ -87,26 +89,26 @@ artículos 33 y 45--47 de la Ley 21/2013, en su texto consolidado consultado.}
 \end{figure}
 
 \subsection{Autorizaciones y utilidad pública}
-La \emph{autorización administrativa previa} (AAP) se refiere al proyecto
-de la instalación en los términos previstos por la normativa eléctrica.
-La \emph{autorización administrativa de construcción} (AAC) permite su
-construcción conforme al proyecto técnico aprobado. Aunque puedan aparecer
-en una misma resolución, representan actuaciones distintas.
+La \emph{autorización administrativa previa} (AAP) se refiere al anteproyecto
+de la instalación. La \emph{autorización administrativa de construcción}
+(AAC) se refiere al proyecto concreto y permite construir o establecer la
+instalación. Sus solicitudes pueden tramitarse de manera consecutiva,
+coetánea o conjunta, pero representan actuaciones distintas.
 
 La \emph{declaración de utilidad pública} (DUP) se relaciona con los bienes
 y derechos afectados por la instalación, a efectos de expropiación o
 servidumbre. Puede recaer sobre una infraestructura compartida, como una
 línea de evacuación, lo que obliga a identificar el objeto de la decisión.
-Finalmente, la \emph{autorización de explotación} se refiere a la puesta en
-servicio de la instalación. La existencia de una AAP o una AAC no demuestra
-por sí sola que la planta esté operativa.
+Finalmente, la \emph{autorización de explotación} permite, una vez ejecutado
+el proyecto, poner en tensión las instalaciones y proceder a su explotación.
+La existencia de una AAP o una AAC no demuestra por sí sola que la planta
+esté operativa.
 
 El procedimiento de autorización de instalaciones eléctricas se desarrolla,
 entre otras disposiciones, en el Real Decreto 1955/2000
-\cite{ministeriodeeconomía_realdecreto1955_2001}.
-\citapendiente{Verificar los preceptos de AAP, AAC, DUP y explotación,
-sus modificaciones y los datos bibliográficos del Real Decreto 1955/2000;
-la entrada existente utiliza el año 2001.}
+\cite{ministeriodeeconomia_realdecreto1955_2000}; sus artículos 115,
+140, 143 y 149 respaldan las distinciones anteriores en la redacción
+consolidada consultada.
 
 Para el seguimiento documental interesa distinguir el \emph{tipo de
 actuación} de su \emph{decisión}. Por ejemplo, una publicación puede someter
@@ -116,16 +118,23 @@ que respalda cada uno, sin completar los pasos ausentes por suposición.
 
 La figura~\ref{fig:procedimiento-administrativo} representa un recorrido
 orientativo con evaluación ambiental ordinaria y autorización. Las vías
-ambiental y eléctrica pueden avanzar parcialmente en paralelo, aunque el
-pronunciamiento de la DIA condiciona la autorización. La DUP se tramita cuando
-procede y no ocupa necesariamente una fase posterior a la AAC.
-\citapendiente{Verificar los preceptos que respaldan el paralelismo parcial,
-el condicionamiento ambiental y la relación temporal de la DUP con AAP/AAC.}
+ambiental y eléctrica pueden avanzar parcialmente en paralelo: la AAP se
+tramita, cuando corresponde, conjuntamente con la evaluación ambiental, y la
+información pública ambiental se integra en el procedimiento sustantivo. La
+DIA es un informe preceptivo y determinante cuyo contenido se incorpora a la
+autorización. La DUP se solicita cuando procede y puede hacerlo junto con la
+AAP o la AAC, o después de la AAP; por tanto, no ocupa una fase universalmente
+posterior a la AAC
+\cite{jefaturadelestado_ley212013_2013,
+jefaturadelestado_ley242013_2013,
+ministeriodeeconomia_realdecreto1955_2000}.
 
-La puesta en servicio puede requerir pruebas y autorizaciones de explotación
-provisionales o definitivas, según el supuesto aplicable.
-\citapendiente{Precisar los supuestos y la terminología normativa de pruebas,
-autorización provisional y autorización definitiva de explotación.}
+En las instalaciones de generación, la redacción consolidada consultada
+distingue una fase de autorización de explotación provisional para pruebas y
+otra definitiva, que se solicita una vez finalizadas esas pruebas. Para las
+instalaciones de transporte y distribución también prevé, a petición del
+titular, una autorización provisional para pruebas antes de la definitiva
+\cite{ministeriodeeconomia_realdecreto1955_2000}.
 Esta distinción aporta contexto: el sistema de extracción utiliza el tipo
 general \texttt{autorizacion\_explotacion}, sin dos categorías estructuradas
 separadas para esas modalidades.
@@ -135,15 +144,19 @@ separadas para esas modalidades.
 \input{figs/procedimiento_administrativo}
 \caption[Procedimiento administrativo simplificado]{Un proyecto puede
 generar publicaciones sobre solicitudes, consultas y resoluciones diferentes.
-La DIA condiciona la autorización; la DUP es condicional y su enlace discontinuo
-no fija un orden respecto de la AAC. Se omiten denegaciones y otras variantes.
-Elaboración propia; respaldo normativo pendiente en los TODO-CITA del texto.}
+El contenido de la DIA se integra en la autorización; la DUP es condicional y
+su enlace discontinuo no fija un orden respecto de la AAC. Se omiten
+denegaciones y otras variantes. Elaboración propia a partir de las normas
+citadas en el texto.}
 \label{fig:procedimiento-administrativo}
 \end{figure}
 
 \section{El BOE como fuente oficial}
 \label{sec:boe-api-concepto}
-El BOE es una fuente oficial de disposiciones, resoluciones y anuncios.
+El BOE es el diario oficial del Estado y publica las leyes, disposiciones y
+actos de inserción obligatoria. Los textos publicados tienen carácter oficial
+y auténtico en las condiciones de su norma reguladora
+\cite{ministeriopresidencia_realdecreto181_2008}.
 Cada publicación dispone de identificador BOE, fecha y enlaces de consulta.
 Esta combinación permite comprobar una actuación contra el texto que la
 publica. El cuerpo puede incluir antecedentes, fundamentos, una parte
@@ -154,16 +167,17 @@ tabla uniforme de proyectos.
 Su principal limitación para el seguimiento longitudinal es que el
 identificador BOE reconoce el documento, no la planta. La fuente no ofrece una
 clave estable y común de proyecto entre publicaciones. Las denominaciones
-pueden cambiar y un anuncio puede referirse a más de una planta. Además, una
-historia restringida al BOE puede omitir actuaciones publicadas en otros
-boletines o no recuperadas por la selección documental: la ausencia de una
-publicación en el corpus no equivale a la ausencia del trámite.
+pueden cambiar y un anuncio puede referirse a más de una planta. Además, la
+información pública de instalaciones eléctricas puede exigir anuncios en el
+boletín provincial o diario oficial autonómico correspondiente y también en
+el BOE. Una historia restringida al BOE puede, por ello, omitir otras
+publicaciones oficiales o documentos no recuperados por la selección: la
+ausencia de una publicación en el corpus no equivale a la ausencia del trámite
+\cite{ministeriodeeconomia_realdecreto1955_2000}.
 
 El capítulo~\ref{ch:datos} explica, ya como problema de datos, el acceso
 programático, los sumarios, los documentos y su persistencia. De este modo, el
 presente capítulo limita el BOE a su función y a sus límites como fuente.
-\citapendiente{Añadir una referencia oficial sobre el alcance del BOE y la
-distribución competencial y de publicaciones entre administraciones.}
 
 \section{El problema del seguimiento longitudinal}
 El seguimiento es \emph{longitudinal} cuando relaciona observaciones del

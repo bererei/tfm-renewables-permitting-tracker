@@ -26,7 +26,7 @@ del capítulo y del orden de los recursos.
 
 | ID | Figura / capítulo | Estado | Fuente y correcciones esenciales |
 | --- | --- | --- | --- |
-| F01 | Procedimiento administrativo / 2.1 | Incorporada; conceptual, TODO-CITA | Decisiones revisadas sobre autorizaciones y contexto del capítulo 2. Vías parcialmente paralelas, DIA condicionante, DUP sin posición fija respecto de AAC; AE provisional/definitiva como contexto |
+| F01 | Procedimiento administrativo / 2.1 | Incorporada; conceptual, respaldo legal verificado | Decisiones revisadas sobre autorizaciones y contexto del capítulo 2. Vías parcialmente paralelas, DIA condicionante, DUP sin posición fija respecto de AAC; AE provisional/definitiva como contexto |
 | EIA-01 | EIA ordinaria y simplificada / 2.1 | Nueva; respaldo legal verificado | Ley 21/2013 consolidada, arts. 33 y 45–47. Solo proyectos; no EAE ni secuencia universal |
 | F02 | API del BOE y corpus / 3.2 y 3.6 | Incorporada; actual | `boe_source.py`, `boe_documents.py`, `boe_http.py`, `boe_candidates.py`, `pipeline.py::run_source_stage`. Filtrar títulos antes del XML; separar alcance y extracción |
 | CORPUS-01 | Desarrollo, producto y evaluación / 3.5 | Nueva; relaciones verificadas | 140 incluido en exposición 479; W14 48 + 56 = 104; holdout 48 con solapamiento cero frente a 479 y 104; no entra en Gold |
@@ -48,10 +48,10 @@ INE, otra de capas ni otra sobre evolución del grouping.
 
 | ID | Mensaje / texto que complementa | Ejemplo | Referencia necesaria |
 | --- | --- | --- | --- |
-| F01 | Un proyecto genera publicaciones distintas; sustituye el antiguo TODO genérico del procedimiento | Remisión posterior a Don Rodrigo II, tabla longitudinal existente | TODO-CITA de paralelismo, condicionamiento ambiental, DUP y modalidades de AE |
+| F01 | Un proyecto genera publicaciones distintas; sustituye el antiguo TODO genérico del procedimiento | Remisión posterior a Don Rodrigo II, tabla longitudinal existente | Leyes 21/2013 y 24/2013 y reales decretos 1955/2000 y 1183/2020 |
 | F02 | Recuperar, filtrar, decidir alcance y extraer son operaciones distintas; apoya los pasos de 3.2 y el cierre de 3.6 | No necesita otro BOE; los endpoints ya están explicados | API oficial y código de adquisición; no inventar endpoints |
-| F03 | Fuente → estructura → consulta; la referencia territorial es una entrada independiente | Analogía breve y tabla de capas, no un segundo flujo idéntico | Código y procedencia/edición INE (TODO-CITA) |
-| F04 | Gemini no entrega Silver/Gold directamente; amplía el bloque de controles de F03 | Solo si aclara salida frente a reglas, sin reutilizar resultados como demostración | Modelo, Pydantic (TODO-CITA), runner y contratos |
+| F03 | Fuente → estructura → consulta; la referencia territorial es una entrada independiente | Analogía breve y tabla de capas, no un segundo flujo idéntico | Código y procedencia/edición INE 2026 |
+| F04 | Gemini no entrega Silver/Gold directamente; amplía el bloque de controles de F03 | Solo si aclara salida frente a reglas, sin reutilizar resultados como demostración | Modelo Gemini 2.5 Flash, Pydantic, runner y contratos |
 | F05 | Las menciones con igual clave comparten identidad; sustituye el TODO genérico de agrupación | Don Rodrigo II de 2026 y Bianor separado; límite HSF de 2022 | Código/tests y Silver/Gold final v2 |
 | F06 | La incidencia exige decisión trazable antes de regenerar; amplía revisión sin duplicar F04 | CURRENT/ANTECEDENT; no todos los casos modifican contenido | Guía de calidad, CLI admin y correcciones aprobadas |
 | F07 | El orden de los freezes protege la separación entre anotación y predicción; apoya 6.13 | No necesita otro caso; cronología documentada | Resultados canónicos y protocolo |

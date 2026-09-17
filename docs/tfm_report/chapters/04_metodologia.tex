@@ -43,8 +43,10 @@ del BOE y genera una propuesta de extracción. Pydantic AI es el
 el tipo de salida esperado. No es otro modelo. Pydantic expresa ese tipo
 mediante contratos y comprueba que la respuesta tenga la estructura admitida
 \cite{pydantic_ai_overview_2026}.
-\citapendiente{Documentación oficial de Gemini 2.5 Flash correspondiente a la
-configuración del sistema evaluado.}
+La configuración versionada del proyecto registra
+\texttt{google:gemini-2.5-flash}; la ficha oficial de Google documenta
+\texttt{gemini-2.5-flash} como código de la variante estable del modelo
+\cite{google_gemini25flash_2026}.
 
 Después de esa respuesta interviene código determinista del proyecto: incorpora
 la identidad oficial del documento, canonicaliza la representación y ejecuta
@@ -66,9 +68,8 @@ Una analogía útil es pasar de materia prima a información depurada y,
 finalmente, a un producto preparado para consulta. En este trabajo, las capas
 Bronze, Silver y Gold designan esas funciones. Se adopta una organización
 inspirada en el patrón \emph{Medallion Architecture}, adaptada a las
-necesidades de trazabilidad y revisión del TFM.
-\citapendiente{Medallion Architecture: incorporar una referencia primaria o
-documentación oficial adecuada para el patrón por capas.}
+necesidades de trazabilidad y revisión del TFM
+\cite{databricks_medallion_2026}.
 Las funciones concretas se resumen en la tabla~\ref{tab:capas}. «Depurada»
 significa sometida a reglas y controles;
 no garantiza que toda interpretación del documento sea semánticamente correcta.
@@ -190,11 +191,16 @@ entre municipio, provincia y comunidad.
 La referencia utilizada contiene 8.132 municipios, 52 códigos provinciales y
 19 códigos de comunidades o ciudades autónomas. Estos tamaños corresponden
 al artefacto local conservado, no a una consulta dinámica al INE. Su manifest
-identifica los dos CSV de origen, sus huellas, el esquema y la identidad de
-la dimensión. Antes de utilizarla se comprueban el archivo y su contenido.
-\citapendiente{Identificar la edición y procedencia oficial de los CSV INE
-\path{codine_ccaaprovincia_20260614.csv} y \path{diccionario26.csv}, conservados
-como entradas de la referencia utilizada.}
+identifica los dos CSV de origen, \path{codine_ccaaprovincia_20260614.csv} y
+\path{diccionario26.csv}, sus huellas, el esquema y la identidad de la
+dimensión. Por su nombre, estructura y contenido, corresponden a los recursos
+oficiales \emph{Provincias por comunidades autónomas y sus códigos} y
+\emph{Fichero completo} de la relación municipal a 1 de enero de 2026,
+publicada por el INE el 4 de febrero de 2026
+\cite{ine_relacionmunicipios_2026}. El manifest conserva las huellas de los CSV
+locales, pero no las URL ni las huellas de los ficheros descargados del INE;
+por ello no acredita una identidad binaria con esas descargas. Antes de
+utilizar la referencia se comprueban el archivo y su contenido.
 
 La referencia entra después de Silver, por una rama independiente de la
 figura~\ref{fig:arquitectura-sistema}. Si cambia y se aprueba una nueva versión

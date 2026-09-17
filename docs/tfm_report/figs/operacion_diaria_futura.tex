@@ -1,64 +1,70 @@
-% F09. Propuesta POST-TFM basada en mecanismos actuales y carencias documentadas.
+% F09. Estado actual y evolución POST-TFM, sin escritura directa en Gold.
 \begin{tikzpicture}
 \node[tfm heading, text width=12.4cm] (title) at (0,0)
-  {PROPUESTA POST-TFM: OPERACIÓN DIARIA};
+  {OPERACIÓN DEL PRODUCTO: ACTUAL Y POST-TFM};
 
-\node[tfm heading, text width=7.0cm, below=6mm of title, xshift=-2.5cm]
-  (mainheading) {Flujo de datos y publicación};
-\node[tfm optional, text width=5.8cm, below=5mm of mainheading]
-  (scheduler) {Orquestación y ejecución cloud\\
-  (p.\ ej., AWS u otra plataforma)};
-\node[tfm optional, text width=5.8cm, below=5mm of scheduler]
-  (daily) {BOE diario y adquisición incremental};
-\node[tfm data, text width=5.8cm, below=5mm of daily]
-  (cli) {CLI por etapas y snapshots};
-\node[tfm box, text width=5.8cm, below=5mm of cli]
-  (extract) {Extracción, validación y revisión};
-\node[tfm box, text width=5.8cm, below=5mm of extract]
-  (downstream) {Resolución territorial, grouping y regeneración};
-\node[tfm data, text width=5.8cm, below=5mm of downstream]
-  (gold) {Última versión Gold validada};
-\node[tfm optional, text width=5.8cm, below=5mm of gold]
-  (publish) {Almacenamiento y publicación versionados\\Monitorización};
-\node[tfm accent, text width=5.8cm, below=5mm of publish]
-  (streamlit) {Streamlit: consulta del producto};
+% Estado actual: consulta de Gold y reporte externo no persistente.
+\node[tfm heading, text width=12.0cm] at (0,-0.9)
+  {ACTUAL --- CONSULTA Y REPORTE EXTERNO};
+\node[tfm data, text width=2.0cm] (source) at (-5.1,-2.0)
+  {BOE y datos};
+\node[tfm box, text width=2.0cm] (pipeline) at (-2.55,-2.0)
+  {Pipeline actual};
+\node[tfm data, text width=2.0cm] (gold) at (0,-2.0)
+  {Gold validado};
+\node[tfm accent, text width=2.0cm] (streamlit) at (2.55,-2.0)
+  {Streamlit\\Consulta};
+\node[tfm data, text width=2.0cm] (consultation) at (5.1,-2.0)
+  {Usuario\\Consulta};
 
-\foreach \a/\b in {scheduler/daily,daily/cli,cli/extract,extract/downstream,
-  downstream/gold,gold/publish,publish/streamlit}
+\foreach \a/\b in {source/pipeline,pipeline/gold,gold/streamlit,
+  streamlit/consultation}
   {\draw[tfm flow] (\a) -- (\b);}
 
-\node[tfm heading, text width=4.7cm, right=5mm of mainheading]
-  (reviewheading) {Gobierno de incidencias};
-\node[tfm data, text width=4.4cm, below=5mm of reviewheading]
-  (signals) {Incidencias de extracción/P0\\y estados territoriales};
-\node[tfm optional, text width=4.4cm, below=7mm of signals]
-  (queue) {Cola persistente unificada};
-\node[tfm optional, text width=4.4cm, below=5mm of queue]
-  (admin) {Revisión administrativa\\y seguimiento};
-\node[tfm data, text width=4.4cm, below=5mm of admin]
-  (decision) {Decisión o corrección\\versionada};
-\node[tfm optional, text width=4.4cm, above=5mm of streamlit,
-  xshift=5.1cm] (feedback)
-  {Feedback estructurado\\desde Streamlit};
-\node[tfm data, text width=4.4cm, right=5mm of streamlit]
-  (reports) {Reporte actual: \texttt{mailto:}\\Canal externo; no crea cola};
+\node[tfm data, text width=3.8cm] (mailto) at (2.55,-3.35)
+  {Reporte por correo\\\texttt{mailto:} · canal externo};
+\draw[tfm flow] (streamlit.south) -- (mailto.north);
 
-\draw[tfm flow, dashed] (signals.south) -- (queue.north);
-\draw[tfm flow, dashed] (queue.south) -- (admin.north);
-\draw[tfm flow, dashed] (admin.south) -- (decision.north);
-\draw[tfm flow] (decision.west) -| ($(downstream.east)+(4mm,0)$)
-  -- (downstream.east);
-\draw[tfm flow] (extract.east) -- (signals.west);
-\draw[tfm flow] (streamlit.east) -- (reports.west);
-\draw[tfm flow, dashed] (streamlit.east) |- (feedback.west);
-\draw[tfm flow, dashed] (feedback.east) -- ++(4mm,0) |- (queue.east);
+% Evolución futura: automatización y cierre persistente del feedback.
+\node[tfm heading, text width=12.0cm] at (0,-4.55)
+  {POST-TFM --- OPERACIÓN Y FEEDBACK PERSISTENTE};
 
-\node[tfm note, text width=12.2cm, below=7mm of streamlit] (legend) {
-  \textbf{Trazo continuo --- EXISTE ACTUALMENTE:} mecanismo reutilizable\\[3pt]
-  \textbf{Trazo discontinuo --- PROPUESTO POST-TFM:} componente por desarrollar
+\node[tfm optional, text width=2.45cm] (periodic) at (-4.8,-5.85)
+  {Adquisición\\periódica};
+\node[tfm optional, text width=2.45cm] (automated) at (-1.6,-5.85)
+  {Pipeline\\automatizado};
+\node[tfm optional, text width=2.45cm] (regeneration) at (1.6,-5.85)
+  {Regeneración\\y validación};
+\node[tfm optional, text width=2.45cm] (publication) at (4.8,-5.85)
+  {Nuevo Gold validado\\y publicación};
+
+\foreach \a/\b in {periodic/automated,automated/regeneration,
+  regeneration/publication}
+  {\draw[tfm flow, dashed] (\a) -- (\b);}
+
+\node[tfm optional, text width=2.45cm] (feedback) at (-4.8,-8.15)
+  {Feedback\\estructurado};
+\node[tfm optional, text width=2.45cm] (queue) at (-1.6,-8.15)
+  {Cola\\persistente};
+\node[tfm optional, text width=2.45cm] (review) at (1.6,-8.15)
+  {Revisión\\humana / admin.};
+\node[tfm optional, text width=2.45cm] (decision) at (4.8,-8.15)
+  {Decisión o corrección\\versionada};
+
+\foreach \a/\b in {feedback/queue,queue/review,review/decision}
+  {\draw[tfm flow, dashed] (\a) -- (\b);}
+\draw[tfm flow, dashed] (decision.north) -- ++(0,5mm)
+  -| (regeneration.south);
+
+\node[tfm note, text width=12.0cm] at (0,-9.45) {
+  Operación incremental, monitorizada y publicable solo tras validación.
 };
-\node[tfm note, text width=12.2cm, below=4mm of legend] {
-  El feedback no edita Gold: una decisión versionada debe preceder a la
-  regeneración y publicación de otra versión validada.
+\node[tfm note, text width=12.0cm] at (0,-10.15) {
+  El usuario no escribe en Gold: el feedback pasa por revisión y una decisión
+  versionada antes de regenerar y publicar.
+};
+\node[tfm note, text width=12.0cm] at (0,-10.95) {
+  \textbf{Trazo continuo:} mecanismo actual \qquad
+  \textbf{Trazo discontinuo:} componente POST-TFM
 };
 \end{tikzpicture}

@@ -34,15 +34,14 @@ exactitud global que las mezcle.
 El capítulo~\ref{ch:datos} introdujo el \emph{holdout} y su separación del
 desarrollo y del producto. Aquí importa la garantía experimental: reservar
 documentos que no se utilizaron para ajustar el sistema evita adaptar el
-método a los mismos ejemplos con los que después se presenta su rendimiento.
+método a los mismos ejemplos con los que después se presenta su rendimiento
+\cite{hastie_elements_2009}.
 
 Reservar documentos no impide leerlos para preparar la referencia humana.
 En este TFM se abrieron sus textos para anotarlos, mientras las predicciones
 finales permanecieron sin ejecutar ni inspeccionar. Antes de producirlas se
 fijaron tanto la referencia como las reglas que iban a compararla con la
 salida del sistema.
-\citapendiente{Referencia metodológica sobre evaluación con conjunto reservado,
-separación del desarrollo y prevención de exposición a predicciones.}
 
 El conjunto de desarrollo congelado contiene 140 documentos. Además, el
 registro de exposición reúne 479 BOE usados en desarrollo, inspecciones o
@@ -388,12 +387,11 @@ F1=\frac{2\,\mathrm{Precision}\,\mathrm{Recall}}
 \]
 F1 es la media armónica de precisión y recall. En el ejemplo, precisión y
 recall son \(2/3\), y F1 también es \(2/3\).
-\citapendiente{Referencia metodológica para precisión, recall, F1,
-agregación micro y evaluación de extracción de información.}
 
 La agregación del experimento es \emph{micro}: se suman TP, FP y FN de
 todos los documentos de cada tarea antes de calcular sus razones.
-No se promedian porcentajes de documentos ni se combinan clases de entidad.
+No se promedian porcentajes de documentos ni se combinan clases de entidad
+\cite{manning_introduction_2008}.
 Para el alcance documental se utiliza la proporción de documentos
 correctamente clasificados, o \emph{accuracy}, con todos los BOE evaluables
 en el denominador. Esa medida de clasificación no es una exactitud global
