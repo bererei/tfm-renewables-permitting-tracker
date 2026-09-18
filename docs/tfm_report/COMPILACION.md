@@ -222,7 +222,6 @@ chapters/ch2.tex
 chapters/ch3.tex
 elements/portada.tex
 elements/preambulo.tex
-figs/CIDaeN copia.png
 figs/CIDaeN.png
 figs/api_boe_corpus.tex
 figs/arquitectura_sistema.tex
@@ -279,3 +278,35 @@ tabla 9.1 y F09. Durante esa revisión se eliminaron los bordes visibles de los
 enlaces y se corrigieron cruces de líneas en el flujo operativo y F06. La figura
 de corpus ya había sido rediseñada tras detectar solapamientos en su primera
 versión. El PDF raíz versionado no se actualizó.
+
+## Reconstrucción limpia reproducible — 2026-09-17
+
+Se preservaron fuera del repositorio los trece artefactos de la compilación de
+trabajo y se vació completamente `build/`. Desde `docs/tfm_report/` se ejecutó
+el procedimiento canónico, sin reutilizar auxiliares:
+
+```bash
+latexmk -synctex=1 -interaction=nonstopmode -halt-on-error -file-line-error tfm_report_bgd.tex
+```
+
+La ejecución terminó con **exit 0** y regeneró exclusivamente los trece outputs
+activos. El PDF resultante es A4, tiene **105 páginas**, **13 figuras**, **18
+tablas** y **18 referencias bibliográficas utilizadas**. No contiene referencias
+o citas indefinidas ni marcadores `??`. Su SHA-256 es
+`3f96d6eda5f8fc4ea8cc3a2dce93441b7b34e3f238619b60bb5c3924d4d3e165`.
+
+El texto extraído con conservación aproximada de layout fue byte a byte idéntico
+al baseline. Las 105 páginas renderizadas con los mismos parámetros también
+fueron byte a byte idénticas. El PDF binario solo difiere por la fecha de
+creación, el identificador interno derivado y siete bytes de tamaño; son
+diferencias no materiales.
+
+El perfil final de avisos no cambió respecto al baseline: permanecen los dos
+`overfull` históricos de 67,05614 pt y 0,30453 pt, seis `underfull vbox`, doce
+avisos `fontspec`, tres hooks obsoletos y dos configuraciones `caption` sin uso.
+No apareció ningún warning nuevo. La validación se clasificó
+**REPRODUCIBLE — NON-MATERIAL DIFFERENCES**.
+
+El nuevo `build/` se conserva como compilación de trabajo limpia. El PDF raíz
+tracked no se modificó: solo se promoverá después de cerrar el contenido, los
+preliminares, Streamlit y sus capturas, y la revisión final de entrega.

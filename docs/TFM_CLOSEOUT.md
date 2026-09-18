@@ -16,13 +16,13 @@ perfect + exhaustive
 The August delivery scope is frozen from **19 August 2026**. Only the REQUIRED
 work listed here may enter the product.
 
-## September closeout — active plan, audited 2026-09-13
+## September closeout — active plan, updated 2026-09-17
 
 **TECHNICAL EVALUATION FREEZE: COMPLETE — 2026-09-13.**
 
 The technical milestone originally scheduled for 15 September was completed
 on 13 September. Final delivery remains **18 September 2026**. Current phase:
-**written-TFM completion, results presentation and delivery review**.
+**written-TFM finalization, Streamlit delivery closure and final review**.
 
 This checkpoint supersedes the pending-evaluation labels and next-action
 sequences in the historical ledger below and in earlier implementation
@@ -58,9 +58,14 @@ rerun for this documentation-only closure.
 | Primary predictions | FROZEN | `final-holdout-v2-primary-001`: 47 TERMINAL_SUCCESS, one TERMINAL_ERROR; zero PENDING, STARTED or INDETERMINATE. Exactly 48 documents; primary snapshot and execution record verified. |
 | Final evaluation | COMPLETE; VALIDATED | `runs/final-holdout-v2-evaluation-primary-001`; `validate-evaluation` returns `valid=true` with the expected output ID and manifest. |
 | Post-hoc diagnostic | COMPLETE; APPROVED | Quantified hierarchy, conditional denominators and representative cases recorded in the results document. No implementation defect found in the inspected paths; no alternative scoring or new matches. |
-| Results documentation | READY FOR HUMAN REVIEW | Canonical results, tables A–F, LaTeX transfer blocks, academic statements and memory integration map prepared. Next gate is documentary review and explicitly approved commit/push. |
-| Written TFM | REQUIRED; MAIN REMAINING WORK | `docs/tfm_report/` still contains example chapters, placeholder preamble/annex and five bibliography entries. Write the scientific manuscript using the final results; no template restructuring in this block. |
-| Delivery reproducibility | EXPERIMENT PROVENANCE COMPLETE; DELIVERY ARCHIVE REMAINS | Frozen system/truth/evaluator, primary predictions, execution record and valid evaluation now exist. Preserve and distribute accessible external artifacts with hashes; finish archive and human delivery acceptance. |
+| Results documentation | INTEGRATED IN THE MANUSCRIPT; FINAL REVIEW REMAINS | The frozen primary results and approved post-hoc diagnosis are incorporated into the active evaluation, results and discussion chapters. No metric, identity, denominator or interpretation is reopened. |
+| Written TFM | SUBSTANTIALLY DRAFTED; FINAL ELEMENTS REMAIN | The active root integrates chapters `01`–`09` and `chapters/anexos.tex`. The reproducible build has 105 A4 pages, 13 figures, 18 tables and 18 used bibliography entries. Summary, Abstract, personal preliminaries, final Streamlit captures/deployment evidence, final review and promotion of the tracked delivery PDF remain open. |
+| LaTeX reproducibility | VALIDATED FROM A CLEAN BUILD | The canonical `latexmk` command rebuilt the report from an empty `docs/tfm_report/build/` with exit 0. Extracted text and all 105 rendered pages matched the baseline; PDF differences were limited to non-material timestamp and identifier bytes. `build/` remains ignored, regenerable and reserved for compilation outputs. |
+| Delivery reproducibility | EXPERIMENT PROVENANCE COMPLETE; DELIVERY ARCHIVE REMAINS | Frozen system/truth/evaluator, primary predictions, execution record and valid evaluation now exist. Documentation structure has been audited. Preserve and distribute accessible external artifacts with hashes; finish the archive, final PDF review and human delivery acceptance. |
+
+The tracked root PDF remains a milestone/delivery artifact and has not been
+promoted from the current build. Promotion is deferred until the remaining
+preliminaries, Streamlit evidence and final review are complete.
 
 ### Final experiment provenance
 
@@ -136,16 +141,15 @@ this plan is not permission to execute model or publication operations.
 
 | Order / date | Priority | One primary outcome | Dependency / acceptance |
 | --- | --- | --- | --- |
-| 1 — 13 Sep | P0 / REQUIRED | Close results documentation | Review canonical results, identities, primary/post-hoc separation and tables; explicitly authorized documentary commit/push. |
-| 2 — 13–17 Sep | P0 / REQUIRED | Write the manuscript | Methods, architecture, Results, Discussion, limitations and conclusions; use the memory integration map and distinguish complete-system behavior from model behavior. |
-| 3 — 14–17 Sep | P0 / REQUIRED | Prepare academic tables and figures | Transfer tables A–F; create architecture and matching-cascade figures from approved material. No new metric or experiment. |
-| 4 — by 17 Sep | P0 / REQUIRED | Review application and captures | Existing product's visual/security/read-only delivery review and screenshots; complete any outstanding authorized delivery gate without reopening product scope. |
-| 5 — by 17 Sep | P0 / REQUIRED | Complete references and appendices | Reconcile references, annotation provenance, artifact access, hashes and technical annexes; do not invent citations or reviews. |
-| 6 — 18 Sep | P0 / REQUIRED | Review PDF and deliver | Layout, references, indices, tables, readable figures, accessible archive and final human acceptance; publish/tag/push only with explicit authorization. |
+| 1 — 17 Sep | P0 / REQUIRED | Close documentary consistency | Review the navigation map, current closeout checkpoint, editorial integration map and clean-build checkpoint; commit/push only with explicit authorization. |
+| 2 — by 18 Sep | P0 / REQUIRED | Close Streamlit delivery evidence | Complete the outstanding visual/security/read-only delivery review, public deployment disposition and final screenshots without reopening product scope. |
+| 3 — by 18 Sep | P0 / REQUIRED | Complete final manuscript elements | Write Summary and Abstract; complete or explicitly disposition the personal/institutional preliminaries and any remaining annex material. |
+| 4 — 18 Sep | P0 / REQUIRED | Review and promote the final PDF | Rebuild cleanly after final content, inspect layout/references/indices/figures, then promote the accepted PDF to the tracked root path. |
+| 5 — 18 Sep | P0 / REQUIRED | Deliver | Verify the accessible archive and final Git state; publish/tag/push and record submission only with explicit authorization. |
 
-Write immediately. The technical evaluation is complete and is no longer a
-dependency waiting on Gemini or another freeze. The document/figure/application
-review tasks may proceed alongside manuscript writing within these boundaries.
+The technical evaluation and its manuscript integration are complete and are
+no longer dependencies waiting on Gemini or another freeze. Final preliminary,
+application-evidence and delivery-review tasks may proceed within these boundaries.
 If a public read-only delivery requirement remains unavailable, record the
 gap for human disposition; do not silently waive it or expand architecture.
 
@@ -160,9 +164,10 @@ new extraction variables/sources, holdout expansion, model tuning, persistent
 reporting, daily automation, administrative features, cosmetic Streamlit work
 and nonessential refactors or architecture.
 
-Schedule risk is now manuscript and delivery completion. No additional
-development is started by this closure. Next: **human documentary review →
-explicitly approved documentary commit/push → manuscript writing**.
+Schedule risk is now final manuscript elements, Streamlit delivery evidence and
+delivery acceptance. No additional development is started by this closure.
+Next: **human documentary review → explicitly approved documentary commit/push
+→ Streamlit/captures closure → final PDF and delivery review**.
 
 ### Historical implementation verification — not rerun for documentation
 

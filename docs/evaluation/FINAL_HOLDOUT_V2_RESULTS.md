@@ -458,27 +458,32 @@ son la declaración del estado final. El contrato metodológico permanece intact
 
 ## Memory integration map
 
-La plantilla existente [tfm_report_bgd.tex](../tfm_report/tfm_report_bgd.tex)
-incluye `chapters/ch1.tex` («Aspecto», con dos notas de objetivos),
-`chapters/ch2.tex` («Algunos elementos») y `chapters/ch3.tex`
-(«Marcas y ayudas»). Conserva texto de ejemplo, resumen y anexo pendientes;
-`bib/ref.bib` contiene cinco entradas. Los capítulos siguientes son destinos
-**recomendados**, todavía no creados ni asignados a esos archivos de ejemplo.
+El documento activo [tfm_report_bgd.tex](../tfm_report/tfm_report_bgd.tex)
+integra los capítulos `01`–`09` y `chapters/anexos.tex`. Los antiguos
+`chapters/ch1.tex`–`ch3.tex` se conservan únicamente como ejemplos históricos y
+no participan en la compilación. El contenido de evaluación ya se ha incorporado
+a metodología experimental, resultados, discusión, conclusiones y anexos. La
+bibliografía activa contiene 18 referencias utilizadas.
 
-| Resultado / evidencia | Capítulo recomendado | Tabla/Figura |
+La compilación reproducible actual tiene 105 páginas A4 antes de cerrar Resumen,
+Abstract y los demás elementos finales pendientes; por ello la paginación aún
+puede cambiar. El mapa siguiente registra la ubicación editorial actual, no una
+nueva fase experimental ni una modificación de los resultados.
+
+| Resultado / evidencia | Integración actual | Tabla/Figura |
 | --- | --- | --- |
-| Composición y selección del holdout; contrato V2 | Metodología / diseño experimental | Tabla A |
-| Arquitectura BOE → extracción/validación → Silver → INE/agrupación → Gold → consulta | Diseño e implementación | Figura 1, arquitectura; separar rama de evaluación |
-| Detección de entidades | Resultados | Tabla B |
-| Atributos condicionados y denominadores | Resultados | Tabla C |
-| Scope y matriz de confusión | Resultados | Tabla D |
-| Actuación → activo | Resultados | Tabla E |
-| P0 y evidence | Resultados; limitaciones en Discusión | Tabla F |
-| Cascada y taxonomía aprobada | Discusión / análisis post-hoc | Figura 2, cascada assets → events → actions |
-| Casos representativos | Discusión | Tabla compacta de la sección 9; detalle en anexo si hace falta |
-| Terminal error y resultado operativo | Resultados / ejecución experimental | Tabla de estados de la sección 7 |
-| IDs, hashes, entorno y verificaciones | Metodología / reproducibilidad; anexo técnico | Tabla de identidades y comandos de la sección 11 |
-| Aplicación sobre Gold y capturas revisadas | Diseño e implementación / demostración | Capturas existentes tras revisión humana |
+| Composición y selección del holdout; contrato V2 | Capítulo 6, metodología experimental | Tabla de composición del holdout |
+| Arquitectura BOE → extracción/validación → Silver → INE/agrupación → Gold → consulta | Capítulo 4, metodología y arquitectura | Figura de arquitectura; rama experimental separada en el capítulo 6 |
+| Detección de entidades | Capítulo 7, resultados | Tabla de detección |
+| Atributos condicionados y denominadores | Capítulo 7, resultados | Tabla de atributos condicionados |
+| Scope y matriz de confusión | Capítulo 7, resultados | Matriz de clasificación documental |
+| Actuación → activo | Capítulo 7, resultados | Tabla de pares actuación–activo |
+| P0 y evidence | Capítulo 7; interpretación y límites en el capítulo 8 | Tabla de P0 y evidencia |
+| Cascada y taxonomía aprobada | Capítulos 7 y 8 | Figura de cascada activos → eventos → actuaciones/localizaciones |
+| Casos representativos | Capítulos 7 y 8 | Casos compactos y remisiones al detalle pertinente |
+| Terminal error y resultado operativo | Capítulo 7 | Estado final de la ejecución |
+| IDs, hashes, entorno y verificaciones | Capítulo 6 y anexos | Identidades y procedimiento reproducible |
+| Aplicación sobre Gold | Capítulo 5 | Capturas finales todavía pendientes de cierre |
 
 Fuentes de arquitectura y metodología revisadas:
 [calidad de extracción](../architecture/extraction_quality_review.md),
@@ -491,9 +496,9 @@ Para las identidades finales de Gold, usar el estado corregido registrado en
 `TFM_CLOSEOUT.md`, no el snapshot histórico v1 del informe downstream.
 Gold y Streamlit no reciben métricas de este holdout.
 
-Priorizar las tablas A–F y las dos figuras indicadas. La figura adicional de
-taxonomía es OPTIONAL. Este bloque no genera gráficos, no compila ni
-reestructura LaTeX y no redacta capítulos completos.
+La integración editorial no cambia truth, evaluador, predicciones, matching,
+denominadores, métricas ni diagnóstico post-hoc. Las capturas y los elementos
+finales de la memoria permanecen sujetos a sus gates de cierre.
 
 ## Results-ready statements
 
