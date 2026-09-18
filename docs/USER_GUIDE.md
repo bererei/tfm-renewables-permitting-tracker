@@ -169,8 +169,8 @@ parte del producto ni debe añadirse a un commit del proyecto.
 
 ## 5. Preparar el entorno
 
-El proyecto requiere Python 3.10 y usa `uv`; Streamlit es una dependencia del
-proyecto, no una instalación global.
+La versión actual de entrega requiere Python 3.14 y usa `uv`; Streamlit es una
+dependencia del proyecto, no una instalación global.
 
 ### Antes de empezar
 
@@ -194,11 +194,11 @@ contrario. Estas comprobaciones son seguras y no ejecutan el pipeline:
 ```bash
 git --version
 uv --version
-python --version
+uv run python --version
 git status --short
 ```
 
-Antes de la primera ejecución, prepara el entorno con Python **3.10** y `uv`.
+Antes de la primera ejecución, prepara el entorno con Python **3.14** y `uv`.
 La instalación normal usa solo las dependencias de ejecución de `uv.lock`:
 
 **Ejecutable en Bash/Linux desde la carpeta que contiene el repositorio.**
@@ -241,6 +241,13 @@ sistema que produjo los resultados: `tfm-final` permanece en
 de runtime, truth, evaluator, predicciones, métricas ni resultados reportados.
 La fixture de tests que simula un sistema congelado usa el hash de su propio
 lockfile sintético; el controlador conserva la comprobación del hash histórico.
+
+**Runtime de entrega — 2026-09-18.** Tras cerrar la evaluación, la rama de
+entrega migró su contrato y lockfile a Python 3.14 y validó de nuevo imports,
+CLI, tests y Streamlit. Esta migración posterior no reejecuta el holdout ni
+modifica truth, evaluator, predicciones, métricas, resultados o freezes. El
+sistema evaluado y su runtime histórico siguen identificados por
+`tfm-final@282de815bea4e248bdcba2c655e3ee078cb58a49`.
 
 Para conocer la interfaz exacta de una fase, usa siempre su ayuda:
 

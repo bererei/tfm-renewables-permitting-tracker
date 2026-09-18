@@ -16,7 +16,7 @@ perfect + exhaustive
 The August delivery scope is frozen from **19 August 2026**. Only the REQUIRED
 work listed here may enter the product.
 
-## September closeout — active plan, updated 2026-09-17
+## September closeout — active plan, updated 2026-09-18
 
 **TECHNICAL EVALUATION FREEZE: COMPLETE — 2026-09-13.**
 
@@ -39,9 +39,11 @@ The documentation audit started on clean
 `tfm-evaluation@2c0632b89d59ef3f7e25c24ee61e74ca3ac3c6f1`. The evaluated
 system remains `tfm-final@282de815bea4e248bdcba2c655e3ee078cb58a49`.
 The evaluator/controller checkout and frozen production commit are distinct
-provenance roles. Production code, runtime configuration and lockfile have
-no diff against the frozen system. No model, evaluation or test suite is
-rerun for this documentation-only closure.
+provenance roles. After the evaluation was closed, the delivery branch migrated
+its active runtime contract, lockfile and CI to Python 3.14 for maintenance and
+future Streamlit deployment. That post-evaluation migration does not modify the
+frozen system, rerun the holdout or recalculate any metric; its compatibility is
+validated with software tests rather than a new experiment.
 
 ### Evidence that determines remaining work
 

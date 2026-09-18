@@ -6,7 +6,7 @@ Datos de localizaciones INE: https://www.ine.es/dyngs/INEbase/es/operacion.htm?c
 
 ## Instalación y tests
 
-Requiere Python **3.10** y [uv](https://docs.astral.sh/uv/). Desde la raíz del
+Requiere Python **3.14** y [uv](https://docs.astral.sh/uv/). Desde la raíz del
 checkout, instala las dependencias de ejecución fijadas en `uv.lock`:
 
 ```bash
@@ -26,6 +26,8 @@ uv run --locked --extra dev pytest
 en `.venv` desde las dependencias declaradas. Esta mejora del entorno de
 desarrollo es posterior a la evaluación final del TFM; la trazabilidad y los
 tests focales se detallan en [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md).
+El sistema evaluado permanece congelado en `tfm-final`; Python 3.14 corresponde
+únicamente a la versión posterior de entrega y futuro despliegue.
 
 ## Pipeline ejecutable
 
