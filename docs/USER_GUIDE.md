@@ -448,10 +448,12 @@ Ambos valores deben proceder del mismo artefacto validado. La ausencia o
 invalidez del paquete falla de forma cerrada y no activa ningún fallback a
 `runs/`. Nunca despliegues directamente desde `runs/`.
 
-El target previsto es Streamlit Community Cloud, rama `tfm-evaluation`,
-entrypoint `streamlit_app.py`, Python 3.14 y dependencias de `uv.lock`. No hay
-secrets obligatorios. El despliegue público y su URL siguen pendientes; el
-email de reporting es una configuración opcional pendiente.
+El despliegue público está disponible en
+<https://tfm-renewables-permitting.streamlit.app/>. Streamlit Community Cloud
+usa la rama de entrega `tfm-evaluation`, el entrypoint `streamlit_app.py`,
+Python 3.14 y las dependencias de `uv.lock`. No necesita `runs/`, artefactos de
+evaluación ni secrets obligatorios. El email de reporting continúa siendo una
+configuración opcional del entorno de despliegue.
 
 Su downstream ID esperado está fijado en la aplicación. Para abrir otro
 snapshot validado, configura **las dos** variables antes de iniciar Streamlit:
@@ -2262,12 +2264,12 @@ con mapa y cronología agrupada, evidencia, reporte lateral `mailto:`,
 metodología y auditoría Gold local. La
 [guía técnica de Streamlit](STREAMLIT_CODE_GUIDE.md) documenta su arquitectura,
 extensiones seguras y tests. El seguimiento administrativo está implementado y
-pendiente de revisión humana.
+disponible para consulta pública.
 
-**REQUIRED pendiente:** revisión visual prioritaria y despliegue web read-only
-reproducible.
-Que la aplicación funcione localmente no significa que exista ya un despliegue
-público.
+**Entrega validada:** el despliegue web read-only y su portabilidad desde un
+clon limpio están cerrados. El sistema científico evaluado permanece congelado
+en `tfm-final`; la rama `tfm-evaluation` contiene el runtime y la documentación
+posteriores de entrega.
 
 **Diferido a POST-TFM en el cierre vigente:** promotor, participantes, potencia,
 componentes y títulos como nuevas ampliaciones del producto. No se reabren con

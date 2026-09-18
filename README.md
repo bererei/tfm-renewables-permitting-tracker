@@ -84,7 +84,14 @@ Las nuevas llamadas al modelo requieren `--execute-model`; un cambio semántico
 INE exige confirmación explícita antes del rebuild. Usa `--dry-run` para
 inspeccionar el plan sin red, modelo, publicación ni downstream.
 
-## Aplicación Streamlit local
+## Aplicación Streamlit pública y local
+
+La aplicación pública de solo lectura está disponible en
+<https://tfm-renewables-permitting.streamlit.app/>. Se despliega en Streamlit
+Community Cloud desde la rama de entrega `tfm-evaluation`, con
+`streamlit_app.py`, Python 3.14 y las dependencias fijadas en `uv.lock`. Este
+runtime de entrega es posterior a la evaluación; el sistema evaluado permanece
+congelado en `tfm-final@282de815bea4e248bdcba2c655e3ee078cb58a49`.
 
 Ejecuta el MVP read-only desde la raíz del repositorio:
 
@@ -103,12 +110,9 @@ uv run streamlit run streamlit_app.py
 
 El paquete Gold mínimo está versionado, por lo que un clon limpio puede iniciar
 la aplicación sin `runs/`, artefactos de evaluación ni secrets obligatorios.
-El target previsto es Streamlit Community Cloud sobre la rama
-`tfm-evaluation`, con `streamlit_app.py`, Python 3.14 y `uv.lock`; el despliegue
-público todavía está pendiente y no existe una URL pública validada.
 
-El MVP no escribe en Gold ni ejecuta el pipeline. El despliegue público y el
-flujo administrativo de correcciones siguen fuera de la aplicación pública.
+El MVP no escribe en Gold ni ejecuta el pipeline. El flujo administrativo de
+correcciones sigue fuera de la aplicación pública.
 El reporte mínimo de posibles errores abre un correo local y no persiste datos.
 Para habilitarlo sin hardcodear una dirección:
 

@@ -22,7 +22,7 @@ work listed here may enter the product.
 
 The technical milestone originally scheduled for 15 September was completed
 on 13 September. Final delivery remains **18 September 2026**. Current phase:
-**written-TFM finalization, Streamlit delivery closure and final review**.
+**written-TFM finalization and final delivery review**.
 
 This checkpoint supersedes the pending-evaluation labels and next-action
 sequences in the historical ledger below and in earlier implementation
@@ -41,7 +41,7 @@ system remains `tfm-final@282de815bea4e248bdcba2c655e3ee078cb58a49`.
 The evaluator/controller checkout and frozen production commit are distinct
 provenance roles. After the evaluation was closed, the delivery branch migrated
 its active runtime contract, lockfile and CI to Python 3.14 for maintenance and
-future Streamlit deployment. That post-evaluation migration does not modify the
+the public Streamlit deployment. That post-evaluation migration does not modify the
 frozen system, rerun the holdout or recalculate any metric; its compatibility is
 validated with software tests rather than a new experiment.
 
@@ -50,7 +50,7 @@ validated with software tests rather than a new experiment.
 | Block | State | Verified evidence / remaining gate |
 | --- | --- | --- |
 | Final W14 data pipeline | DONE | Existing validated evidence: 13 Silver tables, four Gold tables, 233 Silver actions, 86 projects and 80 relevant BOEs. Existing data identities below are unchanged; no data materialization in this block. |
-| Local Streamlit implementation | DONE; DELIVERY REVIEW REMAINS | Existing Gold-only application and bounded mailto control are implemented. Human visual/security review, captures and any outstanding public read-only delivery acceptance remain separate from the completed experiment. |
+| Public Streamlit delivery | COMPLETE | The Gold-only application is deployed read-only at <https://tfm-renewables-permitting.streamlit.app/> from `tfm-evaluation`; its four final visitor-view captures are integrated into chapter 5. The optional mailto control remains environment-configured and separate from Gold. |
 | Holdout selection | DONE | 48 unique documents; six A/B × 2024/2025/2026 strata of eight; seed `20260821`. Previously verified zero overlap with the 479-document development registry and 104-document W14 corpus. |
 | V2 human annotation | DONE | 48 complete documents: 30 relevant, 18 not relevant; 30 events, 37 assets, 81 actions (36 current, 45 historical), 111 locations. Completeness/integrity do not establish semantic exhaustiveness or independent second review. |
 | V2 truth freeze | COMPLETE | `runs/final_holdout_p2_v1_truth_v2_frozen`; read-only frozen loader verifies the expected identity and manifest. Working truth is not a scoring input. |
@@ -61,13 +61,13 @@ validated with software tests rather than a new experiment.
 | Final evaluation | COMPLETE; VALIDATED | `runs/final-holdout-v2-evaluation-primary-001`; `validate-evaluation` returns `valid=true` with the expected output ID and manifest. |
 | Post-hoc diagnostic | COMPLETE; APPROVED | Quantified hierarchy, conditional denominators and representative cases recorded in the results document. No implementation defect found in the inspected paths; no alternative scoring or new matches. |
 | Results documentation | INTEGRATED IN THE MANUSCRIPT; FINAL REVIEW REMAINS | The frozen primary results and approved post-hoc diagnosis are incorporated into the active evaluation, results and discussion chapters. No metric, identity, denominator or interpretation is reopened. |
-| Written TFM | SUBSTANTIALLY DRAFTED; FINAL ELEMENTS REMAIN | The active root integrates chapters `01`–`09` and `chapters/anexos.tex`. The reproducible build has 105 A4 pages, 13 figures, 18 tables and 18 used bibliography entries. Summary, Abstract, personal preliminaries, final Streamlit captures/deployment evidence, final review and promotion of the tracked delivery PDF remain open. |
+| Written TFM | SUBSTANTIALLY DRAFTED; FINAL ELEMENTS REMAIN | The active root integrates chapters `01`–`09` and `chapters/anexos.tex`. Streamlit deployment evidence and four final captures are integrated. Summary, Abstract, personal preliminaries, final review and promotion of the tracked delivery PDF remain open. |
 | LaTeX reproducibility | VALIDATED FROM A CLEAN BUILD | The canonical `latexmk` command rebuilt the report from an empty `docs/tfm_report/build/` with exit 0. Extracted text and all 105 rendered pages matched the baseline; PDF differences were limited to non-material timestamp and identifier bytes. `build/` remains ignored, regenerable and reserved for compilation outputs. |
 | Delivery reproducibility | EXPERIMENT PROVENANCE COMPLETE; DELIVERY ARCHIVE REMAINS | Frozen system/truth/evaluator, primary predictions, execution record and valid evaluation now exist. Documentation structure has been audited. Preserve and distribute accessible external artifacts with hashes; finish the archive, final PDF review and human delivery acceptance. |
 
 The tracked root PDF remains a milestone/delivery artifact and has not been
 promoted from the current build. Promotion is deferred until the remaining
-preliminaries, Streamlit evidence and final review are complete.
+preliminaries and final review are complete.
 
 ### Final experiment provenance
 
@@ -137,23 +137,21 @@ documentation block.
 ### Critical path and human gates
 
 P0 means indispensable for delivery (BLOCKER or REQUIRED under `AGENTS.md`).
-The remaining P0 sequence is documentation, writing and delivery review,
-not product development. Each next block needs its own human acceptance;
+The P0 ledger covers documentation, writing and delivery review, not product
+development. Each remaining block needs its own human acceptance;
 this plan is not permission to execute model or publication operations.
 
 | Order / date | Priority | One primary outcome | Dependency / acceptance |
 | --- | --- | --- | --- |
 | 1 — 17 Sep | P0 / REQUIRED | Close documentary consistency | Review the navigation map, current closeout checkpoint, editorial integration map and clean-build checkpoint; commit/push only with explicit authorization. |
-| 2 — by 18 Sep | P0 / REQUIRED | Close Streamlit delivery evidence | Complete the outstanding visual/security/read-only delivery review, public deployment disposition and final screenshots without reopening product scope. |
+| 2 — 18 Sep | COMPLETE / REQUIRED | Streamlit delivery evidence | Public read-only deployment and four final visitor-view screenshots documented without reopening product scope. |
 | 3 — by 18 Sep | P0 / REQUIRED | Complete final manuscript elements | Write Summary and Abstract; complete or explicitly disposition the personal/institutional preliminaries and any remaining annex material. |
 | 4 — 18 Sep | P0 / REQUIRED | Review and promote the final PDF | Rebuild cleanly after final content, inspect layout/references/indices/figures, then promote the accepted PDF to the tracked root path. |
 | 5 — 18 Sep | P0 / REQUIRED | Deliver | Verify the accessible archive and final Git state; publish/tag/push and record submission only with explicit authorization. |
 
-The technical evaluation and its manuscript integration are complete and are
-no longer dependencies waiting on Gemini or another freeze. Final preliminary,
-application-evidence and delivery-review tasks may proceed within these boundaries.
-If a public read-only delivery requirement remains unavailable, record the
-gap for human disposition; do not silently waive it or expand architecture.
+The technical evaluation, its manuscript integration and the Streamlit
+delivery evidence are complete. Final preliminary and delivery-review tasks
+may proceed within these boundaries.
 
 P1 / OPTIONAL: additional exposition or a bounded diagnostic figure only
 after REQUIRED deliverables. Never alter truth, matching, scoring or
@@ -166,10 +164,10 @@ new extraction variables/sources, holdout expansion, model tuning, persistent
 reporting, daily automation, administrative features, cosmetic Streamlit work
 and nonessential refactors or architecture.
 
-Schedule risk is now final manuscript elements, Streamlit delivery evidence and
-delivery acceptance. No additional development is started by this closure.
+Schedule risk is now final manuscript elements and delivery acceptance. No
+additional development is started by this closure.
 Next: **human documentary review → explicitly approved documentary commit/push
-→ Streamlit/captures closure → final PDF and delivery review**.
+→ final PDF and delivery review**.
 
 ### Historical implementation verification — not rerun for documentation
 

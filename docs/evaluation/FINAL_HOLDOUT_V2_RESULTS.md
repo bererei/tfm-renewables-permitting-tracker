@@ -483,7 +483,7 @@ nueva fase experimental ni una modificación de los resultados.
 | Casos representativos | Capítulos 7 y 8 | Casos compactos y remisiones al detalle pertinente |
 | Terminal error y resultado operativo | Capítulo 7 | Estado final de la ejecución |
 | IDs, hashes, entorno y verificaciones | Capítulo 6 y anexos | Identidades y procedimiento reproducible |
-| Aplicación sobre Gold | Capítulo 5 | Capturas finales todavía pendientes de cierre |
+| Aplicación sobre Gold | Capítulo 5 | Cuatro capturas finales del despliegue público integradas |
 
 Fuentes de arquitectura y metodología revisadas:
 [calidad de extracción](../architecture/extraction_quality_review.md),

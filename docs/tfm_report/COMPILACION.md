@@ -310,3 +310,16 @@ No apareció ningún warning nuevo. La validación se clasificó
 El nuevo `build/` se conserva como compilación de trabajo limpia. El PDF raíz
 tracked no se modificó: solo se promoverá después de cerrar el contenido, los
 preliminares, Streamlit y sus capturas, y la revisión final de entrega.
+
+## Integración del despliegue público y capturas — 2026-09-18
+
+El procedimiento canónico compiló con **exit 0** tras integrar la URL pública
+y cuatro capturas de Streamlit. El PDF de trabajo resultante es A4 y tiene
+**107 páginas**. Las cuatro imágenes, sus captions y sus referencias se
+renderizan en el capítulo 5; no hay referencias o citas indefinidas ni
+marcadores `??`.
+
+El perfil de avisos conserva los dos `overfull` históricos de 67,05614 pt y
+0,30453 pt, los avisos de `fontspec`, hooks y configuraciones de `caption` ya
+documentados. No permanece ningún aviso nuevo atribuible a las capturas o al
+texto de despliegue. El PDF raíz versionado no se promovió.

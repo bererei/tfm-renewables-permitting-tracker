@@ -136,17 +136,18 @@ solo quién realizó cada interacción o commit. Gemini se explica en 4.4;
 ChatGPT, Codex y AGENTS en 4.16. No se necesita investigación web para describir
 esa declaración de uso, ni se inventa una referencia bibliográfica del testimonio.
 
-## 5. Aplicación — base sustantiva redactada
+## 5. Aplicación — despliegue y capturas integrados
 
-Archivo: `chapters/05_aplicacion.tex`. Quedan pendientes capturas y evidencia
-de aceptación/entrega pública; no quedan párrafos de funcionalidad en TODO.
+Archivo: `chapters/05_aplicacion.tex`. El despliegue público y las cuatro
+capturas de visitante están documentados; no quedan párrafos de funcionalidad
+en TODO.
 
 | Sección | Documentación | Código / tests de contraste | Evidencia / límites |
 | --- | --- | --- | --- |
 | 5.1 Objetivo y arquitectura | User Guide §§6–8; STREAMLIT_CODE_GUIDE §§1–2 | `streamlit_app.py`, `app_data.py`; tests del cargador referenciados en guía | Gold v2, cuatro tablas; no Silver, modelo ni pipeline desde interfaz |
 | 5.2 Resumen/mapa/catálogo | User Guide §7; FINAL_STREAMLIT_PRODUCT_ALIGNMENT | `app_queries.py` (última decisión/filtros), `app_geometry.py`, `streamlit_app.py`; tests de consultas citados por guía | Misma fila para condiciones administrativas; mapa de ámbitos publicados, universos y ceros. Cartografía local, TODO-CITA de ediciones |
 | 5.3 Ficha | User Guide, correcciones W14 §6 | `streamlit_app.py::_render_detail`, consultas de ficha/cronología | Don Rodrigo II ya verificado; cronología observada, sin certificación de estado jurídico |
-| 5.4 Metodología/reporting | Auditoría de revisión; User Guide §7 | `_render_methodology`, `_render_report_channel`, `app_reporting.py`; tests mailto/fallback inspeccionados en auditoría previa | Correo externo, sin persistencia, queue o Admin automático; capturas no generadas |
+| 5.4 Metodología/reporting | Auditoría de revisión; User Guide §7 | `_render_methodology`, `_render_report_channel`, `app_reporting.py`; tests mailto/fallback inspeccionados en auditoría previa | Correo externo, sin persistencia, queue o Admin automático; cuatro capturas públicas integradas |
 
 ## 6. Metodología experimental — redactada para revisión científica
 

@@ -24,14 +24,26 @@ La aplicación es de solo lectura. Presenta lo observado en el corpus, con
 acceso a la publicación oficial, pero no certifica el estado jurídico actual
 ni la situación física de una instalación. La guía versionada
 \path{docs/USER_GUIDE.md}, presentada en la sección~\ref{sec:user-guide},
-explica su instalación y uso. La disponibilidad de la implementación local
-se distingue de la aceptación de un despliegue público, cuya revisión de
-entrega debe documentarse por separado.
+explica su instalación y uso. Tras finalizar la evaluación, esta aplicación
+se desplegó en Streamlit Community Cloud como artefacto de entrega y consulta
+pública:
+\begin{center}
+\url{https://tfm-renewables-permitting.streamlit.app/}
+\end{center}
+El despliegue parte de la rama de entrega
+\texttt{tfm-}\allowbreak\texttt{evaluation}; no modifica ni sustituye el
+sistema evaluado, congelado en \texttt{tfm-}\allowbreak\texttt{final}. La
+figura~\ref{fig:streamlit-resumen} muestra la vista general accesible al
+visitante.
 
-\pendiente{CAPTURA C01 — Vista general, situada tras la introducción de la
-aplicación. Mostrar estructura, navegación y filtros principales. Preparar
-solo después del despliegue y de la revisión visual de entrega; no generada
-en esta fase.}
+\begin{figure}[p]
+    \centering
+    \includegraphics[width=\textwidth]{figs/streamlit_01_resumen.png}
+    \caption{Vista general de la aplicación, con los indicadores del corpus
+    final W14 y la evolución temporal de proyectos y publicaciones BOE
+    relevantes.}
+    \label{fig:streamlit-resumen}
+\end{figure}
 
 \section{Resumen, catálogo y filtros}
 La vista Resumen combina dos indicadores, gráficos, mapa y catálogo. Los
@@ -84,10 +96,17 @@ La aplicación utiliza copias locales versionadas: no descarga geometría ni
 emplea mapas base externos durante la consulta. Esta decisión separa la
 presentación de dependencias de red ajenas a los datos Gold.
 
-\pendiente{CAPTURA C02 — Mapa y filtros, situada junto a la explicación
-territorial. Mostrar el mapa, los filtros activos y su efecto sobre la
-consulta. Preparar tras la revisión visual de entrega; no generada en esta
-fase.}
+La figura~\ref{fig:streamlit-mapa} ilustra una consulta territorial y
+tecnológica: los filtros visibles se aplican conjuntamente y el mapa conserva
+el contexto administrativo de la selección.
+
+\begin{figure}[p]
+    \centering
+    \includegraphics[width=\textwidth]{figs/streamlit_02_mapa_filtro.png}
+    \caption{Exploración territorial de los proyectos mediante filtros
+    tecnológicos y administrativos.}
+    \label{fig:streamlit-mapa}
+\end{figure}
 
 El catálogo mantiene una fila por proyecto y muestra nombre, tecnología,
 territorios, primera y última publicación observadas y número de BOE.
@@ -107,7 +126,19 @@ Esta organización permite consultar en conjunto documentos que el BOE
 publica por separado. En el caso de Don Rodrigo II, el lector puede contrastar
 la información pública de abril con las autorizaciones de agosto descritas
 en la tabla~\ref{tab:don-rodrigo}. La ficha muestra la secuencia conservada en
-Gold; no vuelve a interpretar los documentos con un modelo al abrirla.
+Gold; no vuelve a interpretar los documentos con un modelo al abrirla. La
+figura~\ref{fig:streamlit-don-rodrigo-resumen} presenta su resumen: dos
+publicaciones BOE relevantes, cuatro actuaciones administrativas y el ámbito
+territorial observado.
+
+\begin{figure}[p]
+    \centering
+    \includegraphics[width=\textwidth]{figs/streamlit_03_don_rodrigo_resumen.png}
+    \caption{Ficha del proyecto fotovoltaico Don Rodrigo II, con sus
+    publicaciones observadas, actuaciones administrativas y ámbito
+    territorial.}
+    \label{fig:streamlit-don-rodrigo-resumen}
+\end{figure}
 
 La cronología recoge actos publicados dentro del periodo observado. La
 primera fecha no prueba el inicio real del proyecto ni la última publicación
@@ -116,10 +147,18 @@ territorio puede proceder de la planta o de sus componentes de evacuación o
 almacenamiento. La ficha conserva ese alcance documental para evitar una
 precisión física que la fuente no proporciona.
 
-\pendiente{CAPTURA C03 — Ficha de un proyecto y sus publicaciones,
-preferiblemente Don Rodrigo II. Mostrar cronología y acceso a evidencia.
-Reservar caption, etiqueta y referencia desde esta sección; no generar
-capturas hasta la revisión visual de entrega.}
+La cronología administrativa publicada de la
+figura~\ref{fig:streamlit-don-rodrigo-cronologia} agrupa las actuaciones por
+publicación y permite observar la transición documental entre la información
+pública y las autorizaciones posteriores.
+
+\begin{figure}[p]
+    \centering
+    \includegraphics[width=\textwidth]{figs/streamlit_04_don_rodrigo_cronologia.png}
+    \caption{Cronología administrativa publicada de Don Rodrigo II, agrupada
+    por publicación del BOE.}
+    \label{fig:streamlit-don-rodrigo-cronologia}
+\end{figure}
 
 \section{Metodología, reporte y límites}
 La vista Metodología explica la cobertura del corpus, las fuentes, la unidad
@@ -157,8 +196,3 @@ una decisión trazable antes de regenerar los datos. Este paso es externo a
 Streamlit y está sujeto a los límites de la sección~\ref{sec:revision-humana}.
 La integración persistente de reportes con una cola unificada se propone
 como trabajo futuro en la sección~\ref{sec:cola-unificada-futura}.
-
-\pendiente{TODO OPERATIVO — Completar y validar el despliegue público de
-Streamlit; preparar la publicación final del repositorio en GitHub y comprobar
-sus instrucciones de acceso. Solo después se generarán C01--C03 y, si aporta
-valor, C04. No se declara completado en esta memoria.}

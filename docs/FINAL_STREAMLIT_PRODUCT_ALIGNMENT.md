@@ -8,15 +8,22 @@ questions about projects, BOE publications, administrative associations,
 published situations and documentary evidence. It does not execute or modify
 the analytical pipeline.
 
-> **Operational update (2026-08-27):** the active application default is the
+> **Operational update (2026-09-18):** the active application default is the
 > corrected Gold v2 at
 > `data/gold/final-w14-corpus-20220101-20260820-v2-316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86`, with downstream
 > ID `316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86`.
 > This five-file immutable package is versioned so a clean checkout can run the
-> app without `runs/` or evaluation artifacts. Streamlit Community Cloud is the
-> intended target; public deployment and its URL remain pending.
+> app without `runs/` or evaluation artifacts. The public read-only deployment
+> is available at <https://tfm-renewables-permitting.streamlit.app/> from the
+> delivery branch `tfm-evaluation`, using `streamlit_app.py`, Python 3.14 and
+> `uv.lock`. This delivery runtime postdates the evaluation; the evaluated
+> system remains frozen at
+> `tfm-final@282de815bea4e248bdcba2c655e3ee078cb58a49`.
 > The v1 path and identity below are preserved as the input audited during the
 > original product-alignment review.
+> Pending human-review labels in sections 18–21 record the end state of earlier
+> implementation iterations and are superseded for delivery by this update and
+> the final visitor-view captures.
 
 ## 2. Final Gold input
 
@@ -376,8 +383,8 @@ than copied here as mutable status.
 - Reporting depends on the user's email client and has no persistent backend.
 - Local map data and background require no tile server or API key. Folium's
   Leaflet JavaScript/CSS still use declared external frontend resources.
-- Public deployment, final holdout/evaluation, screenshots and written TFM
-  completion remain separate closeout gates.
+- Written-TFM completion and final delivery review remain separate closeout
+  gates; public deployment, final holdout/evaluation and screenshots are closed.
 
 ## 18. Latest approved map iteration
 

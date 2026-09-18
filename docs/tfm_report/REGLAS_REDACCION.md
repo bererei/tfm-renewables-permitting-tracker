@@ -189,8 +189,9 @@ No atribuir autoría del TFM o decisiones metodológicas al asistente.
 La revisión integral de 2026-09-15 incorpora las figuras ambiental, de
 conjuntos documentales, contrato y flujo operativo; revisa F03/F04/F09 y
 completa F06. Los reportes persistentes y la cola unificada permanecen en F09,
-POST-TFM. Resumen, Abstract, despliegue público, publicación final en GitHub y
-capturas siguen pendientes de sus bloques autorizados.
+POST-TFM. El despliegue público y las capturas se cerraron en su bloque
+autorizado; Resumen, Abstract y la publicación final en GitHub permanecen
+pendientes.
 
 Los diagramas deben respetar el orden real del extractor: salida estructurada
 Pydantic, incorporación de identidad documental, canonicalización y validación

@@ -99,10 +99,11 @@ fuentes de discrepancia (8.12) y otra de limitaciones (8.14), sin repetir las
 métricas. F08 se reutiliza mediante referencia desde 8.4; no se añade otra
 figura. Referenciar tablas existentes en vez de duplicarlas.
 
-Capturas reservadas, no generadas: C01 vista general, C02 mapa/filtros,
-C03 ficha/publicaciones (capítulo 5; seleccionar dos o tres en total) y C04
-anotación ciega opcional (6.4). Capturar tras la revisión de publicación;
-cada imagen tendrá caption, etiqueta y referencia textual.
+Capturas públicas integradas en el capítulo 5: vista general, mapa/filtros,
+resumen de Don Rodrigo II y su cronología administrativa publicada. Cada
+imagen tiene caption, etiqueta y referencia textual. La captura opcional de
+anotación ciega no se incorpora porque no es necesaria para documentar el
+producto público.
 
 ## Lenguaje visual y fuentes versionables
 
