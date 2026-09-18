@@ -64,7 +64,8 @@ junto con `project_location_sources`, que conserva el linaje de cada territorio
 hasta la mención, el evento y el BOE fuente. El producto final W14 usa un Gold
 validado separado con 104 documentos analizados, 80 BOE relevantes y 86
 proyectos agrupados en
-`runs/final-w14-corpus-20220101-20260820-v2/downstream/gold`, con downstream ID
+`data/gold/final-w14-corpus-20220101-20260820-v2-316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86`,
+con downstream ID
 `316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86`. La aplicación
 read-only de Streamlit consume exclusivamente sus cuatro tablas Gold:
 `projects`, `project_events`, `project_locations` y
@@ -99,6 +100,12 @@ RENEWABLES_GOLD_DIR=/path/to/gold \
 RENEWABLES_EXPECTED_DOWNSTREAM_ID=<downstream-id> \
 uv run streamlit run streamlit_app.py
 ```
+
+El paquete Gold mínimo está versionado, por lo que un clon limpio puede iniciar
+la aplicación sin `runs/`, artefactos de evaluación ni secrets obligatorios.
+El target previsto es Streamlit Community Cloud sobre la rama
+`tfm-evaluation`, con `streamlit_app.py`, Python 3.14 y `uv.lock`; el despliegue
+público todavía está pendiente y no existe una URL pública validada.
 
 El MVP no escribe en Gold ni ejecuta el pipeline. El despliegue público y el
 flujo administrativo de correcciones siguen fuera de la aplicación pública.

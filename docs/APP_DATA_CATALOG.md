@@ -30,7 +30,27 @@ cobertura del BOE completo ni de todos los proyectos españoles.
 
 ## 2. Canonical data snapshots
 
-La cadena auditada es una sola cadena de linaje. El Gold territorial es una
+### Estado actual del producto
+
+Streamlit carga por defecto el paquete inmutable versionado:
+
+```text
+data/gold/final-w14-corpus-20220101-20260820-v2-316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86
+```
+
+Su downstream ID es
+`316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86`.
+Contiene 86 proyectos, 80 BOE relevantes y 233 actuaciones administrativas
+únicas en `project_events`, coincidentes con las 233 actuaciones del Silver de
+origen. El paquete mínimo contiene exclusivamente `manifest.json`,
+`projects.parquet`, `project_events.parquet`, `project_locations.parquet` y
+`project_location_sources.parquet`. Un clon limpio puede ejecutar la app sin
+`runs/` ni artefactos de evaluación.
+
+### Checkpoint histórico de Gate 1
+
+La cadena auditada originalmente es una sola cadena de linaje. El Gold
+territorial es una
 extensión downstream v2 del mismo Silver congelado; no representa otro corpus.
 
 ```mermaid
@@ -46,7 +66,7 @@ flowchart LR
 | Extraction validado | `runs/canonical-140-freeze-final-candidate-20260813/extraction/` | snapshot `55582e7cc0ce6262fc43fbb5a6cb482a03f794d8d68956e01d4b9e081e0de855`; config `8158661f76a31c87` | 140 documentos, 140 extracciones vigentes, 0 revisión bloqueante |
 | Silver congelado | `runs/canonical-140-freeze-final-candidate-20260813/silver/` | `2bebfe3100f21332f29e97868e0fdc518c2fe96ac33bbe3f8926e15d896ae6f6` | 13 tablas; 5 correcciones versionadas aplicadas |
 | Downstream core congelado | `runs/canonical-140-freeze-final-candidate-20260813/downstream/` | `2201abf25a45688013a229a6786fd87fb38c024e787259b699ead3d45b7b1a96` | agrupación, `projects` y `project_events` del freeze |
-| Gold actual de Streamlit | `runs/canonical-140-streamlit-base-20260814/downstream/gold/` | downstream `7e0c9a84891ecbac66087a7af653ead436e69194653806a3697f3c8607948834` | añade `project_locations` y `project_location_sources` sin cambiar proyectos/eventos |
+| Gold de Streamlit auditado en Gate 1 | `runs/canonical-140-streamlit-base-20260814/downstream/gold/` | downstream `7e0c9a84891ecbac66087a7af653ead436e69194653806a3697f3c8607948834` | checkpoint histórico: añade `project_locations` y `project_location_sources` sin cambiar proyectos/eventos |
 | Referencia INE | `runs/ine-reference-20260614-25a3bbb28f0c21c5/` | `25a3bbb28f0c21c5` | 8.132 municipios, 52 códigos provinciales y 19 códigos autonómicos |
 
 La declaración contractual del core está en
@@ -56,7 +76,9 @@ conteos. Esta auditoría no recalcula ni sustituye esas identidades.
 
 ## 3. Data model overview
 
-La granularidad cambia en cada salto:
+Las cifras siguientes preservan el checkpoint histórico de Gate 1; no
+describen el paquete actual del producto indicado arriba. La granularidad
+cambia en cada salto:
 
 - extraction conserva una fila vigente por documento y su JSON canónico;
 - Silver descompone 75 BOE relevantes en 115 eventos de publicación y sus
@@ -76,7 +98,7 @@ agregación se debe empezar por la clave de la entidad que se quiere contar:
 - territorios: (`project_id`, código INE del nivel);
 - fuentes territoriales: (`project_location_id`, `location_mention_id`).
 
-## 4. Current Gold
+## 4. Historical Gate 1 Gold
 
 El contrato que consume Streamlit está centralizado en
 [`app_data.py`](../src/renewables_permitting/app_data.py). El loader verifica

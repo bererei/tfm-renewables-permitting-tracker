@@ -237,7 +237,7 @@ or `runs/` artifact and makes no model, network or evaluation call.
 | Final-corpus locations | **CLOSED — 828 MENTIONS; 0 INVALID INE CODES** | 624 fully and 204 partially resolved; no ambiguous/conflicting row |
 | Final-corpus grouping | **CLOSED — 159 MENTIONS; 86 PROJECTS; 0 CONFLICTS** | Deterministic `generation_asset_mentions`-only grouping; ID `8021c957139b51ac3b9ebb7546012ad7a7bbf1ec1d7362f48051699c41b10062` |
 | Final-corpus Gold | **CLOSED — CORRECTED V2; 4 TABLES; 0 PK/FK ISSUES** | Loader-valid `runs/final-w14-corpus-20220101-20260820-v2/downstream/gold`; downstream ID `316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86`; 86 projects and 80 relevant BOE |
-| Final Gold publication artifact | **READY — IMMUTABLE; LOADER-VALID; BYTE-EXACT** | Ignored local staging at `data/gold/final-w14-corpus-20220101-20260820-v2-316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86`; distributed outside Git; manifest SHA-256 `cf9901a55c402a68994d992a48a94c075c685387771773dae1931016540a69c0`; downstream ID and 86/80 product counts verified |
+| Final Gold publication artifact | **READY — IMMUTABLE; LOADER-VALID; BYTE-EXACT** | The exact five-file package at `data/gold/final-w14-corpus-20220101-20260820-v2-316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86` is the versioned runtime default; manifest SHA-256 `cf9901a55c402a68994d992a48a94c075c685387771773dae1931016540a69c0`; downstream ID and 86/80 product counts verified; clean-clone portability validated |
 | Streamlit against corrected Gold | **COMPATIBLE — APPTEST PASSED** | Runtime default and public configuration load corrected Gold v2; 86/80 KPIs, charts, map, catalogue, detail and mailto smoke passed |
 | Operational code closeout | **CODE FREEZE READY — 1,351 TESTS PASS** | Original 1,313-test baseline plus 31 administrative-CLI tests and seven territorial map-filter regressions; Gold v2 defaults and AppTest remain regression-tested, with the real mailbox remaining deployment configuration |
 | Systemic historical-antecedent safeguard | **CLOSED — HUMAN-APPROVED AND COMMITTED** | Commit `7c9fcbc`; deterministic dual-signal warning, non-destructive blocking review, exact ANTECEDENT correction reconciliation, persistent CURRENT validation and executable 11/11 + 0/5 replay; no automatic exclusion |
@@ -379,15 +379,18 @@ Complete in dependency order:
 10. **Security — COMPLETE LOCALLY; DEPLOYMENT REVIEW PENDING.** Preserve contractual Gold loading, expected downstream ID,
    safe paths/errors, pinned dependencies, secrets outside Git and a disabled
    public Gold explorer.
-11. **Deployment — PUBLICATION CONTRACT APPROVED.** Local publication/staging
-   artifacts live under the intentionally Git-ignored `data/gold/`. Each
-   immutable directory is named with its complete downstream materialization
-   ID; never overwrite it or create a mutable `latest` alias. Git versions
-   code, contracts, documentation and artifact identities, not the Parquet
-   publication artifact, which is distributed separately to the hosting
-   environment. Deployment must configure matching `RENEWABLES_GOLD_DIR` and
-   `RENEWABLES_EXPECTED_DOWNSTREAM_ID` values. Rollback switches both values to
-   a previous validated artifact. Never deploy directly from `runs/`.
+11. **Deployment — PUBLICATION CONTRACT APPROVED; PUBLIC DEPLOYMENT PENDING.**
+   Local publication/staging artifacts live under the intentionally ignored
+   `data/gold/`, except for the one exact five-file package selected as the
+   versioned runtime default. Each immutable directory is named with its
+   complete downstream materialization ID; never overwrite it or create a
+   mutable `latest` alias. A clean checkout therefore needs neither `runs/`
+   nor evaluation artifacts. Explicit overrides must configure matching
+   `RENEWABLES_GOLD_DIR` and `RENEWABLES_EXPECTED_DOWNSTREAM_ID` values;
+   rollback switches both values to a previous validated artifact. Never
+   deploy directly from `runs/`. The target is Streamlit Community Cloud on
+   `tfm-evaluation`, using `streamlit_app.py`, Python 3.14 and `uv.lock`, with
+   no mandatory secrets. No public deployment or URL exists yet.
 12. **Final validation.** Implementation regression/full-suite evidence is
     recorded above. Remaining delivery checks cover reproducibility, document
     consistency, security, human visual review and the authorized public

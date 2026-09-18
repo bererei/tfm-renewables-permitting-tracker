@@ -38,12 +38,35 @@ def test_production_defaults_select_corrected_gold_v2() -> None:
 
     assert defaults == {
         "DEFAULT_GOLD_DIR": (
-            "runs/final-w14-corpus-20220101-20260820-v2/downstream/gold"
+            "data/gold/final-w14-corpus-20220101-20260820-v2-"
+            "316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86"
         ),
         "DEFAULT_DOWNSTREAM_ID": (
             "316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86"
         ),
     }
+
+
+def test_versioned_default_gold_runs_without_operator_configuration(
+    monkeypatch,
+) -> None:
+    for variable in (
+        "RENEWABLES_GOLD_DIR",
+        "RENEWABLES_EXPECTED_DOWNSTREAM_ID",
+        "RENEWABLES_ENABLE_DATA_EXPLORER",
+        "RENEWABLES_REPORT_EMAIL",
+    ):
+        monkeypatch.delenv(variable, raising=False)
+
+    app = AppTest.from_file(APP_PATH, default_timeout=10).run()
+
+    assert not app.exception
+    assert not app.error
+    assert [metric.label for metric in app.metric] == [
+        "Proyectos",
+        "Publicaciones BOE relevantes",
+    ]
+    assert [metric.value for metric in app.metric] == ["86", "80"]
 
 
 def _write_app_geometry(

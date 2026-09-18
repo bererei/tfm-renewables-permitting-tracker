@@ -89,7 +89,8 @@ from renewables_permitting.extraction.paths import find_project_root
 
 LOGGER = logging.getLogger(__name__)
 DEFAULT_GOLD_DIR = (
-    "runs/final-w14-corpus-20220101-20260820-v2/downstream/gold"
+    "data/gold/final-w14-corpus-20220101-20260820-v2-"
+    "316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86"
 )
 DEFAULT_DOWNSTREAM_ID = (
     "316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86"

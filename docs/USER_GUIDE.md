@@ -148,7 +148,7 @@ el componente y la actuación compartidos no se duplican por planta.
 src/          lógica productiva: pipeline, extracción, Silver, downstream y app
 config/       inputs versionados, como correcciones y muestras de evaluación
 runs/         snapshots operacionales regenerables; no se versionan
-data/gold/    staging local ignorado de artefactos Gold de publicación
+data/gold/    paquetes Gold de publicación; solo el paquete activo se versiona
 docs/         guías, arquitectura, freeze y memoria del TFM
 tests/        garantías ejecutables y fixtures en memoria
 notebooks/    exploración, auditoría y orquestación legacy; no son producción
@@ -161,7 +161,8 @@ Reglas prácticas:
 - no edites manualmente ningún Parquet de `runs/` o `data/`;
 - no copies lógica productiva a un notebook;
 - no añadas `runs/` a Git: contiene artefactos operacionales regenerables;
-- no añadas los artefactos de `data/gold/` a Git: se distribuyen por separado;
+- no añadas otros artefactos de `data/gold/` a Git: únicamente se versiona el
+  paquete mínimo activo identificado de forma completa más abajo;
 - antes de modificar un input versionado, revisa su contrato y crea tests.
 
 El directorio `.agents/` contiene recursos locales de herramientas. No forma
@@ -406,37 +407,51 @@ detenerlo, vuelve al terminal y pulsa `Ctrl+C`.
 Sin variables adicionales, la aplicación espera este Gold validado:
 
 ```text
-runs/final-w14-corpus-20220101-20260820-v2/downstream/gold
+data/gold/final-w14-corpus-20220101-20260820-v2-316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86
 ```
 
 El downstream ID predeterminado es
 `316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86`.
-Este default permite validación local, pero un directorio bajo `runs/` nunca se
-usa directamente como artefacto de despliegue.
+El paquete forma parte del checkout y permite iniciar la aplicación desde un
+clon limpio sin `runs/`, artefactos de evaluación ni secrets obligatorios.
+Un directorio bajo `runs/` nunca se usa directamente como artefacto de
+despliegue.
 
 ### Artefacto Gold de publicación
 
-Los artefactos locales de publicación viven bajo `data/gold/`, cuyo contenido
-está intencionadamente ignorado por Git. Cada directorio es inmutable y su
-nombre termina en el `downstream_materialization_id` completo; no se
-sobrescribe y no existe un alias mutable `latest`. Para el corpus final, la
-ruta local aprobada es:
+Los artefactos locales de publicación viven bajo `data/gold/`. Su contenido
+continúa ignorado por Git salvo el paquete mínimo activo indicado a
+continuación, versionado mediante una excepción exacta. Cada directorio es
+inmutable y su nombre termina en el `downstream_materialization_id` completo;
+no se sobrescribe y no existe un alias mutable `latest`. Para el corpus final,
+la ruta local aprobada es:
 
 ```text
 data/gold/final-w14-corpus-20220101-20260820-v2-316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86
 ```
 
-Git versiona código, contratos, documentación e identidades, no los Parquet
-del producto. El directorio completo se distribuye por separado al entorno de
-hosting. El despliegue debe configurar conjuntamente:
+Este directorio contiene exclusivamente `manifest.json`, `projects.parquet`,
+`project_events.parquet`, `project_locations.parquet` y
+`project_location_sources.parquet`. Git versiona exactamente sus bytes ya
+validados; los demás paquetes y datos permanecen ignorados.
+
+El default compilado usa este paquete y su identidad, por lo que el despliegue
+normal no necesita configurar variables Gold. Para probar otro artefacto, el
+operador debe configurar conjuntamente:
 
 ```bash
 export RENEWABLES_GOLD_DIR="<RUTA_DEL_ARTEFACTO_PUBLICADO>"
 export RENEWABLES_EXPECTED_DOWNSTREAM_ID="<DOWNSTREAM_ID_DEL_MISMO_ARTEFACTO>"
 ```
 
-Ambos valores deben proceder del mismo artefacto validado. Nunca despliegues
-directamente desde `runs/`.
+Ambos valores deben proceder del mismo artefacto validado. La ausencia o
+invalidez del paquete falla de forma cerrada y no activa ningún fallback a
+`runs/`. Nunca despliegues directamente desde `runs/`.
+
+El target previsto es Streamlit Community Cloud, rama `tfm-evaluation`,
+entrypoint `streamlit_app.py`, Python 3.14 y dependencias de `uv.lock`. No hay
+secrets obligatorios. El despliegue público y su URL siguen pendientes; el
+email de reporting es una configuración opcional pendiente.
 
 Su downstream ID esperado está fijado en la aplicación. Para abrir otro
 snapshot validado, configura **las dos** variables antes de iniciar Streamlit:
@@ -865,7 +880,10 @@ from pathlib import Path
 
 from renewables_permitting.app_data import load_gold_dataset
 
-gold_dir = Path("runs/final-w14-corpus-20220101-20260820-v2/downstream/gold")
+gold_dir = Path(
+    "data/gold/final-w14-corpus-20220101-20260820-v2-"
+    "316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86"
+)
 manifest = json.loads((gold_dir / "manifest.json").read_text(encoding="utf-8"))
 expected_id = manifest["downstream_materialization_id"]
 
@@ -1650,7 +1668,8 @@ El gate previo obligatorio se describe en
 El resultado corregido está en
 `runs/final-w14-corpus-20220101-20260820-v2` y se documenta en
 [`FINAL_W14_ADMIN_ACTION_CORRECTIONS.md`](FINAL_W14_ADMIN_ACTION_CORRECTIONS.md).
-El default activo de la sección 6 ya apunta a este Gold v2 corregido. Un
+El default activo de la sección 6 ya apunta al paquete versionado de este Gold
+v2 corregido. Un
 despliegue que sobrescriba la configuración debe actualizar conjuntamente
 `RENEWABLES_GOLD_DIR` y `RENEWABLES_EXPECTED_DOWNSTREAM_ID`.
 
@@ -2266,7 +2285,7 @@ automática de snapshots documentales tampoco está disponible actualmente.
 
 | Problema | Causa probable y acción segura |
 | --- | --- |
-| Gold no encontrado | Revisa `RENEWABLES_GOLD_DIR` y que el directorio contenga el `manifest.json` y los cuatro Parquet declarados. En despliegue usa el artefacto distribuido, no una ruta de `runs/`. No crees archivos vacíos. |
+| Gold no encontrado | Sin override, comprueba el paquete versionado indicado en la sección 6. Con `RENEWABLES_GOLD_DIR`, verifica que el directorio contenga `manifest.json` y los cuatro Parquet declarados. No existe fallback a `runs/`; no crees archivos vacíos. |
 | Downstream ID incorrecto | La variable esperada no coincide con `downstream_materialization_id`. Usa el ID previamente validado para ese snapshot. |
 | Manifest incompatible | Las versiones o el esquema no corresponden al loader actual. Usa un snapshot compatible o regenera con código/configuración aprobados. |
 | Hash incorrecto | El archivo no coincide con el manifest. Considera el snapshot corrupto; no edites el hash ni el Parquet. |

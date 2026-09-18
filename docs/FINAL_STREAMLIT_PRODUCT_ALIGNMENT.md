@@ -10,8 +10,11 @@ the analytical pipeline.
 
 > **Operational update (2026-08-27):** the active application default is the
 > corrected Gold v2 at
-> `runs/final-w14-corpus-20220101-20260820-v2/downstream/gold`, with downstream
+> `data/gold/final-w14-corpus-20220101-20260820-v2-316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86`, with downstream
 > ID `316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86`.
+> This five-file immutable package is versioned so a clean checkout can run the
+> app without `runs/` or evaluation artifacts. Streamlit Community Cloud is the
+> intended target; public deployment and its URL remain pending.
 > The v1 path and identity below are preserved as the input audited during the
 > original product-alignment review.
 
