@@ -1,0 +1,18 @@
+% TikZ ya está cargado por todonotes en include/configuracion.tex.
+% Diagramas vectoriales sin herramientas externas ni imágenes rasterizadas.
+\usetikzlibrary{arrows.meta,positioning,calc}
+\tikzset{
+  tfm box/.style={draw=tema, fill=tema!5, rounded corners=2pt,
+    line width=0.6pt, align=flush center, inner sep=5pt,
+    font=\fontsize{10}{12}\selectfont},
+  tfm data/.style={tfm box, fill=white},
+  tfm accent/.style={tfm box, fill=tema!14,
+    font=\fontsize{10}{12}\selectfont\bfseries},
+  tfm optional/.style={tfm box, dashed, fill=white},
+  tfm flow/.style={-{Latex[length=2mm]}, draw=tema, line width=0.7pt},
+  tfm relation/.style={draw=tema, dashed, line width=0.7pt},
+  tfm heading/.style={font=\fontsize{10}{12}\selectfont\bfseries,
+    text=tema, align=flush center},
+  tfm note/.style={font=\fontsize{9}{11}\selectfont,
+    align=flush center, inner sep=3pt}
+}

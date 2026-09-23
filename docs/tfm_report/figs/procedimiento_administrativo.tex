@@ -1,0 +1,43 @@
+% F01: esquema conceptual; referencias normativas incorporadas en el capítulo 2.
+\begin{tikzpicture}
+\node[tfm accent, text width=4.4cm] (proyecto) at (0,0) {Proyecto renovable};
+\node[tfm data, text width=5.8cm] (red) at (0,-1.4)
+  {Permisos de acceso\\y conexión (PACC)};
+\node[tfm heading, text width=4.5cm] at (-3.2,-2.35) {Procedimiento ambiental};
+\node[tfm heading, text width=4.5cm] at (3.2,-2.35) {Procedimiento eléctrico};
+\node[tfm box, text width=4.2cm] (estudio) at (-3.2,-3.55)
+  {EIA / EsIA\\Evaluación y estudio};
+\node[tfm box, text width=4.2cm] (consultas) at (-3.2,-4.85)
+  {Información pública\\y consultas};
+\node[tfm accent, text width=4.2cm] (dia) at (-3.2,-6.15) {DIA};
+\node[tfm box, text width=4.2cm] (solicitudes) at (3.2,-3.55)
+  {Solicitudes de autorización\\AAP / AAC};
+\node[tfm box, text width=4.2cm] (publica) at (3.2,-4.85)
+  {Tramitación e\\información pública};
+\node[tfm accent, text width=4.2cm] (autorizaciones) at (3.2,-7.45)
+  {Resoluciones de autorización\\AAP / AAC};
+\node[tfm optional, text width=4.2cm] (dup) at (-3.2,-8.2)
+  {DUP, cuando proceda\\Sin posición temporal fija\\respecto de la AAC};
+\node[tfm box, text width=4.2cm] (obra) at (3.2,-8.85) {Construcción};
+\node[tfm box, text width=4.2cm] (ae) at (3.2,-10.2)
+  {Puesta en servicio: AE\\Pruebas, cuando correspondan};
+\node[tfm accent, text width=4.2cm] (operacion) at (3.2,-11.55) {Operación};
+\draw[tfm flow] (proyecto) -- (red);
+\draw[tfm relation] (red.south) -- (0,-2.85);
+\draw[tfm flow, dashed] (0,-2.85) -| (estudio.north);
+\draw[tfm flow, dashed] (0,-2.85) -| (solicitudes.north);
+\draw[tfm flow] (estudio) -- (consultas);
+\draw[tfm flow] (consultas) -- (dia);
+\draw[tfm flow] (solicitudes) -- (publica);
+\draw[tfm flow] (publica) -- (autorizaciones);
+\draw[tfm flow] (dia.east) -- (0,-6.15)
+  node[tfm note, above, text width=2.0cm] {condiciona}
+  |- (autorizaciones.west);
+\draw[tfm relation] (dup.east) -- (0,-8.2) |- (autorizaciones.west);
+\draw[tfm flow] (autorizaciones) -- (obra);
+\draw[tfm flow] (obra) -- (ae);
+\draw[tfm flow] (ae) -- (operacion);
+\node[tfm note, text width=11.3cm] at (0,-12.8)
+  {Esquema orientativo de un recorrido con autorización y evaluación ordinaria.\\
+   Las vías pueden avanzar parcialmente en paralelo; no es un calendario universal.};
+\end{tikzpicture}

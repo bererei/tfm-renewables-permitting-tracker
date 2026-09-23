@@ -1,0 +1,53 @@
+{
+  "ambiguity_policy": "Explicit ambiguous/excluded truth is omitted from metric denominators and reported; system-created many-to-many matching ambiguity is reported and penalized as unresolved FP/FN.",
+  "contract_version": "final_holdout_evaluation_contract_v1",
+  "document_exact_match": {
+    "kind": "secondary_strict",
+    "scope": [
+      "document_scope",
+      "events",
+      "generation_assets",
+      "generation_type",
+      "administrative_actions",
+      "action_type",
+      "decision",
+      "targets",
+      "semantic_evidence",
+      "participants",
+      "participant_role",
+      "locations",
+      "location_level"
+    ]
+  },
+  "frozen_production_commit": "282de815bea4e248bdcba2c655e3ee078cb58a49",
+  "matching_version": "hierarchical_exact_normalized_v1",
+  "metrics_aggregation": "micro",
+  "null_marker": "__NA__",
+  "primary_scope": "extraction_only",
+  "technical_numeric_scoring": {
+    "aggregation": "secondary_only",
+    "comparison": "exact_decimal_mw",
+    "qualified_units": "excluded",
+    "range_or_combined_values": "excluded",
+    "tolerance": null,
+    "truth_input": "expected_value_raw_derived_not_duplicated",
+    "units": [
+      "W",
+      "kW",
+      "MW",
+      "GW"
+    ]
+  },
+  "truth_tables": [
+    "documents",
+    "events",
+    "generation_assets",
+    "associated_components",
+    "technical_mentions",
+    "administrative_actions",
+    "action_targets",
+    "participants",
+    "locations",
+    "evidence_passages"
+  ]
+}

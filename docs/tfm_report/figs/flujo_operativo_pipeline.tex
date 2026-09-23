@@ -1,0 +1,33 @@
+% Ejecución real coordinada por Pipeline CLI; Streamlit solo lee Gold.
+\begin{tikzpicture}
+\node[tfm heading, text width=11.8cm] (title) at (0,0)
+  {EJECUCIÓN DEL PIPELINE};
+\node[tfm data, text width=7.1cm] (source) at (0,-1.15)
+  {1. Adquirir y preservar documentos\\Sumarios, XML y snapshot fuente};
+\node[tfm box, text width=7.1cm] (candidates) at (0,-2.55)
+  {2. Seleccionar candidatos por título};
+\node[tfm accent, text width=7.1cm] (extract) at (0,-3.95)
+  {3. Clasificar y extraer los casos requeridos};
+\node[tfm box, text width=7.1cm] (validate) at (0,-5.35)
+  {4. Canonicalizar y validar la selección};
+\node[tfm data, text width=5.4cm] (gate) at (0,-6.75)
+  {¿Existe una incidencia bloqueante?};
+\node[tfm data, text width=7.1cm] (silver) at (0,-8.35)
+  {5. Materializar y validar Silver};
+\node[tfm box, text width=7.1cm] (territory) at (0,-9.75)
+  {6. Resolver territorio con la referencia INE};
+\node[tfm box, text width=7.1cm] (group) at (0,-11.15)
+  {7. Agrupar menciones y generar Gold};
+\node[tfm accent, text width=7.1cm] (streamlit) at (0,-12.55)
+  {8. Consultar Gold validado en Streamlit};
+\foreach \a/\b in {source/candidates,candidates/extract,extract/validate,
+  validate/gate,gate/silver,silver/territory,territory/group,group/streamlit}
+  {\draw[tfm flow] (\a) -- (\b);}
+\node[tfm note] at (-1.35,-7.55) {NO: continuar};
+\node[tfm optional, text width=3.5cm] (stop) at (5.15,-6.75)
+  {SÍ: revisión humana pendiente\\Flujo automático detenido};
+\draw[tfm flow, dashed] (gate.east) -- (stop.west);
+\node[tfm note, text width=11.8cm] at (0,-13.85)
+  {La Pipeline CLI expone estas etapas con entradas y destinos explícitos.
+   La aplicación no ejecuta el pipeline.};
+\end{tikzpicture}

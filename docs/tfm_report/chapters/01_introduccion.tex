@@ -1,0 +1,122 @@
+% Fuentes: README, bibliografía y documentación pública de evaluación.
+\chapter{Introducción}
+\label{ch:introduccion}
+
+\section{Contexto y motivación}
+La incorporación de instalaciones renovables al sistema eléctrico requiere,
+además de su diseño y construcción, una tramitación administrativa. Conocer
+esa tramitación ayuda a distinguir una propuesta en estudio de un proyecto
+que ha recibido una autorización. Este seguimiento resulta de interés en el
+contexto de la transición hacia fuentes de energía renovables. El
+Plan Nacional Integrado de Energía y Clima 2023--2030 (PNIEC) es la herramienta
+de orientación estratégica nacional que integra la política de energía y clima
+con horizonte 2030 \cite{miteco_pniec_2023_2030_2024}. La ejecución de esa
+planificación exige poder seguir también la evidencia administrativa que
+acompaña a los proyectos.
+
+Una misma planta puede aparecer en distintas publicaciones oficiales: un
+anuncio de información pública, una decisión ambiental o una autorización,
+entre otras. Cada publicación explica una parte del procedimiento, pero no
+constituye necesariamente una historia completa del proyecto. Además, una
+resolución puede recordar actuaciones anteriores para justificar la decisión
+que adopta.
+
+Este trabajo utiliza el Boletín Oficial del Estado (BOE) como fuente de
+información. El BOE permite consultar las publicaciones originales, aunque
+seguir una planta exige relacionar documentos, reconocer sus denominaciones
+y distinguir qué se publica ahora de lo que se cita como antecedente. Una
+herramienta que reúna esas publicaciones puede facilitar la consulta, siempre
+que conserve la relación entre cada dato y el texto que lo respalda.
+
+\section{Problema abordado}
+La \textbf{pregunta que guía el trabajo} es: \emph{¿cómo reconstruir la evolución
+administrativa observada de un proyecto de generación eléctrica a partir de
+la evidencia publicada en el BOE?}
+
+El problema combina dos tareas. Primero, es necesario convertir documentos
+escritos en lenguaje natural en información organizada: qué planta se
+menciona, qué actuación administrativa se publica y a qué territorio se
+refiere. Después, hay que determinar qué menciones de distintos documentos
+corresponden al mismo proyecto. Compartir promotor, provincia o
+infraestructura no basta para afirmar que dos plantas son una sola.
+
+En esta memoria se denomina \emph{actuación administrativa} al trámite o
+decisión que una publicación vincula a una planta o a un componente asociado.
+La \emph{evidencia} es el pasaje del documento que permite comprobar esa
+información. La reconstrucción resultante describe lo observado en las
+publicaciones incluidas; no permite asegurar que se haya recuperado todo el
+expediente administrativo.
+
+\section{Objetivo general}
+Desarrollar y evaluar un sistema reproducible que extraiga información de
+publicaciones del BOE, relacione menciones de plantas de generación eléctrica
+y permita consultar su evolución administrativa con trazabilidad hasta la
+fuente documental. Un sistema es reproducible, en el sentido utilizado aquí,
+cuando conserva los datos, las reglas y las versiones necesarias para
+verificar sus resultados y repetir las transformaciones deterministas, es
+decir, las que aplican reglas fijas a las mismas entradas.
+
+\section{Objetivos específicos}
+\begin{enumerate}
+\item Obtener publicaciones candidatas del BOE mediante criterios explícitos
+y conservar su identidad, fecha y procedencia.
+\item Extraer plantas, actuaciones y territorios con una estructura definida
+y evidencia documental.
+\item Incorporar validación y revisión humana en los casos definidos por el
+sistema de extracción y la salvaguarda de antecedentes, registrando de forma
+trazable las decisiones y correcciones aplicables.
+\item Relacionar menciones de plantas mediante reglas conservadoras y
+vincular las referencias territoriales con unidades administrativas oficiales.
+\item Preparar datos consolidados para una aplicación de consulta de solo
+lectura, con acceso a proyectos, publicaciones y cronologías.
+\item Evaluar la extracción y su procesamiento documental con un conjunto
+independiente anotado por una persona, mediante reglas fijadas antes de
+observar las predicciones del sistema.
+\end{enumerate}
+
+Estos objetivos separan la construcción del sistema de su evaluación
+experimental. La evaluación independiente se centra en la salida documental
+de extracción, canonicalización y validación. La canonicalización consiste
+en aplicar reglas comunes para obtener una representación consistente de
+esa salida. La agrupación posterior de proyectos y la aplicación cuentan con
+validaciones técnicas, pero no reciben una medida de calidad independiente
+a partir de este experimento.
+
+\section{Alcance}
+El objeto de seguimiento son plantas de generación eléctrica con nombre. Las
+instalaciones de almacenamiento o evacuación pueden asociarse a una planta
+cuando la publicación establece esa relación, pero no crean por sí solas un
+proyecto de generación. El nombre del proyecto actúa como referencia para
+reunir sus menciones; las reglas concretas se explican en el
+capítulo~\ref{ch:metodologia}.
+
+El corpus final, es decir, el conjunto de documentos utilizado para construir
+el producto, combina publicaciones de una ventana reciente con una búsqueda
+retrospectiva conservadora desde 2022. No es un censo exhaustivo de proyectos
+renovables en España. Tampoco incluye sistemáticamente boletines autonómicos
+o provinciales, expedientes completos ni fuentes de operación de las plantas.
+El capítulo~\ref{ch:datos} precisa sus periodos y unidades.
+
+La herramienta presenta información publicada; no certifica el estado
+jurídico completo de un proyecto ni predice su siguiente autorización.
+Los territorios reflejan asociaciones documentales y no coordenadas exactas
+de las instalaciones. No se estima producción energética y el producto final
+no incorpora indicadores consolidados de promotor o potencia. La operación
+diaria automática, la administración de usuarios y una interfaz de aprobación
+de correcciones quedan fuera del trabajo entregable.
+
+La extracción utiliza un \textbf{modelo de lenguaje de gran escala}
+(\textit{Large Language Model}, LLM), capaz de procesar texto y generar
+respuestas. Su salida puede contener errores y requiere validación. Repetir
+una consulta al proveedor no garantiza una respuesta idéntica; por ello se
+conservan las predicciones originales utilizadas en la evaluación.
+
+\section{Estructura de la memoria}
+Los capítulos~\ref{ch:contexto} y~\ref{ch:datos} presentan el contexto
+administrativo y la construcción del corpus. Los
+capítulos~\ref{ch:metodologia} y~\ref{ch:aplicacion} explican el sistema y su
+aplicación de consulta. Los capítulos~\ref{ch:evaluacion}
+y~\ref{ch:resultados} describen el experimento y sus resultados, que se
+interpretan en el capítulo~\ref{ch:discusion}. El
+capítulo~\ref{ch:conclusiones} responde a los objetivos y ordena el trabajo
+futuro; los anexos reúnen el detalle de reproducibilidad y del contrato.

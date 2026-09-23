@@ -1,0 +1,70 @@
+% F09. Estado actual y evolución POST-TFM, sin escritura directa en Gold.
+\begin{tikzpicture}
+\node[tfm heading, text width=12.4cm] (title) at (0,0)
+  {OPERACIÓN DEL PRODUCTO: ACTUAL Y POST-TFM};
+
+% Estado actual: consulta de Gold y reporte externo no persistente.
+\node[tfm heading, text width=12.0cm] at (0,-0.9)
+  {ACTUAL --- CONSULTA Y REPORTE EXTERNO};
+\node[tfm data, text width=2.0cm] (source) at (-5.1,-2.0)
+  {BOE y datos};
+\node[tfm box, text width=2.0cm] (pipeline) at (-2.55,-2.0)
+  {Pipeline actual};
+\node[tfm data, text width=2.0cm] (gold) at (0,-2.0)
+  {Gold validado};
+\node[tfm accent, text width=2.0cm] (streamlit) at (2.55,-2.0)
+  {Streamlit\\Consulta};
+\node[tfm data, text width=2.0cm] (consultation) at (5.1,-2.0)
+  {Usuario\\Consulta};
+
+\foreach \a/\b in {source/pipeline,pipeline/gold,gold/streamlit,
+  streamlit/consultation}
+  {\draw[tfm flow] (\a) -- (\b);}
+
+\node[tfm data, text width=3.8cm] (mailto) at (2.55,-3.35)
+  {Reporte por correo\\\texttt{mailto:} · canal externo};
+\draw[tfm flow] (streamlit.south) -- (mailto.north);
+
+% Evolución futura: automatización y cierre persistente del feedback.
+\node[tfm heading, text width=12.0cm] at (0,-4.55)
+  {POST-TFM --- OPERACIÓN Y FEEDBACK PERSISTENTE};
+
+\node[tfm optional, text width=2.45cm] (periodic) at (-4.8,-5.85)
+  {Adquisición\\periódica};
+\node[tfm optional, text width=2.45cm] (automated) at (-1.6,-5.85)
+  {Pipeline\\automatizado};
+\node[tfm optional, text width=2.45cm] (regeneration) at (1.6,-5.85)
+  {Regeneración\\y validación};
+\node[tfm optional, text width=2.45cm] (publication) at (4.8,-5.85)
+  {Nuevo Gold validado\\y publicación};
+
+\foreach \a/\b in {periodic/automated,automated/regeneration,
+  regeneration/publication}
+  {\draw[tfm flow, dashed] (\a) -- (\b);}
+
+\node[tfm optional, text width=2.45cm] (feedback) at (-4.8,-8.15)
+  {Feedback\\estructurado};
+\node[tfm optional, text width=2.45cm] (queue) at (-1.6,-8.15)
+  {Cola\\persistente};
+\node[tfm optional, text width=2.45cm] (review) at (1.6,-8.15)
+  {Revisión\\humana / admin.};
+\node[tfm optional, text width=2.45cm] (decision) at (4.8,-8.15)
+  {Decisión o corrección\\versionada};
+
+\foreach \a/\b in {feedback/queue,queue/review,review/decision}
+  {\draw[tfm flow, dashed] (\a) -- (\b);}
+\draw[tfm flow, dashed] (decision.north) -- ++(0,5mm)
+  -| (regeneration.south);
+
+\node[tfm note, text width=12.0cm] at (0,-9.45) {
+  Operación incremental, monitorizada y publicable solo tras validación.
+};
+\node[tfm note, text width=12.0cm] at (0,-10.15) {
+  El usuario no escribe en Gold: el feedback pasa por revisión y una decisión
+  versionada antes de regenerar y publicar.
+};
+\node[tfm note, text width=12.0cm] at (0,-10.95) {
+  \textbf{Trazo continuo:} mecanismo actual \qquad
+  \textbf{Trazo discontinuo:} componente POST-TFM
+};
+\end{tikzpicture}

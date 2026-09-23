@@ -1,0 +1,2 @@
+/data/bronze/localizaciones_ine/codine_ccaaprovincia_20260614.csv -text whitespace=trailing-space,space-before-tab,cr-at-eol
+/data/bronze/localizaciones_ine/diccionario26.csv -text whitespace=trailing-space,space-before-tab,cr-at-eol

@@ -1,0 +1,35 @@
+% F06: circuito actual; territorio y reportes no forman parte de esta cola.
+\begin{tikzpicture}
+\node[tfm data, text width=7.6cm] (attempt) at (0,0)
+  {Intento de extracción + validación documental\\
+   Detección de posibles antecedentes históricos};
+\node[tfm accent, text width=7.6cm] (queue) at (0,-1.55)
+  {Incidencia bloqueante en la cola del snapshot};
+\node[tfm box, text width=7.6cm] (inspect) at (0,-3.1)
+  {Inspección humana del BOE, la propuesta y la evidencia};
+\node[tfm data, text width=3.7cm] (generic) at (-4.2,-5.15)
+  {Decisión genérica\\Aprobar propuesta exacta\\o rechazar extracción};
+\node[tfm data, text width=3.7cm] (current) at (0,-5.15)
+  {Actuación CURRENT\\Cerrar aviso exacto\\sin cambiar contenido};
+\node[tfm data, text width=3.7cm] (antecedent) at (4.2,-5.15)
+  {Actuación ANTECEDENT\\Exclusión aprobada\\y versionada};
+\node[tfm box, text width=7.6cm] (snapshot) at (0,-7.25)
+  {Operador prepara un nuevo snapshot\\
+   y reconcilia decisiones y correcciones};
+\node[tfm box, text width=7.6cm] (gate) at (0,-8.8)
+  {Control: ninguna incidencia bloqueante pendiente};
+\node[tfm data, text width=7.6cm] (silver) at (0,-10.35)
+  {Aplicar correcciones a una copia $\rightarrow$ Silver};
+\node[tfm data, text width=7.6cm] (gold) at (0,-11.9)
+  {Resolución territorial independiente $\rightarrow$ grouping $\rightarrow$ Gold};
+\foreach \a/\b in {attempt/queue,queue/inspect,snapshot/gate,gate/silver,silver/gold}
+  {\draw[tfm flow] (\a) -- (\b);}
+\coordinate (decisionjoin) at (0,-6.35);
+\foreach \n in {generic,current,antecedent}
+  {\draw[tfm flow] (inspect.south) -- (0,-4.05) -| (\n.north);
+   \draw[tfm relation] (\n.south) |- (decisionjoin);}
+\draw[tfm flow] (decisionjoin) -- (snapshot.north);
+\node[tfm note, text width=12.0cm] at (0,-13.25)
+  {El reporte por correo de Streamlit no crea entradas en esta cola.
+   Los estados territoriales se inspeccionan por una vía separada.};
+\end{tikzpicture}

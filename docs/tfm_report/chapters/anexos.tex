@@ -1,0 +1,207 @@
+\chapter{Reproducibilidad y acceso a los artefactos}
+\label{an:reproducibilidad}
+% FINAL_HOLDOUT_V2_RESULTS.md §§1,11, trazabilidad y reproducibilidad.
+
+\section{Identidades y artefactos del experimento}
+La reproducción de la puntuación exige distinguir el sistema evaluado de la
+referencia humana, las reglas de comparación, las predicciones preservadas y el
+informe final. Las identidades completas del experimento cerrado son:
+
+\begin{lstlisting}[language={},basicstyle=\scriptsize\ttfamily,
+title={Registro de identidades y huellas:}]
+system_commit=282de815bea4e248bdcba2c655e3ee078cb58a49
+truth_id=e3f300253db94931345e9bbbc489cd810802f94339c3b6a0d751f98b32383b54
+truth_manifest_sha256=4f32dc8f89fff8ae1b80f7fb5f94e9168d131f4dea3d0d025640e869c07c148c
+evaluator_id=a617ef6155cfcd8c403b0c55542cb753fac22f7893f57f3861af665ae23dda5b
+evaluator_manifest_sha256=f9e33836d1995a70f24094469cb1e39908e3f30874deee11ba175b5255457d1c
+predictions_id=154c9b42e840f5d3c8989f8470680d040f40113700f040023ebdbae70e21a500
+predictions_manifest_sha256=c1464ef49d01f3fe5f7e839fe1af0f00a736d2eba030ebd2871c7760c81c3277
+execution_record_sha256=8332a7cfe78455daf5983537db851224455cbdd0455360c04677672df4264181
+evaluation_id=4686355d47e0e21ad4b88e313e5ddd9561195e6696893945da6610b1f3b371fd
+evaluation_manifest_sha256=1fbd44dea97c03bebb9f34d109862e51e8db181da3ec35b1cf63caadae6e23ae
+\end{lstlisting}
+
+Las rutas relativas conservadas se muestran a continuación.
+
+\begin{lstlisting}[language={},basicstyle=\scriptsize\ttfamily,
+title={Rutas de los artefactos operativos:}]
+runs/final_holdout_p2_v1_truth_v2_frozen
+runs/final_holdout_p2_v1_evaluator_v2_frozen_2c0632b
+runs/final-holdout-v2-primary-001
+runs/final-holdout-v2-evaluation-primary-001
+\end{lstlisting}
+
+La distribución académica prevista como \texttt{v1.0.0} utilizará \texttt{main}
+como rama pública principal. Su remoto previsto, aún no creado, es:
+\begin{center}
+\url{https://github.com/bererei/tfm-renewables-permitting-tracker}
+\end{center}
+No se afirma que el repositorio o la release existan todavía. La aplicación está validada
+localmente y preparada para un futuro despliegue en Streamlit Community Cloud;
+en este estado no se presenta ninguna URL de la aplicación como operativa. Los
+directorios operativos bajo \path{runs/} no se versionan en
+Git ni forman parte de los entregables o de la distribución pública del TFM:
+corresponden a artefactos de ejecución y trabajo. Las identidades Git privadas,
+incluidos los commits del sistema y del evaluador, son identificadores
+históricos internos no resolubles desde la nueva historia pública. Las huellas,
+rutas lógicas, manifiestos y comandos registrados en este anexo documentan la
+procedencia del experimento en el entorno privado de desarrollo. Su inclusión
+no implica que los artefactos bajo \path{runs/} se distribuyan. Cuando exista,
+\texttt{v1.0.0} será la referencia pública principal del entregable, sin
+sustituir esas identidades científicas históricas.
+
+\section{Comprobaciones cerradas}
+Los siguientes comandos fueron registrados como ejecutados con salida válida
+antes de la redacción final. Verifican integridad e identidades; no vuelven a
+ejecutar la extracción ni recalculan la evaluación.
+
+\begin{lstlisting}[language=bash,basicstyle=\scriptsize\ttfamily,
+title={Validación de artefactos congelados:}]
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python \
+  -m evaluation.final_holdout_v2.cli validate-frozen-truth \
+  --truth runs/final_holdout_p2_v1_truth_v2_frozen \
+  --expected-manifest-sha256 4f32dc8f89fff8ae1b80f7fb5f94e9168d131f4dea3d0d025640e869c07c148c
+
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python \
+  -m evaluation.final_holdout_v2.cli validate-evaluator \
+  --evaluator runs/final_holdout_p2_v1_evaluator_v2_frozen_2c0632b \
+  --expected-evaluator-identity a617ef6155cfcd8c403b0c55542cb753fac22f7893f57f3861af665ae23dda5b \
+  --expected-manifest-sha256 f9e33836d1995a70f24094469cb1e39908e3f30874deee11ba175b5255457d1c
+
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python \
+  -m evaluation.final_holdout_v2.cli validate-execution-record \
+  --record runs/final-holdout-v2-primary-001/finalization/execution_record.json
+
+PYTHONDONTWRITEBYTECODE=1 .venv/bin/python \
+  -m evaluation.final_holdout_v2.cli validate-evaluation \
+  --evaluation runs/final-holdout-v2-evaluation-primary-001 \
+  --expected-manifest-sha256 1fbd44dea97c03bebb9f34d109862e51e8db181da3ec35b1cf63caadae6e23ae
+\end{lstlisting}
+
+Las cuatro comprobaciones finalizaron con código de salida cero. La referencia
+informó \texttt{frozen\_truth\_intact=true}; evaluador, registro de ejecución e
+informe devolvieron \texttt{valid=true}. Estas comprobaciones acreditan la
+integridad de los artefactos indicados, no la corrección semántica de cada
+anotación o predicción.
+
+\section{Comandos representativos de las interfaces de línea de comandos}
+Este anexo permite localizar las cuatro interfaces principales sin reproducir
+todos sus argumentos. La referencia operativa completa y mantenida es
+\path{docs/USER_GUIDE.md}; la opción \texttt{--help} de cada interfaz muestra
+el detalle vigente. Los comandos se ejecutan desde la raíz del repositorio.
+Los destinos reales deben ser nuevos cuando así lo exige la guía y una
+operación con modelo necesita autorización y credenciales; los ejemplos de
+consulta y validación siguientes no ejecutan el experimento de nuevo.
+
+\subsection*{Pipeline CLI}
+\textbf{¿Para qué sirve?} Para ejecutar de forma reproducible las etapas
+que adquieren y preparan documentos, extraen información, materializan Silver,
+construyen o actualizan la referencia territorial y generan Gold mediante
+\emph{downstream}.
+
+\begin{lstlisting}[language=bash,title={Ejemplo:}]
+uv run python -m renewables_permitting.pipeline --help
+\end{lstlisting}
+\textbf{Resultado:} ayuda de la Pipeline CLI y lista de operaciones disponibles;
+el ejemplo no descarga ni materializa datos.
+
+\subsection*{Admin CLI}
+\textbf{¿Para qué sirve?} Para inspeccionar incidencias y registrar o aplicar
+decisiones humanas controladas sobre extracciones y posibles antecedentes. No
+edita Gold ni las tablas derivadas y no ejecuta por sí sola el pipeline.
+
+\begin{lstlisting}[language=bash,title={Ejemplo:}]
+uv run python -m renewables_permitting.admin list \
+  --extraction-snapshot <EXTRACCION_VALIDADA>
+\end{lstlisting}
+\textbf{Resultado:} lista validada de casos pendientes que una persona puede
+examinar antes de registrar una decisión.
+
+\subsection*{Evaluation CLI}
+\textbf{¿Para qué sirve?} Para validar o congelar la referencia y el evaluador
+y ejecutar offline la comparación de las predicciones preservadas frente a la
+referencia congelada. No llama al modelo de extracción.
+
+\begin{lstlisting}[language=bash,title={Ejemplo:}]
+UV_OFFLINE=1 uv run python -m evaluation.final_holdout_v2.cli \
+  evaluate --truth <REFERENCIA_CONGELADA> \
+  --predictions <PREDICCIONES_PRESERVADAS> \
+  --evaluator <EVALUADOR_CONGELADO> \
+  --execution-record <REGISTRO_EJECUCION> \
+  --output <NUEVO_DIRECTORIO_RESULTADOS>
+\end{lstlisting}
+\textbf{Resultado:} un nuevo informe de evaluación offline, o un fallo cerrado
+si las entradas y sus identidades no cumplen el protocolo.
+
+\subsection*{Controlador de ejecución primaria}
+\textbf{¿Para qué sirve?} Para preparar y controlar la ejecución final del
+holdout con estado durable por documento. Registra qué casos terminaron,
+fallaron o quedaron en un estado que no debe reintentarse de forma ambigua;
+\texttt{TERMINAL\_SUCCESS} indica un artefacto válido, no una predicción correcta.
+
+\begin{lstlisting}[language=bash,title={Ejemplo:}]
+env -u PYTHONPATH PYTHONDONTWRITEBYTECODE=1 \
+  .venv/bin/python -m evaluation.primary_execution.cli \
+  primary-status --run-root <DIRECTORIO_EJECUCION>
+\end{lstlisting}
+\textbf{Resultado:} resumen de estados terminales, pendientes o indeterminados;
+el comando no llama al modelo. El procedimiento completo, incluidas preparación,
+autorización y finalización, se encuentra en la guía de usuario y en el código
+público de \path{evaluation/primary_execution/}.
+
+\chapter{Contrato documental y material de apoyo}
+\label{an:contrato}
+% architecture/silver_extraction_contract.md y contrato V2.
+
+\section{Contrato mínimo de anotación y evaluación}
+La unidad documental es una publicación BOE identificada por su código y fecha.
+Un documento relevante contiene al menos una planta de generación con nombre y
+una actuación administrativa publicada que pueda vincularse con esa planta o
+con un componente asociado. El almacenamiento, la evacuación y otras
+infraestructuras de red no crean por sí solos un proyecto de generación.
+
+Dentro de una publicación, el contrato distingue eventos documentales, activos
+de generación, componentes asociados, actuaciones, relaciones y
+localizaciones. Plantas independientes se representan en eventos separados
+cuando la fuente permite distinguirlas; pueden compartir un evento únicamente
+si el BOE publica una actuación sobre un componente explícitamente común. Cada
+actuación conserva su tipo, decisión, carácter modificativo, estado temporal,
+activos afectados y evidencia literal.
+
+La referencia V2 separa actos actuales de antecedentes históricos. Los
+primeros forman el denominador positivo de detección de actuaciones; los
+segundos se conservan para el diagnóstico temporal y la salvaguarda P0. La
+anotación humana se cerró antes de obtener las predicciones finales. El
+emparejamiento compara primero activos, después eventos y finalmente entidades
+dependientes; por ello, la ausencia de una correspondencia padre impide formar
+parejas en los niveles posteriores. Los atributos solo se evalúan en parejas
+aplicables y no sustituyen las métricas de detección.
+
+\section{Glosario}
+\begin{description}
+\item[Actuación administrativa.] Trámite o decisión que una publicación vincula
+a una planta de generación o a uno de sus componentes asociados.
+\item[Activo de generación.] Planta nombrada que constituye la raíz de un
+proyecto; no incluye por sí sola infraestructura independiente de red o
+almacenamiento.
+\item[Bronze.] Fuente documental identificada y preservada, incluidos sumarios,
+XML, metadatos y texto preparado.
+\item[Canonicalización.] Aplicación de reglas comunes que transforma la salida
+estructurada antes de su validación y materialización.
+\item[Evidencia.] Pasaje literal del BOE que permite comprobar una afirmación
+extraída; los fragmentos discontinuos se separan explícitamente.
+\item[Evento documental.] Unidad de una publicación que reúne activos y
+actuaciones relacionados conforme a la granularidad expresada por la fuente.
+\item[Gold.] Cuatro tablas validadas para consulta que consolidan proyectos,
+eventos y referencias territoriales sin ser editadas desde Streamlit.
+\item[Holdout.] Conjunto reservado que no se utiliza para ajustar el sistema y
+se emplea en la evaluación final.
+\item[Manifest.] Inventario que identifica un artefacto, sus entradas,
+versiones, archivos y huellas de integridad.
+\item[Matching o emparejamiento.] Reglas que determinan qué elemento de una
+predicción corresponde a uno de la referencia humana.
+\item[Silver.] Trece tablas normalizadas de entidades, relaciones y evidencias
+derivadas de extracciones aceptadas y correcciones versionadas.
+\item[Snapshot.] Instantánea identificada de un conjunto de datos o resultados,
+conservada para impedir sustituciones ambiguas durante una ejecución.
+\end{description}

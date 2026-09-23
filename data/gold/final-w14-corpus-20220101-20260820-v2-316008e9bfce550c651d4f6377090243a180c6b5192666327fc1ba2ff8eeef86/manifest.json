@@ -1,0 +1,267 @@
+{
+  "build_version": "deterministic_downstream_v2",
+  "contract_version": "2",
+  "created_at": "2026-08-27T07:45:33.625567Z",
+  "downstream_materialization_id": "316008e9bfce550c651d4f6377090243a180c6b5192666327fc1ba2ff8eeef86",
+  "extraction_config_id": "4b54b89dbfe8640e",
+  "ine_reference_id": "25a3bbb28f0c21c5",
+  "ine_reference_sha256": "25a3bbb28f0c21c52dbc38e572b4fdc91385579063e6d217b18b7a67b259cfac",
+  "project_grouping_id": "8021c957139b51ac3b9ebb7546012ad7a7bbf1ec1d7362f48051699c41b10062",
+  "project_locations_audit": {
+    "multiproject_source_expansions": 11,
+    "resolved_source_location_mentions": 828,
+    "source_location_mentions": 828,
+    "unresolved_source_location_mentions_omitted": 0
+  },
+  "project_locations_semantic_sha256": "31e3d498b617981c7626c541cc7c1c401f18c3fded2006fecf3a9e0f087af4d3",
+  "resolved_locations_id": "2d3fe25955e70b677d0ec1f0ae354527fc46cbf2de4f1b57605f4bacb81d7611",
+  "silver_materialization_id": "1ade4c5e07c1cb13f06c86c0c3e8bd08316b0ee02a35d213dc05b797528fa978",
+  "tables": {
+    "project_events": {
+      "filename": "project_events.parquet",
+      "parquet_sha256": "5ce26675a48392947758d4b6328dbb82556cd841f13a14841e86e7ff6779bb6a",
+      "primary_key": [
+        "project_id",
+        "administrative_action_id"
+      ],
+      "row_count": 240,
+      "schema": [
+        {
+          "dtype": "string",
+          "name": "project_id"
+        },
+        {
+          "dtype": "string",
+          "name": "event_id"
+        },
+        {
+          "dtype": "string",
+          "name": "administrative_action_id"
+        },
+        {
+          "dtype": "string",
+          "name": "boe_id"
+        },
+        {
+          "dtype": "datetime64[ns]",
+          "name": "publication_date"
+        },
+        {
+          "dtype": "Int64",
+          "name": "event_index"
+        },
+        {
+          "dtype": "Int64",
+          "name": "administrative_action_index"
+        },
+        {
+          "dtype": "string",
+          "name": "action_type"
+        },
+        {
+          "dtype": "string",
+          "name": "decision"
+        },
+        {
+          "dtype": "boolean",
+          "name": "is_modification"
+        },
+        {
+          "dtype": "string",
+          "name": "evidence"
+        }
+      ],
+      "semantic_sha256": "85b2b8f63c6a6e6910e96fd023cb17961d5a78847ea8b073312b3ad445102468"
+    },
+    "project_location_sources": {
+      "contract_version": "1",
+      "filename": "project_location_sources.parquet",
+      "lineage": {
+        "extraction_config_id": "4b54b89dbfe8640e",
+        "ine_reference_id": "25a3bbb28f0c21c5",
+        "project_grouping_id": "8021c957139b51ac3b9ebb7546012ad7a7bbf1ec1d7362f48051699c41b10062",
+        "resolved_locations_id": "2d3fe25955e70b677d0ec1f0ae354527fc46cbf2de4f1b57605f4bacb81d7611",
+        "silver_materialization_id": "1ade4c5e07c1cb13f06c86c0c3e8bd08316b0ee02a35d213dc05b797528fa978"
+      },
+      "parquet_sha256": "06e2a7611977344a4220b2d543b942b0d335d90a644cdb0153deba1101167ee7",
+      "primary_key": [
+        "project_location_id",
+        "location_mention_id"
+      ],
+      "row_count": 839,
+      "schema": [
+        {
+          "dtype": "string",
+          "name": "project_location_id"
+        },
+        {
+          "dtype": "string",
+          "name": "location_mention_id"
+        },
+        {
+          "dtype": "string",
+          "name": "event_id"
+        },
+        {
+          "dtype": "string",
+          "name": "boe_id"
+        },
+        {
+          "dtype": "datetime64[ns]",
+          "name": "publication_date"
+        }
+      ],
+      "semantic_sha256": "cd247c2753d836b3f85592d4690a94c87ef51b2cea6db989c70f6f951777ebfe",
+      "sources": [
+        "project_locations",
+        "resolved_locations",
+        "publication_events"
+      ]
+    },
+    "project_locations": {
+      "contract_version": "1",
+      "filename": "project_locations.parquet",
+      "lineage": {
+        "extraction_config_id": "4b54b89dbfe8640e",
+        "ine_reference_id": "25a3bbb28f0c21c5",
+        "project_grouping_id": "8021c957139b51ac3b9ebb7546012ad7a7bbf1ec1d7362f48051699c41b10062",
+        "resolved_locations_id": "2d3fe25955e70b677d0ec1f0ae354527fc46cbf2de4f1b57605f4bacb81d7611",
+        "silver_materialization_id": "1ade4c5e07c1cb13f06c86c0c3e8bd08316b0ee02a35d213dc05b797528fa978"
+      },
+      "parquet_sha256": "96389d23b40a76aeab88cc2a7e7b4c12e1920c02c1941d1968083171f9a521fd",
+      "primary_key": [
+        "project_location_id"
+      ],
+      "row_count": 453,
+      "schema": [
+        {
+          "dtype": "string",
+          "name": "project_location_id"
+        },
+        {
+          "dtype": "string",
+          "name": "project_id"
+        },
+        {
+          "dtype": "string",
+          "name": "location_level"
+        },
+        {
+          "dtype": "string",
+          "name": "municipality"
+        },
+        {
+          "dtype": "string",
+          "name": "municipality_norm"
+        },
+        {
+          "dtype": "string",
+          "name": "ine_municipality_code"
+        },
+        {
+          "dtype": "string",
+          "name": "province"
+        },
+        {
+          "dtype": "string",
+          "name": "province_norm"
+        },
+        {
+          "dtype": "string",
+          "name": "ine_province_code"
+        },
+        {
+          "dtype": "string",
+          "name": "autonomous_community"
+        },
+        {
+          "dtype": "string",
+          "name": "autonomous_community_norm"
+        },
+        {
+          "dtype": "string",
+          "name": "ine_autonomous_community_code"
+        },
+        {
+          "dtype": "Int64",
+          "name": "source_location_mention_count"
+        },
+        {
+          "dtype": "Int64",
+          "name": "source_publication_count"
+        },
+        {
+          "dtype": "datetime64[ns]",
+          "name": "first_publication_date"
+        },
+        {
+          "dtype": "datetime64[ns]",
+          "name": "last_publication_date"
+        }
+      ],
+      "semantic_sha256": "a35f470f31c829c80575703639a9fdafc4b9048450a7ac06909a9fcb76a1b9f2",
+      "sources": [
+        "projects",
+        "publication_events",
+        "generation_asset_mentions",
+        "project_grouping",
+        "resolved_locations"
+      ]
+    },
+    "projects": {
+      "filename": "projects.parquet",
+      "parquet_sha256": "f55b8ceb0bee65731476673aae1d354e67fead775434ce85324e944ca9316d89",
+      "primary_key": [
+        "project_id"
+      ],
+      "row_count": 86,
+      "schema": [
+        {
+          "dtype": "string",
+          "name": "project_id"
+        },
+        {
+          "dtype": "string",
+          "name": "project_name"
+        },
+        {
+          "dtype": "string",
+          "name": "technology"
+        },
+        {
+          "dtype": "string",
+          "name": "province_codes"
+        },
+        {
+          "dtype": "string",
+          "name": "provinces"
+        },
+        {
+          "dtype": "string",
+          "name": "municipality_codes"
+        },
+        {
+          "dtype": "string",
+          "name": "municipalities"
+        },
+        {
+          "dtype": "datetime64[ns]",
+          "name": "first_publication_date"
+        },
+        {
+          "dtype": "datetime64[ns]",
+          "name": "last_publication_date"
+        },
+        {
+          "dtype": "Int64",
+          "name": "n_publications"
+        },
+        {
+          "dtype": "Int64",
+          "name": "n_administrative_actions"
+        }
+      ],
+      "semantic_sha256": "bcaf91b28e3afd81e59f6d3599ca6cf54bcb7549e3ab2d42d1430345adbfe4e4"
+    }
+  }
+}

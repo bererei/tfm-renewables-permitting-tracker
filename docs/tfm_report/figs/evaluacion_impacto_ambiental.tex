@@ -1,0 +1,37 @@
+% Evaluación de proyectos según Ley 21/2013, arts. 33 y 45--47.
+\begin{tikzpicture}
+\node[tfm heading, text width=5.7cm] at (-3.25,0)
+  {EIA ORDINARIA};
+\node[tfm heading, text width=5.7cm] at (3.25,0)
+  {EIA SIMPLIFICADA};
+
+\node[tfm data, text width=5.2cm] (ordinput) at (-3.25,-1.25)
+  {Proyecto + Estudio de Impacto Ambiental};
+\node[tfm box, text width=5.2cm] (ordpublic) at (-3.25,-2.75)
+  {Información pública + consultas};
+\node[tfm box, text width=5.2cm] (ordanalysis) at (-3.25,-4.25)
+  {Análisis técnico del expediente};
+\node[tfm accent, text width=5.2cm] (dia) at (-3.25,-5.75)
+  {Declaración de Impacto Ambiental};
+
+\node[tfm data, text width=5.2cm] (simpinput) at (3.25,-1.25)
+  {Proyecto + documento ambiental};
+\node[tfm box, text width=5.2cm] (simpconsult) at (3.25,-2.75)
+  {Consultas a Administraciones\\y personas interesadas};
+\node[tfm accent, text width=5.2cm] (iia) at (3.25,-4.25)
+  {Informe de Impacto Ambiental};
+\node[tfm data, text width=5.2cm] (outcome) at (3.25,-6.25)
+  {Resultado legal\\
+   Sin efectos significativos, con las medidas fijadas\\
+   \textit{o}\\
+   Sometimiento a evaluación ordinaria};
+
+\foreach \a/\b in {ordinput/ordpublic,ordpublic/ordanalysis,ordanalysis/dia,
+  simpinput/simpconsult,simpconsult/iia,iia/outcome}
+  {\draw[tfm flow] (\a) -- (\b);}
+\draw[tfm flow, dashed] (outcome.west) -- (0,-6.25)
+  |- (ordinput.east);
+\node[tfm note, text width=12.0cm] at (0,-8.15)
+  {Esquema pedagógico de proyectos. La Ley contempla otros supuestos,
+   incluida la terminación si no existe información suficiente para resolver.};
+\end{tikzpicture}

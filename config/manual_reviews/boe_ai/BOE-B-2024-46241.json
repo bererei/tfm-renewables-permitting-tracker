@@ -1,0 +1,12 @@
+{
+  "identificador_boe": "BOE-B-2024-46241",
+  "source_document_sha256": "90b169731a8785085653e0537aa7bf9fbd14e32947f2ed032d6f0b4f6e1f4035",
+  "source_attempt_id": "cde570883d314230af0ff882e4eb070b",
+  "extraction_config_id": "4b54b89dbfe8640e",
+  "document_validation_version": "25",
+  "review_status": "rejected",
+  "reviewer": "human_tfm_review",
+  "review_notes": "out_of_scope_non_generation_geothermal_research_permit: el documento trata un permiso de investigación geotérmica y no identifica una planta de generación eléctrica válida como raíz de proyecto.",
+  "reviewed_at_utc": "2026-08-22T11:53:51Z",
+  "corrected_extraction": null
+}

@@ -1,0 +1,126 @@
+% Dedicatoria, en la posición de la plantilla original.
+\cleardoublepage
+\thispagestyle{empty}
+\vspace*{9cm}
+\begin{flushright}
+\textit{A mis abuelos y a Nublo.\\
+Por lo amado y lo aprendido.\\
+Siempre.}
+\end{flushright}
+\cleardoublepage
+
+\chapter*{Declaración de autoría}
+Yo, \autor, declaro que soy la autora del trabajo fin de máster titulado
+«\titulo», que el citado trabajo no infringe las leyes en vigor sobre
+propiedad intelectual y que todo el material no original contenido en él está
+apropiadamente atribuido a sus legítimos autores.
+
+\begin{flushright}
+Las Palmas de Gran Canaria, 21 de septiembre de 2026
+\IfFileExists{figs/firma_signature_black.png}{%
+  \par\vspace{0.6cm}
+  \includegraphics[width=4cm,keepaspectratio]{figs/firma_signature_black.png}%
+}{%
+  % Ausencia intencional de la firma privada en el repositorio público.
+}
+\end{flushright}
+
+\chapter*{Resumen}
+\addcontentsline{toc}{chapter}{Resumen}
+El Boletín Oficial del Estado (BOE) publica actuaciones necesarias para conocer
+la tramitación de proyectos de generación eléctrica, pero no ofrece una base
+longitudinal que reúna automáticamente las publicaciones de una misma planta.
+Este trabajo desarrolla y evalúa un sistema reproducible para extraer esa
+información, relacionar menciones y consultar la evolución administrativa
+observada sin perder la trazabilidad hasta el documento oficial. El sistema se
+orienta así a profesionales y organizaciones que necesitan seguir esta
+tramitación, incluidas consultoras ambientales y energéticas, promotores,
+analistas, investigadores y otros usuarios de información pública.
+
+El método combina adquisición programática del BOE, extracción estructurada con
+Gemini 2.5 Flash y Pydantic AI, contratos Pydantic, canonicalización y
+validaciones deterministas. Las capas Bronze, Silver y Gold separan las fuentes,
+las entidades normalizadas y los datos preparados para consulta; sobre ellas se
+aplican resolución territorial, agrupación conservadora de menciones y
+correcciones humanas versionadas. Una aplicación Streamlit de solo lectura
+permite explorar proyectos, publicaciones, actuaciones, territorios, evidencias
+y cronologías.
+
+El corpus final de producto W14 procesó 104 publicaciones BOE. Tras la revisión
+y las correcciones aprobadas, Silver contiene 233 actuaciones administrativas
+y Gold agrupa 80 publicaciones BOE relevantes en 86 proyectos. La evaluación
+utilizó por separado un holdout independiente de 48 BOE, ajeno al corpus del
+producto. El alcance documental coincidió con la referencia humana en 46 de 48
+casos (0,9583). Los F1 fueron 0,5263 para activos de generación, 0,3824 para
+eventos, 0,3454 para localizaciones, 0,0213 para actuaciones administrativas
+actuales y 0,0202 para sus relaciones con activos.
+
+Los resultados muestran un rendimiento desigual: en este holdout, la
+concordancia en el alcance documental fue alta, mientras que la recuperación de
+actuaciones y sus relaciones constituyó la principal limitación. El sistema
+aporta una cadena funcional, trazable y evaluable para el seguimiento asistido,
+pero no es un censo exhaustivo, no certifica el estado jurídico actual y
+requiere control humano antes de usos con mayor autonomía.
+
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+The Spanish Official State Gazette (BOE) publishes administrative actions that
+are needed to understand the permitting of electricity-generation projects,
+but it does not provide a longitudinal database that automatically brings
+together all publications concerning the same plant. This thesis develops and
+evaluates a reproducible system to extract this information, link mentions and
+query the observed administrative evolution while preserving traceability to
+the official document. The system is therefore intended for professionals and
+organisations that need to monitor this process, including environmental and
+energy consultancies, developers, analysts, researchers and other users of
+public information.
+
+The method combines programmatic BOE acquisition, structured extraction with
+Gemini 2.5 Flash and Pydantic AI, Pydantic contracts, canonicalisation and
+deterministic validation. Bronze, Silver and Gold layers separate sources,
+normalised entities and query-ready data; territorial resolution, conservative
+mention grouping and versioned human corrections are applied on top of them. A
+read-only Streamlit application supports the exploration of projects,
+publications, administrative actions, territories, evidence and timelines.
+
+The final W14 product corpus processed 104 BOE publications. After review and
+approved corrections, Silver contains 233 administrative actions and Gold
+groups 80 relevant BOE publications into 86 projects. Evaluation used a
+separate, independent holdout of 48 BOE publications that is not part of the
+product corpus. Document scope agreed with the human reference in 46 out of 48
+cases (0.9583). F1 scores were 0.5263 for generation assets, 0.3824 for events,
+0.3454 for locations, 0.0213 for current administrative actions and 0.0202 for
+their links to assets.
+
+The results show uneven performance: in this holdout, document-scope agreement
+was high, whereas the recovery of administrative actions and their relations
+was the main limitation. The system provides a functional, traceable
+and evaluable pipeline for assisted monitoring, but it is not an exhaustive
+register, does not certify current legal status and requires human oversight
+before it can support more autonomous uses.
+
+\chapter*{Agradecimientos}
+Este máster ha coincidido con una profunda transformación en nuestra forma de
+estudiar y trabajar, marcada por la rápida evolución de las herramientas de
+inteligencia artificial y, más recientemente, por el desarrollo de los actuales
+agentes de IA. Aunque la IA no ha sido su objeto principal, lo aprendido me ha
+ayudado a comprender estos cambios y, sobre todo, a incorporarlos de forma
+práctica a mi manera de trabajar.
+
+A mis antiguos compañeros de Satocan, con quienes di mis primeros pasos como
+analista de datos y compartí una etapa importante de mi trayectoria profesional.
+Gracias por la confianza, por todo lo aprendido y por todo lo compartido.
+
+A mi madre y a Carlos, por regalarme algo imprescindible para llegar hasta aquí:
+tiempo. Gracias por cuidar de Liam y hacer posible que pudiera dedicar tantas
+horas a estudiar y sacar adelante este proyecto. A mi madre, además, por ser un
+ejemplo constante de fuerza y perseverancia.
+
+A Óscar, por formar parte de este camino y por apoyar mis decisiones de seguir
+aprendiendo y avanzando.
+
+Y, por último, a Liam, mi motor y mi razón más importante para querer ser mejor
+cada día. Desde que estás aquí, cada reto tiene un sentido diferente y cada paso
+hacia delante significa un poco más.
+
+Gracias por hacer que quiera ser, cada día, una mejor versión de mí misma.

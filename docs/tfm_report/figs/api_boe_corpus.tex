@@ -1,0 +1,30 @@
+% F02: orden verificado en run_source_stage y runner.
+\begin{tikzpicture}
+\node[tfm accent, text width=6.2cm] (api) at (0,0)
+  {Servicio del BOE\\Consulta de sumarios por fecha};
+\node[tfm data, text width=6.2cm] (sumario) at (0,-1.35)
+  {Sumario JSON\\Identificador, fecha, título y enlaces};
+\node[tfm box, text width=6.2cm] (filtro) at (0,-2.7)
+  {Filtro de títulos\\Candidatos; relevancia aún no confirmada};
+\node[tfm data, text width=6.2cm] (xml) at (0,-4.05)
+  {XML solo de candidatos\\Descarga desde el enlace del sumario};
+\node[tfm box, text width=6.2cm] (texto) at (0,-5.4)
+  {Metadatos y texto preparado\\Comprobación de identidad};
+\node[tfm data, text width=6.2cm] (corpus) at (0,-6.75)
+  {Corpus fuente preservado\\Archivos, tablas, manifest y huellas};
+\node[tfm box, text width=6.2cm] (alcance) at (0,-8.1)
+  {Reglas deterministas de alcance};
+\node[tfm data, text width=4.8cm] (negativo) at (-3.05,-10)
+  {Negativo resuelto por reglas\\Registro sin llamada al modelo};
+\node[tfm accent, text width=4.8cm] (modelo) at (3.05,-10)
+  {Caso que requiere modelo\\Clasificación y extracción\\(capítulo 4)};
+\foreach \a/\b in {api/sumario,sumario/filtro,filtro/xml,xml/texto,
+  texto/corpus,corpus/alcance}
+  {\draw[tfm flow] (\a) -- (\b);}
+\draw[tfm flow] (alcance.south) -- (0,-8.85) -| (negativo.north);
+\draw[tfm flow] (0,-8.85) -| (modelo.north);
+\node[tfm note, text width=10.8cm] at (0,-11.7)
+  {Ambas vías quedan registradas y se validan.\\
+   Para los candidatos no resueltos por reglas, la decisión final de alcance
+   se obtiene junto con la extracción y sus controles.};
+\end{tikzpicture}

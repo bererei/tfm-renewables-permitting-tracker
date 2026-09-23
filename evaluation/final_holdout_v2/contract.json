@@ -1,0 +1,161 @@
+{
+  "contract_version": "final_holdout_evaluation_contract_v2",
+  "evaluator_status": "not_implemented_phase_v2_a",
+  "frozen_production_commit": "282de815bea4e248bdcba2c655e3ee078cb58a49",
+  "methodological_rationale": "Primary evaluation scope reduced before model execution to align annotation effort and reported metrics with the TFM objectives and final product.",
+  "migration_version": "v1_truth_to_v2_v1",
+  "null_marker": "__NA__",
+  "primary_scope": [
+    "document_scope",
+    "events",
+    "generation_assets",
+    "generation_type",
+    "administrative_actions",
+    "action_type",
+    "decision",
+    "is_modification",
+    "temporal_status",
+    "affected_generation_assets",
+    "locations",
+    "location_level",
+    "administrative_action_evidence"
+  ],
+  "secondary_scope": [
+    "associated_components",
+    "exact_action_targets",
+    "principal_generation_power",
+    "participants",
+    "non_action_evidence"
+  ],
+  "terminology": {
+    "entities": {
+      "document": "Documento",
+      "event": "Evento / proyecto publicado",
+      "generation_asset": "Activo de generación",
+      "associated_component": "Componente asociado",
+      "technical_mention": "Mención técnica",
+      "administrative_action": "Actuación administrativa",
+      "action_target": "Objetivo de la actuación",
+      "participant": "Participante",
+      "location": "Localización",
+      "evidence_passage": "Evidencia"
+    },
+    "tables": {
+      "documents": {"entity": "document", "key_field": null},
+      "events": {"entity": "event", "key_field": "event_key"},
+      "generation_assets": {"entity": "generation_asset", "key_field": "asset_key"},
+      "associated_components": {"entity": "associated_component", "key_field": "component_key"},
+      "technical_mentions": {"entity": "technical_mention", "key_field": "technical_key"},
+      "administrative_actions": {"entity": "administrative_action", "key_field": "action_key"},
+      "action_targets": {"entity": "action_target", "key_field": "action_key"},
+      "participants": {"entity": "participant", "key_field": "participant_key"},
+      "locations": {"entity": "location", "key_field": "location_key"},
+      "evidence_passages": {"entity": "evidence_passage", "key_field": "owner_key"}
+    },
+    "fields": {
+      "document": {
+        "annotation_status": "Estado de anotación",
+        "scope_applicability": "Aplicabilidad del alcance",
+        "scope_adjudication": "Adjudicación del alcance",
+        "expected_document_scope": "Alcance del documento",
+        "reviewer_id": "Persona revisora",
+        "reviewed_on": "Fecha de revisión",
+        "annotation_notes": "Notas de anotación"
+      },
+      "event": {
+        "event_key": "Clave local del evento",
+        "event_label": "Etiqueta del evento",
+        "applicability": "Aplicabilidad",
+        "adjudication": "Adjudicación",
+        "annotation_notes": "Notas de anotación"
+      },
+      "generation_asset": {
+        "event_key": "Evento",
+        "asset_key": "Clave local del activo",
+        "names_json": "Nombre/alias del activo",
+        "expected_generation_type": "Tipo de generación",
+        "applicability": "Aplicabilidad",
+        "adjudication": "Adjudicación",
+        "annotation_notes": "Notas de anotación"
+      },
+      "associated_component": {
+        "event_key": "Evento",
+        "component_key": "Clave local del componente",
+        "names_json": "Nombre/alias del componente",
+        "description_raw": "Descripción literal",
+        "expected_component_type": "Tipo de componente",
+        "related_asset_keys_json": "Activos relacionados",
+        "applicability": "Aplicabilidad",
+        "adjudication": "Adjudicación",
+        "annotation_notes": "Notas de anotación"
+      },
+      "technical_mention": {
+        "event_key": "Evento",
+        "owner_type": "Tipo de entidad propietaria",
+        "owner_key": "Entidad propietaria",
+        "technical_key": "Clave local de la mención",
+        "expected_attribute_type": "Tipo de potencia/atributo",
+        "expected_value_raw": "Potencia/valor literal",
+        "applicability": "Aplicabilidad",
+        "adjudication": "Adjudicación",
+        "annotation_notes": "Notas de anotación"
+      },
+      "administrative_action": {
+        "event_key": "Evento",
+        "action_key": "Clave local de la actuación",
+        "expected_action_type": "Tipo de actuación",
+        "expected_decision": "Decisión",
+        "expected_is_modification": "Es modificación",
+        "temporal_status": "Temporalidad",
+        "expected_affected_generation_asset_keys_json": "Activos afectados",
+        "applicability": "Aplicabilidad",
+        "adjudication": "Adjudicación",
+        "annotation_notes": "Notas de anotación"
+      },
+      "action_target": {
+        "event_key": "Evento",
+        "action_key": "Actuación",
+        "target": "Objetivo exacto",
+        "applicability": "Aplicabilidad",
+        "adjudication": "Adjudicación",
+        "annotation_notes": "Notas de anotación"
+      },
+      "participant": {
+        "event_key": "Evento",
+        "participant_key": "Clave local del participante",
+        "participant_name_raw": "Nombre literal del participante",
+        "expected_participant_role": "Rol",
+        "applicability": "Aplicabilidad",
+        "adjudication": "Adjudicación",
+        "annotation_notes": "Notas de anotación"
+      },
+      "location": {
+        "event_key": "Evento",
+        "location_key": "Clave local de la localización",
+        "location_name_raw": "Localización literal",
+        "expected_location_level": "Nivel administrativo",
+        "applicability": "Aplicabilidad",
+        "adjudication": "Adjudicación",
+        "annotation_notes": "Notas de anotación"
+      },
+      "evidence_passage": {
+        "passage_text": "Pasaje continuo literal",
+        "applicability": "Aplicabilidad",
+        "adjudication": "Adjudicación",
+        "annotation_notes": "Notas de anotación"
+      }
+    }
+  },
+  "truth_tables": [
+    "documents",
+    "events",
+    "generation_assets",
+    "associated_components",
+    "technical_mentions",
+    "administrative_actions",
+    "action_targets",
+    "participants",
+    "locations",
+    "evidence_passages"
+  ]
+}

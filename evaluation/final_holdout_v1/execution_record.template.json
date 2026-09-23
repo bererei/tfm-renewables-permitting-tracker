@@ -1,0 +1,28 @@
+{
+  "ended_at_utc": null,
+  "exact_command": [],
+  "exit_code": null,
+  "extraction_config_id": "4b54b89dbfe8640e",
+  "extraction_output_identity": null,
+  "frozen_production_git_commit": "282de815bea4e248bdcba2c655e3ee078cb58a49",
+  "holdout_artifact_identity": null,
+  "incident_retry_notes": null,
+  "manual_intervention_before_primary_freeze": false,
+  "model_name": "google:gemini-2.5-flash",
+  "model_provider": "gemini",
+  "model_usage": {
+    "input_tokens": null,
+    "output_tokens": null,
+    "requests": null,
+    "total_tokens": null
+  },
+  "primary_predictions_frozen_at_utc": null,
+  "python_version": null,
+  "record_version": "final_holdout_execution_record_v1",
+  "run_id": null,
+  "source_snapshot_identity": "1d3eec6ac15e293dbd83c80d8c8504b3d425e1fb07d8e84b8cfbb0ebbd659cbf",
+  "started_at_utc": null,
+  "stderr_log_path": null,
+  "stdout_log_path": null,
+  "uv_lock_sha256": null
+}

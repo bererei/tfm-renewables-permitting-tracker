@@ -1,0 +1,48 @@
+% F07. Secuencia cronológica; no representa flujos de datos hacia Gemini.
+% Congelaciones y horas verificadas: FINAL_HOLDOUT_V2_RESULTS.md.
+\begin{tikzpicture}
+\node[tfm box, text width=12.2cm, align=left, inner sep=9pt,
+  anchor=north] (preparation) at (0,0) {
+  \textbf{1. PREPARACIÓN DEL EXPERIMENTO}\\[7pt]
+  Sistema desarrollado y comprobado $\rightarrow$ \textbf{sistema congelado}\\[5pt]
+  Holdout definido: 48 BOE reservados $\rightarrow$ anotación humana ciega\\
+  Después: QA asistida por IA y decisión final humana\\[5pt]
+  Referencia humana (ground truth V2) $\rightarrow$ \textbf{congelada, 09:57}\\[5pt]
+  Reglas de evaluación (evaluador V2-B) $\rightarrow$ \textbf{congeladas, 14:59}
+};
+\node[tfm accent, fill=tema, text=white, text width=12.2cm,
+  inner sep=7pt, below=5mm of preparation] (barrier) {
+  ANTES DE OBTENER LAS PREDICCIONES\\
+  La referencia humana y el evaluador ya están fijados
+};
+\node[tfm box, text width=12.2cm, inner sep=9pt,
+  below=8mm of barrier] (execution) {
+  \textbf{2. EJECUCIÓN DEL SISTEMA}\\[6pt]
+  Sistema congelado + documentos del holdout\\
+  $\downarrow$\\
+  Ejecución primaria con Gemini · 15:06--15:28\\
+  $\downarrow$\\
+  Predicciones del sistema $\rightarrow$ \textbf{congeladas, 15:32}
+};
+\node[tfm box, text width=12.2cm, inner sep=9pt,
+  below=8mm of execution] (evaluation) {
+  \textbf{3. EVALUACIÓN OFFLINE · 15:36}\\[5pt]
+  Después de obtener y congelar las predicciones\\[5pt]
+  Referencia humana + evaluador + predicciones\\
+  \textbf{Las tres entradas están congeladas}\\
+  $\downarrow$\\
+  Comparación determinista y cálculo de métricas\\
+  $\downarrow$\\
+  \textbf{Resultados primarios}
+};
+\node[tfm optional, text width=12.2cm, inner sep=9pt,
+  below=8mm of evaluation] (posthoc) {
+  \textbf{4. ANÁLISIS DIAGNÓSTICO POST-HOC}\\[5pt]
+  Explicar los errores después de conocer los resultados\\[5pt]
+  Sin modificar referencia, evaluador, predicciones,\\
+  reglas de puntuación ni resultados primarios
+};
+\draw[tfm flow] (barrier.south) -- (execution.north);
+\draw[tfm flow] (execution.south) -- (evaluation.north);
+\draw[tfm flow, dashed] (evaluation.south) -- (posthoc.north);
+\end{tikzpicture}

@@ -1,0 +1,195 @@
+\chapter{Aplicación de consulta}
+\label{ch:aplicacion}
+% Fuentes: USER_GUIDE.md §§6--8; STREAMLIT_CODE_GUIDE.md;
+% streamlit_app.py; app_data.py, app_queries.py, app_geometry.py, app_reporting.py.
+\section{Objetivo, usuarios y arquitectura}
+Streamlit es una herramienta para construir aplicaciones interactivas a partir
+de programas de Python \cite{streamlit_basicconcepts_2026}.
+En este TFM permite explorar los datos del BOE sin ejecutar comandos ni leer
+directamente las tablas del pipeline. La aplicación reúne filtros, mapas,
+catálogo y fichas para responder preguntas como qué proyectos aparecen en un
+territorio, qué actuaciones se han publicado o dónde consultar la evidencia
+que respalda una decisión. Puede servir a lectores del ámbito energético,
+ambiental o administrativo; estos usos potenciales no constituyen una
+validación de aceptación por usuarios.
+
+Su entrada son las cuatro tablas Gold validadas descritas en el
+capítulo~\ref{ch:metodologia}. Antes de utilizarlas, el cargador comprueba
+el manifest, las huellas, los esquemas y las relaciones. La interfaz consulta
+esa versión de datos y no ejecuta la extracción ni accede directamente a
+Silver. Separar preparación y consulta permite que una selección de filtros
+no cambie la información publicada ni desencadene llamadas a Gemini.
+
+La aplicación es de solo lectura. Presenta lo observado en el corpus, con
+acceso a la publicación oficial, pero no certifica el estado jurídico actual
+ni la situación física de una instalación. La guía versionada
+\path{docs/USER_GUIDE.md}, presentada en la sección~\ref{sec:user-guide},
+explica su instalación y uso. Tras finalizar la evaluación, la aplicación se
+validó localmente desde un clon limpio y la distribución académica
+\texttt{v1.0.0} quedó preparada para su futuro despliegue en Streamlit
+Community Cloud desde la rama pública \texttt{main}. En el momento de cerrar
+esta distribución local no se presenta ninguna URL como operativa. Este runtime
+de entrega no modifica ni sustituye el sistema evaluado, identificado por un
+ref y un commit históricos del repositorio privado de desarrollo. La
+figura~\ref{fig:streamlit-resumen} muestra la vista general validada localmente.
+
+\begin{figure}[p]
+    \centering
+    \includegraphics[width=\textwidth]{figs/streamlit_01_resumen.png}
+    \caption{Vista general de la aplicación, con los indicadores del corpus
+    final W14 y la evolución temporal de proyectos y publicaciones BOE
+    relevantes.}
+    \label{fig:streamlit-resumen}
+\end{figure}
+
+\section{Resumen, catálogo y filtros}
+La vista Resumen combina dos indicadores, gráficos, mapa y catálogo. Los
+indicadores cuentan proyectos y publicaciones BOE distintas dentro de la
+selección. Una publicación puede contener varias actuaciones o afectar a más
+de un proyecto: contar filas administrativas como si fueran publicaciones
+inflaría ese indicador. Los gráficos temporales distinguen proyectos con
+alguna publicación observada en cada año y número de BOE publicados; no
+representan plantas construidas ni nueva potencia instalada.
+
+Los filtros permiten buscar texto y seleccionar tecnología, territorio,
+periodo, trámite y situación publicada. Varias opciones de una misma categoría
+se aceptan alternativamente; las categorías diferentes deben cumplirse
+conjuntamente. Por ejemplo, seleccionar dos provincias y una tecnología
+recupera proyectos de esa tecnología vinculados a cualquiera de las dos
+provincias. Las selecciones en gráficos, polígonos del mapa y celdas filtrables
+del catálogo se incorporan a los controles compartidos. Así, los indicadores
+y las vistas responden a una misma consulta.
+
+La interpretación temporal merece una distinción. El modo predeterminado,
+«Última decisión publicada por trámite», selecciona la fila más reciente de
+cada proyecto y tipo de actuación antes de aplicar fecha, trámite y situación.
+«Cualquier publicación histórica» examina todas las filas disponibles.
+Un proyecto puede, por tanto, aparecer al buscar una situación histórica y
+no aparecer bajo el primer modo si existe una publicación posterior para ese
+trámite. Para cada trámite, la fecha y la situación deben cumplirse en la misma
+actuación; no basta cumplir una condición en una fila y la otra en una distinta. Si se
+seleccionan varios trámites, el usuario puede exigir alguno de ellos o todos,
+sin imponer que procedan de una misma publicación.
+
+El mapa representa ámbitos administrativos asociados a los proyectos mediante
+polígonos de comunidades o ciudades autónomas, provincias y municipios.
+Conserva la referencia completa de los dos primeros niveles y, para municipios,
+el universo presente en el corpus final. Los territorios de ese universo con
+cero proyectos bajo los filtros permanecen visibles. Un proyecto puede
+contabilizarse en varios polígonos, por lo que sus valores no son sumables
+como total de proyectos. Tampoco representan coordenadas exactas de plantas.
+Los proyectos sin territorio resuelto permanecen consultables en el catálogo.
+
+La geometría administrativa procede de una obra derivada de \emph{Límites y
+Unidades Administrativas Actuales} (BDLJE) de IGN/CNIG, edición fechada el
+28 de julio de 2026 y sujeta a reconocimiento CC BY 4.0
+\cite{cnig_limitesadministrativos_2026}. El contexto de países procede del
+conjunto \emph{Admin 0 -- Countries} de Natural Earth a escala 1:110m; el
+manifest local no declara la versión aguas arriba, por lo que no se le atribuye
+la versión que muestra actualmente el catálogo. Natural Earth publica estos
+datos como dominio público
+\cite{naturalearth_admin0countries_nd,naturalearth_termsofuse_nd}.
+La aplicación utiliza copias locales versionadas: no descarga geometría ni
+emplea mapas base externos durante la consulta. Esta decisión separa la
+presentación de dependencias de red ajenas a los datos Gold.
+
+La figura~\ref{fig:streamlit-mapa} ilustra una consulta territorial y
+tecnológica: los filtros visibles se aplican conjuntamente y el mapa conserva
+el contexto administrativo de la selección.
+
+\begin{figure}[p]
+    \centering
+    \includegraphics[width=\textwidth]{figs/streamlit_02_mapa_filtro.png}
+    \caption{Exploración territorial de los proyectos mediante filtros
+    tecnológicos y administrativos.}
+    \label{fig:streamlit-mapa}
+\end{figure}
+
+El catálogo mantiene una fila por proyecto y muestra nombre, tecnología,
+territorios, primera y última publicación observadas y número de BOE.
+Permite seleccionar columnas y abrir la ficha del proyecto. Las adaptaciones
+de nombres para facilitar la lectura no modifican los valores Gold ni la
+evidencia documental.
+
+\section{Ficha del proyecto y cronología}
+La ficha reúne la identidad del proyecto, su tecnología, el ámbito territorial
+disponible y las publicaciones que componen su historia observada. Incluye
+un mapa contextual cuando hay territorio resoluble y una cronología agrupada
+por fecha y BOE. Cada publicación aparece una vez y muestra sus actuaciones,
+con decisión, evidencia desplegable y enlace al documento oficial. El orden
+va de la publicación más reciente a la más antigua.
+
+Esta organización permite consultar en conjunto documentos que el BOE
+publica por separado. En el caso de Don Rodrigo II, el lector puede contrastar
+la información pública de abril con las autorizaciones de agosto descritas
+en la tabla~\ref{tab:don-rodrigo}. La ficha muestra la secuencia conservada en
+Gold; no vuelve a interpretar los documentos con un modelo al abrirla. La
+figura~\ref{fig:streamlit-don-rodrigo-resumen} presenta su resumen: dos
+publicaciones BOE relevantes, cuatro actuaciones administrativas y el ámbito
+territorial observado.
+
+\begin{figure}[p]
+    \centering
+    \includegraphics[width=\textwidth]{figs/streamlit_03_don_rodrigo_resumen.png}
+    \caption{Ficha del proyecto fotovoltaico Don Rodrigo II, con sus
+    publicaciones observadas, actuaciones administrativas y ámbito
+    territorial.}
+    \label{fig:streamlit-don-rodrigo-resumen}
+\end{figure}
+
+La cronología recoge actos publicados dentro del periodo observado. La
+primera fecha no prueba el inicio real del proyecto ni la última publicación
+resuelve por sí sola su estado jurídico definitivo. Del mismo modo, el
+territorio puede proceder de la planta o de sus componentes de evacuación o
+almacenamiento. La ficha conserva ese alcance documental para evitar una
+precisión física que la fuente no proporciona.
+
+La cronología administrativa publicada de la
+figura~\ref{fig:streamlit-don-rodrigo-cronologia} agrupa las actuaciones por
+publicación y permite observar la transición documental entre la información
+pública y las autorizaciones posteriores.
+
+\begin{figure}[p]
+    \centering
+    \includegraphics[width=\textwidth]{figs/streamlit_04_don_rodrigo_cronologia.png}
+    \caption{Cronología administrativa publicada de Don Rodrigo II, agrupada
+    por publicación del BOE.}
+    \label{fig:streamlit-don-rodrigo-cronologia}
+\end{figure}
+
+\section{Metodología, reporte y límites}
+La vista Metodología explica la cobertura del corpus, las fuentes, la unidad
+de proyecto, la interpretación de la cronología y el territorio, las
+correcciones y la versión utilizada. Incluye un glosario y advertencias para
+interpretar ausencias y situaciones administrativas. Su función es acompañar
+la consulta con el contexto necesario para entender qué representan los datos.
+
+Existe además un explorador técnico de las tablas Gold, desactivado por
+defecto, destinado a inspección local. Esta aplicación de consulta
+es diferente de la interfaz auxiliar empleada para anotar el holdout,
+descrita en el capítulo~\ref{ch:evaluacion}. Consultar el producto y construir
+la referencia de evaluación tienen propósitos y entradas distintos.
+
+
+\label{sec:reporte-publico}
+% streamlit_app.py::_render_report_channel; app_reporting.py; USER_GUIDE.md.
+El usuario dispone del control «Reportar posible error» en la barra lateral,
+debajo de la navegación. Cuando hay una dirección de revisión configurada,
+el enlace utiliza \texttt{mailto:} para abrir un borrador en el cliente de
+correo del usuario. Incluye la vista y los filtros activos; desde una ficha
+añade contexto del proyecto y de su última publicación observada. El usuario
+debe completar la descripción y enviar el mensaje desde su cliente de correo.
+
+La aplicación no envía ni almacena el reporte: no crea una fila en una tabla
+ni una entrada en la cola de revisión. Tampoco ofrece un \emph{backend} de incidencias
+ni integración automática con la Admin CLI. Sin una dirección válida,
+el control queda deshabilitado y muestra que el canal no está configurado.
+El destino se proporciona mediante configuración del operador; su disponibilidad
+en una instalación debe comprobarse antes de presentarlo como canal operativo.
+
+Si un mensaje recibido motiva una corrección, una persona debe trasladar el
+caso al procedimiento técnico correspondiente, revisar la evidencia y preparar
+una decisión trazable antes de regenerar los datos. Este paso es externo a
+Streamlit y está sujeto a los límites de la sección~\ref{sec:revision-humana}.
+La integración persistente de reportes con una cola unificada se propone
+como trabajo futuro en la sección~\ref{sec:cola-unificada-futura}.

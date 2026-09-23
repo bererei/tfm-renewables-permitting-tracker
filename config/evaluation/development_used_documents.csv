@@ -1,0 +1,480 @@
+identificador_boe,usage_type,usage_reason,source_reference
+BOE-A-2022-23752,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2022-24383,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2022-24403,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2022-24404,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2022-24405,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2022-24406,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-10297,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-10301,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-10303,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-1935,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-1936,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-1939,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-1941,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-1942,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-1943,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-2579,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-2597,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-2598,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-2613,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-2614,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2024-14378,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2024-14379,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2024-14387,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2024-15084,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2024-15085,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2024-16659,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2024-16660,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2024-16661,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2024-16662,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2024-16664,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2024-9603,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2024-9608,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2025-18282,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2025-18284,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2025-18287,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2025-26092,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2025-26101,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2025-26105,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2025-26108,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2025-26110,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2025-26111,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2025-26112,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-10194,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-10217,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-10319,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-10487,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-10653,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-10655,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-10656,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-10657,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-10868,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-10985,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-11671,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-11838,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-12162,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-12596,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-12699,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-13449,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2026-9582,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2021-32555,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2021-32558,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2021-32559,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2021-32562,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2021-32564,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2021-32566,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2022-40990,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2022-41000,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2022-41006,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2023-19012,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2023-19078,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2023-19080,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2023-19087,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2023-2188,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2023-2192,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2023-3166,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2024-17249,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2024-26379,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2024-27075,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2024-27088,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2024-29084,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2024-29087,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2024-29090,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2025-32955,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2025-32965,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2025-32972,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2025-32991,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2025-46933,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2025-46936,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2025-46937,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2025-46947,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2025-46954,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2026-14197,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2026-14346,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2026-14621,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2026-15353,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2026-15498,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2026-17483,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2026-18117,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2026-19244,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-B-2026-19521,pilot,Used in the 100-document pilot for development and validation of the extraction pipeline.,data/silver/boe_ai/pilot_sample_100.parquet
+BOE-A-2023-10306,development_example,Used in directed Badulaque parsing flattening location and grouping audits.,notebooks/05_parseo_docs_xml.ipynb
+BOE-A-2025-18285,development_example,Used to design and audit extraction of BESS hybridised with FV Andévalo.,notebooks/05_parseo_docs_xml.ipynb
+BOE-A-2026-13454,development_example,Used in directed La Puebla extraction flattening and location audits.,notebooks/09_flattening.ipynb
+BOE-A-2026-7629,development_example,Used in extraction and territorial-resolution development for La Puebla.,notebooks/10_localizaciones_y_revision.ipynb
+BOE-B-2021-32554,development_example,Used as an inspected parsed-text example.,notebooks/05_parseo_docs_xml.ipynb
+BOE-B-2021-32560,development_example,Used extensively for Badulaque extraction location and grouping development.,notebooks/11_agrupacion.ipynb
+BOE-B-2023-19082,development_example,Used for Badulaque modification parsing flattening and location audits.,notebooks/09_flattening.ipynb
+BOE-B-2026-19619,development_example,Used in a directed inspection of download-log behaviour.,notebooks/04_texto_candidatos_xml.ipynb
+BOE-B-2026-3596,development_example,Used in directed FV Andévalo hybridisation extraction and grouping audits.,notebooks/05_parseo_docs_xml.ipynb
+BOE-B-2022-40999,regression_case,Used by a regression test for a descriptive irrigation project with photovoltaic panels.,tests/extraction/test_canonicalization.py
+BOE-B-2024-27073,regression_case,Used by a regression test for administrative-action targeting of Carbo.,tests/extraction/test_validation.py
+BOE-B-2026-17277,regression_case,Used by regression tests for infrastructure associated with HSF Entrenucleos Ten.,tests/extraction/test_validation.py
+BOE-A-2023-14816,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2023-2574,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2023-2594,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2023-2595,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2023-2599,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2026-15059,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2023-1938,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2023-2589,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2025-18283,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2026-11672,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2024-17278,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2025-26106,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2026-10216,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2026-10972,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2026-12017,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2026-13450,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2024-16667,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2024-16669,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2025-26113,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2026-11675,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2024-17277,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2023-1931,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2023-2580,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2024-27102,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2025-32954,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2026-14921,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2023-19081,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2024-27101,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2024-27103,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2026-14192,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2026-19389,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2026-10729,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2021-32561,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2022-40998,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2024-26377,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-B-2025-46888,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2023-10302,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2024-16666,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2025-18286,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2026-12701,challenge_sample,Selected for development challenge sample v1 before AI extraction.,config/evaluation/development_challenge_sample.csv
+BOE-A-2022-17801,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2022-1839,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-10299,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-10305,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-10307,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-10308,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-10311,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-10317,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-10326,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-11003,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-11171,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-11179,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-11309,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-12328,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-12894,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-13039,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-13045,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-13052,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-13055,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-13064,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-13070,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-14818,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-17787,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-17789,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-17790,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-17793,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-1933,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-1940,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-21279,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-22750,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-25620,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-25627,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-2575,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-2578,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-2581,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-2587,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-2591,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-2600,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-2601,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-26690,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-2921,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-3822,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-49,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2023-50,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2024-11046,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2024-14380,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2024-16665,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2024-16668,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2024-16670,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2024-25512,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2024-27000,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2024-8598,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2025-10974,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2025-14202,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2025-17116,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2025-4246,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2025-5501,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2025-5502,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2025-7090,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2026-10210,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2026-10320,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2026-10654,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2026-10730,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2026-10974,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2026-11295,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2026-11673,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2026-11771,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2026-11850,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2026-12586,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2026-13448,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2026-16635,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2026-16732,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2026-2868,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2026-5523,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2026-9070,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2026-9581,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2026-9583,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2026-9585,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-A-2026-9684,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2021-32557,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2021-32563,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2021-32565,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-10058,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-10103,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-10105,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-10109,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-10873,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-1108,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-12042,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-12047,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-1225,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-12378,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-13912,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-15281,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-15722,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-16569,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-1968,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-20099,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-20119,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-21983,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-22545,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-22781,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-22941,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-2315,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-27735,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-28523,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-28524,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-31755,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-32100,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-33258,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-33662,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-36468,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-36829,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-36886,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-37769,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-38363,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-38988,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-40867,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-40918,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-41290,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-4383,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-4695,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-4743,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-6487,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-7056,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-7965,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2022-9743,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-10073,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-10657,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-11458,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-155,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-16478,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-16840,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-17281,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-17825,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-18094,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-18602,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-18972,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-19076,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-19077,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-19563,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-20547,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-20718,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-2174,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-2186,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-2189,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-2190,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-22020,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-22764,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-2405,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-25265,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-26780,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-26905,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-28503,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-28504,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-28719,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-29010,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-29175,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-30099,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-31118,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-31129,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-31184,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-3161,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-31657,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-3173,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-32020,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-32028,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-32517,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-32537,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-32539,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-32551,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-33586,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-34365,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-34540,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-34545,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-34843,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-34858,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-35011,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-35624,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-35879,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-35885,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-35968,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-36467,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-36468,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-36470,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-36472,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-36473,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-36849,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-37504,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-4051,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-5470,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-5684,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-5859,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-7163,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-7374,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-7642,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2023-9376,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-10156,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-10279,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-10859,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-10874,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-10988,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-11215,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-1181,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-12614,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-12743,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-12926,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-13656,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-13997,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-15589,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-16232,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-16519,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-17284,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-17292,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-19059,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-19222,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-19281,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-19766,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-19767,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-20569,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-2108,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-2110,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-22461,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-24015,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-24813,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-25903,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-26575,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-26634,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-26966,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-27052,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-27097,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-27217,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-27273,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-30934,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-31971,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-33752,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-34086,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-34338,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-35786,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-37613,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-40078,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-40440,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-40454,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-43565,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-45488,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-45867,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-47278,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-4999,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-6003,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-6104,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-7033,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-7951,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2024-9691,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-11793,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-17359,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-2035,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-20664,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-20693,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-27372,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-27493,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-27635,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-28421,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-31461,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-32414,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-32903,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-32975,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-32981,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-34190,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-35280,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-37280,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-37985,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-38570,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-39619,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-42239,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-45199,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-45866,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-46007,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-46945,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-46948,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-46958,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-47482,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-5807,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-5961,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-5999,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2025-6095,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-10587,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-12797,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-13607,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-14204,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-14390,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-14475,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-14572,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-15080,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-15406,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-15420,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-15995,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-16027,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-16132,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-16167,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-16329,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-16354,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-16423,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-16615,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-16633,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-17092,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-17105,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-17411,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-17651,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-18076,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-18476,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-18491,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-18554,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-18638,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-18652,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-18654,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-18658,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-20295,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-21592,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-24899,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-25610,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-26177,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-26937,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-3935,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-799,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-8118,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-8301,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md
+BOE-B-2026-9895,classifier_audit,classifier_development_exposure,docs/HOLDOUT_EXPOSURE_PROVENANCE.md

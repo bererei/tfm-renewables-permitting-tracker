@@ -1,0 +1,406 @@
+\chapter{Discusión y limitaciones}
+\label{ch:discusion}
+% Fuente principal: FINAL_HOLDOUT_V2_RESULTS.md §§8--10.
+% Las explicaciones diagnósticas son post-hoc y no alteran el scoring primario.
+
+Este capítulo interpreta el experimento sin modificarlo. Las métricas del
+capítulo~\ref{ch:resultados} siguen siendo los resultados oficiales; el
+diagnóstico posterior ayuda a entender qué mecanismos son compatibles con los
+errores observados. No crea nuevas correspondencias ni atribuye a una sola
+etapa discrepancias que pueden surgir de la interacción entre extracción,
+procesamiento, representación y evaluación.
+
+\section{Lectura global de los resultados}
+La primera conclusión es que el rendimiento no es uniforme a lo largo del
+sistema. La clasificación del alcance documental es fuerte en este holdout.
+La recuperación de activos queda en un nivel intermedio; la de eventos y
+localizaciones, en niveles inferiores; y la de actuaciones y sus relaciones
+con activos es muy baja. Los atributos muestran mayor consistencia, pero solo
+dentro del subconjunto de entidades que consiguió emparejarse.
+
+Este perfil importa más que una cifra única. El sistema debe decidir si un
+documento es pertinente, identificar plantas, representar eventos, localizar
+actuaciones y vincularlas con sus evidencias y activos. Cada tarea tiene una
+unidad y un denominador distintos. Una supuesta exactitud global mezclaría
+preguntas diferentes y ocultaría que un resultado favorable al inicio de la
+cadena puede coexistir con pérdidas importantes en niveles posteriores.
+
+El objeto evaluado es el sistema completo. Entre el texto del BOE y la salida
+evaluada intervienen la preparación de la entrada, Gemini, la construcción de
+la salida estructurada, la canonicalización y la validación. Después, el
+evaluador aplica reglas de correspondencia que tampoco forman parte del
+modelo. Por ello, las métricas se atribuyen al sistema congelado; un error solo
+se atribuye específicamente a Gemini cuando existe evidencia que permite
+separarlo de las transformaciones posteriores.
+
+\section{Alcance documental}
+La clasificación correcta de 46 de los 48 BOE, equivalente al 95,8\,\% en
+este conjunto, indica que el sistema discrimina bien qué documentos deben
+entrar en el tratamiento principal. Los 30 documentos relevantes se
+clasificaron correctamente. Entre los 18 no relevantes, 16 se resolvieron de
+forma correcta, uno se clasificó como específico de generación y otro quedó
+sin predicción por el error terminal.
+
+Este resultado se refiere exclusivamente al alcance documental. No significa
+que el sistema alcance un 95,8\,\% de precisión general, ni garantiza que las
+entidades de un documento bien clasificado se extraigan correctamente. También
+debe distinguirse del filtrado previo: la consulta de sumarios y títulos crea
+candidatos, mientras que esta clasificación decide el alcance una vez que el
+documento entra en el sistema. El experimento no mide la cobertura de aquel
+primer filtro sobre todo el BOE.
+
+El caso \texttt{BOE-A-2025-13309} representa el único error de alcance con una
+predicción disponible. Sirve para mostrar que una clasificación documental
+incorrecta puede introducir después entidades que no deberían formar parte
+del universo positivo. No permite, por sí solo, caracterizar una causa general
+de error de alcance.
+
+\section{Activos de generación y variantes nominales}
+El F1 de activos, 0,526, refleja una recuperación parcial. El diagnóstico
+aporta una lectura más precisa que la etiqueta genérica de rendimiento
+intermedio: el diagnóstico relacionó los 17 activos de referencia sin pareja
+con 17 predicciones que usaban variantes nominales no aceptadas por el criterio
+exacto. En 14 casos la forma predicha era más corta o carecía de algún
+descriptor; en dos añadía «existente»; y en otro se enfrentaban «PFVH San
+Blas» y «Planta fotovoltaica San Blas».
+
+Un falso negativo de esta evaluación no implica necesariamente que el sistema
+no reconociera conceptualmente la planta. Puede indicar que referencia y
+predicción nombraron una entidad relacionada de formas que la normalización
+congelada no declaró equivalentes. «Instalación fotovoltaica Hipódromo» frente
+a «Hipódromo» ilustra este límite: la relación resulta comprensible para una
+persona, pero no satisface la igualdad nominal exigida y no se convierte
+retrospectivamente en un acierto.
+
+La elección ofrece determinismo y evita fusionar nombres mediante juicios
+introducidos después de observar las respuestas. Su coste es una menor
+tolerancia a abreviaturas y descriptores. El mismo equilibrio aparece en la
+agrupación longitudinal: una identidad conservadora reduce fusiones arbitrarias,
+pero puede mantener separadas menciones que requerirían alias explícitos para
+converger. El holdout evalúa el emparejamiento dentro de cada BOE, no la
+agrupación Gold entre publicaciones.
+
+\section{Eventos y propagación jerárquica}
+El F1 de eventos, 0,382, debe interpretarse teniendo en cuenta que un evento
+solo puede emparejarse cuando coincide el conjunto completo de activos ya
+emparejados. El diagnóstico relaciona 15 de los 17 FN y 20 de los 25 FP con
+activos sin pareja. Otros dos FN y cuatro FP corresponden a divisiones: un
+evento de referencia se representó como varios eventos predichos. El FP
+restante procede del documento con alcance incorrecto. No se observaron
+fusiones de eventos en el diagnóstico aprobado.
+
+La dependencia introduce propagación jerárquica. Una diferencia nominal en
+un activo puede impedir la correspondencia del evento completo, incluso si
+la publicación y parte de su estructura fueron reconocidas. La
+figura~\ref{fig:cascada-matching} muestra esta cadena; los errores de activo y
+evento no deben sumarse como si fueran mecanismos independientes.
+
+En \texttt{BOE-A-2024-11661}, los dos activos encontraron pareja, pero el
+evento conjunto apareció dividido en dos eventos predichos. El caso ilustra
+que identificar las plantas no basta: también debe conservarse la granularidad
+con la que el documento las presenta dentro de una actuación administrativa.
+
+\section{Localizaciones administrativas}
+El F1 de localizaciones, 0,345, es bajo y permanece como resultado primario.
+El diagnóstico aclara dónde se produce la pérdida: 61 de los 68 FN y 92 de
+los 95 FP se encuentran bajo eventos padre sin emparejar. Dentro de eventos
+emparejados quedan siete FN y tres FP. Gran parte de la discrepancia observada
+es, por tanto, compatible con una dependencia anterior de la jerarquía, sin
+que ello corrija la métrica ni pruebe una única causa.
+
+Debe distinguirse la recuperación primaria de nombres locales de la resolución
+territorial posterior. El evaluador exige nombre normalizado dentro de un
+evento emparejado; no usa códigos INE ni proximidad geográfica para crear una
+pareja. El sistema territorial, en cambio, conserva seis estados que separan
+resolución completa o parcial, ambigüedad, conflicto, ausencia de coincidencia
+y falta de información. Que el nivel administrativo coincida en las parejas
+disponibles no demuestra que todas las menciones estén resueltas ni que la
+ubicación física exacta de una planta sea conocida.
+
+\section{Actuaciones administrativas}
+El F1 de actuaciones actuales, 0,021, es el resultado primario más débil y no
+debe suavizarse. Solo una actuación actual consiguió emparejarse; quedaron 35
+FN y 57 FP bajo las reglas fijadas. La utilidad del diagnóstico consiste en
+explicar qué condiciones impidieron formar parejas, no en reemplazar esta
+medida por otra más favorable.
+
+El emparejamiento exigía dos pasos previos: disponer de un evento padre ya
+emparejado y encontrar un fragmento de evidencia compatible con una actuación
+concreta de la referencia. Entre los 35 FN, 18 se situaron bajo eventos sin
+pareja y 17 carecieron de candidato de evidencia dentro de un evento
+emparejado. Entre los 57 FP, 37 quedaron bajo eventos sin pareja y 20 no
+formaron candidato de evidencia. No hubo ambigüedades de emparejamiento.
+
+Estos recuentos indican que el resultado refleja conjuntamente la extracción,
+la granularidad de eventos, la representación de evidencias, la
+canonicalización y las reglas conservadoras del evaluador. No equivale a
+afirmar que Gemini extrajo mal el 98\,\% de las actuaciones. Tampoco demuestra
+que las actuaciones sin pareja fueran semánticamente correctas: al no existir
+una correspondencia aceptada, sus atributos no pudieron compararse. La medida
+oficial sigue siendo el F1 primario; el diagnóstico delimita su interpretación.
+
+\section{Evidencia y canonicalización}
+Dentro de eventos emparejados hubo 20 actuaciones predichas sin candidato de
+evidencia. En 18, la evidencia final coincidía exactamente con el título del
+BOE; las otras dos utilizaban fragmentos diferentes. El título puede contener
+información pertinente, pero no necesariamente el pasaje que respalda la
+actuación concreta conforme al criterio congelado.
+
+La cadena que conduce a ese resultado tiene varias etapas. Gemini produce una
+salida estructurada; después, una reparación determinista de evidencia puede
+priorizar el título; finalmente, el evaluador exige que al menos un fragmento
+guardado esté contenido en un pasaje aceptado. En
+\texttt{BOE-A-2024-2440}, el diagnóstico encontró una evidencia precanónica
+más corta y el título en la salida final. Activo, evento y tres localizaciones
+sí emparejaron, mientras la actuación quedó sin candidato.
+
+El caso muestra una interacción entre componentes. Es compatible con que el
+procesamiento posterior influya en la evidencia disponible para el
+emparejamiento, pero no demuestra que toda discrepancia proceda de la
+canonicalización ni permite declarar correcta la actuación predicha. Tampoco
+respalda calificarla automáticamente como alucinación del modelo. Separar estas
+posibilidades es necesario para orientar mejoras en el punto donde se origina
+cada pérdida.
+
+\section{Atributos condicionados al emparejamiento}
+Los atributos solo se comprueban después de emparejar la entidad. El tipo de
+generación coincidió en los 20 activos emparejados y el nivel administrativo,
+en las 43 localizaciones emparejadas. Estos denominadores permiten afirmar que
+los atributos fueron consistentes dentro de esos subconjuntos, sin extender la
+afirmación a los activos o localizaciones que no encontraron pareja.
+
+La cautela es mayor para actuaciones. Tipo, decisión, indicador de modificación
+y conjunto exacto de activos afectados alcanzaron 1/1 porque solo una actuación
+actual pudo compararse. Ese cociente significa que el atributo fue correcto en
+el único caso emparejado; no representa un 100\,\% de exactitud sobre todas las
+actuaciones extraídas. Las entidades omitidas o sin correspondencia ya
+penalizan la detección y no entran de nuevo en el denominador condicionado.
+
+Esta separación evita dos interpretaciones erróneas: usar el buen resultado de
+atributos para compensar el bajo recall de entidades, o atribuir atributos
+incorrectos a entidades que nunca pudieron alinearse. Detección y clasificación
+condicionada responden a preguntas distintas y deben mantenerse juntas para
+leer el resultado completo.
+
+\section{Relaciones entre actuación y activo}
+La recuperación de pares actuación--activo obtuvo F1 0,020: un TP, 59 FP y 38
+FN. Todas las discrepancias pertenecen a actuaciones sin emparejar. La relación
+depende, por tanto, de que antes se hayan resuelto activo, evento y actuación;
+es otro efecto de la jerarquía y no una tarea aislada de las anteriores.
+
+En la única actuación actual emparejada, el conjunto completo de activos
+afectados coincidió: 1/1. Este resultado confirma la consistencia de esa única
+pareja, pero no aporta evidencia de rendimiento general. Los recuentos de
+pares siguen siendo la medida primaria porque cada activo omitido o adicional
+debe permanecer visible aunque la actuación padre no encuentre pareja.
+
+\section{Salvaguarda de antecedentes históricos P0}
+El holdout no contiene positivos adjudicables para estimar la
+sensibilidad de P0. El resultado fue TP = 0, FP = 0, FN = 0 y TN = 1, con un
+aviso sin adjudicación segura. Como no existen antecedentes extraídos y
+emparejados, precisión, recall y F1 quedan sin definir. El único TN tampoco
+permite presentar el mecanismo como validado al 100\,\%.
+
+El ensayo de desarrollo detectó 11 de 11 antecedentes conocidos y no emitió
+avisos en cinco controles negativos. Constituye evidencia útil de desarrollo,
+pero no es un resultado primario del holdout ni sustituye una muestra positiva
+independiente. La conclusión respaldada es más limitada: P0 merece conservarse
+como salvaguarda que solicita revisión humana; su sensibilidad empírica requiere
+una evaluación con más positivos adjudicables.
+
+Esta interpretación coincide con su función. P0 no decide que una actuación
+sea histórica ni la excluye automáticamente. Señala un caso sospechoso y la
+decisión CURRENT o ANTECEDENT permanece bajo revisión humana.
+
+\section{Error terminal conservado}
+La ejecución de \texttt{BOE-B-2024-32569} terminó en la validación documental
+y no se reintentó. Conservar el fallo es metodológicamente correcto: la
+robustez del pipeline forma parte del rendimiento del sistema y eliminar un
+caso fallido alteraría el examen final.
+
+La referencia clasificaba el documento como no relevante. La ausencia de
+predicción cuenta como error en el alcance documental, cuyo denominador se
+mantiene en 48, pero no añade FP o FN de entidades porque la referencia no
+contenía entidades positivas. Un solo fallo permite documentar que la ruta
+terminal existe y afecta al resultado; no permite estimar de forma estable
+una tasa general de fallo.
+
+\section{Síntesis del sistema y fuentes de error}
+Los resultados favorables y la calidad metodológica pertenecen a planos
+diferentes. En el primero destacan la discriminación de alcance y la
+consistencia del tipo de generación y del nivel territorial dentro de las
+parejas disponibles. En el segundo, la anotación ciega, las congelaciones, la
+trazabilidad y la conservación del error hacen auditable incluso un resultado
+bajo. La evaluación cumple su función al señalar con precisión dónde el
+sistema todavía no ofrece recuperación fiable.
+
+El valor técnico previo al experimento tampoco desaparece: existen un corpus
+trazable, contratos relacionales, correcciones humanas versionadas,
+resolución territorial, agrupación longitudinal, salidas Gold y una aplicación
+de consulta. El holdout no evalúa todas esas capas. Acredita la calidad de la
+extracción final según V2-B y proporciona límites empíricos para utilizar sus
+resultados, sin convertir los demás entregables en métricas no medidas.
+
+La tabla~\ref{tab:fuentes-error-discusion} separa cuatro lugares donde puede
+originarse o hacerse visible una discrepancia. Las categorías no asignan cada
+FP o FN a una causa única; varias pueden intervenir en la misma fila.
+
+\begin{table}[htbp]
+\centering
+\small
+\renewcommand{\arraystretch}{1.18}
+\begin{tabular}{L{3.1cm} L{4.6cm} L{5.0cm}}
+\hline
+Fuente & Ejemplo observado o posible & Consecuencia en la evaluación \\
+\hline
+Extracción del modelo & Omisión, alcance o granularidad de evento incorrectos & Entidad ausente, adicional o estructurada de otra forma \\
+Canonicalización & Priorización del título como evidencia final & Puede cambiar el fragmento disponible para formar candidato \\
+Representación & «PFVH San Blas» frente a «Planta fotovoltaica San Blas» & Dos formas relacionadas no satisfacen la igualdad nominal \\
+Evaluador y matching & Alias exacto y conjunto completo de activos por evento & Conserva la discrepancia y puede propagarla a entidades hijas \\
+\hline
+\end{tabular}
+\caption[Fuentes que intervienen en una discrepancia]{Capas conceptuales para
+interpretar FP y FN. Una observación puede combinar varias fuentes; la tabla
+no reasigna ni recalcula los resultados primarios.}
+\label{tab:fuentes-error-discusion}
+\end{table}
+
+\section{Aspectos que requieren mejora}
+La secuencia de mejora debe seguir la cadena del sistema. Primero conviene
+examinar las omisiones y la granularidad producidas en la extracción. Después,
+la representación de alias y eventos debe conservar suficiente información
+para reconocer equivalencias controladas. A continuación, la estrategia de
+evidencia y su canonicalización deben evitar perder un pasaje específico
+válido. Finalmente, la robustez de validación debe reducir terminaciones sin
+ocultar los fallos que aún ocurran.
+
+\subsection{Elección metodológica de matching estricto}
+El emparejamiento exacto fue una elección metodológica, no la única forma
+posible de evaluación. Sus ventajas son el determinismo, la reproducibilidad
+y la auditoría. Evita decisiones subjetivas durante la puntuación, no utiliza
+atributos que luego se evalúan y reduce el riesgo de favorecer al sistema una
+vez observadas sus respuestas.
+
+El coste es la sensibilidad a variantes nominales, divisiones de eventos y
+dependencias jerárquicas. Puede infraestimar equivalencias semánticas que una
+persona aceptaría, como muestra Hipódromo. Un evaluador futuro más flexible
+debería definir sus reglas antes de un nuevo experimento, validarlas de forma
+independiente y controlar las fusiones falsas. No corresponde aplicarlo a las
+predicciones ya evaluadas ni presentar una puntuación retrospectiva.
+
+Estas necesidades no se reducen a utilizar un modelo más potente. El
+diagnóstico sitúa pérdidas antes y después de Gemini. Las líneas sistemáticas
+de evolución se reservan al capítulo~\ref{ch:conclusiones}; aquí solo se
+identifican los puntos donde la evidencia aconseja intervenir.
+
+\section{Limitaciones de la evaluación y del trabajo}
+Las limitaciones no invalidan el experimento, pero delimitan lo que puede
+afirmarse a partir de él. La tabla~\ref{tab:limitaciones-discusion} resume su
+efecto; los párrafos posteriores desarrollan las que requieren mayor contexto.
+
+\begin{table}[p]
+\centering
+\footnotesize
+\renewcommand{\arraystretch}{1.16}
+\begin{tabular}{L{3.0cm} L{5.0cm} L{4.6cm}}
+\hline
+Limitación & Implicación al interpretar los resultados & Posible línea de mejora \\
+\hline
+Holdout de 48 BOE & Limita la precisión de las estimaciones y el análisis de subgrupos; no respalda generalización estadística fuerte & Ampliar la evaluación con otra muestra independiente \\
+Una anotación principal & No permite cuantificar acuerdo interanotador y puede conservar criterio humano residual & Realizar doble anotación independiente y adjudicación \\
+Alcance V2 reducido & Las métricas no describen todos los campos que puede producir el sistema & Evaluar los campos excluidos con protocolos específicos \\
+Matching exacto & Puede penalizar variantes nominales equivalentes sin demostrar ausencia conceptual & Predefinir y validar equivalencias controladas antes de otro experimento \\
+Jerarquía & Un error en un nivel padre condiciona el emparejamiento y las métricas posteriores & Informar medidas condicionadas y estudiar cada transición \\
+P0 sin positivos adjudicables & No permite estimar la sensibilidad de la salvaguarda en el holdout & Crear un conjunto independiente específico con positivos P0 \\
+Un error terminal & Deja un BOE sin predicción evaluable y un caso no permite estimar una tasa estable & Mejorar robustez y reintentos futuros sin ocultar los fallos \\
+Fuente BOE & Refleja lo publicado, no un registro consolidado de proyectos ni toda la realidad administrativa & Contrastar en trabajos futuros con otras fuentes oficiales \\
+Periodo, dominio y modelo & Las cifras solo describen el corpus y la configuración congelados & Repetir el protocolo fijado en otros periodos, dominios o modelos \\
+Diagnóstico post-hoc & Sugiere explicaciones, pero no prueba causalidad ni constituye otra evaluación primaria & Preespecificar hipótesis y confirmarlas en otra muestra \\
+\hline
+\end{tabular}
+\caption[Principales limitaciones]{Implicación de cada limitación y posible
+línea de mejora. Las propuestas no son garantías y ninguna fila modifica los
+resultados del capítulo 7.}
+\label{tab:limitaciones-discusion}
+\end{table}
+
+\subsection{Muestra y referencia humana}
+Los 48 BOE permiten una evaluación final delimitada y estratificada, pero el
+tamaño reduce la capacidad de estudiar años, series o tipos de proyecto por
+separado. También deja denominadores mínimos en tareas poco frecuentes. No se
+calcularon intervalos de confianza ni pruebas de significación, por lo que no
+deben suponerse diferencias estadísticamente demostradas.
+
+La referencia fue anotada manualmente por una sola persona. La QA asistida por
+IA ocurrió después de cada anotación y la decisión final siguió siendo humana,
+pero no hubo una validación formal interanotador independiente. Pueden persistir
+decisiones discutibles o sesgo humano residual. Las reglas explícitas, la
+separación respecto a las predicciones y el freeze previo aportan control y
+trazabilidad; no convierten la referencia en una verdad infalible.
+
+\subsection{Alcance V2 y reglas de correspondencia}
+V2 se redujo antes de observar las predicciones para evaluar campos primarios
+y obligatorios. Potencia, promotor, componentes asociados, destinatario exacto
+de la actuación y otros campos diagnósticos no se evaluaron de forma completa.
+Por tanto, las cifras no describen todo lo que el sistema puede producir ni
+permiten afirmar calidad sobre esos campos excluidos.
+
+El matching exacto favorece resultados reproducibles, pero puede penalizar
+formas semánticamente próximas. La dependencia activo--evento--actuación o
+localización impide interpretar las métricas posteriores como independientes.
+Estas propiedades eran parte del evaluador congelado y deben leerse como
+límites del diseño, sin relajarlas después del experimento.
+
+\subsection{P0 y robustez operativa}
+La ausencia de antecedentes emparejados impide estimar la sensibilidad de P0
+en el holdout. El ensayo de desarrollo apoya su conservación como salvaguarda,
+pero comparte contexto de desarrollo y no proporciona confirmación externa.
+Una nueva evaluación necesitaría positivos independientes y adjudicables.
+
+Una de las 48 ejecuciones terminó en error. El caso hace visible que la robustez
+operativa condiciona el rendimiento extremo a extremo. A la vez, una sola
+observación no permite estimar la frecuencia con la que el mismo fallo se
+repetiría en otra muestra.
+
+\subsection{Fuente, periodo, dominio y modelo}
+El BOE es una fuente oficial de publicaciones, no una base consolidada de
+proyectos. La información puede aparecer fragmentada entre documentos, no
+incluye necesariamente toda la realidad administrativa o territorial y no
+ofrece un identificador longitudinal estable de planta. El sistema reconstruye
+lo publicado bajo sus reglas; no certifica el estado jurídico actual ni la
+ubicación física exacta.
+
+El experimento cubre el marco temporal y los tipos documentales seleccionados.
+No respalda por sí solo el mismo rendimiento en otros años, tecnologías,
+organismos, diarios autonómicos o expedientes internos. También corresponde a
+la versión y configuración congeladas de Gemini dentro de este pipeline; no
+representa a cualquier versión de Gemini ni a cualquier otro modelo de lenguaje.
+
+\subsection{Carácter posterior del diagnóstico}
+El diagnóstico se realizó después de observar las métricas. Sus categorías
+describen las filas ya existentes y están respaldadas por los artefactos
+conservados, pero no fueron una hipótesis confirmatoria preespecificada. Sirven
+para generar explicaciones comprobables y orientar otro ciclo experimental;
+no prueban causalidad única ni autorizan una puntuación alternativa.
+
+\section{Alcance de la generalización}
+La generalización metodológica y la empírica deben separarse. El método de
+trabajo ---corpus trazable, contratos explícitos, capas regenerables, decisiones
+humanas versionadas, congelación de entradas y evaluación ciega--- puede
+adaptarse a otros dominios documentales si se redefinen sus reglas y se valida
+su evidencia. Esta transferibilidad describe una forma de construir y evaluar
+el sistema, no una garantía de rendimiento.
+
+La generalización empírica es más estrecha. Las cifras concretas de precisión,
+recall y F1 corresponden al holdout, al alcance V2, al evaluador V2-B y al
+sistema congelado. Extrapolarlas exige una nueva muestra independiente y,
+si cambian las reglas o el modelo, un nuevo experimento fijado antes de observar
+sus predicciones.
+
+En ese marco, el valor científico del TFM no depende de obtener métricas altas
+en todas las tareas. Consiste también en construir una cadena reproducible,
+hacer visibles sus supuestos y medir dónde deja de ser fiable. La evaluación
+muestra una base sólida para seleccionar publicaciones y conservar su
+trazabilidad, junto con limitaciones severas en la recuperación de actuaciones
+y relaciones. Esa combinación define con mayor precisión qué resultados pueden
+consultarse y qué aspectos requieren revisión humana o investigación posterior.

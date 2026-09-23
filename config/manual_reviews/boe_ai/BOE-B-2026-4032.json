@@ -1,0 +1,90 @@
+{
+  "identificador_boe": "BOE-B-2026-4032",
+  "source_document_sha256": "d98640db183f25b28ac94cd739edcf494bb87d7be34c4dce5338511a143265ec",
+  "source_attempt_id": "ae5811ffa7ce49c9bf454d7c49f31f34",
+  "extraction_config_id": "4b54b89dbfe8640e",
+  "document_validation_version": "25",
+  "review_status": "manually_validated",
+  "reviewer": "human_tfm_review",
+  "review_notes": "Decisión humana: la publicación actual es exclusivamente una rectificación. Se conserva correccion_errores/rectificado con target=event y no se redatan las actuaciones citadas como antecedentes.",
+  "reviewed_at_utc": "2026-08-22T11:53:51Z",
+  "corrected_extraction": {
+    "classification_status": "classified",
+    "document_scope": "generation_project_specific",
+    "classification_reason": "El anuncio se refiere a la corrección de errores y sometimiento a información pública de solicitudes de modificación de autorizaciones y declaración de utilidad pública para una planta solar fotovoltaica y su infraestructura de evacuación.",
+    "publication_events": [
+      {
+        "generation_assets": [
+          {
+            "local_generation_asset_ref": "generation_asset_1",
+            "names_raw": [
+              "FV Recova Solar Ampliación"
+            ],
+            "generation_type": "fotovoltaica",
+            "technical_mentions": [
+              {
+                "attribute_type": "potencia_pico",
+                "value_raw": "51,11 MWp",
+                "evidence": "51,11 MWp"
+              },
+              {
+                "attribute_type": "potencia_instalada",
+                "value_raw": "50,40 MW instalados",
+                "evidence": "50,40 MW instalados"
+              }
+            ],
+            "evidence": "FV Recova Solar Ampliación de 51,11 MWp / 50,40 MW instalados"
+          }
+        ],
+        "associated_components": [
+          {
+            "local_component_ref": "component_1",
+            "component_type": "sistema_evacuacion",
+            "names_raw": [],
+            "description_raw": "infraestructura de evacuación 30 kV",
+            "related_generation_asset_refs": [
+              "generation_asset_1"
+            ],
+            "technical_mentions": [
+              {
+                "attribute_type": "tension",
+                "value_raw": "30 kV",
+                "evidence": "30 kV"
+              }
+            ],
+            "evidence": "su infraestructura de evacuación 30 kV"
+          }
+        ],
+        "administrative_actions": [
+          {
+            "action_type": "correccion_errores",
+            "decision": "rectificado",
+            "is_modification": false,
+            "targets": [
+              "event"
+            ],
+            "evidence": "Anuncio de corrección de errores del Área Funcional de Industria y Energía de la Delegación del Gobierno en Madrid, por el que se somete a información pública la solicitud de Modificación de Autorización Administrativa Previa, Modificación de Autorización Administrativa de Construcción y Declaración, en concreto, de Utilidad Pública de la instalación \"FV Recova Solar Ampliación de 51,11 MWp / 50,40 MW instalados, y su infraestructura de evacuación 30 kV, en la provincia de Madrid\" Exp.: PFOT-259Ampliación."
+          }
+        ],
+        "participants": [],
+        "administrative_locations": [
+          {
+            "location_name_raw": "Madrid",
+            "location_level": "provincia",
+            "province_hint_raw": null,
+            "autonomous_community_hint_raw": null,
+            "evidence": "en la provincia de Madrid"
+          }
+        ],
+        "generation_relations": [],
+        "case_file_references": [
+          "PFOT-259Ampliación"
+        ],
+        "event_summary": "Anuncio de corrección de errores y sometimiento a información pública de la solicitud de Modificación de Autorización Administrativa Previa, Modificación de Autorización Administrativa de Construcción y Declaración de Utilidad Pública para la planta solar fotovoltaica 'FV Recova Solar Ampliación' de 51,11 MWp / 50,40 MW instalados y su infraestructura de evacuación de 30 kV en la provincia de Madrid. La corrección incluye la titularidad de parcelas en la Relación de Bienes y Derechos Afectados."
+      }
+    ],
+    "extraction_notes": null,
+    "boe_id": "BOE-B-2026-4032",
+    "publication_date": "2026-02-12"
+  }
+}

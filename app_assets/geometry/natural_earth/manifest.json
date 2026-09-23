@@ -1,0 +1,38 @@
+{
+  "artifact": {
+    "file": "countries_context.geojson",
+    "sha256": "8d22eb9c64c8136d4b3d30b3cf75cb5cf6196e567529e7fbd9041b5b7d1323f0"
+  },
+  "contract_version": "app-country-context-v1",
+  "feature_count": 177,
+  "license_attribution": "Contexto geográfico: Natural Earth",
+  "processing": {
+    "derivation": "All source countries retained; Polygon records promoted to MultiPolygon; coordinates and natural positions unchanged.",
+    "feature_order": "name",
+    "output_crs": "EPSG:4326",
+    "properties": [
+      "iso_a3",
+      "name"
+    ],
+    "version": "natural_earth_country_context_v1"
+  },
+  "source": {
+    "dataset": "naturalearth_lowres",
+    "distribution": "GeoPandas naturalearth_lowres copied by Pyogrio",
+    "files": {
+      "naturalearth_lowres.cpg": "09fc313075748ce8ead962229ed89c919d5a9ff71974ee725a0b48bb87d975a2",
+      "naturalearth_lowres.dbf": "d2ae1c99adcf8e4586a5b12c639672035fa2f3f469e7255947de00401c3ed7e1",
+      "naturalearth_lowres.prj": "98aaf3d1c0ecadf1a424a4536de261c3daf4e373697cb86c40c43b989daf52eb",
+      "naturalearth_lowres.shp": "08e341606e8391e458c3f08deb312de664b56bfae376064c5aa0aee6681a5f55",
+      "naturalearth_lowres.shx": "8b0be2ad97dd484aee5c2ebc98697d5372e832b8ae58a35a661aeef6b985668d"
+    },
+    "license": "Public domain",
+    "organization": "Natural Earth",
+    "publication_date": null,
+    "scale": "1:110m",
+    "sha256": "ddfa7af6ff87ac6bfe7b216913462069244aa140fe2a30de61576cfde58a8c53",
+    "source_crs": "EPSG:4326",
+    "version": "not declared by local fixture",
+    "website": "https://www.naturalearthdata.com/"
+  }
+}

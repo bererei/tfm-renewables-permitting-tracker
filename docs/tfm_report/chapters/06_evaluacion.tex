@@ -1,0 +1,536 @@
+\chapter{Metodología experimental}
+\label{ch:evaluacion}
+% Fuentes: contrato V2 y resultados finales de evaluación.
+% Contrato V2 §§1--12; FINAL_HOLDOUT_V2_RESULTS.md; freezes y execution record.
+La evaluación compara la salida del sistema con una referencia humana
+construida sobre documentos reservados. Este capítulo explica qué se comparó,
+cómo se mantuvo la separación entre anotación y predicción y qué significan
+las medidas utilizadas. Los resultados se presentan después, distinguiendo
+la evaluación fijada de antemano del análisis diagnóstico posterior.
+
+\section{Qué se quería evaluar}
+La pregunta experimental fue qué elementos necesarios para seguir un proyecto
+de generación renovable puede recuperar el sistema en una publicación que no
+se ha utilizado para ajustarlo. Se evaluó la salida completa del sistema:
+extracción con Gemini, canonicalización y validación documental, descritas en
+el capítulo~\ref{ch:metodologia}. Por tanto, el experimento mide el resultado
+conjunto de esas etapas, sin aislar la contribución del modelo.
+
+La pregunta se descompone en tareas. Primero se comprueba si el documento
+pertenece al alcance del proyecto. Después se compara qué plantas, eventos,
+actuaciones actuales y localizaciones se han recuperado. Una vez identificadas
+las correspondencias, se examinan sus atributos y qué plantas afecta cada
+actuación. También se comprueban el respaldo documental de las actuaciones y
+los avisos sobre posibles antecedentes históricos. Las secciones siguientes
+explican cómo se hace cada comparación y qué casos entran en ella.
+
+Esta evaluación se limita a la extracción documental. No mide la cobertura
+de toda la adquisición BOE, la agrupación longitudinal de Gold, la resolución
+INE, la usabilidad de Streamlit ni el estado jurídico real de las instalaciones.
+Cada tarea tiene su propia unidad y denominador; no se construye una única
+exactitud global que las mezcle.
+
+\section{Separación entre desarrollo y holdout}
+El capítulo~\ref{ch:datos} introdujo el \emph{holdout} y su separación del
+desarrollo y del producto. Aquí importa la garantía experimental: reservar
+documentos que no se utilizaron para ajustar el sistema evita adaptar el
+método a los mismos ejemplos con los que después se presenta su rendimiento
+\cite{hastie_elements_2009}.
+
+Reservar documentos no impide leerlos para preparar la referencia humana.
+En este TFM se abrieron sus textos para anotarlos, mientras las predicciones
+finales permanecieron sin ejecutar ni inspeccionar. Antes de producirlas se
+fijaron tanto la referencia como las reglas que iban a compararla con la
+salida del sistema.
+
+El conjunto de desarrollo congelado contiene 140 documentos. Además, el
+registro de exposición reúne 479 BOE usados en desarrollo, inspecciones o
+revisiones. Son conjuntos con finalidades distintas, descritos en la
+sección~\ref{sec:corpus-utilizados}. El holdout final contiene 48 BOE y no
+comparte documentos con ese registro ni con los 104 del corpus final W14.
+
+El marco temporal de selección reúne documentos de 2024 al 20 de agosto de
+2026. Dentro de él se eligieron publicaciones que requerían
+extracción mediante modelo. Se distribuyó en seis estratos,
+es decir, grupos definidos antes de evaluar: series BOE-A y BOE-B por cada
+uno de los años 2024, 2025 y 2026. Se seleccionaron ocho BOE por estrato,
+con la semilla fija 20260821. Esta composición equilibra esos grupos;
+no reproduce necesariamente sus proporciones en todo el BOE. Tampoco
+convierte el holdout en una muestra de los proyectos de la aplicación.
+
+\section{Qué se considera una respuesta de referencia}
+Para evaluar una predicción es necesario disponer de una referencia con la
+que compararla. En este TFM se construyó mediante anotación humana: se leyó
+cada BOE y se registraron los elementos que debían recuperarse y cómo se
+representaban. Esta referencia humana se denomina \emph{ground truth}; en
+el registro técnico también aparece abreviada como \emph{truth}.
+
+La versión utilizada fue V2. Su alcance se concentró en los campos primarios
+antes de obtener las predicciones finales, como detalla la
+sección~\ref{sec:alcance-v2}. La referencia explicita la respuesta esperada;
+completar y validar sus archivos no demuestra por sí solo que todos los alias
+o pasajes admisibles estén recogidos.
+
+La tabla~\ref{tab:holdout-v2} describe su composición. Distingue actuaciones
+actuales, publicadas como actos del documento, y antecedentes, mencionados
+como historia previa. Los 45 antecedentes se conservan para el análisis
+temporal y la salvaguarda de revisión explicada más adelante; no se suman
+a las 36 actuaciones actuales esperadas en la detección primaria.
+
+\begin{table}[htbp]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{L{7.3cm} L{4.8cm}}
+\hline
+Elemento de la referencia & Composición \\
+\hline
+Documentos & 48 BOE \\
+Estratos & 6, con 8 BOE cada uno \\
+Alcance documental & 30 relevantes y 18 no relevantes \\
+Eventos documentales & 30 \\
+Activos de generación & 37 \\
+Actuaciones & 81: 36 actuales y 45 antecedentes \\
+Localizaciones administrativas & 111 \\
+\hline
+\end{tabular}
+\caption[Composición de la referencia V2]{Composición del holdout y su
+referencia humana. Son unidades de anotación, no resultados de detección.
+Fuente: documento canónico de resultados, tabla A.}
+\label{tab:holdout-v2}
+\end{table}
+
+\section{Anotación humana ciega y control de calidad}
+% Procedimiento declarado en la solicitud; contrato V2 §8 y manifest truth.
+Realicé manualmente la anotación de la referencia antes de ejecutar las
+predicciones finales. La anotación fue ciega: no conocía la salida de Gemini
+que iba a evaluarse. Leí el documento oficial y apliqué las reglas de
+anotación sin consultar una propuesta del sistema para decidir qué debía
+contener la referencia.
+
+Se utilizó una interfaz auxiliar separada de la aplicación de consulta.
+Leía la fuente documental y el espacio de trabajo de la referencia humana;
+no recibía predicciones, intentos de extracción, avisos sobre posibles
+antecedentes ni la cola del sistema evaluado. Sus controles exigían completar los campos primarios y
+comprobar relaciones entre entidades antes de marcar un documento como
+completo. La validación estructural detectaba omisiones contractuales,
+sin sustituir la lectura y la decisión humanas.
+
+Después de completar la anotación humana de cada documento se realizó un
+control de calidad (\textit{Quality Assurance}, QA) asistido por IA e
+independiente de las
+predicciones del sistema evaluado. El paquete para esa revisión reunía el
+texto del BOE, la anotación humana y las instrucciones de QA; no incorporaba
+salidas de Gemini. La IA podía señalar discrepancias para reconsideración;
+la decisión sobre ellas y sobre la referencia final fue humana y permaneció
+bajo mi responsabilidad.
+
+No se realizó una validación formal interanotador ni se presenta una medida
+de acuerdo entre dos personas. El registro de la referencia
+conserva un único perfil de revisión humana y declara que no hubo exposición
+a predicciones durante la anotación. Esa procedencia permite distinguir la
+revisión asistida de una segunda anotación humana independiente.
+
+No se incorpora una captura de esta interfaz auxiliar: el procedimiento y sus
+controles quedan descritos en esta sección, y una imagen adicional podría
+confundirla con la aplicación de consulta del
+capítulo~\ref{ch:aplicacion}.
+
+\section{Qué significa congelar la referencia}
+Congelar una referencia, o hacer un \emph{freeze}, equivale a cerrar el
+solucionario antes de corregir el examen. Se fija qué se aceptará como
+respuesta esperada para impedir que una predicción observada cambie después
+el criterio a su favor. A partir de ese momento se evalúa contra la versión
+conservada, no contra un espacio de trabajo editable.
+
+La referencia V2 se publicó en una instantánea: una copia identificada de
+sus tablas y de la selección de documentos. Su inventario descriptivo, llamado
+\emph{manifest}, incluye huellas SHA-256 que permiten detectar cambios en
+los archivos. La identidad del contenido reconoce la referencia; la huella
+del manifest comprueba su publicación concreta. Estas comprobaciones
+acreditan integridad, no corrección semántica ni una firma digital.
+
+La referencia se congeló el 13 de septiembre de 2026 a las 09:57:08 en tiempo
+universal coordinado (UTC),
+antes de obtener las predicciones finales. Fue la entrada utilizada en la
+evaluación y no se corrigió después de observar los resultados. Sus
+identificadores se reúnen en la tabla~\ref{tab:identidades-experimento};
+las rutas y huellas completas se reservan al registro técnico.
+
+\section{Campos incluidos en el alcance V2}
+\label{sec:alcance-v2}
+V2 es la versión del contrato de anotación y evaluación que define qué
+información es obligatoria. La reducción a campos primarios se decidió
+antes de ejecutar o inspeccionar las predicciones finales para concentrar
+el esfuerzo en los objetivos del TFM. Se mantuvieron la selección de
+documentos y sus identidades de fuente. El alcance no se redujo después
+de conocer los errores del sistema.
+
+El núcleo comprende el alcance documental; los eventos o unidades de
+proyecto publicadas; los activos de generación con sus alias y tipo; y las
+localizaciones administrativas del proyecto. Para cada actuación se anotaron
+su tipo, decisión, indicador de modificación, estado temporal y conjunto
+explícito de activos afectados, además de los pasajes específicos que la
+respaldan. La representación de estos campos se explica en el
+capítulo~\ref{ch:metodologia}; aquí importa qué se compara y en qué orden.
+
+Los componentes asociados, potencia, promotor y participantes, la
+representación exacta de los destinatarios (\texttt{action\_target}) y las
+evidencias de otras entidades quedaron fuera del cálculo primario de
+resultados, denominado \emph{scoring}. Podían conservarse como información
+secundaria. La exclusión del destinatario exacto no elimina la evaluación
+de qué plantas afecta una actuación: ese conjunto sí es primario.
+
+\subsection{Actuaciones actuales, antecedentes y salvaguarda P0}
+El estado temporal distingue actos actuales, antecedentes históricos y casos
+que no pueden decidirse con seguridad. En las decisiones de revisión,
+\texttt{CURRENT} confirma que la actuación es actual en el documento;
+\texttt{ANTECEDENT} indica que es una referencia histórica que no debe
+tratarse como una actuación actual. «Actual» describe su papel en esa
+publicación, no la vigencia jurídica de la instalación a día de hoy.
+
+P0 es la salvaguarda que señala posibles antecedentes históricos para
+revisión. Detectar una sospecha no decide automáticamente su temporalidad:
+P0 no autoexcluye actuaciones. La revisión humana determina cómo tratar el
+caso. Para evaluar esta salvaguarda se conservan sus avisos originales,
+anteriores a las decisiones humanas CURRENT o ANTECEDENT. La referencia
+humana se anotó sin consultar esos avisos.
+
+\section{Cómo se comparan referencia y predicción}
+\label{sec:evaluador-v2b}
+No basta con tener dos tablas: hay que definir cuándo dos elementos se
+consideran el mismo. Antes de evaluar si el tipo o la decisión de una
+actuación son correctos, primero hay que determinar qué actuación predicha
+corresponde a qué actuación de referencia. Esa operación es el
+\emph{emparejamiento}, también llamado \emph{matching}.
+
+El evaluador V2-B aplica las reglas fijadas para hacer esas correspondencias
+y, después, medir aciertos, omisiones y diferencias. Es determinista: con las
+mismas entradas aplica las mismas reglas, sin consultar un modelo ni tomar
+nuevas decisiones humanas durante la puntuación. V2 identifica el alcance
+que se anotó; V2-B concreta cómo se compara y se puntúa ese alcance.
+
+El emparejamiento no utiliza los atributos que luego se quieren evaluar.
+En una actuación son, entre otros, el tipo (\texttt{action\_type}), la decisión
+(\texttt{decision}) y el indicador de modificación (\texttt{is\_modification}).
+Usarlos para elegir la pareja favorecería artificialmente la evaluación:
+se seleccionarían correspondencias precisamente por coincidir en lo que se
+pretende comprobar. Por la misma razón, tampoco deciden la pareja la
+tecnología del activo, el nivel administrativo de la localización, la
+temporalidad de la actuación ni sus activos afectados.
+
+Todas las correspondencias son uno a uno: un elemento no puede contar como
+pareja de varios. Si hay varias formas de obtener el máximo número de
+parejas, solo se aceptan las coincidencias comunes a todas ellas. No se
+resuelven empates por orden de filas ni por atributos convenientes. Una
+ambigüedad queda sin resolver y conserva su tratamiento en la evaluación.
+
+\section{Emparejamiento jerárquico: de la planta a sus actuaciones}
+\label{sec:matching-jerarquico}
+Las entidades tienen dependencias. Primero se identifica la planta o activo
+de generación; después, el evento que reúne sus activos dentro de un BOE;
+y solo entonces, las actuaciones y localizaciones de ese evento. El orden es:
+\begin{center}
+activo $\longrightarrow$ evento $\longrightarrow$ actuación o localización.
+\end{center}
+Si falta una correspondencia necesaria en un nivel, no puede darse por
+resuelta la entidad que depende de él. Las reglas siguientes definen cada
+paso; sus consecuencias observadas se presentan en el capítulo de resultados.
+
+\subsection{Activos y eventos}
+Los activos se comparan dentro del mismo BOE mediante coincidencia exacta
+entre alguno de sus alias normalizados. La normalización homogeneiza
+mayúsculas, acentos, signos y espacios, pero conserva el orden de palabras.
+No elimina libremente descriptores ni admite similitud aproximada. Por
+ejemplo, «Plánta Alfa» y «planta alfa» pueden coincidir, mientras que
+«Alfa Planta» conserva otra secuencia. Es un ejemplo didáctico, ajeno al
+corpus evaluado.
+
+Un evento solo puede emparejarse si coincide el conjunto completo y no vacío
+de activos previamente emparejados. Un activo sin correspondencia, un
+activo adicional o una división del evento impiden satisfacer esa igualdad.
+No se ocultan elementos sobrantes para formar una pareja. Este criterio
+compara la representación del proyecto dentro de una publicación; es
+distinto de la agrupación longitudinal de publicaciones explicada en el
+capítulo~\ref{ch:metodologia}.
+
+\subsection{Actuaciones y pasajes de evidencia}
+Una actuación necesita un evento padre emparejado y evidencia que permita
+proponer una pareja concreta. Al menos un fragmento predicho debe estar
+contenido en un pasaje aceptado de esa misma actuación de referencia.
+«Candidato» significa aquí una pareja posible que satisface esa condición;
+solo se acepta finalmente si también cumple la regla de correspondencia
+única de la sección anterior.
+
+Encontrar el fragmento en otro lugar del BOE o considerarlo semánticamente
+parecido no basta. Tampoco basta la contención inversa, cuando la evidencia
+predicha es más amplia que el pasaje aceptado. Una vez formada la pareja,
+los atributos aún pueden ser incorrectos. A la inversa, unos atributos
+plausibles no crean una correspondencia si falla el evento o la evidencia.
+
+\subsection{Localizaciones}
+Las localizaciones se comparan por el nombre textual normalizado dentro de
+eventos ya emparejados. El nivel administrativo se comprueba después.
+No se utilizan códigos INE, proximidad geográfica ni equivalencias externas
+para crear la correspondencia. Compartir territorio no permite saltarse
+la identificación previa del evento.
+
+\subsection{Relación entre actuación y activo afectado}
+Además de recuperar una actuación, se comprueba a qué plantas afecta dentro
+del documento. Un destinatario directo aporta su planta; un destinatario de
+evento aporta sus plantas; un componente aporta únicamente las plantas
+vinculadas de forma explícita. No se inventa un vínculo ausente.
+
+Hay dos comprobaciones distintas: recuperar cada relación individual entre
+actuación y activo, y acertar el conjunto completo de plantas afectadas.
+La primera cuenta pares como unidad; la segunda se realiza sobre actuaciones
+actuales ya emparejadas. Sus denominadores se explican junto a las métricas.
+
+\section{Corrección del control de procedencia antes de Gemini}
+Antes de la ejecución primaria se detectó un defecto acotado en el control
+de uso reportado del evaluador. Exigía un mínimo de peticiones al modelo
+que incluía intentos terminados en ciertos errores de transporte, aunque
+estos podían no contabilizar una petición en el registro de uso.
+
+La corrección limitó ese mínimo a intentos de origen modelo con extracción
+correcta. Conservó el uso reportado y los errores terminales. No cambió
+la referencia, el emparejamiento, las reglas de puntuación, los
+denominadores, las fórmulas de métricas, la temporalidad ni P0. Las pruebas
+de regresión documentadas compararon los resultados y las tablas científicas
+de un caso sintético antes y después del cambio.
+No se habían observado predicciones finales.
+
+El evaluador definitivo, incluida esa corrección, se congeló a las
+14:59:31 UTC del 13 de septiembre. La ejecución empezó después. La versión
+anterior se conservó sin sobrescribirla y el sistema productivo evaluado
+permaneció congelado. Esa modificación corrigió una comprobación de
+procedencia antes del experimento; el criterio científico no cambió después
+de ver sus resultados.
+La sección~\ref{sec:reproducibilidad-experimental} identifica ambas versiones.
+
+\section{Ejecución primaria con registro durable}
+\label{sec:ejecucion-primaria}
+La ejecución primaria es la ejecución final del sistema sobre el holdout.
+Un fallo o una interrupción no debía provocar una segunda llamada ambigua
+al modelo ni sustituir el primer resultado. Para evitarlo se utilizó un
+controlador externo al producto con un registro \emph{durable}: el inicio,
+la terminación, las salidas y su procedencia quedan guardados en disco y
+pueden comprobarse aunque el proceso se interrumpa.
+
+La \textbf{regla de reanudación} es simple: solo se procesan documentos
+pendientes y se conservan los terminales. Un inicio sin terminación verificable
+queda indeterminado y exige decisión humana; no vuelve automáticamente a
+pendiente. Si la salida ya está guardada y solo falta completar el registro,
+el controlador puede verificarla sin llamar otra vez al modelo. Los estados,
+archivos y comandos se documentan en el anexo y en la guía técnica.
+
+Un intento documental puede contener reintentos internos acotados del
+extractor; eso no equivale a repetir un documento terminal. El controlador es
+infraestructura experimental, no una función de Streamlit ni una programación
+diaria del pipeline.
+
+La ejecución abarcó los 48 BOE y transcurrió el 13 de septiembre entre
+las 15:06:50 y las 15:28:00 UTC. Terminó con 47 éxitos operativos y un error
+terminal, sin pendientes, activos ni indeterminados. El error de
+\texttt{BOE-B-2024-32569} se preservó y no se reintentó después.
+La sección~\ref{sec:resultado-ejecucion} presenta su tratamiento experimental.
+Estos estados distinguen finalización del proceso y corrección del contenido.
+
+\section{Congelación de las predicciones y evaluación offline}
+También es necesario fijar las respuestas que se van a corregir. Al terminar
+la ejecución se reunió la salida primaria en una instantánea de extracción,
+conservando tanto los resultados como el error terminal. Las predicciones
+se congelaron a las 15:32:07 UTC; así, una respuesta posterior no podía
+reemplazar la obtenida en el experimento.
+
+La evaluación se realizó \emph{offline}: comparó archivos ya conservados,
+sin volver a ejecutar Gemini, la canonicalización ni la detección P0.
+Utilizó tres entradas congeladas: referencia humana, evaluador y predicciones.
+Tampoco incorporó correcciones humanas del holdout a la salida primaria.
+El informe de evaluación se creó a las 15:36:43 UTC, después de congelar
+las predicciones. Todas las horas de esta secuencia corresponden al 13 de
+septiembre de 2026 y se muestran al segundo; el registro técnico conserva
+la precisión completa.
+
+\section{Cómo se mide el rendimiento}
+\label{sec:metricas-evaluacion}
+\subsection{Aciertos, predicciones adicionales y omisiones}
+Considérese primero un ejemplo exclusivamente didáctico, ajeno al BOE y a
+los recuentos del experimento:
+\begin{center}
+Referencia: A, B, C. \qquad Sistema: A, B, D.
+\end{center}
+A y B se recuperan y tienen pareja en la referencia: son dos verdaderos
+positivos, o \emph{TP}. D es una predicción sin positivo esperado que le
+corresponda: es un falso positivo, o \emph{FP}. C se esperaba y no se
+recupera: es un falso negativo, o \emph{FN}.
+
+En el experimento estas correspondencias se deciden con las reglas V2-B.
+Un elemento esperado que no consigue emparejarse también cuenta como
+omisión, aunque haya una predicción parecida. Del mismo modo, un FP no
+significa necesariamente contenido inventado: puede surgir de una
+diferencia de representación que la regla no acepta.
+
+La \emph{precisión} (\emph{precision}) responde: «De lo que el sistema
+encontró, ¿cuánto era correcto?». La \emph{exhaustividad} (\emph{recall})
+responde: «De lo que debía encontrar, ¿cuánto consiguió recuperar?».
+F1 resume el equilibrio entre ambas. Una recuperación amplia con muchas
+predicciones incorrectas, o una salida muy precisa que omite gran parte de
+lo esperado, no consigue un F1 alto. Las fórmulas concretan esas preguntas:
+\[
+\mathrm{Precision}=\frac{TP}{TP+FP},
+\qquad
+\mathrm{Recall}=\frac{TP}{TP+FN}.
+\]
+\[
+F1=\frac{2\,\mathrm{Precision}\,\mathrm{Recall}}
+         {\mathrm{Precision}+\mathrm{Recall}}.
+\]
+F1 es la media armónica de precisión y recall. En el ejemplo, precisión y
+recall son \(2/3\), y F1 también es \(2/3\).
+
+La agregación del experimento es \emph{micro}: se suman TP, FP y FN de
+todos los documentos de cada tarea antes de calcular sus razones.
+No se promedian porcentajes de documentos ni se combinan clases de entidad
+\cite{manning_introduction_2008}.
+Para el alcance documental se utiliza la proporción de documentos
+correctamente clasificados, o \emph{accuracy}, con todos los BOE evaluables
+en el denominador. Esa medida de clasificación no es una exactitud global
+del sistema.
+
+En la detección primaria de actuaciones se esperan actos actuales. Una
+predicción emparejada con un antecedente cuenta como FP por contaminación
+histórica; omitir un antecedente no cuenta como FN de actuación actual.
+Los casos temporalmente ambiguos quedan excluidos conforme a las reglas
+fijadas. No se calcula una exactitud temporal categórica independiente.
+En las relaciones actuación--activo, cada par es una unidad: no se suma
+su recuento al de entidades.
+
+\subsection{Atributos condicionados y tamaño del denominador}
+Primero se empareja la entidad y solo después se comprueban sus atributos.
+La proporción de atributos correctos utiliza como denominador el número de
+parejas aplicables, indicado como \(N\). En las actuaciones, además, las
+parejas deben corresponder a actos actuales. Un valor predicho ausente
+cuenta como incorrecto si la referencia espera ese campo; no se completa
+automáticamente.
+
+Si solo se emparejara una actuación y un atributo fuera correcto, el resultado
+sería 1/1. Significaría «correcto en la única actuación que pudo compararse»,
+no «correcto en todas las actuaciones». Las actuaciones sin pareja siguen
+penalizadas en detección, pero no entran en ese denominador condicionado.
+Lo mismo ocurre al comprobar el conjunto completo de activos afectados:
+la igualdad se examina sobre actuaciones actuales emparejadas, mientras
+que la recuperación de pares tiene su propio universo.
+
+\subsection{Soporte de evidencia}
+La evidencia tiene dos controles con propósitos distintos. Para proponer
+una pareja basta que \emph{algún} fragmento predicho esté contenido en un
+pasaje aceptado de esa actuación. Para considerar respaldada su evidencia
+completa deben estarlo \emph{todos} los fragmentos evaluados. El separador
+literal \texttt{[...]} distingue fragmentos; la comparación homogeneiza
+representación Unicode, mayúsculas y espacios, conservando puntuación.
+
+La tasa de soporte divide las actuaciones con evidencia respaldada entre
+las actuaciones actuales emparejadas. No describe todas las evidencias
+extraídas ni constituye una prueba independiente de comprensión semántica,
+pues la evidencia también interviene en el emparejamiento.
+
+\subsection{Avisos de P0 y casos adjudicables}
+Para evaluar un aviso de P0 hay que poder vincularlo con seguridad a una
+actuación extraída y emparejada con la referencia. Esta vinculación se
+denomina \emph{adjudicación}; delimita los casos en los que se puede
+comprobar si el aviso era oportuno.
+
+Sobre un antecedente, emitir un aviso es un TP de P0 y no emitirlo es un FN.
+Sobre una actuación actual, emitirlo es un FP y no emitirlo es un verdadero
+negativo, o TN. Por tanto, una actuación histórica indebidamente extraída
+puede ser un error de extracción y, a la vez, un acierto de P0 si se avisó
+para revisarla: son tareas diferentes.
+
+Los avisos sin adjudicación segura quedan fuera de ese denominador.
+Un antecedente sin extracción emparejada no ofrece una oportunidad observable
+para evaluar el detector y no se convierte en FN de P0. La tasa de falsos
+avisos se calcula sobre actuaciones actuales adjudicables como
+\(FP/(FP+TN)\). Los resultados deben mostrar también los casos excluidos.
+
+\subsection{Razones no definidas}
+Si el denominador es cero, la razón no está definida y el artefacto la
+registra como \texttt{null}, no como cero. F1 tampoco está definido si
+precisión o recall no lo están; cuando ambas están definidas y valen cero,
+F1 vale cero. Un denominador positivo pero muy pequeño sí permite un cálculo,
+aunque no una estimación estable del rendimiento. Esta distinción será
+especialmente relevante para atributos de actuación, evidencia y P0.
+
+\section{Flujo completo del experimento}
+La figura~\ref{fig:metodologia-experimental} reúne la secuencia en cuatro
+fases. Primero se prepararon y fijaron el sistema, el conjunto reservado,
+la referencia humana y el evaluador. Después se ejecutó el sistema y se
+conservaron sus predicciones. Solo entonces se calcularon los resultados
+mediante comparación offline. La referencia humana y el evaluador se usaron
+para esa comparación; no fueron entradas de Gemini.
+
+El análisis diagnóstico posterior, o \emph{post-hoc}, comienza una vez
+conocidos los resultados primarios. Sirve para explicar las discrepancias
+observadas y no modifica la referencia, el evaluador, las predicciones,
+las reglas de puntuación ni los resultados. La secuencia protege frente
+al ajuste retrospectivo, aunque no elimina los límites del tamaño muestral,
+de una anotación a cargo de una sola persona o de la representación elegida.
+
+\begin{figure}[p]
+\centering
+\input{figs/metodologia_experimental}
+\caption[Diseño y congelaciones del experimento]{El sistema, la referencia
+humana y las reglas de evaluación quedaron fijados antes de obtener las
+predicciones finales. Tras congelar también las predicciones, se realizó
+la evaluación offline. El diagnóstico post-hoc comenzó después de obtener
+los resultados primarios y no los modificó. Horas UTC del 13/09/2026,
+mostradas al minuto. Elaboración propia a partir de los registros del experimento.}
+\label{fig:metodologia-experimental}
+\end{figure}
+
+\section{Identidades y reproducibilidad}
+\label{sec:reproducibilidad-experimental}
+Reproducir la puntuación exige conservar las entradas concretas y las reglas
+que las compararon. La tabla~\ref{tab:identidades-experimento} identifica los
+cinco elementos principales. Los prefijos sirven para leer la memoria;
+la verificación utiliza las identidades y huellas completas.
+
+\begin{table}[htbp]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{L{4.4cm} L{3.3cm} L{4.4cm}}
+\hline
+Elemento & Identidad abreviada & Función \\
+\hline
+Sistema evaluado & \texttt{282de815bea4} & Commit del ref privado histórico \texttt{tfm-final} \\
+Referencia humana V2 & \texttt{e3f300253db9} & Referencia humana congelada \\
+Evaluador V2-B & \texttt{a617ef6155cf} & Reglas y código fijados \\
+Predicciones & \texttt{154c9b42e840} & Salida primaria preservada \\
+Evaluación & \texttt{4686355d47e0} & Informe y métricas conservados \\
+\hline
+\end{tabular}
+\caption[Identidades del experimento]{Prefijos de las identidades canónicas.
+El commit del sistema y las identidades de artefactos tienen funciones de
+procedencia diferentes; las cadenas completas constan en el registro técnico.}
+\label{tab:identidades-experimento}
+\end{table}
+
+El sistema productivo se identifica por el commit del ref privado histórico
+\texttt{tfm-final}; el código del evaluador definitivo, por el commit privado
+histórico \texttt{2c0632b89d59}. Ninguno pertenece a la nueva historia pública.
+Son versiones con funciones distintas dentro del experimento.
+Las rutas e identidades completas constan en las secciones 1 y 11 de
+\path{docs/evaluation/FINAL_HOLDOUT_V2_RESULTS.md}.
+Ese registro incluye los SHA-256 de manifests y el registro original de
+ejecución. El informe conserva resumen, doce tablas
+de auditoría y copias de procedencia. Así pueden examinarse denominadores
+y correspondencias sin reinterpretar documentos ni ejecutar el experimento.
+
+La verificación de un informe comprueba integridad; no equivale a una nueva
+puntuación ni verifica por sí sola todas sus entradas originales. Repetir
+una llamada generativa tampoco garantiza obtener la misma respuesta.
+La reproducibilidad aquí descansa en conservar y hacer accesibles los
+artefactos usados. Su entrega se completa con los materiales del
+anexo~\ref{an:reproducibilidad}; una ruta local y un hash no sustituyen
+un archivo accesible.

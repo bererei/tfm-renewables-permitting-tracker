@@ -1,0 +1,41 @@
+% F04: contrato de salida -> canonicalización -> validación documental.
+% Amplía el bloque de extracción de F03; revisión humana se reserva para F06.
+\begin{tikzpicture}
+\node[tfm data, text width=5.7cm] (entrada) at (-2.8,0)
+  {Documento e instrucciones\\Texto seleccionado y huella};
+\node[tfm accent, text width=5.7cm] (agent) at (-2.8,-1.55)
+  {Agente de Pydantic AI\\Instrucciones + Gemini\\+ tipo de salida Pydantic};
+\node[tfm box, text width=5.7cm] (contrato) at (-2.8,-3.15)
+  {Salida \texttt{BOEAIExtraction}\\Estructura validada por Pydantic};
+\node[tfm box, text width=5.7cm] (identidad) at (-2.8,-4.7)
+  {Identidad de la fuente\\El código añade BOE y fecha};
+\node[tfm box, text width=5.7cm] (canon) at (-2.8,-6.2)
+  {Canonicalización\\Reglas y registro de ajustes};
+\node[tfm box, text width=5.7cm] (validacion) at (-2.8,-7.7)
+  {Validación documental\\Evidencia, alcance y relaciones};
+\node[tfm box, text width=5.7cm] (seleccion) at (-2.8,-9.55)
+  {Selección vigente\\Comprobar revisión y posibles antecedentes};
+\node[tfm data, text width=5.7cm] (silver) at (-2.8,-11.35)
+  {Sin bloqueantes\\Entrada para materializar Silver};
+\node[tfm data, text width=4.0cm] (review) at (3.8,-9.55)
+  {Incidencia de revisión\\Intento y diagnóstico conservados\\Cola cuando corresponde};
+\foreach \a/\b in {entrada/agent,agent/contrato,contrato/identidad,
+  identidad/canon,canon/validacion,validacion/seleccion,seleccion/silver}
+  {\draw[tfm flow] (\a) -- (\b);}
+\draw[tfm flow] (seleccion.east) -- (review.west);
+\draw[tfm flow] (validacion.east) -| (review.north);
+\draw[tfm flow, dashed] (validacion.east) -- (0.9,-7.7)
+  -- (0.9,-1.55) -- (agent.east);
+\node[tfm note, text width=4.0cm] at (3.8,-2.25)
+  {Pydantic comprueba la estructura.\\[4pt]
+   Una salida estructuralmente válida aún puede ser incorrecta.};
+\node[tfm note, text width=3.8cm] at (3.8,-5.75)
+  {Fallo documental:\\
+   posible reintento acotado\\
+   con los problemas detectados.\\[4pt]
+   Si persiste, se conserva el error.};
+\node[tfm note, text width=11.5cm] at (0,-13.0)
+  {La generación corresponde al modelo. Las transformaciones posteriores
+   son deterministas para entradas y versiones fijadas.\\
+   La respuesta inicial y los ajustes conservan su procedencia.};
+\end{tikzpicture}

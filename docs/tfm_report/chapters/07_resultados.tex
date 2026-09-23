@@ -1,0 +1,445 @@
+\chapter{Resultados}
+\label{ch:resultados}
+% Única fuente de cifras: FINAL_HOLDOUT_V2_RESULTS.md y resumen inmutable.
+% Redondeo editorial a tres decimales; no recalcular ni crear nuevos matches.
+Este capítulo presenta primero los \textbf{resultados primarios}, obtenidos
+con el evaluador V2-B fijado antes de la ejecución. Las seis primeras secciones
+mantienen sus unidades y denominadores. La
+sección~\ref{sec:diagnostico-posthoc} recoge después el diagnóstico aprobado,
+realizado al conocer las cifras. Ese análisis explica discrepancias existentes;
+no modifica la puntuación ni calcula resultados alternativos.
+
+Todas las cifras proceden del informe inmutable identificado en la
+sección~\ref{sec:reproducibilidad-experimental} y del documento canónico de
+resultados. Los decimales se muestran redondeados para facilitar la lectura;
+los artefactos conservan su precisión original.
+
+\section{Ejecución primaria}
+\label{sec:resultado-ejecucion}
+Se procesaron los 48 documentos del holdout. El resultado operativo fue:
+\begin{center}
+47 \texttt{TERMINAL\_SUCCESS} $+$ 1 \texttt{TERMINAL\_ERROR}.
+\end{center}
+No quedaron documentos pendientes, en ejecución o indeterminados. En este registro,
+\texttt{TERMINAL\_SUCCESS} significa que la ejecución terminó con un artefacto
+válido; no significa que la predicción sea correcta ni que todas sus entidades
+o interpretaciones lo sean.
+
+El error corresponde a \texttt{BOE-B-2024-32569}. El controlador lo conservó como parte del
+experimento, sin reintentarlo después ni sustituir su salida por una
+corrección. Por tanto, el denominador documental sigue siendo 48. El
+evaluador trata ese resultado como predicción ausente, no como un documento
+eliminado. Su diagnóstico técnico se describe al final de la sección
+post-hoc, separado de este resultado operativo.
+
+\section{Alcance documental}
+La primera pregunta es si el documento trata un proyecto de generación
+dentro del alcance definido. La salida evaluada clasificó correctamente 46 de los
+48 BOE: proporción de acierto documental (\emph{accuracy}) de 0,9583333,
+o \textbf{95,8\,\%} con el redondeo de presentación. La
+tabla~\ref{tab:scope-resultados} se lee por filas: cada clase humana se
+distribuye entre las respuestas del sistema y la predicción ausente.
+
+\begin{table}[htbp]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{L{4.6cm} C{2.2cm} C{2.2cm} C{2.2cm}}
+\hline
+Referencia humana & Predicho relevante & Predicho no relevante & Sin predicción \\
+\hline
+Relevante para generación & 30 & 0 & 0 \\
+No relevante & 1 & 16 & 1 \\
+\hline
+\end{tabular}
+\caption[Clasificación del alcance documental]{Matriz de alcance sobre los
+48 BOE. Relevante corresponde a \texttt{generation\_project\_specific}.
+La ausencia de predicción cuenta como error; no es una tercera clase humana.
+Fuente: resultados canónicos, tabla D.}
+\label{tab:scope-resultados}
+\end{table}
+
+Los 30 documentos relevantes se clasificaron correctamente. De los
+18 no relevantes, 16 fueron correctos, uno se clasificó como específico
+de generación y otro careció de predicción por el error terminal.
+El falso positivo documental fue \texttt{BOE-A-2025-13309}; la predicción
+ausente fue \texttt{BOE-B-2024-32569}.
+
+La cifra muestra un alto acierto de alcance en este conjunto reservado.
+No mide la cobertura del filtro inicial de candidatos ni garantiza la
+correcta extracción de las entidades de un documento bien clasificado.
+
+\section{Detección de entidades y relaciones}
+La siguiente pregunta es qué elementos se recuperaron, aunque el documento
+se hubiera clasificado correctamente. La tabla~\ref{tab:metricas-entidades}
+resume aciertos emparejados (TP), predicciones sin positivo correspondiente
+(FP) y elementos esperados no recuperados (FN). Para leer cada fila, la
+precisión usa como denominador TP + FP y el recall usa TP + FN.
+Las métricas agregan los recuentos de todos los documentos de esa tarea.
+
+La última fila utiliza otra unidad: el par entre una actuación y un activo
+afectado. Se presenta junto a las entidades para facilitar la comparación,
+sin sumarla a ellas ni construir un promedio global.
+
+\begin{table}[htbp]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{L{4.3cm} C{0.7cm} C{0.7cm} C{0.7cm} C{1.7cm} C{1.5cm} C{1.3cm}}
+\hline
+Entidad o relación & TP & FP & FN & Precisión & Recall & F1 \\
+\hline
+Activo de generación & 20 & 19 & 17 & 0,513 & 0,541 & 0,526 \\
+Evento documental & 13 & 25 & 17 & 0,342 & 0,433 & 0,382 \\
+Actuación actual & 1 & 57 & 35 & 0,017 & 0,028 & 0,021 \\
+Localización & 43 & 95 & 68 & 0,312 & 0,387 & 0,345 \\
+Actuación--activo & 1 & 59 & 38 & 0,017 & 0,026 & 0,020 \\
+\hline
+\end{tabular}
+\caption[Detección primaria de entidades y relaciones]{Resultados primarios
+V2-B, con razones redondeadas a tres decimales. La detección de actuaciones
+tiene como positivos los actos actuales; la última fila cuenta relaciones.
+Fuente: tablas B y E del documento canónico.}
+\label{tab:metricas-entidades}
+\end{table}
+
+Los activos presentan el mayor F1 entre estas filas, 0,526. Eventos y
+localizaciones alcanzan 0,382 y 0,345, respectivamente. Estos resultados
+muestran una recuperación parcial, con omisiones y predicciones sin
+correspondencia bajo las reglas fijadas. La detección primaria de actuaciones
+es mucho menor: solo una actuación actual emparejada, con 57 FP y 35 FN,
+y F1 de 0,021.
+
+Las relaciones actuación--activo tienen denominadores de 60 pares predichos
+para precisión y 39 esperados para recall. No describen la agrupación
+longitudinal de Gold. Su resultado, 1 TP, 59 FP y 38 FN, responde a recuperar
+la actuación y su relación con cada planta, no solo a nombrar una planta.
+
+La referencia contiene además 45 antecedentes sin extracción emparejada.
+No se incorporan al denominador positivo de actuaciones actuales.
+El contador de contaminación histórica emparejada es cero; ello no demuestra
+que no exista contenido histórico entre las predicciones sin emparejamiento.
+Las causas diagnósticas de estas discrepancias se examinan después, sin
+reemplazar los resultados primarios.
+
+\section{Atributos condicionados al emparejamiento}
+Un atributo solo se evalúa cuando la entidad base ya tiene correspondencia
+y el campo es aplicable. La tabla~\ref{tab:atributos-condicionados} muestra
+por ello numerador y denominador, además de la proporción. Las entidades
+omitidas o no emparejadas no entran en estas proporciones; siguen penalizadas
+en la detección anterior. Por tanto, esta tabla responde a cuánto se acertó
+una vez encontrada la pareja, no a cuántas entidades se recuperaron.
+
+\begin{table}[htbp]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{L{6.1cm} C{1.9cm} C{1.4cm} C{2.0cm}}
+\hline
+Atributo & Correctos & \(N\) & Proporción \\
+\hline
+Tipo de generación & 20 & 20 & 1,000 \\
+Nivel administrativo de localización & 43 & 43 & 1,000 \\
+Tipo de actuación & 1 & 1 & 1,000 \\
+Decisión & 1 & 1 & 1,000 \\
+Indicador de modificación & 1 & 1 & 1,000 \\
+Conjunto exacto de activos afectados & 1 & 1 & 1,000 \\
+\hline
+\end{tabular}
+\caption[Atributos sobre parejas emparejadas]{Resultados condicionados a
+pares aplicables. Fuente: tabla C del documento canónico.}
+\label{tab:atributos-condicionados}
+\par\smallskip
+\begin{minipage}{0.91\linewidth}
+\small
+\textbf{Denominador condicionado:} una actuación emparejada. Las cuatro filas relativas a actuaciones
+describen ese único caso actual; no estiman la exactitud general de todas las
+actuaciones extraídas.
+\end{minipage}
+\end{table}
+
+El tipo de generación coincide en los 20 activos emparejados y el nivel
+administrativo, en las 43 localizaciones emparejadas. Para la única actuación
+actual emparejada coinciden tipo, decisión, modificación y conjunto de
+activos afectados. Estos aciertos describen el subconjunto emparejado;
+no compensan el bajo recall de actuaciones.
+
+\section{Soporte de evidencia}
+El soporte se evaluó sobre \textbf{una actuación actual emparejada}:
+\texttt{supported = 0}, denominador 1 y tasa 0/1.
+No es una tasa de evidencia de todas las actuaciones extraídas.
+
+El caso corresponde a \texttt{BOE-A-2026-7540}. La evidencia predicha
+contiene dos fragmentos separados:
+\begin{quote}
+«se declara, en concreto, la utilidad pública [...] de la modificación
+de la línea subterránea a 30 kV»
+\end{quote}
+El segundo fragmento está dentro del pasaje aceptado y permite formar el
+candidato. El primero no satisface esa contención: el pasaje humano comienza
+«Declarar, en concreto, la utilidad pública». El criterio de matching exigía
+algún fragmento respaldado; el de soporte exige todos.
+
+El contraste ilustra dos reglas diferentes aplicadas al mismo caso.
+No se ha aceptado una nueva evidencia ni cambiado la adjudicación.
+Con \(N=1\), el resultado no permite estimar de forma estable el soporte
+documental general ni medir por separado comprensión semántica.
+
+\section{Salvaguarda de antecedentes históricos P0}
+P0 señala posibles antecedentes para revisión. Su evaluación exige poder
+vincular el aviso, o su ausencia, con una actuación extraída y emparejada:
+ese es el universo adjudicable de la tabla~\ref{tab:p0-resultados}. Solo una
+actuación permitió esa comprobación segura: era actual y no tenía aviso,
+por lo que cuenta como verdadero negativo, o TN, de P0. La tabla muestra
+también los casos que no pudieron entrar en esa comparación.
+
+\begin{table}[htbp]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{L{4.8cm} L{2.4cm} L{4.9cm}}
+\hline
+Medida & Valor & Denominador o interpretación \\
+\hline
+TP / FP / FN / TN & 0 / 0 / 0 / 1 & 1 actuación adjudicable \\
+Avisos no adjudicados & 1 & Fuera de TP, FP, FN y TN \\
+Antecedentes sin extracción emparejada & 45 & No son FN de P0 \\
+Precisión & No definida & \(TP+FP=0\) \\
+Recall & No definido & \(TP+FN=0\) \\
+F1 & No definido & Precisión o recall indefinidos \\
+Tasa de falsos avisos & 0/1 & \(FP/(FP+TN)\) \\
+\hline
+\end{tabular}
+\caption[P0 en el holdout]{Resultados primarios de P0. Los valores no
+definidos se conservan como \texttt{null} en el artefacto.
+Fuente: tabla F del documento canónico.}
+\label{tab:p0-resultados}
+\par\smallskip
+\begin{minipage}{0.91\linewidth}
+\small
+\textbf{Límite de P0:} el holdout no permite estimar su sensibilidad porque no
+hay antecedentes extraídos y emparejados que constituyan positivos adjudicables.
+La tasa de falsos avisos también se limita a un único caso.
+\end{minipage}
+\end{table}
+
+Los 45 antecedentes no emparejados se registran como
+\path{missing_extraction_not_p0_fn}. No se convierten en 45 fallos del
+detector: sin una extracción emparejada no hay una oportunidad observable
+para adjudicar su aviso. El aviso restante carece de adjudicación segura
+y no se transforma retrospectivamente en TP o FP.
+
+Como evidencia separada de \textbf{desarrollo}, el ensayo específico previo
+registró detección de 11 de 11 antecedentes conocidos y ningún aviso en
+cinco controles negativos. Ese ensayo no pertenece al holdout, no se suma
+a la tabla~\ref{tab:p0-resultados} y no permite atribuir al conjunto reservado
+una sensibilidad que no pudo medir.
+
+% Cerrar los floats primarios antes de abrir el diagnóstico post-hoc.
+\clearpage
+\section{Análisis diagnóstico posterior a la evaluación}
+\label{sec:diagnostico-posthoc}
+\textbf{Diagnóstico posterior:} no modifica los resultados primarios.
+
+Hasta este punto se han presentado los resultados obtenidos mediante las
+reglas definidas antes de ejecutar el experimento. A partir de aquí se
+analiza por qué se produjeron determinados errores, una vez conocidos esos
+resultados. Este análisis posterior no modifica las métricas anteriores.
+
+Se presenta el diagnóstico ya verificado y aprobado, identificado en el
+registro técnico como \emph{POST-HOC DIAGNOSTIC — NOT PRIMARY SCORING}.
+La referencia humana, el evaluador, las predicciones y las reglas de
+puntuación permanecen fijados. Las observaciones explican discrepancias;
+no reanotan documentos, crean correspondencias ni proponen otra puntuación.
+
+\subsection{Propagación jerárquica}
+\label{sec:cascada-diagnostica}
+El evaluador tiene dependencias entre niveles. Si un activo no empareja,
+su evento no puede satisfacer el conjunto completo exigido. Sin ese evento,
+sus actuaciones y localizaciones tampoco pueden emparejarse por la vía
+primaria. El padre emparejado es necesario, pero no suficiente: todavía
+deben cumplirse las condiciones propias de sus entidades hijas.
+La figura~\ref{fig:cascada-matching} representa esta dependencia.
+
+El diagnóstico conserva 37 activos humanos, 39 predichos y 20 emparejados;
+30 eventos humanos, 38 predichos y 13 emparejados; y 36 actuaciones humanas
+actuales frente a 58 predichas, con una actual emparejada.
+De los 20 activos emparejados, siete pertenecen a eventos que no emparejan.
+Identificar una planta y representar correctamente su evento son condiciones
+distintas. Estos son recuentos del mismo experimento, no una métrica nueva.
+
+\begin{figure}[p]
+\centering
+\input{figs/cascada_matching}
+\caption[Cascada jerárquica de matching]{Diagnóstico post-hoc.
+Una discrepancia de identidad o representación puede propagarse a entidades
+dependientes. Los recuentos son los primarios del corpus; no cuantifican
+por sí solos el efecto de cada flecha. El diagrama no cambia el scoring.
+Elaboración propia a partir del diagnóstico canónico.}
+\label{fig:cascada-matching}
+\end{figure}
+
+\subsection{Actuaciones: evento y candidato de evidencia}
+La tabla~\ref{tab:diagnostico-actuaciones} distribuye los errores de
+actuaciones según la condición que impidió el emparejamiento. Cada caso se
+asigna a un motivo prioritario, sin sumarlo otra vez en categorías
+posteriores. No se detectaron ambigüedades de emparejamiento. Los 37 FP bajo
+eventos no emparejados incluyen la actuación del documento con alcance
+incorrecto.
+
+\begin{table}[htbp]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{L{8.6cm} C{1.4cm} C{1.4cm}}
+\hline
+Motivo diagnóstico & FN & FP \\
+\hline
+Evento sin emparejar & 18 & 37 \\
+Sin candidato de evidencia dentro de evento emparejado & 17 & 20 \\
+Ambigüedad & 0 & 0 \\
+Total & 35 & 57 \\
+\hline
+\end{tabular}
+\caption[Diagnóstico de errores de actuaciones]{Desglose post-hoc de los
+errores primarios ya contabilizados. Fuente: resultados canónicos, sección 8.}
+\label{tab:diagnostico-actuaciones}
+\end{table}
+
+Una parte importante del resultado se sitúa en condiciones anteriores
+a comparar los atributos: la identidad del evento y la evidencia candidata.
+Ello no demuestra que todos los tipos o decisiones fueran correctos, ni
+elimina los 35 FN y 57 FP. Explica por qué esos errores no equivalen
+automáticamente a otras tantas actuaciones con todos sus atributos equivocados.
+
+\subsection{Evidencia y canonicalización}
+De las 20 actuaciones predichas sin candidato bajo un evento emparejado,
+18 utilizaron exactamente el título del BOE como evidencia final y dos
+utilizaron otros fragmentos. El título puede contener información pertinente,
+pero el criterio congelado exige un fragmento contenido en el pasaje
+aceptado para esa actuación; una relación semántica general no basta.
+
+La reparación determinista de evidencias puede priorizar el título, como
+se explicó en la sección~\ref{sec:canonicalizacion}. El diagnóstico documentó
+en \texttt{BOE-A-2024-2440} una evidencia precanónica más corta y el título
+en la salida final. Activo, evento y tres localizaciones sí emparejaron,
+mientras la actuación quedó sin candidato de evidencia.
+
+Este caso muestra una posible interacción entre extracción, canonicalización,
+representación de evidencia y criterio estricto del evaluador. No permite
+atribuir automáticamente el resultado a una invención de Gemini ni estimar
+qué habría ocurrido puntuando otra salida. No se recalculó esa alternativa.
+
+\subsection{Activos: variantes textuales bajo coincidencia exacta}
+Los 17 FN de activos se distribuyeron en 14 denominaciones predichas más
+cortas o sin algún descriptor presente en la referencia, dos con la adición
+de «existente» y un contraste entre «PFVH San Blas» y «Planta fotovoltaica
+San Blas». Estas discrepancias generan también 17 FP. Los otros dos FP
+corresponden a Envatios XXIV -- Fase I adicional y al activo del BOE con
+alcance incorrecto.
+
+«Instalación fotovoltaica Hipódromo» y «Hipódromo» ilustran la diferencia
+entre una relación nominal reconocible y la igualdad normalizada exigida.
+El caso \texttt{BOE-A-2024-27493} se conserva como ejemplo diagnóstico,
+sin convertir esa semejanza en un nuevo TP. Parte del resultado refleja
+la elección previa de un matching exacto y conservador; no se aplicó una
+normalización más flexible después de ver los resultados.
+
+\subsection{Lectura completa de un caso ilustrativo}
+La tabla~\ref{tab:caso-hipodromo} sigue un único caso real del holdout desde
+la referencia hasta el resultado. Su función es explicar la mecánica de una
+fila de evaluación; no sustituye los recuentos agregados ni añade una
+correspondencia posterior.
+
+\begin{table}[htbp]
+\centering
+\small
+\renewcommand{\arraystretch}{1.2}
+\begin{tabular}{L{2.4cm} L{10.0cm}}
+\hline
+Paso & \texttt{BOE-A-2024-27493} \\
+\hline
+Referencia humana & Activo «Instalación fotovoltaica Hipódromo» \\
+Predicción & Activo «Hipódromo» \\
+Regla de matching & La normalización exacta conserva la diferencia del descriptor; los nombres no son iguales bajo la regla congelada \\
+Resultado primario & En el nivel de activos, una omisión (FN) para la referencia y una predicción sin pareja (FP); no se crea un TP por semejanza semántica \\
+\hline
+\end{tabular}
+\caption[Caso ilustrativo de referencia, predicción y matching]{Ejemplo real
+del holdout que muestra cómo una variante nominal afecta al resultado bajo la
+coincidencia exacta. El caso ya forma parte de los totales primarios y se
+presenta como diagnóstico post-hoc.}
+\label{tab:caso-hipodromo}
+\end{table}
+
+\subsection{Eventos: activos no emparejados y divisiones}
+De los 17 FN y 25 FP de eventos, 15 FN y 20 FP se relacionan con algún
+activo humano sin emparejamiento. Otros dos FN y cuatro FP corresponden a divisiones
+del evento aunque todos sus activos hubieran emparejado. El FP restante
+procede del alcance incorrecto. No se observaron fusiones de eventos en el
+diagnóstico aprobado.
+
+En \texttt{BOE-A-2024-11661}, dos activos emparejan, pero un evento humano
+con ambos aparece como dos eventos predichos de un activo. El resultado
+del evento es cero TP, dos FP y un FN. La identificación de las plantas
+no satisface por sí sola la igualdad del conjunto del evento.
+Las divisiones que coinciden con variantes nominales se clasificaron por
+el motivo prioritario; no se suman de nuevo como causas independientes.
+
+\subsection{Localizaciones y dependencia del evento}
+De los 68 FN de localizaciones, 61 quedan bajo un evento padre sin emparejamiento;
+de los 95 FP, 92 se encuentran en esa situación. Dentro de eventos
+emparejados permanecen siete FN y tres FP. Esta separación muestra cuánto
+condiciona la jerarquía la posibilidad de comparar nombres locales.
+
+Una localización repetida en varios eventos predichos puede producir varias
+filas sin correspondencia sin que cada una represente un topónimo inventado.
+Dentro de eventos emparejados también aparecen discrepancias de nombre
+textual, provincias presentes solo como pistas y localizaciones adicionales
+respecto a la referencia. La propagación no explica automáticamente todos
+los errores ni convierte las menciones en correctas fuera de las reglas.
+
+\subsection{Relaciones entre actuación y activo}
+Todos los FP y FN de relaciones pertenecen a actuaciones sin emparejamiento.
+En algunos concurre también un activo no emparejado. Son dependencias del
+mismo error relacional y no causas independientes que puedan sumarse.
+
+Para la única actuación actual emparejada, el conjunto de activos afectados
+coincide exactamente: 1/1. Este hecho es compatible con el bajo rendimiento
+primario de pares de la tabla~\ref{tab:metricas-entidades}. El denominador
+condicionado es uno; no permite describir la atribución como un componente
+perfecto o validado de forma general.
+
+\subsection{Error terminal conservado}
+El error de \texttt{BOE-B-2024-32569} ocurrió en la validación documental
+final (\path{document_validation}). Se registró como
+\path{DocumentExtractionValidationError}, con ocho problemas nominales de
+denominaciones no identificadas como plantas de generación y código de
+salida 4. El intento y sus salidas fallidas se conservaron. No se utilizó
+ese contenido para sustituir una predicción ausente.
+
+El uso reportado registra dos peticiones y 50.801 tokens en total.
+Es el uso conservado por el registro de ejecución, no un recuento independiente de todas
+las llamadas HTTP ni una repetición posterior del documento.
+La referencia era no relevante: el fallo aporta una ausencia en clasificación documental,
+pero ningún TP, FP o FN de entidades, porque no hay entidades positivas
+humanas y la predicción fallida no se puntúa como una extracción válida.
+
+\subsection{Casos representativos y enlace con la discusión}
+Los ejemplos desarrollados se seleccionaron del diagnóstico existente por
+mostrar mecanismos distintos: Hipódromo para variantes de alias;
+\texttt{BOE-A-2024-11661} para división de un evento con activos emparejados;
+\texttt{BOE-A-2024-2440} para evidencia y canonicalización; y
+\texttt{BOE-A-2026-7540} para distinguir atributos correctos de soporte
+completo de evidencia. No constituyen una muestra adicional ni una búsqueda
+de casos favorables tras modificar las reglas.
+
+En conjunto, el experimento muestra alto acierto documental en este holdout,
+recuperación parcial de activos, eventos y localizaciones y un resultado
+primario muy bajo en actuaciones. La consistencia de atributos se limita
+a entidades emparejadas. El diagnóstico sitúa parte de las discrepancias
+en la jerarquía y en la interacción entre extracción, representación,
+canonicalización y matching estricto. No existe una sola exactitud que
+resuma honestamente esas tareas. El capítulo~\ref{ch:discusion} desarrollará
+su interpretación y sus límites, sin convertir estas observaciones
+posteriores en resultados primarios nuevos.

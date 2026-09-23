@@ -1,0 +1,46 @@
+% Relaciones verificadas: exposición 479, desarrollo 140, W14 104 y holdout 48.
+\begin{tikzpicture}
+\node[tfm heading, text width=12.4cm] (title) at (0,0)
+  {PUBLICACIONES DEL BOE: TRES FINALIDADES};
+
+\node[tfm heading, font=\fontsize{8}{9}\selectfont\bfseries,
+  text width=1.9cm] at (-5.55,-1.45) {DESARROLLO};
+\node[tfm data, minimum width=8.0cm, minimum height=1.90cm]
+  (exposure) at (0,-1.45) {};
+\node[tfm accent, text width=2.8cm] (development) at (-2.25,-1.45)
+  {Desarrollo congelado\\140 BOE};
+\node[tfm note, text width=3.7cm] at (1.75,-1.45)
+  {Registro de exposición: 479 BOE\\
+   Desarrollo o auditoría; no entrenamiento};
+\node[tfm note, text width=2.0cm] at (5.1,-1.45)
+  {$140 \subset 479$\\No se suman};
+
+\node[tfm heading, font=\fontsize{8}{9}\selectfont\bfseries,
+  text width=1.9cm] at (-5.55,-3.35) {PRODUCTO};
+\node[tfm data, text width=2.2cm] (anchor) at (-3.55,-3.35)
+  {Ancla del producto\\48 BOE};
+\node[tfm data, text width=2.2cm] (history) at (-0.75,-3.35)
+  {Histórico\\56 BOE};
+\node[tfm accent, text width=2.35cm] (product) at (2.15,-3.35)
+  {Corpus final del producto\\104 BOE};
+\node[tfm data, text width=2.55cm] (app) at (5.15,-3.35)
+  {Silver $\rightarrow$ Gold\\$\rightarrow$ Streamlit};
+\draw[tfm flow] (anchor.east) -- node[tfm note, above] {+} (history.west);
+\draw[tfm flow] (history.east) -- (product.west);
+\draw[tfm flow] (product.east) -- (app.west);
+
+\node[tfm heading, font=\fontsize{8}{9}\selectfont\bfseries,
+  text width=1.9cm] at (-5.55,-5.35) {EVALUACIÓN};
+\node[tfm accent, text width=3.0cm] (holdout) at (-3.0,-5.35)
+  {Holdout final\\48 BOE reservados};
+\node[tfm data, text width=3.2cm] (evaluation) at (0.8,-5.35)
+  {Referencia + predicciones\\+ evaluación offline};
+\node[tfm note, text width=3.4cm] at (4.75,-5.35)
+  {48 ancla del producto $\ne$ 48 holdout\\
+   Solapamiento cero con 479 y con 104};
+\draw[tfm flow] (holdout.east) -- (evaluation.west);
+
+\node[tfm note, text width=12.0cm] at (0,-7.0)
+  {El holdout no ajusta reglas y no entra en Silver, Gold ni Streamlit.
+   Desarrollo, producto y evaluación cumplen funciones distintas.};
+\end{tikzpicture}

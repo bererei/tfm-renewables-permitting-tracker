@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "renewables-permitting"
+version = "0.1.0"
+description = "Renewables permitting tracker based on BOE publications"
+requires-python = ">=3.14,<3.15"
+dependencies = [
+    "numpy",
+    "pandas",
+    "requests",
+    "pyarrow",
+    "pydantic-ai",
+    "streamlit>=1.35,<2",
+    "folium>=0.20.0",
+    "streamlit-folium>=0.26.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ipykernel",
+    "pytest",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

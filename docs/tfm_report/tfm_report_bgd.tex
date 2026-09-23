@@ -1,0 +1,92 @@
+% -------------------------------
+% CIDaeN: Plantilla para la elaboración del TFM. Versión 0.0
+%
+% Luis de la Ossa. UCLM
+%
+% Compilar con XeLaTeX
+% Política pública de compilación: COMPILACION.md.
+% -------------------------------
+\documentclass[12pt, a4paper, openany]{book}
+
+% -------------------------------
+% Información y opciones del documento. Debe editarse.
+% -------------------------------
+\input{include/opciones}
+
+% -------------------------------
+% Configuración del documento, paquetes, etc.
+% -------------------------------
+\input{include/configuracion}
+\input{include/redaccion}
+\input{include/diagramas}
+
+% Documento
+\begin{document}
+\hypersetup{pageanchor=true}
+\frontmatter
+
+% -------------------------------
+% Portada y título
+% -------------------------------
+% Fuente  de la portada
+\setmainfont[Ligatures={NoRequired,NoCommon,NoContextual}]{Carlito}
+\input{elements/portada}
+
+% -------------------------------
+% Fuente del documento.
+% -------------------------------
+\setmainfont[Ligatures={NoRequired,NoCommon,NoContextual}]{Carlito}
+
+% -------------------------------
+% Preámbulo
+% -------------------------------
+\input{elements/preambulo}
+
+% -------------------------------
+% Índices y tablas
+% -------------------------------
+\tableofcontents	% Índice
+\listoffigures
+\listoftables		% Índice de tablas
+\cleardoublepage
+
+% -------------------------------
+% Documento
+% -------------------------------
+\mainmatter
+% Estilo de página
+\pagestyle{fancy}
+
+% ch1--ch3 se conservan como ejemplos históricos, sin incluir.
+\input{chapters/01_introduccion}
+\input{chapters/02_contexto}
+\input{chapters/03_datos}
+\input{chapters/04_metodologia}
+\input{chapters/05_aplicacion}
+\input{chapters/06_evaluacion}
+\input{chapters/07_resultados}
+\input{chapters/08_discusion}
+\input{chapters/09_conclusiones}
+
+% -------------------------------
+% Apéndices
+% -------------------------------
+\appendix
+\input{chapters/anexos}
+
+\cleardoublepage
+\thispagestyle{empty}
+
+
+% -------------------------------
+% Bibliografía
+% -------------------------------
+\bibliographystyle{apalike}
+\phantomsection
+\addcontentsline{toc}{chapter}{Referencia bibliográfica}
+\begingroup
+\raggedright
+\bibliography{bib/ref}
+\endgroup
+
+\end{document}
