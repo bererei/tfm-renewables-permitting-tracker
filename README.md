@@ -6,9 +6,8 @@ Master Final Project focused on building an automated renewable energy permittin
 Este repositorio contiene la distribución pública preparada para la versión
 académica final **`v1.0.0`** del TFM. Su rama pública principal es **`main`**.
 La tag y la release `v1.0.0` todavía no existen; se crearán tras la revisión y
-el primer commit público. El remoto previsto es
-<https://github.com/bererei/tfm-renewables-permitting-tracker>, que tampoco se
-presenta aquí como disponible hasta su creación.
+el commit final. El repositorio público está disponible en
+<https://github.com/bererei/tfm-renewables-permitting-tracker>.
 
 La memoria describe conceptualmente `v1.0.0` y quedará congelada con esa
 versión. Evoluciones posteriores podrán publicarse como `v1.1.0`, `v2.0.0` u
@@ -42,7 +41,7 @@ tests focales se detallan en [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md).
 El sistema evaluado permanece identificado por el ref privado histórico
 `tfm-final` y su commit científico; estos identificadores no pertenecen a la
 historia Git pública ni son resolubles desde ella. Python 3.14 corresponde
-únicamente a la versión posterior de entrega y futuro despliegue.
+únicamente a la versión posterior de entrega y al despliegue público.
 
 ## Pipeline ejecutable
 
@@ -99,14 +98,19 @@ Las nuevas llamadas al modelo requieren `--execute-model`; un cambio semántico
 INE exige confirmación explícita antes del rebuild. Usa `--dry-run` para
 inspeccionar el plan sin red, modelo, publicación ni downstream.
 
-## Aplicación Streamlit local y preparada para despliegue
+## Aplicación Streamlit pública y ejecución local
 
-La aplicación de solo lectura fue desarrollada y validada localmente. Esta
-distribución queda preparada para un futuro despliegue en Streamlit Community
-Cloud desde `main`, con `streamlit_app.py`, Python 3.14 y las dependencias
-fijadas en `uv.lock`; actualmente no se afirma que exista un despliegue público
-operativo. Este runtime de entrega es posterior a la evaluación. El sistema
-evaluado se identifica mediante el commit privado histórico
+La aplicación de solo lectura está desplegada desde la rama pública `main` en:
+
+<https://tfm-renewables-permitting-tracker.streamlit.app/>
+
+El despliegue usa `streamlit_app.py`, Python 3.14 y las dependencias fijadas en
+`uv.lock`. Tras publicarlo se comprobó la carga del Gold final, los 86
+proyectos, los 80 BOE relevantes, los filtros, el mapa, las fichas, la
+cronología y los enlaces BOE. Este smoke valida el producto desplegado, no es
+una evaluación experimental del sistema ni una evaluación con usuarios. El
+runtime de entrega es posterior a la evaluación. El sistema evaluado se
+identifica mediante el commit privado histórico
 `282de815bea4e248bdcba2c655e3ee078cb58a49`, no resoluble desde este
 repositorio público.
 

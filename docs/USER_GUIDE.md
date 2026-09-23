@@ -451,12 +451,20 @@ Ambos valores deben proceder del mismo artefacto validado. La ausencia o
 invalidez del paquete falla de forma cerrada y no activa ningún fallback a
 `runs/`. Nunca despliegues directamente desde `runs/`.
 
-La aplicación fue validada localmente y esta distribución queda preparada para
-un futuro despliegue en Streamlit Community Cloud desde `main`, con el
-entrypoint `streamlit_app.py`, Python 3.14 y las dependencias de `uv.lock`.
-Actualmente no se afirma que exista una URL pública operativa. El despliegue no
-necesitará `runs/`, artefactos de evaluación ni secrets obligatorios. El email
-de reporting seguirá siendo una configuración opcional del entorno.
+La aplicación está desplegada desde la rama `main` del repositorio público, con
+el entrypoint `streamlit_app.py`, Python 3.14 y las dependencias de `uv.lock`:
+
+<https://tfm-renewables-permitting-tracker.streamlit.app/>
+
+El smoke público posterior al despliegue confirmó la carga del Resumen, los 86
+proyectos, los 80 BOE relevantes, los filtros, el mapa, la ficha de Don Rodrigo
+II, su cronología y los enlaces BOE, sin errores visibles ni exposición de
+rutas privadas. Esta comprobación valida el producto desplegado y no constituye
+una evaluación experimental del sistema ni una evaluación con usuarios. La
+ejecución local descrita al inicio de esta sección sigue siendo la alternativa
+reproducible. El despliegue no necesita `runs/`, artefactos de evaluación ni
+secrets obligatorios; el email de reporting es opcional y, sin configurarlo, el
+control queda deshabilitado sin impedir el uso de la aplicación.
 
 Su downstream ID esperado está fijado en la aplicación. Para abrir otro
 snapshot validado, configura **las dos** variables antes de iniciar Streamlit:
@@ -2264,7 +2272,7 @@ unset RENEWABLES_GOLD_DIR RENEWABLES_EXPECTED_DOWNSTREAM_ID
 
 ## 16. Estado de las funciones futuras
 
-**Disponible localmente:** aplicación Streamlit read-only sobre las cuatro tablas Gold,
+**Disponible públicamente y en local:** aplicación Streamlit read-only sobre las cuatro tablas Gold,
 con Resumen como página principal, dos KPIs, mapa administrativo, dos gráficos
 temporales en paralelo y un gráfico administrativo, todos los visuales
 aplicables como filtros, catálogo territorial completo y configurable, ficha
@@ -2272,11 +2280,13 @@ con mapa y cronología agrupada, evidencia, reporte lateral `mailto:`,
 metodología y auditoría Gold local. La
 [guía técnica de Streamlit](STREAMLIT_CODE_GUIDE.md) documenta su arquitectura,
 extensiones seguras y tests. El seguimiento administrativo está implementado y
-preparado para consulta; todavía no se afirma que exista un despliegue público.
+disponible en
+<https://tfm-renewables-permitting-tracker.streamlit.app/>.
 
-**Entrega preparada:** la aplicación read-only y su portabilidad desde un clon
-limpio están validadas localmente. El futuro despliegue deberá partir de la
-distribución pública `v1.0.0` en `main`. El sistema científico evaluado permanece
+**Entrega desplegada:** la aplicación read-only y su portabilidad desde un clon
+limpio están validadas localmente, y el despliegue público desde `main` superó
+el smoke funcional. La distribución académica final se identificará como
+`v1.0.0` después del commit final. El sistema científico evaluado permanece
 identificado por un ref y un commit históricos del repositorio privado; estos
 no se presentan como refs públicos.
 

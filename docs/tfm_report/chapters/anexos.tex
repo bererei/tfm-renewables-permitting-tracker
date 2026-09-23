@@ -31,14 +31,21 @@ runs/final-holdout-v2-primary-001
 runs/final-holdout-v2-evaluation-primary-001
 \end{lstlisting}
 
-La distribución académica prevista como \texttt{v1.0.0} utilizará \texttt{main}
-como rama pública principal. Su remoto previsto, aún no creado, es:
+La distribución académica final se identificará como \texttt{v1.0.0} y utiliza
+\texttt{main} como rama pública principal. El repositorio público es:
 \begin{center}
 \url{https://github.com/bererei/tfm-renewables-permitting-tracker}
 \end{center}
-No se afirma que el repositorio o la release existan todavía. La aplicación está validada
-localmente y preparada para un futuro despliegue en Streamlit Community Cloud;
-en este estado no se presenta ninguna URL de la aplicación como operativa. Los
+La aplicación pública está disponible en:
+\begin{center}
+\url{https://tfm-renewables-permitting-tracker.streamlit.app/}
+\end{center}
+El repositorio y el despliegue existen y están operativos. Tras el despliegue se
+comprobaron la carga del Gold final, los indicadores, los filtros, el mapa, las
+fichas, la cronología y los enlaces BOE. Este smoke verifica el producto
+publicado y no constituye una evaluación experimental ni una evaluación con
+usuarios. La tag y la release \texttt{v1.0.0} todavía no existen: se crearán
+después del commit final de esta distribución. Los
 directorios operativos bajo \path{runs/} no se versionan en
 Git ni forman parte de los entregables o de la distribución pública del TFM:
 corresponden a artefactos de ejecución y trabajo. Las identidades Git privadas,
@@ -47,7 +54,7 @@ históricos internos no resolubles desde la nueva historia pública. Las huellas
 rutas lógicas, manifiestos y comandos registrados en este anexo documentan la
 procedencia del experimento en el entorno privado de desarrollo. Su inclusión
 no implica que los artefactos bajo \path{runs/} se distribuyan. Cuando exista,
-\texttt{v1.0.0} será la referencia pública principal del entregable, sin
+la tag \texttt{v1.0.0} será la referencia pública principal del entregable, sin
 sustituir esas identidades científicas históricas.
 
 \section{Comprobaciones cerradas}

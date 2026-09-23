@@ -57,10 +57,13 @@ Los identificadores Git `282de815…`, `2c0632b…`, `7108d5d4…`, `5871411…`
 desarrollo. Se conservan únicamente por su función de provenance científica:
 sistema evaluado, evaluador definitivo, freeze del núcleo de datos y estados de
 dos auditorías del corpus. No son commits de la nueva historia pública, no son
-resolubles desde este repositorio y no deben interpretarse como enlaces. Cuando
-exista, `v1.0.0` será la referencia pública principal del entregable; esos SHA
-seguirán identificando exclusivamente los estados privados que participaron en
-la evidencia científica histórica.
+resolubles desde este repositorio y no deben interpretarse como enlaces. El
+repositorio público está disponible en
+<https://github.com/bererei/tfm-renewables-permitting-tracker>, con `main` como
+rama principal. La versión académica final se identificará como `v1.0.0`; su
+tag y release se crearán después del commit final. Los SHA anteriores seguirán
+identificando exclusivamente los estados privados que participaron en la
+evidencia científica histórica.
 
 ## Evidencia científica publicada
 
