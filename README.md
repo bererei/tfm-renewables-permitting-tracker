@@ -1,16 +1,24 @@
 # tfm-renewables-permitting-tracker
-Master Final Project focused on building an automated renewable energy permitting tracker. The project uses NLP, information extraction and entity resolution to reconstruct the administrative lifecycle of renewable energy projects from official public records (BOE, Boletín Oficial del Estado, España).
+This public repository contains a Master's Thesis (TFM) focused on building a
+renewable energy permitting tracker. The project applies natural language
+processing (NLP), specifically large language model (LLM)-based structured
+information extraction, to documents published in Spain's Official State
+Gazette (BOE). The evaluated implementation uses Gemini 2.5 Flash through
+Pydantic AI. The LLM output then passes through deterministic stages: Pydantic
+schema validation, canonicalization, normalization and flattening. Downstream
+processing continues with location resolution, project grouping and Gold
+materialization, with human review and versioned corrections where required.
 
 ## Estado de la distribución pública
 
-Este repositorio contiene la distribución pública preparada para la versión
-académica final **`v1.0.0`** del TFM. Su rama pública principal es **`main`**.
-La tag y la release `v1.0.0` todavía no existen; se crearán tras la revisión y
-el commit final. El repositorio público está disponible en
+Este repositorio contiene la versión académica pública **`v1.0.0`** del TFM.
+Su rama pública principal es **`main`**. La etiqueta Git `v1.0.0` identifica el
+estado del código, la documentación y los artefactos públicos de la entrega. El
+repositorio público está disponible en
 <https://github.com/bererei/tfm-renewables-permitting-tracker>.
 
-La memoria describe conceptualmente `v1.0.0` y quedará congelada con esa
-versión. Evoluciones posteriores podrán publicarse como `v1.1.0`, `v2.0.0` u
+La memoria corresponde a `v1.0.0` y queda congelada con esa versión.
+Evoluciones posteriores podrán publicarse como `v1.1.0`, `v2.0.0` u
 otras versiones sin alterar la memoria académica.
 
 
@@ -85,7 +93,7 @@ read-only de Streamlit consume exclusivamente sus cuatro tablas Gold:
 `projects`, `project_events`, `project_locations` y
 `project_location_sources`.
 
-La interfaz utilizará **“Territorio”** como filtro y **“Ámbito territorial del
+La interfaz utiliza **“Territorio”** como filtro y **“Ámbito territorial del
 proyecto”** en la ficha. Nota metodológica aprobada:
 
 > Incluye los territorios asociados en las publicaciones a la planta de
@@ -221,11 +229,15 @@ del sistema evaluado y el evaluador conservan identificadores privados
 históricos de provenance, descritos en [la documentación](docs/README.md); no
 son commits de este repositorio público.
 
+Las métricas evalúan conjuntamente la extracción documental con Gemini, la
+canonicalización y la validación documental; no aíslan el rendimiento del LLM
+ni evalúan la aplicación Streamlit.
+
 Las fuentes canónicas de la memoria están en `docs/tfm_report/`. Se compilan
 sin firma privada siguiendo
 [`docs/tfm_report/COMPILACION.md`](docs/tfm_report/COMPILACION.md). El PDF
-histórico no forma parte de la distribución y el PDF público se generará para
-la release `v1.0.0`.
+histórico no forma parte de la distribución; el PDF público debe generarse desde
+`v1.0.0`, sin firma manuscrita ni DNI.
 
 Los directorios `runs/` no se distribuyen. Las rutas `runs/...` que aparecen en
 informes científicos son identificadores históricos internos, no enlaces ni
